@@ -1,0 +1,660 @@
+// GenBioCa GRC and KPI Compliance Management Platform
+// Prisma schema - PostgreSQL, UUID primary keys, snake_case columns/tables.
+//
+// Design notes:
+// - Tenant-owned tables carry client_id and are always queried scoped by it.
+// - Global catalog tables (frameworks, controls, checkpoints, permissions) omit client_id.
+// - Structural foreign keys are enforced by Prisma relations. "Actor"/soft references
+//   (owner_id, reviewer_id, uploaded_by, ...) are indexed scalar columns validated in the
+//   service layer, to keep the schema clean (see docs/database_schema.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------- tenants
+
+model Client {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String   @unique
+  status        String   @default("active")
+  contact_email String?
+  settings      Json     @default("{}")
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  users                 User[]
+  roles                 Role[]
+  user_roles            UserRole[]
+  role_permissions      RolePermission[]
+  departments           Department[]
+  employees             Employee[]
+  policies              Policy[]
+  policy_register       PolicyRegister[]
+  kpis                  Kpi[]
+  kpi_targets           KpiTarget[]
+  kpi_actuals           KpiActual[]
+  kpi_framework_mapping KpiFrameworkMapping[]
+  evidence_documents    EvidenceDocument[]
+  evidence_links        EvidenceLink[]
+  gaps                  Gap[]
+  capa                  Capa[]
+  risks                 Risk[]
+  lookups               Lookup[]
+  audit_trail           AuditTrail[]
+
+  @@index([status])
+  @@map("clients")
+}
+
+// -------------------------------------------------------------- users, roles, access
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  client_id         String    @db.Uuid
+  email             String
+  password_hash     String
+  full_name         String
+  status            String    @default("active")
+  is_active         Boolean   @default(true)
+  is_superuser      Boolean   @default(false)
+  is_platform_admin Boolean   @default(false)
+  is_hr             Boolean   @default(false)
+  last_login_at     DateTime? @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @updatedAt @db.Timestamptz(6)
+
+  client     Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  user_roles UserRole[]
+  employee   Employee?
+
+  @@unique([client_id, email])
+  @@index([client_id])
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  client_id   String   @db.Uuid
+  name        String
+  description String?
+  status      String   @default("active")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  client           Client           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  user_roles       UserRole[]
+  role_permissions RolePermission[]
+
+  @@unique([client_id, name])
+  @@index([client_id])
+  @@index([status])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  status      String   @default("active")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  role_permissions RolePermission[]
+
+  @@index([status])
+  @@map("permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid()) @db.Uuid
+  client_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  role_id    String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  client Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, role_id])
+  @@index([client_id])
+  @@index([role_id])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  client_id     String   @db.Uuid
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  client     Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([role_id, permission_id])
+  @@index([client_id])
+  @@index([permission_id])
+  @@map("role_permissions")
+}
+
+// --------------------------------------------------------- departments and employees
+
+model Department {
+  id                   String   @id @default(uuid()) @db.Uuid
+  client_id            String   @db.Uuid
+  code                 String
+  name                 String
+  description          String?
+  parent_department_id String?  @db.Uuid
+  status               String   @default("active")
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @updatedAt @db.Timestamptz(6)
+
+  client    Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([client_id, code])
+  @@index([client_id])
+  @@index([status])
+  @@index([parent_department_id])
+  @@map("departments")
+}
+
+model Employee {
+  id              String    @id @default(uuid()) @db.Uuid
+  client_id       String    @db.Uuid
+  department_id   String?   @db.Uuid
+  manager_id      String?   @db.Uuid
+  user_id         String?   @unique @db.Uuid
+  employee_code   String
+  full_name       String
+  email           String?
+  employment_type String?
+  designation     String?
+  joining_date    DateTime? @db.Date
+  status          String    @default("active")
+  exit_date       DateTime? @db.Date
+  exit_reason     String? // sensitive HR data - masked for non-HR readers
+  current_work    String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(6)
+
+  client     Client      @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [department_id], references: [id])
+  manager    Employee?   @relation("EmployeeManager", fields: [manager_id], references: [id])
+  reports    Employee[]  @relation("EmployeeManager")
+  user       User?       @relation(fields: [user_id], references: [id])
+
+  @@unique([client_id, employee_code])
+  @@index([client_id])
+  @@index([department_id])
+  @@index([manager_id])
+  @@index([status])
+  @@map("employees")
+}
+
+// ----------------------------------------------- frameworks, controls, checkpoints (global)
+
+model Framework {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String
+  name        String
+  version     String
+  description String?
+  status      String   @default("active")
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  controls              Control[]
+  checkpoints           Checkpoint[]
+  kpi_framework_mapping KpiFrameworkMapping[]
+
+  @@unique([code, version])
+  @@index([status])
+  @@map("frameworks")
+}
+
+model Control {
+  id           String   @id @default(uuid()) @db.Uuid
+  framework_id String   @db.Uuid
+  control_code String
+  title        String
+  description  String?
+  status       String   @default("active")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  framework             Framework             @relation(fields: [framework_id], references: [id], onDelete: Cascade)
+  checkpoints           Checkpoint[]
+  kpi_framework_mapping KpiFrameworkMapping[]
+
+  @@unique([framework_id, control_code])
+  @@index([framework_id])
+  @@index([status])
+  @@map("controls")
+}
+
+model Checkpoint {
+  id                String   @id @default(uuid()) @db.Uuid
+  framework_id      String   @db.Uuid
+  control_id        String   @db.Uuid
+  checkpoint_code   String
+  title             String
+  guidance          String?
+  evidence_required Boolean  @default(true)
+  status            String   @default("active")
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @updatedAt @db.Timestamptz(6)
+
+  framework Framework @relation(fields: [framework_id], references: [id], onDelete: Cascade)
+  control   Control   @relation(fields: [control_id], references: [id], onDelete: Cascade)
+
+  @@unique([control_id, checkpoint_code])
+  @@index([framework_id])
+  @@index([control_id])
+  @@index([status])
+  @@map("checkpoints")
+}
+
+// ---------------------------------------------------- policies and policy register
+
+model Policy {
+  id            String   @id @default(uuid()) @db.Uuid
+  client_id     String   @db.Uuid
+  department_id String?  @db.Uuid
+  owner_id      String?  @db.Uuid
+  policy_code   String
+  title         String
+  description   String?
+  use_in_scope  Boolean  @default(true)
+  status        String   @default("draft")
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  client          Client           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  policy_register PolicyRegister[]
+
+  @@unique([client_id, policy_code])
+  @@index([client_id])
+  @@index([department_id])
+  @@index([status])
+  @@map("policies")
+}
+
+model PolicyRegister {
+  id                   String    @id @default(uuid()) @db.Uuid
+  client_id            String    @db.Uuid
+  policy_id            String?   @db.Uuid
+  policy_code          String
+  policy_name          String
+  department_id        String?   @db.Uuid
+  owner_id             String?   @db.Uuid
+  linked_framework_id  String?   @db.Uuid
+  linked_control_id    String?   @db.Uuid
+  linked_kpi_id        String?   @db.Uuid
+  version              String    @default("1.0")
+  effective_date       DateTime? @db.Date
+  next_review_date     DateTime? @db.Date
+  approval_status      String    @default("pending")
+  review_status        String    @default("pending")
+  evidence_status      String    @default("pending")
+  uploaded_document_id String?   @db.Uuid
+  reviewer_id          String?   @db.Uuid
+  reviewed_at          DateTime? @db.Timestamptz(6)
+  approved_at          DateTime? @db.Timestamptz(6)
+  remarks              String?
+  status               String    @default("draft")
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @updatedAt @db.Timestamptz(6)
+
+  client Client  @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  policy Policy? @relation(fields: [policy_id], references: [id])
+
+  @@unique([client_id, policy_code, version])
+  @@index([client_id])
+  @@index([status])
+  @@index([approval_status])
+  @@map("policy_register")
+}
+
+// --------------------------------------------------------------- KPI master + workflow
+
+model Kpi {
+  id                                String   @id @default(uuid()) @db.Uuid
+  client_id                         String   @db.Uuid
+  kpi_code                          String
+  kpi_name                          String
+  description                       String?
+  unit                              String?
+  direction                         String   @default("higher_is_better")
+  frequency                         String   @default("monthly")
+  default_data_source               String?
+  owner_suggestion                  String?
+  source                            String?
+  owner_text                        String?
+  owner_id                          String?  @db.Uuid
+  department_id                     String?  @db.Uuid
+  use_in_scope                      Boolean  @default(true)
+  compliance_framework_mapping_text String?
+  status                            String   @default("active")
+  created_at                        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                        DateTime @updatedAt @db.Timestamptz(6)
+
+  client                Client                @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  kpi_targets           KpiTarget[]
+  kpi_actuals           KpiActual[]
+  kpi_framework_mapping KpiFrameworkMapping[]
+  risks                 Risk[]
+
+  @@unique([client_id, kpi_code])
+  @@index([client_id])
+  @@index([status])
+  @@index([kpi_code])
+  @@index([department_id])
+  @@map("kpis")
+}
+
+model KpiTarget {
+  id              String    @id @default(uuid()) @db.Uuid
+  client_id       String    @db.Uuid
+  kpi_id          String    @db.Uuid
+  target_value    Decimal   @db.Decimal(18, 4)
+  target_period   String?
+  target_source   String?
+  frequency       String?
+  enabled         Boolean   @default(true)
+  owner_id        String?   @db.Uuid
+  department_id   String?   @db.Uuid
+  approval_status String    @default("pending")
+  effective_from  DateTime? @db.Date
+  effective_to    DateTime? @db.Date
+  status          String    @default("active")
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(6)
+
+  client      Client      @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  kpi         Kpi         @relation(fields: [kpi_id], references: [id], onDelete: Cascade)
+  kpi_actuals KpiActual[]
+  risks       Risk[]
+
+  @@index([client_id])
+  @@index([kpi_id])
+  @@index([status])
+  @@map("kpi_targets")
+}
+
+model KpiActual {
+  id                String    @id @default(uuid()) @db.Uuid
+  client_id         String    @db.Uuid
+  kpi_id            String    @db.Uuid
+  kpi_target_id     String?   @db.Uuid
+  period            String
+  target_value      Decimal   @db.Decimal(18, 4)
+  actual_value      Decimal   @db.Decimal(18, 4)
+  variance          Decimal   @db.Decimal(18, 4)
+  rag_status        String    @default("amber")
+  approval_status   String    @default("pending")
+  evidence_required Boolean   @default(true)
+  comments          String?
+  submitted_by      String?   @db.Uuid
+  reviewed_by       String?   @db.Uuid
+  reviewed_at       DateTime? @db.Timestamptz(6)
+  status            String    @default("open")
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @updatedAt @db.Timestamptz(6)
+
+  client     Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  kpi        Kpi        @relation(fields: [kpi_id], references: [id], onDelete: Cascade)
+  kpi_target KpiTarget? @relation(fields: [kpi_target_id], references: [id])
+  risks      Risk[]
+
+  @@unique([client_id, kpi_id, period])
+  @@index([client_id])
+  @@index([kpi_id])
+  @@index([approval_status])
+  @@index([status])
+  @@map("kpi_actuals")
+}
+
+model KpiFrameworkMapping {
+  id                String   @id @default(uuid()) @db.Uuid
+  client_id         String   @db.Uuid
+  kpi_id            String   @db.Uuid
+  framework_id      String   @db.Uuid
+  control_id        String?  @db.Uuid
+  policy_id         String?  @db.Uuid
+  rule_text         String?
+  evidence_required Boolean  @default(true)
+  mapping_status    String   @default("active")
+  status            String   @default("active")
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @updatedAt @db.Timestamptz(6)
+
+  client    Client    @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  kpi       Kpi       @relation(fields: [kpi_id], references: [id], onDelete: Cascade)
+  framework Framework @relation(fields: [framework_id], references: [id], onDelete: Cascade)
+  control   Control?  @relation(fields: [control_id], references: [id])
+
+  @@index([client_id])
+  @@index([kpi_id])
+  @@index([framework_id])
+  @@index([status])
+  @@map("kpi_framework_mapping")
+}
+
+// ------------------------------------------------------------------ evidence
+
+model EvidenceDocument {
+  id                 String    @id @default(uuid()) @db.Uuid
+  client_id          String    @db.Uuid
+  evidence_code      String
+  title              String
+  description        String?
+  evidence_type      String?
+  file_name          String
+  original_file_name String
+  file_path          String
+  file_size          Int
+  mime_type          String?
+  file_hash          String?
+  uploaded_by        String?   @db.Uuid
+  owner_id           String?   @db.Uuid
+  approval_status    String    @default("pending")
+  reviewer_id        String?   @db.Uuid
+  reviewed_at        DateTime? @db.Timestamptz(6)
+  rejection_reason   String?
+  remarks            String?
+  status             String    @default("active")
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(6)
+
+  client         Client         @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  evidence_links EvidenceLink[]
+
+  @@unique([client_id, evidence_code])
+  @@index([client_id])
+  @@index([approval_status])
+  @@index([status])
+  @@map("evidence_documents")
+}
+
+model EvidenceLink {
+  id                   String   @id @default(uuid()) @db.Uuid
+  client_id            String   @db.Uuid
+  evidence_document_id String   @db.Uuid
+  linked_entity_type   String
+  linked_entity_id     String   @db.Uuid
+  link_reason          String?
+  status               String   @default("active")
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @updatedAt @db.Timestamptz(6)
+
+  client            Client           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  evidence_document EvidenceDocument @relation(fields: [evidence_document_id], references: [id], onDelete: Cascade)
+
+  @@unique([client_id, evidence_document_id, linked_entity_type, linked_entity_id])
+  @@index([client_id])
+  @@index([linked_entity_type, linked_entity_id])
+  @@index([status])
+  @@map("evidence_links")
+}
+
+// -------------------------------------------------------------------- gaps and CAPA
+
+model Gap {
+  id            String    @id @default(uuid()) @db.Uuid
+  client_id     String    @db.Uuid
+  gap_code      String
+  source_type   String?
+  source_id     String?   @db.Uuid
+  title         String
+  description   String?
+  severity      String    @default("medium")
+  department_id String?   @db.Uuid
+  owner_id      String?   @db.Uuid
+  due_date      DateTime? @db.Date
+  closed_at     DateTime? @db.Timestamptz(6)
+  status        String    @default("open")
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(6)
+
+  client Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  capa   Capa[]
+
+  @@unique([client_id, gap_code])
+  @@index([client_id])
+  @@index([status])
+  @@index([department_id])
+  @@map("gaps")
+}
+
+model Capa {
+  id                        String    @id @default(uuid()) @db.Uuid
+  client_id                 String    @db.Uuid
+  capa_code                 String
+  gap_id                    String?   @db.Uuid
+  title                     String
+  root_cause                String?
+  corrective_action         String?
+  preventive_action         String?
+  owner_id                  String?   @db.Uuid
+  due_date                  DateTime? @db.Date
+  closure_evidence_required Boolean   @default(true)
+  closure_evidence_status   String    @default("pending")
+  closed_at                 DateTime? @db.Timestamptz(6)
+  status                    String    @default("open")
+  created_at                DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime  @updatedAt @db.Timestamptz(6)
+
+  client Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  gap    Gap?   @relation(fields: [gap_id], references: [id])
+
+  @@unique([client_id, capa_code])
+  @@index([client_id])
+  @@index([status])
+  @@index([gap_id])
+  @@map("capa")
+}
+
+// ------------------------------------------------------------------------- risks
+
+model Risk {
+  id               String    @id @default(uuid()) @db.Uuid
+  client_id        String    @db.Uuid
+  kpi_id           String?   @db.Uuid
+  kpi_target_id    String?   @db.Uuid
+  kpi_actual_id    String?   @db.Uuid
+  risk_code        String
+  risk_title       String
+  risk_description String?
+  classification   String    @default("minor")
+  department_id    String?   @db.Uuid
+  owner_id         String?   @db.Uuid
+  probability      Int       @default(1)
+  impact           Int       @default(1)
+  risk_score       Int       @default(1)
+  risk_level       String    @default("minor")
+  mitigation_plan  String?
+  due_date         DateTime? @db.Date
+  closed_at        DateTime? @db.Timestamptz(6)
+  status           String    @default("open")
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(6)
+
+  client     Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  kpi        Kpi?       @relation(fields: [kpi_id], references: [id], onDelete: SetNull)
+  kpi_target KpiTarget? @relation(fields: [kpi_target_id], references: [id], onDelete: SetNull)
+  kpi_actual KpiActual? @relation(fields: [kpi_actual_id], references: [id], onDelete: SetNull)
+
+  @@unique([client_id, risk_code])
+  @@index([client_id])
+  @@index([kpi_id])
+  @@index([kpi_target_id])
+  @@index([kpi_actual_id])
+  @@index([classification])
+  @@index([status])
+  @@index([department_id])
+  @@map("risks")
+}
+
+// ------------------------------------------------------------------------ lookups
+
+model Lookup {
+  id         String   @id @default(uuid()) @db.Uuid
+  client_id  String?  @db.Uuid // null = global lookup shared by all tenants
+  category   String
+  code       String
+  label      String
+  sort_order Int      @default(0)
+  metadata   Json     @default("{}")
+  status     String   @default("active")
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  client Client? @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  @@unique([client_id, category, code])
+  @@index([client_id])
+  @@index([category])
+  @@index([status])
+  @@map("lookups")
+}
+
+// --------------------------------------------------------------------- audit trail
+
+model AuditTrail {
+  id         String   @id @default(uuid()) @db.Uuid
+  client_id  String   @db.Uuid
+  user_id    String?  @db.Uuid
+  module     String
+  action     String
+  record_id  String?  @db.Uuid
+  old_value  Json?
+  new_value  Json?
+  status     String   @default("recorded")
+  ip_address String?
+  user_agent String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  client Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id])
+  @@index([module])
+  @@index([record_id])
+  @@index([created_at])
+  @@map("audit_trail")
+}

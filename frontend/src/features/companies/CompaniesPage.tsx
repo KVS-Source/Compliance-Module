@@ -1,0 +1,39 @@
+import { Building2, Pencil } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
+import { Badge } from "../../components/feedback/Badge";
+import { PageHeader } from "../../components/feedback/PageHeader";
+import { SearchToolbar } from "../../components/forms/SearchToolbar";
+import { DataTable, type Column } from "../../components/tables/DataTable";
+import { useAuth } from "../../context/AuthContext";
+import { useTenant } from "../../context/TenantContext";
+import { useToast } from "../../context/ToastContext";
+import { useApiResource } from "../../hooks/useApiResource";
+import { tenantApi } from "../../services/tenantApi";
+import type { Company } from "../../types/api";
+
+export function CompaniesPage() {
+  const { user } = useAuth();
+  const { contextVersion } = useTenant();
+  const { showToast } = useToast();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("All Statuses");
+  const resource = useApiResource(tenantApi.list, [contextVersion, user?.activeCompany.id]);
+  const rows = useMemo(() => (resource.data ?? []).filter((company) => {
+    const query = search.toLowerCase();
+    return (!query || `${company.code} ${company.name} ${company.industry ?? ""}`.toLowerCase().includes(query)) && (status === "All Statuses" || company.status === status);
+  }), [resource.data, search, status]);
+  const columns: Column<Company>[] = [
+    { key: "code", label: "Company Code", render: (row) => <span className="mono link-text">{row.code}</span> },
+    { key: "name", label: "Company Name", render: (row) => <strong>{row.name}</strong> },
+    { key: "industry", label: "Industry", render: (row) => row.industry ?? "—" },
+    { key: "country", label: "Country", render: (row) => row.country ?? "—" },
+    { key: "status", label: "Status", render: (row) => <Badge>{row.status}</Badge> },
+    { key: "created", label: "Created", render: (row) => new Date(row.created).toLocaleDateString("en-GB") },
+  ];
+  return <div className="page"><PageHeader title="Company Setup" section="Admin" description="Manage Company profiles, framework assignments and data separation." connected primaryLabel="Add Company" onPrimary={() => showToast("info", "Read-only in Milestone 1", "Company write APIs are scheduled for the next backend milestone.")} actions={<button className="btn btn-secondary" type="button" onClick={() => showToast("info", "Read-only in Milestone 1", "Editing database Companies is not enabled yet.")}><Pencil size={15} /> Edit Company</button>} />
+    <SearchToolbar value={search} onChange={setSearch} placeholder="Search Companies…" status={status} onStatusChange={setStatus} />
+    {resource.loading ? <LoadingState /> : resource.error ? <ErrorState error={resource.error} /> : <DataTable rows={rows} columns={columns} caption="Company Setup" companyName={user?.activeCompany.name} onView={(row) => showToast("info", row.name, `${row.code} is available in your authenticated Company membership list.`)} />}
+    <section className="card information-card"><span className="feature-icon tone-blue"><Building2 size={19} /></span><div><strong>Company isolation is backend enforced</strong><p>The selector changes the signed tenant context. No client-supplied Company identifier is trusted by master-data routes.</p></div></section>
+  </div>;
+}

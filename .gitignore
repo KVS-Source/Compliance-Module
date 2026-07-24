@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Env
+.env
+.env.local
+
+# Uploaded files (local dev storage)
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Prisma local db
+prisma/*.db
+
+# OS
+.DS_Store
+
+# Legacy Python backend leftovers (the folder itself is preserved on purpose)
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+storage/

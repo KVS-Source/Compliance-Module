@@ -1,0 +1,1 @@
+import { Router } from 'express'; import { authenticate } from '../../middleware/auth.middleware'; import { requirePermission } from '../../middleware/rbac.middleware'; import { list } from './audit-trail.controller'; const router = Router(); router.get('/', authenticate, requirePermission('audit.view'), list); export default router;

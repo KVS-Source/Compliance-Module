@@ -1,0 +1,133 @@
+import { LoaderCircle } from "lucide-react";
+import { useEffect } from "react";
+import {
+  Navigate,
+  createBrowserRouter,
+  useNavigate,
+  type RouteObject,
+} from "react-router-dom";
+import { AppShell } from "../components/layout/AppShell";
+import { PermissionBoundary } from "../components/feedback/PermissionBoundary";
+import { useAuth } from "../context/AuthContext";
+import { CompaniesPage } from "../features/companies/CompaniesPage";
+import { DashboardPage } from "../features/dashboard/DashboardPage";
+import {
+  FrameworkRulesPage,
+  FrameworksPage,
+} from "../features/frameworks/FrameworksPage";
+import { LoginPage } from "../features/auth/LoginPage";
+import { NotFoundPage } from "../features/migration/PendingPage";
+import { OrganisationPage } from "../features/organisation/OrganisationPage";
+import { PrototypeRoutePage } from "../features/prototype/PrototypeRoutePage";
+import { UsersPage } from "../features/users/UsersPage";
+import { migratedPaths, routeDefinitions } from "./routeDefinitions";
+
+function ProtectedShell() {
+  const { user, loading } = useAuth();
+  if (loading)
+    return (
+      <div className="app-loading" role="status">
+        <LoaderCircle className="spin" size={28} />
+        <strong>Restoring secure session…</strong>
+      </div>
+    );
+  if (!user) return <Navigate to="/login" replace />;
+  return <AppShell />;
+}
+
+function LegacyHashRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const definition = routeDefinitions.find(
+      (item) => item.legacyHash === window.location.hash,
+    );
+    navigate(definition?.path ?? "/dashboard", { replace: true });
+  }, [navigate]);
+  return (
+    <div className="app-loading" role="status">
+      <LoaderCircle className="spin" size={24} />
+      <strong>Opening migrated route…</strong>
+    </div>
+  );
+}
+
+const migratedRoutes: RouteObject[] = [
+  { path: "dashboard", element: <DashboardPage /> },
+  {
+    path: "admin/companies",
+    element: (
+      <PermissionBoundary permission="tenants:read">
+        <CompaniesPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "admin/users",
+    element: (
+      <PermissionBoundary permission="users:read">
+        <UsersPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "admin/departments",
+    element: (
+      <PermissionBoundary permission="organisation:read">
+        <OrganisationPage kind="departments" />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "admin/locations",
+    element: (
+      <PermissionBoundary permission="organisation:read">
+        <OrganisationPage kind="locations" />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "admin/organisation-units",
+    element: (
+      <PermissionBoundary permission="organisation:read">
+        <OrganisationPage kind="units" />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/frameworks",
+    element: (
+      <PermissionBoundary permission="frameworks:read">
+        <FrameworksPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/frameworks/:frameworkId/rules",
+    element: (
+      <PermissionBoundary permission="frameworks:read">
+        <FrameworkRulesPage />
+      </PermissionBoundary>
+    ),
+  },
+];
+
+const pendingRoutes: RouteObject[] = routeDefinitions
+  .filter((definition) => !migratedPaths.has(definition.path))
+  .map((definition) => ({
+    path: definition.path.slice(1),
+    element: <PrototypeRoutePage />,
+  }));
+
+export const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
+  {
+    path: "/",
+    element: <ProtectedShell />,
+    children: [
+      { index: true, element: <LegacyHashRedirect /> },
+      ...migratedRoutes,
+      ...pendingRoutes,
+      { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+]);

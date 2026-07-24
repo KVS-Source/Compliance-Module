@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { authenticate } from '../../middleware/auth.middleware';
+import { requirePermission } from '../../middleware/rbac.middleware';
+import * as c from './kpi-actuals.controller';
+const router = Router(); router.use(authenticate);
+router.get('/', requirePermission('kpi.view'), c.list); router.post('/', requirePermission('kpi.edit'), c.create);
+router.get('/:id', requirePermission('kpi.view'), c.get); router.patch('/:id', requirePermission('kpi.edit'), c.update);
+router.post('/:id/submit', requirePermission('kpi.edit'), c.submit); router.post('/:id/approve', requirePermission('kpi.approve'), c.approve); router.post('/:id/reject', requirePermission('kpi.approve'), c.reject);
+router.post('/:id/create-risk', requirePermission('kpi.edit'), c.createRisk);
+export default router;
