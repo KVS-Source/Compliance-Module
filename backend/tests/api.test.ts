@@ -3,6 +3,7 @@ import request from "supertest";
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -307,6 +308,40 @@ describe("Milestone 1 API", () => {
         },
       }),
     ).rejects.toThrow();
+
+    const userWithoutMembership = await prisma.user.create({
+      data: {
+        code: `TEST-${randomUUID()}`,
+        email: `${randomUUID()}@example.test`,
+        fullName: "Synthetic Test User",
+        passwordHash: admin.passwordHash,
+        status: "ACTIVE",
+      },
+    });
+    try {
+      const assignments = new RoleAssignmentService(prisma);
+      await expect(
+        assignments.upsertActive({
+          userId: userWithoutMembership.id,
+          roleId: company2Role.id,
+          tenantId: company2.id,
+          assignedBy: admin.id,
+        }),
+      ).rejects.toMatchObject({ code: "INVALID_ROLE_ASSIGNMENT" });
+      await expect(
+        prisma.userRole.create({
+          data: {
+            userId: userWithoutMembership.id,
+            roleId: company2Role.id,
+            tenantId: company2.id,
+            status: "ACTIVE",
+          },
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await prisma.user.delete({ where: { id: userWithoutMembership.id } });
+    }
+
     await expect(
       prisma.userCompany.update({
         where: {

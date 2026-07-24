@@ -1,9 +1,11 @@
 import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
+import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
 import { assertSeedExecutionAllowed } from "./seed-safety.js";
 
 const seedMode = assertSeedExecutionAllowed(process.argv.slice(2));
 const db = new PrismaClient();
+const roleAssignments = new RoleAssignmentService(db);
 
 async function main() {
   const companies = await Promise.all(
@@ -130,22 +132,11 @@ async function main() {
       update: {},
       create: { roleId: role.id, permissionId: allPermission.id },
     });
-    await db.userRole.upsert({
-      where: {
-        userId_roleId_tenantId: {
-          userId: admin.id,
-          roleId: role.id,
-          tenantId: tenant.id,
-        },
-      },
-      update: { status: "ACTIVE", assignedBy: admin.id },
-      create: {
-        userId: admin.id,
-        roleId: role.id,
-        tenantId: tenant.id,
-        status: "ACTIVE",
-        assignedBy: admin.id,
-      },
+    await roleAssignments.upsertActive({
+      userId: admin.id,
+      roleId: role.id,
+      tenantId: tenant.id,
+      assignedBy: admin.id,
     });
     if (tenant.id === company001.id) {
       await db.userRole.updateMany({
@@ -185,22 +176,11 @@ async function main() {
           },
         });
       }
-      await db.userRole.upsert({
-        where: {
-          userId_roleId_tenantId: {
-            userId: user.id,
-            roleId: companyUserRole.id,
-            tenantId: tenant.id,
-          },
-        },
-        update: { status: "ACTIVE", assignedBy: admin.id },
-        create: {
-          userId: user.id,
-          roleId: companyUserRole.id,
-          tenantId: tenant.id,
-          status: "ACTIVE",
-          assignedBy: admin.id,
-        },
+      await roleAssignments.upsertActive({
+        userId: user.id,
+        roleId: companyUserRole.id,
+        tenantId: tenant.id,
+        assignedBy: admin.id,
       });
     }
 
