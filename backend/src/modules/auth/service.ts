@@ -143,11 +143,12 @@ export class AuthService {
     return { ...next, user: userDto(user, stored.tenantId) };
   }
 
-  async logout(raw: string | undefined, userId?: string, tenantId?: string) {
-    if (raw) await this.repository.revokeRefresh(hashToken(raw));
-    if (userId && tenantId) {
-      await this.repository.audit(tenantId, userId, "AUTH_LOGOUT", {});
-    }
+  async logout(
+    raw: string | undefined,
+    context: { ip?: string; userAgent?: string },
+  ) {
+    if (!raw) return false;
+    return this.repository.revokeSessionByHash(hashToken(raw), context);
   }
 
   async me(userId: string, tenantId: string) {

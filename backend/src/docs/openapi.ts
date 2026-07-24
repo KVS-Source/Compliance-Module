@@ -70,7 +70,7 @@ export const openApiDocument = {
     "/auth/logout": {
       post: {
         summary: "Revoke session",
-        security: [{ bearerAuth: [] }],
+        security: [{ refreshCookie: [] }],
         responses: { "200": { description: "Logged out" } },
       },
     },

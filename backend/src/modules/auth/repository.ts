@@ -100,6 +100,38 @@ export class AuthRepository {
     });
   }
 
+  revokeSessionByHash(
+    tokenHash: string,
+    context: { ip?: string; userAgent?: string },
+  ) {
+    return this.db.$transaction(async (transaction) => {
+      const stored = await transaction.refreshToken.findUnique({
+        where: { tokenHash },
+      });
+      if (!stored || stored.revokedAt) return false;
+
+      const revoked = await transaction.refreshToken.updateMany({
+        where: { familyId: stored.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (revoked.count === 0) return false;
+
+      await transaction.auditEvent.create({
+        data: {
+          tenantId: stored.tenantId,
+          userId: stored.userId,
+          action: "AUTH_LOGOUT",
+          entityType: "AUTH",
+          entityId: stored.id,
+          metadata: { sessionFamilyRevoked: true },
+          ...(context.ip ? { ipAddress: context.ip } : {}),
+          ...(context.userAgent ? { userAgent: context.userAgent } : {}),
+        },
+      });
+      return true;
+    });
+  }
+
   membership(userId: string, tenantId: string) {
     return this.db.userCompany.findUnique({
       where: { userId_tenantId: { userId, tenantId } },
