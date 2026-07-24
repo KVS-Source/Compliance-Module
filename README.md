@@ -93,7 +93,16 @@ npm run test:integration --prefix backend
 docker compose --profile test stop postgres_test
 ```
 
-To remove only the isolated test volume after the service is stopped, use the explicit test-volume command documented in the remediation report. Never remove the normal development volume during test cleanup.
+The integration runner validates `DATABASE_URL_TEST`, applies active migrations to that isolated target, loads deterministic synthetic test fixtures, and then runs the API suite. It exits before Prisma starts if the safety checks fail.
+
+To remove only the isolated test service and volume:
+
+```bash
+docker compose --profile test rm -f postgres_test
+docker volume rm genbioca_compliance_test_data
+```
+
+Never remove the normal development volume during test cleanup.
 
 ## Verification
 

@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 
-if (!process.env.DATABASE_URL) {
+if (
+  process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
+  !process.env.DATABASE_URL_TEST ||
+  process.env.DATABASE_URL !== process.env.DATABASE_URL_TEST ||
+  process.env.NODE_ENV !== "test"
+) {
   throw new Error(
-    "DATABASE_URL is required for backend integration tests. Run PostgreSQL or use docker compose.",
+    "Integration tests must run through the isolated test-database runner",
   );
 }
 
@@ -16,11 +20,6 @@ describe("Milestone 1 API", () => {
   let prisma: PrismaClient;
 
   beforeAll(async () => {
-    execFileSync("npm", ["run", "prisma:seed"], {
-      cwd: process.cwd(),
-      env: process.env,
-      stdio: "pipe",
-    });
     ({ app } = await import("../src/app.js"));
     ({ prisma } = await import("../src/config/prisma.js"));
   });

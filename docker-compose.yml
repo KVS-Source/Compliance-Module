@@ -72,3 +72,4 @@ services:
 volumes:
   genbioca_postgres:
   genbioca_postgres_test:
+    name: genbioca_compliance_test_data
