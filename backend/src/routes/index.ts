@@ -23,9 +23,24 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   router.get("/health", (_req, res) =>
     res.json({
       success: true,
-      data: { status: "ok", service: "genbioca-compliance-api" },
+      data: { status: "ok" },
     }),
   );
+  router.get("/ready", async (req, res) => {
+    try {
+      await db.$queryRaw`SELECT 1`;
+      return res.json({ success: true, data: { status: "ready" } });
+    } catch {
+      req.log?.warn("readiness check failed");
+      return res.status(503).json({
+        success: false,
+        error: {
+          code: "NOT_READY",
+          message: "Service is not ready",
+        },
+      });
+    }
+  });
   router.use("/auth", authRoutes(new AuthService(new AuthRepository(db))));
   router.use(authenticate, authorizeTenantContext(db));
   router.use("/tenants", tenantsRoutes(provider));

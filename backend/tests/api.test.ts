@@ -33,6 +33,15 @@ describe("Milestone 1 API", () => {
       success: true,
       data: { status: "ok" },
     });
+    await request(app)
+      .get("/api/v1/ready")
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          success: true,
+          data: { status: "ready" },
+        });
+      });
   });
 
   it("supports valid login, current user and pagination metadata", async () => {

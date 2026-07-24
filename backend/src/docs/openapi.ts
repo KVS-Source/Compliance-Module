@@ -33,8 +33,17 @@ export const openApiDocument = {
   paths: {
     "/health": {
       get: {
-        summary: "Health check",
-        responses: { "200": { description: "Healthy" } },
+        summary: "Process liveness",
+        responses: { "200": { description: "Application process is live" } },
+      },
+    },
+    "/ready": {
+      get: {
+        summary: "Database-backed readiness",
+        responses: {
+          "200": { description: "Application and database are ready" },
+          "503": { description: "Application is not ready" },
+        },
       },
     },
     "/auth/login": {

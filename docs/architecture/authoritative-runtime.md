@@ -28,3 +28,10 @@ Dormant code may contain business rules needed by future migration work. Those r
 ## Change-control rule
 
 Milestone work must identify whether a file belongs to the active runtime before it is changed. A change to dormant code is permitted only when it adds an archival/status notice or is part of a separately approved migration task.
+
+## Operational health
+
+- `GET /api/v1/health` is process liveness. It does not query PostgreSQL.
+- `GET /api/v1/ready` is readiness. It performs a minimal PostgreSQL connectivity check and returns a generic `503` response when the database is unavailable.
+
+Neither endpoint returns database connection information.
