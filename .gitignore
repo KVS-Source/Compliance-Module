@@ -19,9 +19,15 @@ npm-debug.log*
 # Test / coverage
 coverage/
 .vitest/
+test-results/
+playwright-report/
 
 # Prisma local db
 prisma/*.db
+
+# Local review and presentation artifacts
+.ppt_staging/
+outputs/
 
 # OS
 .DS_Store

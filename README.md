@@ -1,92 +1,129 @@
 # GenBioCa Compliance Platform — PERN React Milestone 1
 
-Milestone 1 is a PERN application: PostgreSQL, Express, React/TypeScript and Node.js. The approved single-file prototype is preserved under `docs/prototype/` as a visual and workflow reference; it is no longer the production frontend architecture. React now provides the application shell, routing, authentication, Company switching, dashboard and the required read-only master screens.
+GenBioCa is a multi-company compliance platform built with PostgreSQL, Express, React/TypeScript, and Node.js.
 
-## Docker setup
+## Authoritative runtime
+
+Only these paths belong to the active application:
+
+- `frontend/` — React frontend
+- `backend/` — Express backend
+- `backend/prisma/` — active Prisma schema and migrations
+- `backend/Dockerfile` and `docker-compose.yml` — local application infrastructure
+
+Root `src/`, root `prisma/`, root `tests/`, and `legacy_python_backend/` are dormant. Do not run their migrations or add new features to them. See `docs/architecture/authoritative-runtime.md`.
+
+## Requirements
+
+- Node.js 20 or later
+- PostgreSQL 16
+- npm
+- Docker with Compose for the container workflow
+
+## Configuration
+
+Copy `.env.example` to an ignored local environment file and replace every placeholder. Never commit environment files or reuse development credentials in a shared environment.
+
+The backend validates required configuration at startup. Production requires a strong non-placeholder JWT secret and secure cookies.
+
+## Install active dependencies
 
 ```bash
-docker compose up --build
+npm ci --prefix backend
+npm ci --prefix frontend
 ```
+
+## Local development
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d postgres
+```
+
+Prepare the active Prisma client and schema:
+
+```bash
+npm run prisma:validate --prefix backend
+npm run prisma:generate --prefix backend
+npm run prisma:migrate --prefix backend
+```
+
+Development seed data is never loaded automatically. Load deterministic synthetic fixtures only when explicitly required:
+
+```bash
+npm run prisma:seed:dev --prefix backend
+```
+
+Start the backend and frontend in separate terminals:
+
+```bash
+npm run dev --prefix backend
+npm run dev --prefix frontend
+```
+
+The frontend runs at `http://127.0.0.1:5173` and proxies `/api` to the backend at `http://127.0.0.1:8000`.
+
+## Docker application
+
+The Docker application startup command starts the compiled application only. Migrations and development seed data are separate operations.
+
+```bash
+docker compose build app
+docker compose run --rm migrate
+docker compose up -d app
+```
+
+Development seed data remains an explicit local backend command and must never be run in production.
 
 Open:
 
-- App: http://localhost:8000/
-- Health: http://localhost:8000/api/v1/health
-- Swagger: http://localhost:8000/api/docs
+- React application: `http://127.0.0.1:8000/`
+- Liveness: `http://127.0.0.1:8000/api/v1/health`
+- Readiness: `http://127.0.0.1:8000/api/v1/ready`
+- Swagger: `http://127.0.0.1:8000/api/docs`
 
-The app container waits for PostgreSQL health, applies committed migrations, runs the idempotent seed and starts.
+## Isolated integration tests
 
-## Local setup
-
-Requirements: Node 20+ and PostgreSQL 16+.
+Integration tests require `DATABASE_URL_TEST`. The runner refuses to use the normal development database, a production-like database name, or any database while `NODE_ENV=production`.
 
 ```bash
-cp .env.example backend/.env
-cd frontend
-npm install
-npm run dev
+docker compose --profile test up -d postgres_test
+npm run test:integration --prefix backend
+docker compose --profile test stop postgres_test
 ```
 
-In a second terminal:
+To remove only the isolated test volume after the service is stopped, use the explicit test-volume command documented in the remediation report. Never remove the normal development volume during test cleanup.
+
+## Verification
 
 ```bash
-cd backend
-npm install
-npm run prisma:validate
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-npm run dev
-```
+npm run typecheck --prefix backend
+npm run lint --prefix backend
+npm run build --prefix backend
+npm run test:unit --prefix backend
+npm run test:integration --prefix backend
+npm run prisma:validate --prefix backend
+npm run prisma:generate --prefix backend
 
-Exact verification commands:
+npm run typecheck --prefix frontend
+npm run lint --prefix frontend
+npm run build --prefix frontend
+npm run test:e2e --prefix frontend
 
-```bash
-cd frontend
-npm run lint
-npm run typecheck
-npm run build
-npm run test:e2e
-cd ../backend
-npm run format:check
-npm run lint
-npm run typecheck
-npm run prisma:validate
-npm run build
-npm run test:unit
-npm run test:integration
-cd ..
 docker compose config
 ```
 
-The Vite development app is served at `http://localhost:5173` and proxies
-`/api` to the Express API on `http://localhost:8000`. Docker builds the React
-application and serves its production bundle from Express at port 8000.
+## Milestone 1 scope
 
-## React Milestone 1 scope
+React provides authentication, Company switching, the application shell, the dashboard, and the read-only master pages connected to the active API. Routes rendered through `PrototypeRoutePage` remain interactive design references and display demonstration data only; their changes are not persisted.
 
-- React Router preserves every approved route and translates legacy hash URLs.
-- API-connected routes: login, dashboard master summaries, Company Setup, User
-  Management, Departments, Locations, Organisation Units, Framework Master and
-  Framework Rules.
-- Later routes remain navigable as explicitly pending screens; their workflows
-  and authoritative APIs are not implemented early.
-- Browser storage contains sidebar/open-section UI preferences only.
-- Access tokens remain in memory; rotating refresh tokens use an HTTP-only,
-  same-origin cookie.
-
-See `docs/frontend-route-mapping.md` for the complete route/component/API/status
-inventory.
-
-## Development credentials
-
-- Company Admin: `admin001@example.test` / `Admin001!Secure`
-- Company user: `user001@example.test` / `User001!Secure`
-
-These are local development credentials only.
+Access tokens remain in memory. Rotating refresh tokens use a same-origin HttpOnly cookie.
 
 ## Documentation
 
-The access token remains in memory. The rotating refresh token is a same-origin HTTP-only cookie. In API mode, browser storage contains only UI preferences.
-
-See `docs/frontend-inventory.md`, `docs/frontend-route-mapping.md`, `docs/schema-alignment.md`, `docs/api-mapping.md` and `docs/architecture-decisions.md`.
+- `docs/architecture/authoritative-runtime.md`
+- `docs/frontend-route-mapping.md`
+- `docs/schema-alignment.md`
+- `docs/api-mapping.md`
+- `docs/architecture-decisions.md`
