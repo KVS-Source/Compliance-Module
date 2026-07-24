@@ -1,6 +1,8 @@
 import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
+import { assertSeedExecutionAllowed } from "./seed-safety.js";
 
+const seedMode = assertSeedExecutionAllowed(process.argv.slice(2));
 const db = new PrismaClient();
 
 async function main() {
@@ -312,5 +314,9 @@ async function main() {
 }
 
 main()
-  .then(() => console.log("Milestone 1 seed complete"))
+  .then(() => console.log(`${seedMode === "test" ? "Test fixture" : "Development seed"} complete`))
+  .catch(() => {
+    console.error(`${seedMode === "test" ? "Test fixture" : "Development seed"} failed`);
+    process.exitCode = 1;
+  })
   .finally(async () => db.$disconnect());

@@ -8,8 +8,8 @@ import { useAuth } from "../../context/AuthContext";
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin001@example.test");
-  const [password, setPassword] = useState("Admin001!Secure");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
