@@ -12,6 +12,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
+    "guard:router": "node ../scripts/check-router-mode.mjs",
+    "guard:boundaries": "node ../scripts/check-active-boundaries.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
