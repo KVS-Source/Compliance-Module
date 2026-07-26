@@ -220,6 +220,11 @@ Target workflow rules:
 
 Unique: `(tenantId, kpiConfigurationId, period)` where `deletedAt IS NULL`.
 
+Slice B accepts a caller-supplied, tenant-unique `code`, consistent with the
+other entities. A later slice may replace this with automatic code generation
+because actuals are periodic and high-volume, but no numbering policy is
+invented in Slice B.
+
 ### 3.4 KpiApproval
 
 Full history — never collapse into a single status column.
@@ -323,8 +328,11 @@ Risk:
 - `AMBER` → `riskRequired = true`, `recommendedRiskClass = MINOR`
 - `RED`   → `riskRequired = true`, `recommendedRiskClass = MAJOR`
 
-**Target met means no Risk row exists.** Never create a risk record meaning
-"No Risk".
+**Target met means no Risk row exists.** A missed target that evaluates to
+AMBER or RED creates or updates exactly one linked Major or Minor KPI risk. A
+miss within the configured amber tolerance evaluates GREEN and creates no risk.
+With the default `amberThresholdPct = 0`, any miss is at least AMBER, so the
+default behaviour is unchanged. Never create a risk record meaning "No Risk".
 
 ---
 
@@ -347,6 +355,12 @@ Risk:
 
 Any failure rolls the whole thing back — no orphan actual without its risk, and
 no risk without its actual.
+
+Slice B implements steps 1–7 and 9–10 only and does not create risks. When Slice
+D adds step 8, automatic risk creation applies only to new submissions. Existing
+Slice B actuals are not backfilled: retroactively generating Risk Register
+entries would create unreviewed compliance records. Any future reconciliation
+must be an explicit, audited, human-triggered operation, never a migration.
 
 ---
 
