@@ -60,6 +60,7 @@ outputs/
 .cache/
 .turbo/
 *.tsbuildinfo
+gitleaks-report.json
 
 # OS / editor noise
 .DS_Store
