@@ -122,7 +122,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
   const submitActual = (
     token: string,
     configurationId: string,
-    code: string,
     actualValue: string,
     overrides: Record<string, unknown> = {},
   ) =>
@@ -130,12 +129,16 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       .post("/api/v1/kpi-actuals")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        code,
         kpiConfigurationId: configurationId,
         period: "FY26-27 Q1",
         actualValue,
         ...overrides,
       });
+
+  const actualsForConfiguration = (tenantId: string, configurationId: string) =>
+    prisma.kpiActual.count({
+      where: { tenantId, kpiConfigurationId: configurationId },
+    });
 
   const provisionFreshAdminTenant = async (adminUserId: string) => {
     const wildcard = await prisma.permission.findUniqueOrThrow({
@@ -213,19 +216,14 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     ).not.toContain("risk:write");
 
     const regular = await loginAs("user001@example.test", "User001!Secure");
-    await submitActual(
-      regular.accessToken,
-      randomUUID(),
-      `ACT-DENIED-${randomUUID()}`,
-      "1",
-    ).expect(403);
+    await submitActual(regular.accessToken, randomUUID(), "1").expect(403);
     await request(app)
       .get("/api/v1/risks")
       .set("Authorization", `Bearer ${regular.accessToken}`)
       .expect(403);
   });
 
-  it("rejects body-derived identity, calculations, approval fields and Risk fields", async () => {
+  it("rejects body-derived identity, codes, calculations, approval fields and Risk fields", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const configuration = await createConfiguration(
       admin.accessToken,
@@ -237,9 +235,9 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const response = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-UNTRUSTED-${randomUUID()}`,
       "95",
       {
+        code: `ACT-UNTRUSTED-${randomUUID()}`,
         tenantId: randomUUID(),
         companyId: randomUUID(),
         kpiTargetId: randomUUID(),
@@ -276,7 +274,7 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     ).toBe(true);
   });
 
-  it("rejects each caller-controlled Risk field on an otherwise valid submission", async () => {
+  it("rejects a caller-supplied code and each Risk field on an otherwise valid submission", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const configuration = await createConfiguration(
       admin.accessToken,
@@ -288,7 +286,8 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration.body.data.id,
       "100",
     );
-    const callerRiskFields: Array<[string, unknown]> = [
+    const callerControlledFields: Array<[string, unknown]> = [
+      ["code", "ACT-CALLER-001"],
       [
         "risk",
         {
@@ -326,15 +325,10 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       ["updatedAt", new Date().toISOString()],
       ["deletedAt", new Date().toISOString()],
     ];
-    const rejectedCodes: string[] = [];
-
-    for (const [field, value] of callerRiskFields) {
-      const code = `ACT-RISK-BODY-${randomUUID()}`;
-      rejectedCodes.push(code);
+    for (const [field, value] of callerControlledFields) {
       const response = await submitActual(
         admin.accessToken,
         configuration.body.data.id,
-        code,
         "95",
         { [field]: value },
       );
@@ -344,9 +338,13 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     }
 
     expect(
-      await prisma.kpiActual.count({
-        where: { code: { in: rejectedCodes } },
-      }),
+      await actualsForConfiguration(
+        admin.user.activeCompany.id,
+        configuration.body.data.id,
+      ),
+    ).toBe(0);
+    expect(
+      await prisma.kpiActual.count({ where: { code: "ACT-CALLER-001" } }),
     ).toBe(0);
     expect(
       await prisma.risk.count({
@@ -372,11 +370,9 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration.body.data.id,
       "100.0000",
     );
-    const code = `ACT-CUSTOM-${randomUUID()}`;
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      code,
       "95.0000",
       {
         evidenceStatus: "PENDING",
@@ -384,8 +380,8 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       },
     ).expect(201);
 
+    expect(submitted.body.data.code).toMatch(/^ACT-\d{3,}$/);
     expect(submitted.body.data).toMatchObject({
-      code,
       target: {
         id: target.body.data.id,
         code: target.body.data.code,
@@ -458,7 +454,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-DEFAULT-${randomUUID()}`,
       "95",
     ).expect(201);
     expect(submitted.body.data).toMatchObject({
@@ -523,7 +518,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-RED-${randomUUID()}`,
       "80",
     ).expect(201);
     expect(submitted.body.data).toMatchObject({
@@ -610,17 +604,20 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       admin.user.id,
     );
     expect(configuration.status).toBe(201);
-    const code = `ACT-NO-TARGET-${randomUUID()}`;
 
     const response = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      code,
       "95",
     );
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe("KPI_TARGET_NOT_FOUND");
-    expect(await prisma.kpiActual.count({ where: { code } })).toBe(0);
+    expect(
+      await actualsForConfiguration(
+        admin.user.activeCompany.id,
+        configuration.body.data.id,
+      ),
+    ).toBe(0);
   });
 
   it("allows only one concurrent active actual per configuration and period", async () => {
@@ -635,15 +632,14 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration.body.data.id,
       "100",
     );
-    const codes = [`ACT-RACE-A-${randomUUID()}`, `ACT-RACE-B-${randomUUID()}`];
     const responses = await Promise.all(
-      codes.map((code) =>
-        submitActual(admin.accessToken, configuration.body.data.id, code, "90"),
+      [0, 1].map(() =>
+        submitActual(admin.accessToken, configuration.body.data.id, "90"),
       ),
     );
     expect(responses.map(({ status }) => status).sort()).toEqual([201, 409]);
     const conflict = responses.find(({ status }) => status === 409);
-    expect(conflict?.body.error.code).toBe("KPI_ACTUAL_ALREADY_EXISTS");
+    expect(conflict?.body.error.code).toBe("KPI_ACTUAL_PERIOD_EXISTS");
 
     const actuals = await prisma.kpiActual.findMany({
       where: {
@@ -728,7 +724,7 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     ).toBe(3);
   });
 
-  it("starts fresh tenant Risk sequences independently at RSK-001", async () => {
+  it("starts fresh tenant actual and Risk sequences independently at ACT-001 and RSK-001", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const tenants = [
       await provisionFreshAdminTenant(admin.user.id),
@@ -755,18 +751,25 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
 
       const submissions = await Promise.all(
         tenantTokens.map((token, index) =>
-          submitActual(
-            token,
-            configurationIds[index]!,
-            `ACT-FIRST-RISK-${randomUUID()}`,
-            "80",
-          ).expect(201),
+          submitActual(token, configurationIds[index]!, "80").expect(201),
         ),
       );
+      expect(submissions.map(({ body }) => body.data.code)).toEqual([
+        "ACT-001",
+        "ACT-001",
+      ]);
       expect(submissions.map(({ body }) => body.data.risk.code)).toEqual([
         "RSK-001",
         "RSK-001",
       ]);
+      expect(
+        await prisma.kpiActual.count({
+          where: {
+            tenantId: { in: tenantIds },
+            code: "ACT-001",
+          },
+        }),
+      ).toBe(2);
       expect(
         await prisma.risk.count({
           where: {
@@ -779,10 +782,16 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
         (
           await prisma.tenant.findMany({
             where: { id: { in: tenantIds } },
-            select: { nextRiskNumber: true },
+            select: { nextKpiActualNumber: true, nextRiskNumber: true },
           })
-        ).map(({ nextRiskNumber }) => nextRiskNumber),
-      ).toEqual([2, 2]);
+        ).map(({ nextKpiActualNumber, nextRiskNumber }) => [
+          nextKpiActualNumber,
+          nextRiskNumber,
+        ]),
+      ).toEqual([
+        [2, 2],
+        [2, 2],
+      ]);
     } finally {
       await prisma.userRole.deleteMany({
         where: { userId: admin.user.id, tenantId: { in: tenantIds } },
@@ -818,12 +827,7 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
 
     const submissions = await Promise.all(
       configurationIds.map((configurationId) =>
-        submitActual(
-          admin.accessToken,
-          configurationId,
-          `ACT-SEQUENCE-${randomUUID()}`,
-          "80",
-        ).expect(201),
+        submitActual(admin.accessToken, configurationId, "80").expect(201),
       ),
     );
     const risks = await prisma.risk.findMany({
@@ -859,6 +863,133 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     expect(after.nextRiskNumber).toBe(before.nextRiskNumber + concurrentCount);
   });
 
+  it("allocates distinct consecutive actual codes for simultaneous submissions", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const concurrentCount = 6;
+    const configurationIds: string[] = [];
+
+    for (let index = 0; index < concurrentCount; index += 1) {
+      const configuration = await createConfiguration(
+        admin.accessToken,
+        admin.user.id,
+      );
+      expect(configuration.status).toBe(201);
+      configurationIds.push(String(configuration.body.data.id));
+    }
+    await Promise.all(
+      configurationIds.map((configurationId) =>
+        createApprovedTarget(admin.accessToken, configurationId, "100"),
+      ),
+    );
+    const before = await prisma.tenant.findUniqueOrThrow({
+      where: { id: admin.user.activeCompany.id },
+      select: { nextKpiActualNumber: true },
+    });
+
+    const submissions = await Promise.all(
+      configurationIds.map((configurationId) =>
+        submitActual(admin.accessToken, configurationId, "100").expect(201),
+      ),
+    );
+    const codes = submissions.map(({ body }) => String(body.data.code));
+    expect(new Set(codes).size).toBe(concurrentCount);
+
+    const allocatedNumbers = codes
+      .map((code) => {
+        const match = /^ACT-(\d{3,})$/.exec(code);
+        expect(match).not.toBeNull();
+        return Number(match![1]);
+      })
+      .sort((left, right) => left - right);
+    expect(allocatedNumbers).toEqual(
+      Array.from(
+        { length: concurrentCount },
+        (_, index) => before.nextKpiActualNumber + index,
+      ),
+    );
+
+    const stored = await prisma.kpiActual.findMany({
+      where: {
+        tenantId: admin.user.activeCompany.id,
+        id: { in: submissions.map(({ body }) => String(body.data.id)) },
+      },
+      select: { code: true },
+    });
+    expect(stored.map(({ code }) => code).sort()).toEqual([...codes].sort());
+
+    const after = await prisma.tenant.findUniqueOrThrow({
+      where: { id: admin.user.activeCompany.id },
+      select: { nextKpiActualNumber: true },
+    });
+    expect(after.nextKpiActualNumber).toBe(
+      before.nextKpiActualNumber + concurrentCount,
+    );
+  });
+
+  it("reports a generated code collision as a server fault, not a period conflict", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const occupied = await createConfiguration(
+      admin.accessToken,
+      admin.user.id,
+    );
+    expect(occupied.status).toBe(201);
+    await createApprovedTarget(
+      admin.accessToken,
+      occupied.body.data.id,
+      "100",
+    );
+    const first = await submitActual(
+      admin.accessToken,
+      occupied.body.data.id,
+      "100",
+    ).expect(201);
+    const takenNumber = Number(
+      /^ACT-(\d+)$/.exec(String(first.body.data.code))![1],
+    );
+
+    const colliding = await createConfiguration(
+      admin.accessToken,
+      admin.user.id,
+    );
+    expect(colliding.status).toBe(201);
+    await createApprovedTarget(
+      admin.accessToken,
+      colliding.body.data.id,
+      "100",
+    );
+    const restore = await prisma.tenant.findUniqueOrThrow({
+      where: { id: admin.user.activeCompany.id },
+      select: { nextKpiActualNumber: true },
+    });
+
+    // Rewinding the counter is the only way to force the code index to fire:
+    // a different configuration keeps the period index satisfied.
+    await prisma.tenant.update({
+      where: { id: admin.user.activeCompany.id },
+      data: { nextKpiActualNumber: takenNumber },
+    });
+    try {
+      const response = await submitActual(
+        admin.accessToken,
+        colliding.body.data.id,
+        "100",
+      );
+      expect(response.status).toBe(500);
+      expect(response.body.error.code).toBe("KPI_ACTUAL_CODE_COLLISION");
+      expect(
+        await actualsForConfiguration(
+          admin.user.activeCompany.id,
+          colliding.body.data.id,
+        ),
+      ).toBe(0);
+    } finally {
+      await prisma.tenant.update({
+        where: { id: admin.user.activeCompany.id },
+        data: { nextKpiActualNumber: restore.nextKpiActualNumber },
+      });
+    }
+  });
+
   it("keeps its target snapshot after target re-versioning", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const configuration = await createConfiguration(
@@ -889,7 +1020,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-SNAPSHOT-${randomUUID()}`,
       "85",
     ).expect(201);
     expect(submitted.body.data).toMatchObject({
@@ -937,7 +1067,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-HIGHEST-${randomUUID()}`,
       "95",
     ).expect(201);
     expect(submitted.body.data).toMatchObject({
@@ -958,16 +1087,19 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration.body.data.id,
       "0.0001",
     );
-    const code = `ACT-OVERFLOW-${randomUUID()}`;
     const response = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      code,
       "99999999999999.9999",
     );
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("KPI_CALCULATION_OUT_OF_RANGE");
-    expect(await prisma.kpiActual.count({ where: { code } })).toBe(0);
+    expect(
+      await actualsForConfiguration(
+        admin.user.activeCompany.id,
+        configuration.body.data.id,
+      ),
+    ).toBe(0);
   });
 
   it("handles informational and zero-target actuals", async () => {
@@ -987,7 +1119,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const informational = await submitActual(
       admin.accessToken,
       informationalConfiguration.body.data.id,
-      `ACT-INFO-${randomUUID()}`,
       "50",
     ).expect(201);
     expect(informational.body.data).toMatchObject({
@@ -1015,7 +1146,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const zeroMiss = await submitActual(
       admin.accessToken,
       zeroConfiguration.body.data.id,
-      `ACT-ZERO-${randomUUID()}`,
       "-1",
     ).expect(201);
     expect(zeroMiss.body.data).toMatchObject({
@@ -1045,19 +1175,17 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration1.body.data.id,
       "100",
     );
-    const repeatedCode = `ACT-ISOLATION-${randomUUID()}`;
-    await submitActual(
+    const first = await submitActual(
       admin.accessToken,
       configuration1.body.data.id,
-      repeatedCode,
       "100",
     ).expect(201);
+    const allocatedCode = String(first.body.data.code);
 
     const company2Token = await switchCompany(admin.accessToken, company2!.id);
     const crossTenant = await submitActual(
       company2Token,
       configuration1.body.data.id,
-      `ACT-CROSS-${randomUUID()}`,
       "100",
     );
     expect(crossTenant.status).toBe(404);
@@ -1073,15 +1201,22 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration2.body.data.id,
       "100",
     );
-    await submitActual(
+    // Force Company 002 onto the same ACT number so the sequence is proven
+    // free to repeat across Companies.
+    const allocatedNumber = Number(/^ACT-(\d+)$/.exec(allocatedCode)![1]);
+    await prisma.tenant.update({
+      where: { id: company2!.id },
+      data: { nextKpiActualNumber: allocatedNumber },
+    });
+    const second = await submitActual(
       company2Token,
       configuration2.body.data.id,
-      repeatedCode,
       "100",
     ).expect(201);
+    expect(second.body.data.code).toBe(allocatedCode);
 
     expect(
-      await prisma.kpiActual.count({ where: { code: repeatedCode } }),
+      await prisma.kpiActual.count({ where: { code: allocatedCode } }),
     ).toBe(2);
   });
 
@@ -1104,7 +1239,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-RISK-READ-${randomUUID()}`,
       "80",
     ).expect(201);
     const risk = await prisma.risk.findFirstOrThrow({
@@ -1164,11 +1298,10 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration.body.data.id,
       "100",
     );
-    const code = `ACT-ROLLBACK-${randomUUID()}`;
     const before = await Promise.all([
       prisma.tenant.findUniqueOrThrow({
         where: { id: admin.user.activeCompany.id },
-        select: { nextRiskNumber: true },
+        select: { nextRiskNumber: true, nextKpiActualNumber: true },
       }),
       prisma.risk.count({
         where: { tenantId: admin.user.activeCompany.id },
@@ -1177,6 +1310,12 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
         where: {
           tenantId: admin.user.activeCompany.id,
           action: { in: ["KPI_ACTUAL_SUBMITTED", "RISK_CREATED"] },
+        },
+      }),
+      prisma.kpiActual.count({
+        where: {
+          tenantId: admin.user.activeCompany.id,
+          kpiConfigurationId: configuration.body.data.id,
         },
       }),
     ]);
@@ -1209,10 +1348,16 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       await submitActual(
         admin.accessToken,
         configuration.body.data.id,
-        code,
         "80",
       ).expect(500);
-      expect(await prisma.kpiActual.count({ where: { code } })).toBe(0);
+      expect(
+        await prisma.kpiActual.count({
+          where: {
+            tenantId: admin.user.activeCompany.id,
+            kpiConfigurationId: configuration.body.data.id,
+          },
+        }),
+      ).toBe(before[3]);
       expect(
         await prisma.risk.count({
           where: { tenantId: admin.user.activeCompany.id },
@@ -1229,7 +1374,7 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       expect(
         await prisma.tenant.findUniqueOrThrow({
           where: { id: admin.user.activeCompany.id },
-          select: { nextRiskNumber: true },
+          select: { nextRiskNumber: true, nextKpiActualNumber: true },
         }),
       ).toEqual(before[0]);
     } finally {
@@ -1427,7 +1572,6 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     const submitted = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
-      `ACT-RISK-CONSTRAINT-${randomUUID()}`,
       "100",
     ).expect(201);
     const actual = await prisma.kpiActual.findUniqueOrThrow({

@@ -90,6 +90,7 @@ model Tenant {
   defaultAmberThresholdPct Decimal            @default(0.00) @map("default_amber_threshold_pct") @db.Decimal(6, 2)
   defaultRedThresholdPct   Decimal            @default(10.00) @map("default_red_threshold_pct") @db.Decimal(6, 2)
   nextRiskNumber           Int                @default(1) @map("next_risk_number")
+  nextKpiActualNumber      Int                @default(1) @map("next_kpi_actual_number")
   createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships              UserCompany[]

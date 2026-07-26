@@ -21,6 +21,15 @@ import type { EvidenceGateService } from "./evidence-gate-service.js";
 
 const dateOnly = (value: Date) => value.toISOString().slice(0, 10);
 
+export const KPI_ACTUAL_CODE_PREFIX = "ACT-";
+export const KPI_ACTUAL_CODE_MINIMUM_DIGITS = 3;
+
+export const formatKpiActualCode = (number: number) =>
+  `${KPI_ACTUAL_CODE_PREFIX}${String(number).padStart(
+    KPI_ACTUAL_CODE_MINIMUM_DIGITS,
+    "0",
+  )}`;
+
 const personDto = (
   person: { id: string; code: string; fullName: string } | null,
 ) =>
@@ -93,12 +102,36 @@ const targetNotFound = () =>
     "Approved KPI target not found for the requested period",
   );
 
-const actualAlreadyExists = () =>
+const actualPeriodExists = () =>
   new AppError(
     409,
-    "KPI_ACTUAL_ALREADY_EXISTS",
-    "A KPI actual already exists for this configuration, period, or code",
+    "KPI_ACTUAL_PERIOD_EXISTS",
+    "A KPI actual already exists for this KPI configuration and period",
   );
+
+/**
+ * Codes come from the Company counter, so a code conflict is a server fault
+ * rather than a caller mistake and must not be reported as a 409.
+ */
+const actualCodeCollision = () =>
+  new AppError(
+    500,
+    "KPI_ACTUAL_CODE_COLLISION",
+    "Generated KPI actual code collided with an existing record",
+  );
+
+const conflictTarget = (error: Prisma.PrismaClientKnownRequestError) => {
+  const target = error.meta?.["target"];
+  if (Array.isArray(target)) return target.join(",").toLowerCase();
+  return typeof target === "string" ? target.toLowerCase() : "";
+};
+
+const submissionConflict = (error: Prisma.PrismaClientKnownRequestError) => {
+  const target = conflictTarget(error);
+  return target.includes("code") && !target.includes("period")
+    ? actualCodeCollision()
+    : actualPeriodExists();
+};
 
 const actualNotFound = () =>
   new AppError(404, "KPI_ACTUAL_NOT_FOUND", "KPI actual not found");
@@ -148,7 +181,7 @@ export class KpiActualService {
           configuration.id,
           body.period,
         );
-        if (existing) throw actualAlreadyExists();
+        if (existing) throw actualPeriodExists();
 
         const actualValue = new Prisma.Decimal(body.actualValue);
         const performance = this.performanceService.calculate({
@@ -171,6 +204,9 @@ export class KpiActualService {
         if (finalStatus === "APPROVED") {
           this.evidenceGate.assertSatisfied(configuration.requiresEvidence);
         }
+        const code = formatKpiActualCode(
+          await transaction.allocateNextActualNumber(tenantId),
+        );
         let actual: KpiActualRecord;
         try {
           actual = await transaction.createActual(
@@ -179,7 +215,7 @@ export class KpiActualService {
             submittedAt,
             finalStatus,
             {
-              code: body.code,
+              code,
               kpiConfigurationId: configuration.id,
               kpiTargetId: target.id,
               period: target.period,
@@ -200,7 +236,7 @@ export class KpiActualService {
             error instanceof Prisma.PrismaClientKnownRequestError &&
             error.code === "P2002"
           ) {
-            throw actualAlreadyExists();
+            throw submissionConflict(error);
           }
           throw error;
         }
