@@ -68,7 +68,7 @@ const route = (
 
 export const routeDefinitions: RouteDefinition[] = [
   route("/dashboard", "#dashboard", "Dashboard", "Overview", "Company-wide compliance, KPI, evidence, CAPA and risk overview.", LayoutDashboard, 1),
-  route("/admin/users", "#admin/users", "User Management", "Admin", "Manage user access, Company assignment, roles and account status.", Users, 1, { permission: "users:read", api: "GET /users · GET /users/:id" }),
+  route("/admin/users", "#admin/users", "User Management", "Admin", "Manage user access, Company assignment, roles and account status.", Users, 1, { permission: "users:read", api: "GET/POST /users · GET/PATCH /users/:id" }),
   route("/admin/roles", "#admin/roles", "Role & Access Management", "Admin", "Control module-level permissions for each platform role.", ShieldCheck, 2),
   route("/admin/companies", "#admin/companies", "Company Setup", "Admin", "Manage Company profiles, framework assignments and data separation.", Building2, 1, { permission: "tenants:read", api: "GET /tenants" }),
   route("/admin/departments", "#admin/departments", "Department Setup", "Admin", "Maintain Company-scoped departments, ownership and operational structure.", Network, 1, { permission: "organisation:read", api: "GET /organisation/departments" }),
