@@ -11,7 +11,9 @@ Only these paths belong to the active application:
 - `backend/prisma/` — active Prisma schema and migrations
 - `backend/Dockerfile` and `docker-compose.yml` — local application infrastructure
 
-Root `src/`, root `prisma/`, root `tests/`, and `legacy_python_backend/` are dormant. Do not run their migrations or add new features to them. See `docs/architecture/authoritative-runtime.md`.
+Dormant implementations live under `legacy/` (`src/`, `prisma/`, `tests/`, and
+`legacy_python_backend/`). Do not run their migrations or add new features to
+them. See `docs/architecture/authoritative-runtime.md` and `legacy/README.md`.
 
 ## Requirements
 

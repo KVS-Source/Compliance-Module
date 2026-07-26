@@ -14,14 +14,15 @@ All setup, build, database, test, and Docker commands must target these director
 
 ## Dormant implementations
 
-The following implementations are retained for controlled review but are not part of the active application:
+The following implementations are retained under `legacy/` for controlled review
+but are not part of the active application:
 
-- root `src/`
-- root `prisma/`
-- root `tests/`
-- `legacy_python_backend/`
+- `legacy/src/` — former root Express/TypeScript backend
+- `legacy/prisma/` — former root Prisma schema
+- `legacy/tests/` — former root Node backend tests
+- `legacy/legacy_python_backend/` — former FastAPI backend
 
-Do not connect the React application, active Express backend, Docker services, or active database migrations to dormant code. Do not implement new features in dormant implementations.
+Do not connect the React application, active Express backend, Docker services, or active database migrations to dormant code. Do not implement new features in dormant implementations. See `legacy/README.md`.
 
 Dormant code may contain business rules needed by future migration work. Those rules must be reviewed, reconciled with the active tenant and shared-master models, and covered by approved tests before eventual archival or removal.
 

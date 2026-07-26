@@ -14,9 +14,10 @@ non-trivial work and follow it exactly. Key rules, repeated here so they always 
 - `docker-compose.yml`
 
 ## Dormant — do NOT edit, import, wire in, or delete
-`src/`, `prisma/`, `tests/` (root-level old Node backend), `legacy_python_backend/`,
-and stray prototype HTML copies at the repo root. Preserved for reference only.
-(After the quarantine task these live under `legacy/` — same rule applies.)
+`legacy/src/`, `legacy/prisma/`, `legacy/tests/` (old Node backend),
+`legacy/legacy_python_backend/`, and stray prototype HTML copies at the repo root
+(referenced by Vite/Express/Docker — leave them in place). Preserved for
+reference only. Never import from these into `frontend/` or `backend/`.
 
 ## Non-negotiables
 - Backend is the source of truth for authorization and tenant isolation. Frontend

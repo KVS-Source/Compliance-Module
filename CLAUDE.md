@@ -15,11 +15,12 @@ source of truth for authorization and tenant isolation. Frontend checks are UX o
 - `docker-compose.yml`
 
 ## Dormant — DO NOT edit, import, wire in, or delete
-- `src/`, `prisma/`, `tests/` (root-level old Node backend)
-- `legacy_python_backend/` (old FastAPI backend)
-- Stray prototype HTML copies at the repo root
+- `legacy/src/`, `legacy/prisma/`, `legacy/tests/` (old Node backend)
+- `legacy/legacy_python_backend/` (old FastAPI backend)
+- Stray prototype HTML copies at the repo root (referenced by Vite/Express/Docker —
+  leave them in place)
 Preserved on purpose, for reference only. Never import from these into `frontend/`
-or `backend/`. If a task seems to require them, stop and ask.
+or `backend/`. If a task seems to require them, stop and ask. See `legacy/README.md`.
 
 ## Live vs prototype (frontend)
 - API-connected routes hit the real backend and must NOT show the prototype banner.

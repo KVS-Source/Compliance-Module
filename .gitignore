@@ -28,11 +28,12 @@ prisma/*.db
 # Local review and presentation artifacts
 .ppt_staging/
 outputs/
+.tmp/
 
 # OS
 .DS_Store
 
-# Legacy Python backend leftovers (the folder itself is preserved on purpose)
+# Legacy Python backend leftovers (the folder itself is preserved under legacy/)
 .venv/
 __pycache__/
 *.py[cod]
