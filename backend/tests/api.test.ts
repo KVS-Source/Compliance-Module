@@ -127,9 +127,9 @@ describe("Milestone 1 API", () => {
       response.headers["set-cookie"]?.[0] as string;
     const expectCleared = (response: { headers: Record<string, unknown> }) => {
       const cookies = response.headers["set-cookie"] as string[] | undefined;
-      expect(cookies?.some((cookie) => cookie.startsWith("genbioca_refresh=;"))).toBe(
-        true,
-      );
+      expect(
+        cookies?.some((cookie) => cookie.startsWith("genbioca_refresh=;")),
+      ).toBe(true);
     };
 
     const validLogin = await login();
@@ -266,9 +266,13 @@ describe("Milestone 1 API", () => {
       .get("/api/v1/users")
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
-    expect(
-      users.body.data.map((entry: { email: string }) => entry.email),
-    ).toEqual(["admin001@example.test"]);
+    const company2Emails = users.body.data.map(
+      (entry: { email: string }) => entry.email,
+    );
+    // COM-002 seed membership is admin only; user001 stays in COM-001.
+    // Other suite files may create additional COM-002 users on the shared DB.
+    expect(company2Emails).toContain("admin001@example.test");
+    expect(company2Emails).not.toContain("user001@example.test");
     await request(app)
       .get(`/api/v1/users/${user2.id}`)
       .set("Authorization", `Bearer ${token}`)
@@ -282,7 +286,11 @@ describe("Milestone 1 API", () => {
       code: "DEP-001",
       name: "Compliance",
     });
-    expect(users.body.data[0]).toMatchObject({
+    expect(
+      users.body.data.find(
+        (entry: { email: string }) => entry.email === "admin001@example.test",
+      ),
+    ).toMatchObject({
       department: "Compliance",
       roles: ["Company Admin"],
     });

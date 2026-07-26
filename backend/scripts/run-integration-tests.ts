@@ -55,6 +55,14 @@ run("Test database migration deployment", [
 run("Deterministic test fixture", ["run", "prisma:seed:test"]);
 run(
   "Integration test suite",
-  ["exec", "--", "vitest", "run", "tests/api.test.ts"],
+  [
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "--no-file-parallelism",
+    "tests/api.test.ts",
+    "tests/users-write.test.ts",
+  ],
   true,
 );
