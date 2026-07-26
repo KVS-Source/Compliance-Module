@@ -29,6 +29,7 @@ prisma/*.db
 .ppt_staging/
 outputs/
 .tmp/
+gitleaks-report.json
 
 # OS
 .DS_Store
