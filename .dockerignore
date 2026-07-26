@@ -7,7 +7,6 @@
 **/blob-report
 .git
 .github
-.cursor
 .DS_Store
 **/.DS_Store
 .env

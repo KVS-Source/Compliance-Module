@@ -22,6 +22,8 @@ service-account*.json
 # Uploaded files (local dev storage)
 uploads/*
 !uploads/.gitkeep
+**/uploads/*
+!**/uploads/.gitkeep
 
 # Logs
 *.log
@@ -43,6 +45,13 @@ blob-report/
 # Prisma local db
 prisma/*.db
 **/prisma/*.db
+*.sqlite
+*.sqlite3
+
+# Database dumps
+*.dump
+*.backup
+*.sql.gz
 
 # Local review, cache, and presentation artifacts
 .ppt_staging/
@@ -57,6 +66,10 @@ outputs/
 **/.DS_Store
 Thumbs.db
 .idea/
+CLAUDE.md
+AGENTS.md
+.cursor/
+.claude/
 .vscode/
 *.swp
 *~
