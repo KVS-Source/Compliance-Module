@@ -410,18 +410,8 @@ export const openApiDocument = {
               schema: {
                 type: "object",
                 additionalProperties: false,
-                required: [
-                  "code",
-                  "kpiConfigurationId",
-                  "period",
-                  "actualValue",
-                ],
+                required: ["kpiConfigurationId", "period", "actualValue"],
                 properties: {
-                  code: {
-                    type: "string",
-                    maxLength: 64,
-                    pattern: "^[A-Za-z0-9_-]+$",
-                  },
                   kpiConfigurationId: {
                     type: "string",
                     format: "uuid",
@@ -449,11 +439,11 @@ export const openApiDocument = {
         responses: {
           "201": {
             description:
-              "KPI actual submitted into pending approval or automatically approved with its target snapshot, performance result and automatic risk summary when required",
+              "KPI actual submitted into pending approval or automatically approved with its server-allocated ACT code, target snapshot, performance result and automatic risk summary when required",
           },
           "400": {
             description:
-              "Invalid input or calculated values exceed Decimal(18,4)",
+              "Invalid input, a caller-supplied code, or calculated values exceed Decimal(18,4)",
           },
           "403": { description: "Missing kpi-actual:write permission" },
           "404": {
@@ -462,7 +452,7 @@ export const openApiDocument = {
           },
           "409": {
             description:
-              "An active actual already exists for the configuration and period",
+              "KPI_ACTUAL_PERIOD_EXISTS: an active actual already exists for the configuration and period",
           },
           "501": {
             description:

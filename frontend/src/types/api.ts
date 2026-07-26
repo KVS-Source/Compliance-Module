@@ -200,3 +200,145 @@ export interface KpiGoal {
   effectiveTo: string | null;
   status: string;
 }
+
+export type KpiDirection =
+  | "HIGHER_IS_BETTER"
+  | "LOWER_IS_BETTER"
+  | "TARGET_EXACT"
+  | "INFORMATIONAL";
+
+export type KpiFrequency =
+  | "DAILY"
+  | "WEEKLY"
+  | "MONTHLY"
+  | "QUARTERLY"
+  | "HALF_YEARLY"
+  | "ANNUAL"
+  | "CONTINUOUS"
+  | "PER_EVENT"
+  | "ONE_TIME";
+
+export type RagStatus = "GREEN" | "AMBER" | "RED";
+export type KpiRiskClass = "MAJOR" | "MINOR";
+export type SubmissionStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "REJECTED";
+
+export interface KpiPerson {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface KpiNamedRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface KpiConfiguration {
+  id: string;
+  kpi: {
+    id: string;
+    code: string;
+    name: string;
+    unit: string;
+    direction: KpiDirection;
+    frequency: KpiFrequency;
+  };
+  orgUnit: KpiNamedRef | null;
+  orgLocation: KpiNamedRef | null;
+  productService: string | null;
+  department: KpiNamedRef | null;
+  owner: KpiPerson | null;
+  approver: KpiPerson | null;
+  enabled: boolean;
+  currency: string | null;
+  reviewFrequency: KpiFrequency;
+  amberThresholdPct: string | null;
+  redThresholdPct: string | null;
+  requiresEvidence: boolean;
+  requiresApproval: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KpiTarget {
+  id: string;
+  code: string;
+  configuration: KpiConfiguration;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  targetValue: string;
+  minValue: string | null;
+  maxValue: string | null;
+  approvalStatus: SubmissionStatus;
+  submittedBy: KpiPerson | null;
+  submittedAt: string | null;
+  approvedBy: KpiPerson | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  version: number;
+  supersededById: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KpiActualRiskSummary {
+  id: string;
+  code: string;
+  title: string;
+  kpiRiskClass: KpiRiskClass | null;
+  generalLevel: string | null;
+  inherentLikelihood: number;
+  inherentImpact: number;
+  inherentScore: number;
+  status: string;
+}
+
+export interface KpiActual {
+  id: string;
+  code: string;
+  configuration: KpiConfiguration;
+  target: { id: string; code: string; version: number };
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  targetValueSnapshot: string;
+  actualValue: string;
+  variance: string;
+  variancePercentage: string | null;
+  ragStatus: RagStatus | null;
+  targetMet: boolean;
+  approvalStatus: SubmissionStatus;
+  submittedBy: KpiPerson | null;
+  submittedAt: string;
+  approvedBy: KpiPerson | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  evidenceStatus: string | null;
+  comments: string | null;
+  createdAt: string;
+  updatedAt: string;
+  riskRequired: boolean;
+  recommendedRiskClass: KpiRiskClass | null;
+  risk: KpiActualRiskSummary | null;
+}
+
+export interface CreateKpiActualInput {
+  kpiConfigurationId: string;
+  period: string;
+  actualValue: string;
+  evidenceStatus?: string | null;
+  comments?: string | null;
+}

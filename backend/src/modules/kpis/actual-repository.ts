@@ -127,6 +127,20 @@ export class KpiActualTransactionRepository {
     });
   }
 
+  /**
+   * The counter row is updated inside the submission transaction, so
+   * concurrent submissions in one Company serialise on it and every
+   * allocation is distinct. A rolled-back submission releases its number.
+   */
+  async allocateNextActualNumber(tenantId: string) {
+    const tenant = await this.transaction.tenant.update({
+      where: { id: tenantId },
+      data: { nextKpiActualNumber: { increment: 1 } },
+      select: { nextKpiActualNumber: true },
+    });
+    return tenant.nextKpiActualNumber - 1;
+  }
+
   findActiveActual(tenantId: string, configurationId: string, period: string) {
     return this.transaction.kpiActual.findFirst({
       where: {

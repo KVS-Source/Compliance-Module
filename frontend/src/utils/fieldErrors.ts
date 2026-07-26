@@ -42,3 +42,53 @@ export function duplicateCodeFieldError(error: unknown): string | null {
   }
   return null;
 }
+
+/** Map known KPI actual submission errors onto form fields or a form banner. */
+export function kpiActualSubmissionError(error: unknown): {
+  fieldErrors: FieldErrors;
+  formError: string | null;
+} {
+  if (!(error instanceof ApiError)) {
+    return {
+      fieldErrors: {},
+      formError: error instanceof Error ? error.message : "Request failed",
+    };
+  }
+  if (error.code === "KPI_ACTUAL_PERIOD_EXISTS") {
+    return {
+      fieldErrors: {
+        period:
+          "An actual already exists for this KPI configuration and period",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "KPI_TARGET_NOT_FOUND") {
+    return {
+      fieldErrors: {
+        period:
+          "No approved target exists for this KPI and period. Approve a target before submitting an actual.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "KPI_CONFIGURATION_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The selected KPI configuration is no longer active for this Company.",
+    };
+  }
+  if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This KPI requires evidence before approval, and evidence support is not implemented yet.",
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}

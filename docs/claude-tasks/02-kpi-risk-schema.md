@@ -219,10 +219,24 @@ Target workflow rules:
 
 Unique: `(tenantId, kpiConfigurationId, period)` where `deletedAt IS NULL`.
 
-Slice B accepts a caller-supplied, tenant-unique `code`, consistent with the
-other entities. A later slice may replace this with automatic code generation
-because actuals are periodic and high-volume, but no numbering policy is
-invented in Slice B.
+**Supersedes the Slice B resolution that accepted a caller-supplied `code`.**
+KPI actual codes are now server-generated, mirroring the Slice D risk-code
+sequence exactly:
+
+- `Tenant.nextKpiActualNumber` (default `1`) is the per-Company counter.
+- Inside the submission transaction the server increments that counter, formats
+  `ACT-001`, `ACT-002`, and so on (numeric part padded to at least three digits
+  and expands after `ACT-999`), and stores the result. Codes may repeat across
+  tenants.
+- Callers must not supply `code`. Zod `.strict()` rejects it with
+  `VALIDATION_ERROR` (HTTP 400).
+- A duplicate active actual for the same `(tenant, configuration, period)`
+  returns `KPI_ACTUAL_PERIOD_EXISTS` (HTTP 409).
+- A collision on the generated code unique index is a server fault and returns
+  `KPI_ACTUAL_CODE_COLLISION` (HTTP 500), never a client 409.
+- Historical caller-supplied codes are not rewritten. The migration advances
+  each Company's counter above any existing `ACT-<number>` code so the next
+  allocation cannot collide.
 
 ### 3.4 KpiApproval
 
@@ -443,10 +457,13 @@ explicit, audited operation.
 1. Validate tenant access from JWT context (never from the body)
 2. Load configuration; assert `enabled` and belongs to tenant
 3. Load the **approved** target for the period; 404 `KPI_TARGET_NOT_FOUND` if absent
-4. Assert no existing actual for `(tenant, configuration, period)`
+4. Assert no existing actual for `(tenant, configuration, period)`;
+   409 `KPI_ACTUAL_PERIOD_EXISTS` if one is present
 5. Snapshot `targetValueSnapshot` from that target
 6. `KpiPerformanceService.calculate()`
-7. Insert `KpiActual`
+7. Allocate the next tenant-scoped actual code (`ACT-001`…) from
+   `Tenant.nextKpiActualNumber` and insert `KpiActual`. The request contains no
+   `code` field.
 8. If `riskRequired`: create the linked `Risk`, relying on the partial unique
    index to prevent duplicates. The server allocates the tenant-scoped risk
    code, derives title and description, sets all three KPI source FKs, applies
@@ -574,16 +591,20 @@ Calculation service, table-driven across all four directions:
 Workflow:
 
 - submission without an approved target → 404
-- duplicate actual for the same period → 409
+- duplicate actual for the same period → 409 `KPI_ACTUAL_PERIOD_EXISTS`
 - target met → no Risk row created
 - target missed (amber) → one MINOR risk starting at 3 × 3 = 9 / MEDIUM;
   (red) → one MAJOR risk starting at 4 × 4 = 16 / HIGH
+- generated actual codes are sequential within a tenant, begin at `ACT-001`,
+  and may repeat across tenants; concurrent submissions never collide
 - generated risk codes are sequential within a tenant, begin at `RSK-001`, and
   may repeat across tenants
-- the actual-submission body rejects caller-supplied risk fields
+- the actual-submission body rejects caller-supplied `code` and risk fields
 - duplicate actual submission returns 409 and leaves exactly one linked risk;
   a direct second active risk for the same actual is rejected by the partial
   unique index
+- a forced actual-code unique-index collision returns 500
+  `KPI_ACTUAL_CODE_COLLISION`, not a period 409
 - transaction rollback leaves no partial writes
 - approved target cannot be mutated; a change creates a new version
 - `targetValueSnapshot` survives re-versioning of the target

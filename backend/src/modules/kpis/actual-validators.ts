@@ -10,14 +10,13 @@ const nullableBoundedText = (maximum: number) =>
 
 const optionalComments = z.string().trim().min(1).max(2_000).optional();
 
+/**
+ * `code` is deliberately absent: the server allocates it from the Company
+ * counter inside the submission transaction, so `.strict()` rejects a
+ * caller-supplied code.
+ */
 export const createKpiActualSchema = z
   .object({
-    code: z
-      .string()
-      .trim()
-      .min(1)
-      .max(64)
-      .regex(/^[A-Za-z0-9_-]+$/, "Code must be alphanumeric"),
     kpiConfigurationId: z.string().uuid(),
     period: z.string().trim().min(1).max(64),
     actualValue: measuredDecimalSchema,

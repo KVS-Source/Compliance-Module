@@ -148,13 +148,11 @@ describe("KPI actual approval workflow Slice C", () => {
     token: string,
     configurationId: string,
     actualValue = "100",
-    code = `ACT-SLICEC-${randomUUID()}`,
   ) =>
     request(app)
       .post("/api/v1/kpi-actuals")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        code,
         kpiConfigurationId: configurationId,
         period: "FY26-27 Q1",
         actualValue,
@@ -579,11 +577,10 @@ describe("KPI actual approval workflow Slice C", () => {
       configuration.body.data.id,
       admin.user.id,
     );
-    const code = `ACT-EVIDENCE-ROLLBACK-${randomUUID()}`;
     const before = await Promise.all([
       prisma.tenant.findUniqueOrThrow({
         where: { id: admin.user.activeCompany.id },
-        select: { nextRiskNumber: true },
+        select: { nextRiskNumber: true, nextKpiActualNumber: true },
       }),
       prisma.risk.count({
         where: { tenantId: admin.user.activeCompany.id },
@@ -596,16 +593,37 @@ describe("KPI actual approval workflow Slice C", () => {
           },
         },
       }),
+      prisma.kpiActual.count({
+        where: {
+          tenantId: admin.user.activeCompany.id,
+          kpiConfigurationId: configuration.body.data.id,
+        },
+      }),
     ]);
 
     const response = await submitActual(
       admin.accessToken,
       configuration.body.data.id,
       "80",
-      code,
     ).expect(501);
     expect(response.body.error.code).toBe("EVIDENCE_GATE_NOT_IMPLEMENTED");
-    expect(await prisma.kpiActual.count({ where: { code } })).toBe(0);
+    expect(
+      await prisma.kpiActual.count({
+        where: {
+          tenantId: admin.user.activeCompany.id,
+          kpiConfigurationId: configuration.body.data.id,
+        },
+      }),
+    ).toBe(before[3]);
+    expect(
+      await prisma.tenant.findUniqueOrThrow({
+        where: { id: admin.user.activeCompany.id },
+        select: { nextRiskNumber: true, nextKpiActualNumber: true },
+      }),
+    ).toEqual({
+      nextRiskNumber: before[0].nextRiskNumber,
+      nextKpiActualNumber: before[0].nextKpiActualNumber,
+    });
     expect(
       await prisma.risk.count({
         where: { tenantId: admin.user.activeCompany.id },
@@ -621,12 +639,6 @@ describe("KPI actual approval workflow Slice C", () => {
         },
       }),
     ).toBe(before[2]);
-    expect(
-      await prisma.tenant.findUniqueOrThrow({
-        where: { id: admin.user.activeCompany.id },
-        select: { nextRiskNumber: true },
-      }),
-    ).toEqual(before[0]);
   });
 
   it("allows an explicit decision on a legacy SUBMITTED actual", async () => {
