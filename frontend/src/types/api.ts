@@ -66,6 +66,27 @@ export interface CompanyUser {
   lastLogin: string | null;
 }
 
+export type UserStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
+
+export interface CreateUserInput {
+  code: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  password: string;
+  status?: UserStatus;
+  departmentId?: string | null;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+  password?: string;
+  status?: UserStatus;
+  departmentId?: string | null;
+}
+
 export interface Department {
   id: string;
   code: string;

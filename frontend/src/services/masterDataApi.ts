@@ -1,11 +1,13 @@
 import { apiRequest, pageQuery } from "./apiClient";
 import type {
   CompanyUser,
+  CreateUserInput,
   Department,
   KpiDefinition,
   KpiGoal,
   Location,
   OrganisationUnit,
+  UpdateUserInput,
 } from "../types/api";
 
 export const masterDataApi = {
@@ -14,6 +16,22 @@ export const masterDataApi = {
   },
   async getUser(id: string) {
     return (await apiRequest<CompanyUser>(`/users/${encodeURIComponent(id)}`)).data;
+  },
+  async createUser(input: CreateUserInput) {
+    return (
+      await apiRequest<CompanyUser>("/users", {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+    ).data;
+  },
+  async updateUser(id: string, input: UpdateUserInput) {
+    return (
+      await apiRequest<CompanyUser>(`/users/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      })
+    ).data;
   },
   async listDepartments() {
     return (
