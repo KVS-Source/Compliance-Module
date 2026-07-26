@@ -99,6 +99,9 @@ async function main() {
         ["users:read", "Read Company users"],
         ["users:write", "Create and update Company users"],
         ["organisation:read", "Read organisation master data"],
+        ["departments:write", "Create and update Company departments"],
+        ["locations:write", "Create and update Company locations"],
+        ["units:write", "Create and update Company organisation units"],
         ["frameworks:read", "Read frameworks and rules"],
         ["kpis:read", "Read KPI definitions and goals"],
       ] as const
@@ -162,7 +165,12 @@ async function main() {
       });
       for (const readerPermission of permissions.filter(
         ({ code }) =>
-          code !== "*" && code !== "users:read" && code !== "users:write",
+          code !== "*" &&
+          code !== "users:read" &&
+          code !== "users:write" &&
+          code !== "departments:write" &&
+          code !== "locations:write" &&
+          code !== "units:write",
       )) {
         await db.rolePermission.upsert({
           where: {
