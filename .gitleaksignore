@@ -1,0 +1,8 @@
+# Synthetic env-validation value used only in backend tests.
+1e7ddfa49920fee6377a372730ac7b67e8176752:backend/tests/hardening.test.ts:generic-api-key:9
+
+# Synthetic env-validation value used only in backend tests.
+19dd66ed3209e165e272d728e7a654eb0663ef10:backend/tests/environment.test.ts:generic-api-key:5
+
+# Dev-only placeholder in dormant legacy code; never used in any real environment.
+64c1b67eb4b9bd1cf99f8482dfe2c3da4509c22a:legacy_python_backend/.env.example:generic-api-key:17

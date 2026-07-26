@@ -180,6 +180,9 @@ test("prototype routes are labelled while API-connected routes are not", async (
   for (const path of [
     "/dashboard",
     "/admin/users",
+    "/admin/departments",
+    "/admin/locations",
+    "/admin/organisation-units",
     "/master/frameworks",
   ]) {
     await navigateInApp(page, path);

@@ -7,7 +7,7 @@ Branch: `governance/ci-hardening`
 
 | Step | Status | Deliverable |
 |------|--------|-------------|
-| 1 | Done | Repository governance instructions (`CLAUDE.md`, `.cursor/rules/genbioca.mdc`) |
+| 1 | Done | Repository governance instructions (`CONTRIBUTING.md`) |
 | 2 | Done | Secret exposure review (`docs/reviews/secret-exposure.md`) |
 | 3 | Done | Architecture guards (`scripts/check-router-mode.mjs`, `scripts/check-active-boundaries.mjs`) |
 | 4 | Done | React Router risk acceptance (`docs/reviews/react-router-risk-acceptance.md`) |

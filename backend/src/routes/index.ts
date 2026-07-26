@@ -8,6 +8,7 @@ import { tenantsRoutes } from "../modules/tenants/routes.js";
 import { usersRoutes } from "../modules/users/routes.js";
 import { UsersRepository } from "../modules/users/repository.js";
 import { organisationRoutes } from "../modules/organisation/routes.js";
+import { OrganisationRepository } from "../modules/organisation/repository.js";
 import {
   frameworksRoutes,
   FrameworksRepository,
@@ -48,7 +49,10 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   router.use(authenticate, authorizeTenantContext(db));
   router.use("/tenants", tenantsRoutes(provider));
   router.use("/users", usersRoutes(provider, new UsersRepository(db)));
-  router.use("/organisation", organisationRoutes(provider));
+  router.use(
+    "/organisation",
+    organisationRoutes(provider, new OrganisationRepository(db)),
+  );
   router.use(
     "/frameworks",
     frameworksRoutes(provider, new FrameworksRepository(db)),
