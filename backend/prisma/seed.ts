@@ -1,7 +1,11 @@
 import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
+import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
+import { assertSeedExecutionAllowed } from "./seed-safety.js";
 
+const seedMode = assertSeedExecutionAllowed(process.argv.slice(2));
 const db = new PrismaClient();
+const roleAssignments = new RoleAssignmentService(db);
 
 async function main() {
   const companies = await Promise.all(
@@ -93,7 +97,11 @@ async function main() {
         ["*", "All permissions"],
         ["tenants:read", "Read Companies"],
         ["users:read", "Read Company users"],
+        ["users:write", "Create and update Company users"],
         ["organisation:read", "Read organisation master data"],
+        ["departments:write", "Create and update Company departments"],
+        ["locations:write", "Create and update Company locations"],
+        ["units:write", "Create and update Company organisation units"],
         ["frameworks:read", "Read frameworks and rules"],
         ["kpis:read", "Read KPI definitions and goals"],
       ] as const
@@ -128,22 +136,11 @@ async function main() {
       update: {},
       create: { roleId: role.id, permissionId: allPermission.id },
     });
-    await db.userRole.upsert({
-      where: {
-        userId_roleId_tenantId: {
-          userId: admin.id,
-          roleId: role.id,
-          tenantId: tenant.id,
-        },
-      },
-      update: { status: "ACTIVE", assignedBy: admin.id },
-      create: {
-        userId: admin.id,
-        roleId: role.id,
-        tenantId: tenant.id,
-        status: "ACTIVE",
-        assignedBy: admin.id,
-      },
+    await roleAssignments.upsertActive({
+      userId: admin.id,
+      roleId: role.id,
+      tenantId: tenant.id,
+      assignedBy: admin.id,
     });
     if (tenant.id === company001.id) {
       await db.userRole.updateMany({
@@ -167,7 +164,13 @@ async function main() {
         },
       });
       for (const readerPermission of permissions.filter(
-        ({ code }) => code !== "*" && code !== "users:read",
+        ({ code }) =>
+          code !== "*" &&
+          code !== "users:read" &&
+          code !== "users:write" &&
+          code !== "departments:write" &&
+          code !== "locations:write" &&
+          code !== "units:write",
       )) {
         await db.rolePermission.upsert({
           where: {
@@ -183,22 +186,11 @@ async function main() {
           },
         });
       }
-      await db.userRole.upsert({
-        where: {
-          userId_roleId_tenantId: {
-            userId: user.id,
-            roleId: companyUserRole.id,
-            tenantId: tenant.id,
-          },
-        },
-        update: { status: "ACTIVE", assignedBy: admin.id },
-        create: {
-          userId: user.id,
-          roleId: companyUserRole.id,
-          tenantId: tenant.id,
-          status: "ACTIVE",
-          assignedBy: admin.id,
-        },
+      await roleAssignments.upsertActive({
+        userId: user.id,
+        roleId: companyUserRole.id,
+        tenantId: tenant.id,
+        assignedBy: admin.id,
       });
     }
 
@@ -312,5 +304,15 @@ async function main() {
 }
 
 main()
-  .then(() => console.log("Milestone 1 seed complete"))
+  .then(() =>
+    console.log(
+      `${seedMode === "test" ? "Test fixture" : "Development seed"} complete`,
+    ),
+  )
+  .catch(() => {
+    console.error(
+      `${seedMode === "test" ? "Test fixture" : "Development seed"} failed`,
+    );
+    process.exitCode = 1;
+  })
   .finally(async () => db.$disconnect());

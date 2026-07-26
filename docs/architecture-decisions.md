@@ -39,3 +39,15 @@ Zod validates environment and request inputs. Safe response envelopes hide stack
 ## AD-010 Deployment
 
 Docker Compose runs PostgreSQL and the app. The app waits for database health, applies committed migrations, runs idempotent seed logic and starts the compiled server. This is development/reference infrastructure, not a production-readiness claim.
+
+## AD-011 CORS stays absent while the deployment is same-origin
+
+No CORS middleware is installed, and this is a decision rather than an omission. Express serves the built frontend and `/api/v1` from one origin (AD-002), so browsers never issue cross-origin requests and any permissive `Access-Control-Allow-Origin` would only widen the attack surface. The refresh cookie depends on this: it is `SameSite=Strict` and scoped to `path=/api/v1/auth`, so a cross-origin frontend would silently fail to refresh rather than fail loudly.
+
+Splitting the frontend onto its own origin therefore requires four coordinated changes, not one: an explicit origin allowlist with `credentials: true`, `SameSite=None; Secure` on the refresh cookie, a cookie path that still reaches the auth routes, and a CSP `connect-src` that names the API origin. Until all four are decided together, same-origin remains the supported topology.
+
+## AD-012 Request throttling and proxy-aware client identity
+
+Per-account lockout (five failures, fifteen minutes) stops repeated guesses against one account but does nothing about one source spraying a common password across many accounts, so `express-rate-limit` adds per-IP ceilings: strict on the credential-accepting routes (`/auth/login`, `/auth/tenant-context`), looser on `/auth/refresh` because the frontend refreshes on every load and token expiry, and a broad ceiling for the rest of `/api/v1`. Liveness and readiness probes are mounted ahead of the limiter so orchestrator polling cannot exhaust the budget. Refusals use the standard error envelope with `AUTH_RATE_LIMITED` or `RATE_LIMITED`.
+
+Limits key on `req.ip`, which Express derives from `trust proxy`, so that setting is now `TRUST_PROXY` rather than a hardcoded hop count. A value larger than the real proxy chain lets clients forge `X-Forwarded-For` and mint a fresh bucket per request; a value smaller collapses every client behind the proxy onto one bucket. The default is `false` (direct exposure, as in Docker Compose), production rejects the permissive `true`, and production also rejects `RATE_LIMIT_DISABLED=true`, which exists only so the integration suite can sign in more often than a human would.

@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "governance/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend and isolated PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      PORT: "8000"
+      DATABASE_URL: postgresql://ci_guard:ci_test_only@127.0.0.1:5432/genbioca_development_guard
+      DATABASE_URL_TEST: postgresql://genbioca_test:ci_test_only@127.0.0.1:5432/genbioca_ci_test
+      JWT_ACCESS_TTL: 15m
+      JWT_ISSUER: genbioca-compliance-ci
+      REFRESH_TOKEN_DAYS: "7"
+      COOKIE_SECURE: "false"
+      FRONTEND_DIST: ../frontend/dist
+      PROTOTYPE_DIR: ../docs/prototype
+      FILE_STORAGE_DRIVER: local
+      LOCAL_UPLOAD_DIR: ./uploads
+      LOG_LEVEL: silent
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: genbioca_ci_test
+          POSTGRES_USER: genbioca_test
+          POSTGRES_PASSWORD: ci_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U genbioca_test -d genbioca_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Create ephemeral JWT test secret
+        shell: bash
+        run: |
+          generated_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$generated_secret"
+          echo "JWT_ACCESS_SECRET=$generated_secret" >> "$GITHUB_ENV"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Validate and generate Prisma client
+        working-directory: backend
+        run: |
+          npm run prisma:validate
+          npm run prisma:generate
+      - name: Typecheck backend
+        working-directory: backend
+        run: npm run typecheck
+      - name: Lint backend
+        working-directory: backend
+        run: npm run lint
+      - name: Install frontend dependencies for backend delivery tests
+        working-directory: frontend
+        run: npm ci
+      - name: Build frontend for backend delivery tests
+        working-directory: frontend
+        run: npm run build
+      - name: Run backend unit tests
+        working-directory: backend
+        run: npm run test:unit
+      - name: Run isolated PostgreSQL integration tests
+        working-directory: backend
+        run: npm run test:integration
+
+  frontend:
+    name: Frontend and Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Install bundled Chromium
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+      - name: Run Playwright
+        working-directory: frontend
+        run: npm run test:e2e
+
+  guard:
+    name: Architecture guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Enforce React Router library/data mode
+        run: npm --prefix frontend run guard:router
+      - name: Enforce active/legacy boundary
+        run: npm --prefix frontend run guard:boundaries
+
+  secret-scan:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan Git history with redacted output
+        run: >-
+          docker run --rm
+          -v "${GITHUB_WORKSPACE}:/repo"
+          ghcr.io/gitleaks/gitleaks:v8.30.1
+          git /repo --redact=100 --no-banner
+
+  sast:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Scan active runtime
+        run: >-
+          semgrep scan
+          --config p/typescript
+          --config p/expressjs
+          --config p/owasp-top-ten
+          --error frontend backend

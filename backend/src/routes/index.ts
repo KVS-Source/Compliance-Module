@@ -8,6 +8,7 @@ import { tenantsRoutes } from "../modules/tenants/routes.js";
 import { usersRoutes } from "../modules/users/routes.js";
 import { UsersRepository } from "../modules/users/repository.js";
 import { organisationRoutes } from "../modules/organisation/routes.js";
+import { OrganisationRepository } from "../modules/organisation/repository.js";
 import {
   frameworksRoutes,
   FrameworksRepository,
@@ -17,20 +18,41 @@ import {
   authenticate,
   authorizeTenantContext,
 } from "../common/middleware/http.js";
+import { apiRateLimiter } from "../common/middleware/rate-limit.js";
 
 export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   const router = Router();
   router.get("/health", (_req, res) =>
     res.json({
       success: true,
-      data: { status: "ok", service: "genbioca-compliance-api" },
+      data: { status: "ok" },
     }),
   );
+  router.get("/ready", async (req, res) => {
+    try {
+      await db.$queryRaw`SELECT 1`;
+      return res.json({ success: true, data: { status: "ready" } });
+    } catch {
+      req.log?.warn("readiness check failed");
+      return res.status(503).json({
+        success: false,
+        error: {
+          code: "NOT_READY",
+          message: "Service is not ready",
+        },
+      });
+    }
+  });
+  // Mounted after the probes so orchestrator health checks never consume budget.
+  router.use(apiRateLimiter());
   router.use("/auth", authRoutes(new AuthService(new AuthRepository(db))));
   router.use(authenticate, authorizeTenantContext(db));
   router.use("/tenants", tenantsRoutes(provider));
   router.use("/users", usersRoutes(provider, new UsersRepository(db)));
-  router.use("/organisation", organisationRoutes(provider));
+  router.use(
+    "/organisation",
+    organisationRoutes(provider, new OrganisationRepository(db)),
+  );
   router.use(
     "/frameworks",
     frameworksRoutes(provider, new FrameworksRepository(db)),

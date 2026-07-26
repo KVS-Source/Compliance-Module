@@ -33,12 +33,22 @@ const identity = (activeCompany = companies[0]!) => ({
 
 const success = (data: unknown) => ({ success: true, data });
 
-async function installMockApi(page: Page, startAuthenticated: boolean) {
+async function installMockApi(
+  page: Page,
+  startAuthenticated: boolean,
+  undeclaredWrites: string[] = [],
+) {
   let authenticated = startAuthenticated;
   let activeCompany = companies[0]!;
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (
+      request.method() !== "GET" &&
+      !path.startsWith("/api/v1/auth/")
+    ) {
+      undeclaredWrites.push(`${request.method()} ${path}`);
+    }
     if (path === "/api/v1/auth/refresh") {
       if (!authenticated) return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Invalid refresh token" } }) });
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "mock-access-token", user: identity(activeCompany) })) });
@@ -85,6 +95,8 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
   test.setTimeout(90_000);
   await installMockApi(page, false);
   await page.goto("/login");
+  await page.getByLabel("Email").fill("admin001@example.test");
+  await page.locator("#login-password").fill("Synthetic001!");
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
@@ -145,4 +157,59 @@ test("every approved route remains reachable on desktop and mobile", async ({ pa
     const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
   }
+});
+
+test("prototype routes are labelled while API-connected routes are not", async ({
+  page,
+}) => {
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  for (const path of [
+    "/admin/roles",
+    "/kpi/actual-entry",
+    "/upload/evidence-master",
+    "/reports",
+  ]) {
+    await navigateInApp(page, path);
+    await expect(page.getByTestId("prototype-module-banner")).toHaveText(
+      "Prototype module — demonstration data only. Changes are not saved.",
+    );
+  }
+
+  for (const path of [
+    "/dashboard",
+    "/admin/users",
+    "/admin/departments",
+    "/admin/locations",
+    "/admin/organisation-units",
+    "/master/frameworks",
+  ]) {
+    await navigateInApp(page, path);
+    await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
+  }
+});
+
+test("prototype writes remain simulated and logout survives page reload", async ({
+  page,
+}) => {
+  const undeclaredWrites: string[] = [];
+  await installMockApi(page, true, undeclaredWrites);
+  await page.goto("/admin/roles");
+
+  await page.getByRole("button", { name: "Save Changes" }).first().click();
+  await expect(
+    page.getByText("Prototype simulation — Permission matrix reviewed"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/No PostgreSQL data was changed\./),
+  ).toBeVisible();
+  expect(undeclaredWrites).toEqual([]);
+
+  await page.getByRole("button", { name: "User profile" }).click();
+  await page.locator(".profile-menu").getByRole("button", { name: "Sign Out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.reload();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
 });

@@ -116,14 +116,32 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
       },
     });
   }
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2025"
-  ) {
-    return res.status(404).json({
-      success: false,
-      error: { code: "NOT_FOUND", message: "Resource not found" },
-    });
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // Field names are withheld: constraint targets describe internal schema.
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Resource not found" },
+      });
+    }
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: "CONFLICT",
+          message: "A record with these details already exists",
+        },
+      });
+    }
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "RELATED_RECORD_INVALID",
+          message: "A referenced record is missing or cannot be changed",
+        },
+      });
+    }
   }
   return res.status(500).json({
     success: false,

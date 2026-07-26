@@ -1,13 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { env } from "../src/config/env.js";
+import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
 
-if (!process.env.DATABASE_URL) {
+if (
+  process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
+  !process.env.DATABASE_URL_TEST ||
+  process.env.DATABASE_URL !== process.env.DATABASE_URL_TEST ||
+  process.env.NODE_ENV !== "test"
+) {
   throw new Error(
-    "DATABASE_URL is required for backend integration tests. Run PostgreSQL or use docker compose.",
+    "Integration tests must run through the isolated test-database runner",
   );
 }
 
@@ -16,11 +23,6 @@ describe("Milestone 1 API", () => {
   let prisma: PrismaClient;
 
   beforeAll(async () => {
-    execFileSync("npm", ["run", "prisma:seed"], {
-      cwd: process.cwd(),
-      env: process.env,
-      stdio: "pipe",
-    });
     ({ app } = await import("../src/app.js"));
     ({ prisma } = await import("../src/config/prisma.js"));
   });
@@ -33,6 +35,15 @@ describe("Milestone 1 API", () => {
       success: true,
       data: { status: "ok" },
     });
+    await request(app)
+      .get("/api/v1/ready")
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          success: true,
+          data: { status: "ready" },
+        });
+      });
   });
 
   it("supports valid login, current user and pagination metadata", async () => {
@@ -84,7 +95,7 @@ describe("Milestone 1 API", () => {
     });
   });
 
-  it("detects refresh reuse and revokes logout", async () => {
+  it("rotates refresh tokens and detects reuse", async () => {
     const agent = request.agent(app);
     const login = await agent
       .post("/api/v1/auth/login")
@@ -98,16 +109,113 @@ describe("Milestone 1 API", () => {
       .set("Cookie", originalCookie)
       .expect(401);
     await agent.post("/api/v1/auth/refresh").expect(401);
+  });
+
+  it("revokes cookie sessions and always clears the logout cookie", async () => {
+    const admin = await prisma.user.findUniqueOrThrow({
+      where: { email: "admin001@example.test" },
+    });
+    const auditBefore = await prisma.auditEvent.count({
+      where: { userId: admin.id, action: "AUTH_LOGOUT" },
+    });
+    const login = () =>
+      request(app)
+        .post("/api/v1/auth/login")
+        .send({ email: "admin001@example.test", password: "Admin001!Secure" })
+        .expect(200);
+    const cookieFrom = (response: Awaited<ReturnType<typeof login>>) =>
+      response.headers["set-cookie"]?.[0] as string;
+    const expectCleared = (response: { headers: Record<string, unknown> }) => {
+      const cookies = response.headers["set-cookie"] as string[] | undefined;
+      expect(
+        cookies?.some((cookie) => cookie.startsWith("genbioca_refresh=;")),
+      ).toBe(true);
+    };
+
+    const validLogin = await login();
+    const validCookie = cookieFrom(validLogin);
+    const validLogout = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Authorization", `Bearer ${validLogin.body.data.accessToken}`)
+      .set("Cookie", validCookie)
+      .expect(200);
+    expectCleared(validLogout);
+    await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", validCookie)
+      .expect(401);
+
+    const expiredLogin = await login();
+    const expiredCookie = cookieFrom(expiredLogin);
+    const expiredAccessToken = jwt.sign(
+      {
+        tenantId: expiredLogin.body.data.user.activeCompany.id,
+        permissions: ["*"],
+        type: "access",
+      },
+      env.JWT_ACCESS_SECRET,
+      {
+        subject: expiredLogin.body.data.user.id,
+        expiresIn: -1,
+        issuer: env.JWT_ISSUER,
+        audience: "genbioca-frontend",
+      },
+    );
+    const expiredLogout = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Authorization", `Bearer ${expiredAccessToken}`)
+      .set("Cookie", expiredCookie)
+      .expect(200);
+    expectCleared(expiredLogout);
+    await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", expiredCookie)
+      .expect(401);
+
+    const cookieOnlyLogin = await login();
+    const cookieOnly = cookieFrom(cookieOnlyLogin);
+    const cookieOnlyLogout = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Cookie", cookieOnly)
+      .expect(200);
+    expectCleared(cookieOnlyLogout);
+    await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", cookieOnly)
+      .expect(401);
+
+    const repeatedLogout = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Cookie", cookieOnly)
+      .expect(200);
+    expectCleared(repeatedLogout);
+
+    const unknownLogout = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Cookie", "genbioca_refresh=synthetic-unknown-refresh-token")
+      .expect(200);
+    expectCleared(unknownLogout);
+
+    const missingCookieLogout = await request(app)
+      .post("/api/v1/auth/logout")
+      .expect(200);
+    expectCleared(missingCookieLogout);
+
+    const auditAfter = await prisma.auditEvent.count({
+      where: { userId: admin.id, action: "AUTH_LOGOUT" },
+    });
+    expect(auditAfter - auditBefore).toBe(3);
 
     const logoutAgent = request.agent(app);
     const logoutLogin = await logoutAgent
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "Admin001!Secure" })
       .expect(200);
-    await logoutAgent
+    const agentLogout = await logoutAgent
       .post("/api/v1/auth/logout")
       .set("Authorization", `Bearer ${logoutLogin.body.data.accessToken}`)
       .expect(200);
+    expectCleared(agentLogout);
     await logoutAgent.post("/api/v1/auth/refresh").expect(401);
   });
 
@@ -158,9 +266,13 @@ describe("Milestone 1 API", () => {
       .get("/api/v1/users")
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
-    expect(
-      users.body.data.map((entry: { email: string }) => entry.email),
-    ).toEqual(["admin001@example.test"]);
+    const company2Emails = users.body.data.map(
+      (entry: { email: string }) => entry.email,
+    );
+    // COM-002 seed membership is admin only; user001 stays in COM-001.
+    // Other suite files may create additional COM-002 users on the shared DB.
+    expect(company2Emails).toContain("admin001@example.test");
+    expect(company2Emails).not.toContain("user001@example.test");
     await request(app)
       .get(`/api/v1/users/${user2.id}`)
       .set("Authorization", `Bearer ${token}`)
@@ -174,7 +286,11 @@ describe("Milestone 1 API", () => {
       code: "DEP-001",
       name: "Compliance",
     });
-    expect(users.body.data[0]).toMatchObject({
+    expect(
+      users.body.data.find(
+        (entry: { email: string }) => entry.email === "admin001@example.test",
+      ),
+    ).toMatchObject({
       department: "Compliance",
       roles: ["Company Admin"],
     });
@@ -308,6 +424,40 @@ describe("Milestone 1 API", () => {
         },
       }),
     ).rejects.toThrow();
+
+    const userWithoutMembership = await prisma.user.create({
+      data: {
+        code: `TEST-${randomUUID()}`,
+        email: `${randomUUID()}@example.test`,
+        fullName: "Synthetic Test User",
+        passwordHash: admin.passwordHash,
+        status: "ACTIVE",
+      },
+    });
+    try {
+      const assignments = new RoleAssignmentService(prisma);
+      await expect(
+        assignments.upsertActive({
+          userId: userWithoutMembership.id,
+          roleId: company2Role.id,
+          tenantId: company2.id,
+          assignedBy: admin.id,
+        }),
+      ).rejects.toMatchObject({ code: "INVALID_ROLE_ASSIGNMENT" });
+      await expect(
+        prisma.userRole.create({
+          data: {
+            userId: userWithoutMembership.id,
+            roleId: company2Role.id,
+            tenantId: company2.id,
+            status: "ACTIVE",
+          },
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await prisma.user.delete({ where: { id: userWithoutMembership.id } });
+    }
+
     await expect(
       prisma.userCompany.update({
         where: {

@@ -1,36 +1,73 @@
+x-app-environment: &app-environment
+  NODE_ENV: ${NODE_ENV:-development}
+  PORT: 8000
+  DATABASE_URL: ${DOCKER_DATABASE_URL:?DOCKER_DATABASE_URL is required}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+  JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+  JWT_ISSUER: ${JWT_ISSUER:-genbioca-compliance}
+  REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-7}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+  RATE_LIMIT_API_MAX: ${RATE_LIMIT_API_MAX:-600}
+  RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-10}
+  RATE_LIMIT_REFRESH_MAX: ${RATE_LIMIT_REFRESH_MAX:-60}
+  FRONTEND_DIST: ../frontend/dist
+  PROTOTYPE_DIR: ../docs/prototype
+  FILE_STORAGE_DRIVER: ${FILE_STORAGE_DRIVER:-local}
+  LOCAL_UPLOAD_DIR: ${LOCAL_UPLOAD_DIR:-./uploads}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+x-app-build: &app-build
+  context: .
+  dockerfile: backend/Dockerfile
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: genbioca_compliance
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - genbioca_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d genbioca_compliance"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  app:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+  postgres_test:
+    profiles: ["test"]
+    image: postgres:16-alpine
     environment:
-      NODE_ENV: production
-      PORT: 8000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/genbioca_compliance?schema=public
-      JWT_ACCESS_SECRET: docker-development-secret-change-before-any-shared-deployment
-      JWT_ACCESS_TTL: 15m
-      REFRESH_TOKEN_DAYS: 7
-      COOKIE_SECURE: "false"
-      FRONTEND_DIST: ../frontend/dist
-      PROTOTYPE_DIR: ../docs/prototype
-      FILE_STORAGE_DRIVER: local
-      LOCAL_UPLOAD_DIR: ./uploads
+      POSTGRES_DB: ${TEST_POSTGRES_DB:?TEST_POSTGRES_DB is required}
+      POSTGRES_USER: ${TEST_POSTGRES_USER:?TEST_POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:?TEST_POSTGRES_PASSWORD is required}
+    ports:
+      - "${TEST_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - genbioca_postgres_test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    profiles: ["tools"]
+    build: *app-build
+    command: ["npm", "run", "prisma:migrate"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build: *app-build
+    environment: *app-environment
     ports:
       - "8000:8000"
     depends_on:
@@ -39,3 +76,5 @@ services:
 
 volumes:
   genbioca_postgres:
+  genbioca_postgres_test:
+    name: genbioca_compliance_test_data

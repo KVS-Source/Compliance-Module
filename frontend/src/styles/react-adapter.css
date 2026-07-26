@@ -2,6 +2,16 @@
 #root {
   min-height: 100%;
 }
+.prototype-route-shell {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 28px 30px 40px;
+}
+.prototype-route-shell > .page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
 .mobile-backdrop {
   border: 0;
   padding: 0;
@@ -427,12 +437,18 @@
 }
 
 @media (max-width: 1180px) {
+  .prototype-route-shell {
+    padding: 24px;
+  }
   .dashboard-cards {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
   }
 }
 
 @media (max-width: 900px) {
+  .prototype-route-shell {
+    padding: 20px;
+  }
   .sidebar.mobile-open {
     transform: none;
     visibility: visible;
@@ -455,6 +471,9 @@
 }
 
 @media (max-width: 640px) {
+  .prototype-route-shell {
+    padding: 16px;
+  }
   .dashboard-filters > label:not(.filter-search),
   .toolbar-select {
     width: 100%;

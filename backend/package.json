@@ -12,18 +12,15 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "vitest run tests/unit.test.ts tests/frontend-serving.test.ts",
-    "test:integration": "vitest run tests/api.test.ts",
+    "test:unit": "vitest run tests/unit.test.ts tests/environment.test.ts tests/test-database.test.ts tests/auth-logout.test.ts tests/health.test.ts tests/frontend-serving.test.ts tests/hardening.test.ts",
+    "test:integration": "tsx scripts/run-integration-tests.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts",
-    "db:setup": "prisma migrate deploy && prisma db seed",
-    "start:docker": "prisma migrate deploy && prisma db seed && node dist/src/server.js"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "prisma:seed:dev": "tsx prisma/seed.ts --development",
+    "prisma:seed:test": "tsx prisma/seed.ts --test-fixture",
+    "start:docker": "node dist/src/server.js"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",
@@ -31,6 +28,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.6.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "pino": "^9.7.0",

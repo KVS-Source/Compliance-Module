@@ -71,6 +71,35 @@ const statusKeys = new Set([
 
 const textOf = (value: PrototypeRow[string]) => String(value ?? "—");
 
+function usePrototypeToast() {
+  const { showToast } = useToast();
+  return (
+    tone: Parameters<typeof showToast>[0],
+    title: string,
+    message: string,
+  ) =>
+    showToast(
+      tone,
+      `Prototype simulation — ${title}`,
+      `${message} No PostgreSQL data was changed.`,
+    );
+}
+
+function PrototypeModuleBanner() {
+  return (
+    <div
+      className="banner warning prototype-module-banner"
+      role="status"
+      data-testid="prototype-module-banner"
+    >
+      <Info size={18} />
+      <strong>
+        Prototype module — demonstration data only. Changes are not saved.
+      </strong>
+    </div>
+  );
+}
+
 function PrototypeFilterBar({
   search,
   onSearch,
@@ -213,7 +242,7 @@ function GenericPrototypePage({ config }: { config: PrototypeTableConfig }) {
   const location = useLocation();
   const route = routeByPath.get(location.pathname)!;
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All Statuses");
   const [editor, setEditor] = useState<{
@@ -350,7 +379,7 @@ function RecordModal({
   config: PrototypeTableConfig;
   onClose: () => void;
 }) {
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const editable = editor.mode !== "view";
   return (
     <Modal
@@ -406,7 +435,7 @@ function RecordModal({
 
 function RolesPage() {
   const route = routeByPath.get("/admin/roles")!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const roles = [
     "Super Admin",
     "Company Admin",
@@ -538,7 +567,7 @@ function RolesPage() {
 
 function KpiMappingPage() {
   const route = routeByPath.get("/kpi/mapping")!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const mappings: PrototypeRow[] = kpiRows.map((row, index) => ({
     id: `MAP-${String(index + 1).padStart(3, "0")}`,
     kpi: `${row.id} · ${row.name}`,
@@ -669,7 +698,7 @@ function KpiMappingPage() {
 
 function KpiActualPage() {
   const route = routeByPath.get("/kpi/actual-entry")!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const [actual, setActual] = useState("87");
   const target = 90;
   const numeric = Number(actual);
@@ -892,7 +921,7 @@ function KpiApprovalPage() {
     ],
     rows,
   };
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   return (
     <div className="page">
       <PageHeader
@@ -1096,7 +1125,7 @@ function ComplianceFrameworksPage() {
 
 function EvidenceReviewPage() {
   const route = routeByPath.get("/evidence/review")!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const pending = evidenceRows.filter((row) => row.status === "Pending");
   const [selected, setSelected] = useState<PrototypeRow>(pending[0]!);
   return (
@@ -1293,7 +1322,7 @@ const uploadMeta: Record<
 function UploadPage({ path }: { path: string }) {
   const route = routeByPath.get(path)!;
   const meta = uploadMeta[path]!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const [fileName, setFileName] = useState("");
   return (
     <div className="page">
@@ -1474,7 +1503,7 @@ const reportNames: Record<string, string[]> = {
 
 function ReportsPage({ path }: { path: string }) {
   const route = routeByPath.get(path)!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const names = reportNames[path] ?? reportNames["/reports"]!;
   return (
     <div className="page">
@@ -1566,7 +1595,7 @@ function ReportsPage({ path }: { path: string }) {
 function AnalyticsPage({ path }: { path: string }) {
   const route = routeByPath.get(path)!;
   const customers = path === "/analytics/customers";
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const metrics = customers
     ? ([
         ["Customers Acquired", 146, "blue"],
@@ -1729,7 +1758,7 @@ function KpiDashboardPage() {
 
 function SettingsPage() {
   const route = routeByPath.get("/settings")!;
-  const { showToast } = useToast();
+  const showToast = usePrototypeToast();
   const sections = [
     [
       "Organisation",
@@ -1858,24 +1887,37 @@ function FallbackVisualPage() {
 
 export function PrototypeRoutePage() {
   const { pathname } = useLocation();
-  if (pathname === "/admin/roles") return <RolesPage />;
-  if (pathname === "/kpi/mapping") return <KpiMappingPage />;
-  if (pathname === "/kpi/actual-entry") return <KpiActualPage />;
-  if (pathname === "/kpi/approval") return <KpiApprovalPage />;
-  if (pathname === "/kpi/dashboard") return <KpiDashboardPage />;
-  if (pathname === "/compliance/frameworks")
-    return <ComplianceFrameworksPage />;
-  if (pathname === "/evidence/review") return <EvidenceReviewPage />;
-  if (pathname.startsWith("/upload/")) return <UploadPage path={pathname} />;
-  if (pathname === "/analytics/customers" || pathname === "/analytics/kpis")
-    return <AnalyticsPage path={pathname} />;
-  if (pathname === "/reports" || pathname.startsWith("/reports/"))
-    return <ReportsPage path={pathname} />;
-  if (pathname === "/settings") return <SettingsPage />;
-  const config = prototypeTableConfigs[pathname];
-  return config ? (
-    <GenericPrototypePage config={config} />
-  ) : (
-    <FallbackVisualPage />
+  let page: ReactNode;
+  if (pathname === "/admin/roles") page = <RolesPage />;
+  else if (pathname === "/kpi/mapping") page = <KpiMappingPage />;
+  else if (pathname === "/kpi/actual-entry") page = <KpiActualPage />;
+  else if (pathname === "/kpi/approval") page = <KpiApprovalPage />;
+  else if (pathname === "/kpi/dashboard") page = <KpiDashboardPage />;
+  else if (pathname === "/compliance/frameworks")
+    page = <ComplianceFrameworksPage />;
+  else if (pathname === "/evidence/review") page = <EvidenceReviewPage />;
+  else if (pathname.startsWith("/upload/"))
+    page = <UploadPage path={pathname} />;
+  else if (
+    pathname === "/analytics/customers" ||
+    pathname === "/analytics/kpis"
+  )
+    page = <AnalyticsPage path={pathname} />;
+  else if (pathname === "/reports" || pathname.startsWith("/reports/"))
+    page = <ReportsPage path={pathname} />;
+  else if (pathname === "/settings") page = <SettingsPage />;
+  else {
+    const config = prototypeTableConfigs[pathname];
+    page = config ? (
+      <GenericPrototypePage config={config} />
+    ) : (
+      <FallbackVisualPage />
+    );
+  }
+  return (
+    <div className="prototype-route-shell">
+      <PrototypeModuleBanner />
+      {page}
+    </div>
   );
 }

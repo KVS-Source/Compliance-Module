@@ -33,8 +33,17 @@ export const openApiDocument = {
   paths: {
     "/health": {
       get: {
-        summary: "Health check",
-        responses: { "200": { description: "Healthy" } },
+        summary: "Process liveness",
+        responses: { "200": { description: "Application process is live" } },
+      },
+    },
+    "/ready": {
+      get: {
+        summary: "Database-backed readiness",
+        responses: {
+          "200": { description: "Application and database are ready" },
+          "503": { description: "Application is not ready" },
+        },
       },
     },
     "/auth/login": {
@@ -70,7 +79,7 @@ export const openApiDocument = {
     "/auth/logout": {
       post: {
         summary: "Revoke session",
-        security: [{ bearerAuth: [] }],
+        security: [{ refreshCookie: [] }],
         responses: { "200": { description: "Logged out" } },
       },
     },
@@ -101,12 +110,31 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "User page" } },
       },
+      post: {
+        summary: "Create a Company user",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "User created with tenant membership" },
+          "403": { description: "Missing users:write permission" },
+          "409": { description: "Duplicate email or code" },
+        },
+      },
     },
     "/users/{id}": {
       get: {
         summary: "Get Company user",
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "User" } },
+      },
+      patch: {
+        summary: "Update a Company user",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "User updated" },
+          "403": { description: "Missing users:write permission" },
+          "404": { description: "User not in active Company context" },
+          "409": { description: "Duplicate email or code" },
+        },
       },
     },
     "/organisation/departments": {
@@ -115,6 +143,27 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "Department page" } },
       },
+      post: {
+        summary: "Create a department",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Department created" },
+          "403": { description: "Missing departments:write permission" },
+          "409": { description: "Duplicate department code in Company" },
+        },
+      },
+    },
+    "/organisation/departments/{id}": {
+      patch: {
+        summary: "Update a department",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Department updated" },
+          "403": { description: "Missing departments:write permission" },
+          "404": { description: "Department not in active Company context" },
+          "409": { description: "Duplicate department code in Company" },
+        },
+      },
     },
     "/organisation/locations": {
       get: {
@@ -122,12 +171,54 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "Location page" } },
       },
+      post: {
+        summary: "Create a location",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Location created" },
+          "403": { description: "Missing locations:write permission" },
+          "409": { description: "Duplicate location code in Company" },
+        },
+      },
+    },
+    "/organisation/locations/{id}": {
+      patch: {
+        summary: "Update a location",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Location updated" },
+          "403": { description: "Missing locations:write permission" },
+          "404": { description: "Location not in active Company context" },
+          "409": { description: "Duplicate location code in Company" },
+        },
+      },
     },
     "/organisation/units": {
       get: {
         summary: "List organisation units",
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "Unit page" } },
+      },
+      post: {
+        summary: "Create an organisation unit",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Organisation unit created" },
+          "403": { description: "Missing units:write permission" },
+          "409": { description: "Duplicate unit code in Company" },
+        },
+      },
+    },
+    "/organisation/units/{id}": {
+      patch: {
+        summary: "Update an organisation unit",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Organisation unit updated" },
+          "403": { description: "Missing units:write permission" },
+          "404": { description: "Unit not in active Company context" },
+          "409": { description: "Duplicate unit code in Company" },
+        },
       },
     },
     "/frameworks": {
