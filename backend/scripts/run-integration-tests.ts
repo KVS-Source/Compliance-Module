@@ -63,6 +63,7 @@ run(
     "--no-file-parallelism",
     "tests/api.test.ts",
     "tests/users-write.test.ts",
+    "tests/organisation-write.test.ts",
   ],
   true,
 );
