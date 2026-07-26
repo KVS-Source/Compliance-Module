@@ -116,6 +116,49 @@ export interface OrganisationUnit {
   createdAt: string;
 }
 
+export interface CreateDepartmentInput {
+  code: string;
+  name: string;
+  headName?: string | null;
+  status?: UserStatus;
+}
+
+export interface UpdateDepartmentInput {
+  name?: string;
+  headName?: string | null;
+  status?: UserStatus;
+}
+
+export interface CreateLocationInput {
+  code: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  type?: string | null;
+  status?: UserStatus;
+}
+
+export interface UpdateLocationInput {
+  name?: string;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  type?: string | null;
+  status?: UserStatus;
+}
+
+export interface CreateOrganisationUnitInput {
+  code: string;
+  name: string;
+  status?: UserStatus;
+}
+
+export interface UpdateOrganisationUnitInput {
+  name?: string;
+  status?: UserStatus;
+}
+
 export interface Framework {
   id: string;
   code: string;

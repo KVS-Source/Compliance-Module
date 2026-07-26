@@ -34,3 +34,11 @@ export function duplicateEmailFieldError(error: unknown): string | null {
   }
   return null;
 }
+
+/** 409 conflicts are surfaced on code for organisation master forms. */
+export function duplicateCodeFieldError(error: unknown): string | null {
+  if (error instanceof ApiError && error.status === 409) {
+    return "A record with this code already exists in the active Company";
+  }
+  return null;
+}
