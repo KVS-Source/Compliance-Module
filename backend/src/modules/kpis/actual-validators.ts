@@ -8,6 +8,8 @@ const measuredDecimalSchema = z
 const nullableBoundedText = (maximum: number) =>
   z.string().trim().min(1).max(maximum).nullable().optional();
 
+const optionalComments = z.string().trim().min(1).max(2_000).optional();
+
 export const createKpiActualSchema = z
   .object({
     code: z
@@ -25,3 +27,27 @@ export const createKpiActualSchema = z
   .strict();
 
 export type CreateKpiActualBody = z.infer<typeof createKpiActualSchema>;
+
+export const kpiActualIdParamsSchema = z
+  .object({ id: z.string().uuid() })
+  .strict();
+
+export const approveKpiActualSchema = z
+  .object({ comments: optionalComments })
+  .strict()
+  .default({});
+
+export const rejectKpiActualSchema = z
+  .object({
+    reason: z.string().trim().min(1).max(2_000),
+  })
+  .strict();
+
+export const resubmitKpiActualSchema = z
+  .object({ comments: optionalComments })
+  .strict()
+  .default({});
+
+export type ApproveKpiActualBody = z.infer<typeof approveKpiActualSchema>;
+export type RejectKpiActualBody = z.infer<typeof rejectKpiActualSchema>;
+export type ResubmitKpiActualBody = z.infer<typeof resubmitKpiActualSchema>;

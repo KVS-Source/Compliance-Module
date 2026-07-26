@@ -68,7 +68,6 @@ enum GeneralRiskLevel { LOW MEDIUM HIGH CRITICAL }
 enum ApprovalDecision {
   APPROVED
   REJECTED
-  CLARIFICATION_REQUESTED
   RESUBMITTED
 }
 
@@ -229,8 +228,52 @@ invented in Slice B.
 
 Full history — never collapse into a single status column.
 
-- `tenantId`, `kpiActualId`, `reviewerId`, `decision ApprovalDecision`,
-  `comments?`, `decidedAt`
+- `tenantId`, `kpiActualId`, `reviewerId?`, `decision ApprovalDecision`,
+  `comments?`, `decidedAt @db.Timestamptz(6)`
+- `reviewerId` is null only for a system-generated automatic approval. Do not
+  seed a fake system user; that would fabricate an actor in an append-only
+  compliance record.
+- `ApprovalDecision` contains only `APPROVED`, `REJECTED`, and `RESUBMITTED` in
+  Slice C. `CLARIFICATION_REQUESTED` belongs to the later slice that defines its
+  transition, endpoint, and tests.
+
+`KpiApproval` is append-only event data, like `AuditEvent`, and is an explicit
+exception to the generic mutable tenant-model fields at the start of §3. It has
+no `updatedAt`, `updatedById`, `deletedAt`, or soft-delete lifecycle.
+`decidedAt` is the event timestamp. PostgreSQL must reject updates and deletes.
+
+Actual workflow rules:
+
+- New actuals enter `PENDING_APPROVAL` when `requiresApproval=true`.
+- When `requiresApproval=false`, submission runs the actual evidence gate and
+  transitions directly to `APPROVED`. `approvedAt` equals the submission time,
+  `approvedById` is null, and an automatic `APPROVED` history event is written
+  with `reviewerId=null`.
+- Self-approval is forbidden.
+- If the configuration names an approver who did not submit the actual, only
+  that user may approve or reject, and that user must hold
+  `kpi-actual:approve`.
+- If the configured approver submitted the actual, the configured-approver
+  restriction falls back to any other user in the tenant holding
+  `kpi-actual:approve`. The approval audit records that the fallback was used.
+- If no approver is configured, any other user in the tenant holding
+  `kpi-actual:approve` may approve or reject.
+- `POST /api/v1/kpi-actuals/:id/resubmit` is status-only in Slice C. Only the
+  original submitter holding `kpi-actual:write` may resubmit. It accepts
+  optional comments and does not change measured values, calculation results,
+  evidence status, target snapshot, or linked risk.
+- Resubmission returns an actual to `PENDING_APPROVAL`, or runs the evidence
+  gate and transitions directly to `APPROVED` when approval is no longer
+  required. The latter writes both `RESUBMITTED` and automatic `APPROVED`
+  history events.
+- Correcting a measured value requires its own reviewed actual-versioning
+  design. Slice C must not improvise in-place correction or versioning.
+- Existing Slice B/D `SUBMITTED` rows are not backfilled or automatically
+  approved. Approve and reject accept both legacy `SUBMITTED` and new
+  `PENDING_APPROVAL` rows so every historical decision remains explicit.
+- Approval, rejection, and resubmission use the configuration policy current at
+  decision time. Snapshotting approver and evidence policy at submission is a
+  possible future refinement, not part of Slice C.
 
 ### 3.5 Risk
 
@@ -384,9 +427,12 @@ With the default `amberThresholdPct = 0`, any miss is at least AMBER, so the
 default behaviour is unchanged. Never create a risk record meaning "No Risk".
 
 Slice D is create-only. It does not recalculate or update an existing linked
-risk. Slice C must make an explicit reviewed decision about the linked risk when
-an actual is rejected or resubmitted. Any later recalculation or update belongs
-to Slice E and must be an explicit, audited operation.
+risk. Slice C leaves the linked risk untouched when an actual is approved,
+rejected, or resubmitted. The miss was observed at submission; only Slice E may
+close a risk through an explicit human decision. Slice C workflow audits record
+the linked risk identifier and current status without emitting a risk lifecycle
+event. Any later recalculation or update belongs to Slice E and must be an
+explicit, audited operation.
 
 ---
 
@@ -428,6 +474,12 @@ explicit decision for any already-linked risk and define the corresponding
 audit events. Slice D must not silently delete, close, archive, or rewrite a risk
 when an actual changes workflow state.
 
+Slice C resolves that decision as follows: approval, rejection and resubmission
+never mutate the linked Risk. They write `KPI_ACTUAL_APPROVED`,
+`KPI_ACTUAL_REJECTED`, or `KPI_ACTUAL_RESUBMITTED` audit events with the linked
+risk ID and current status when a risk exists. No second risk is created and the
+tenant risk sequence is not advanced.
+
 ---
 
 ## 6. Permissions
@@ -447,6 +499,10 @@ or close route. Automatic creation occurs only inside
 `POST /api/v1/kpi-actuals` and requires only `kpi-actual:write`.
 `risk:write` is reserved for a later explicit/manual risk workflow;
 `risk:treat` and `risk:close` belong to Slice E.
+
+Slice C adds `kpi-actual:approve` explicitly to `COMPANY_ADMIN` and excludes it
+from `COMPANY_USER`. Approve and reject require `kpi-actual:approve`;
+resubmission requires `kpi-actual:write`.
 
 Exclude all from `COMPANY_USER` by default. For Slice A, add
 `kpi-config:write`, `kpi-target:write`, and `kpi-target:approve` explicitly to
@@ -471,6 +527,14 @@ approval, not target approval.
 - The `EvidenceGateService` seam and 501 behaviour belong to the later actual
   approval slice.
 - Seeds set `requiresEvidence = false`.
+
+Slice C implements `EvidenceGateService.assertSatisfied()`. It returns `true`
+when `requiresEvidence=false` and throws
+`EVIDENCE_GATE_NOT_IMPLEMENTED` with HTTP 501 when
+`requiresEvidence=true`. Manual approval always invokes it. Automatic approval
+also invokes it inside the submission or resubmission transaction; a 501 rolls
+back the actual, risk, risk-code allocation, approval history, and audits.
+Target submission and approval remain outside this gate.
 
 ---
 

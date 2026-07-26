@@ -37,3 +37,16 @@ to Slice B while submissions are enabled. If an application rollback is
 required, disable KPI actual submission first and keep it disabled until Slice D
 is restored or an explicit reviewed recovery is approved. This operational gate
 prevents new omissions without violating the no-backfill decision.
+
+Slice C adds a second compatibility boundary to the same deployment sequence.
+Older Slice B/D instances create actuals in legacy `SUBMITTED` state and do not
+write `KpiApproval` history or automatic approval events. Quiesce KPI actual
+submission and approval endpoints before applying the Slice C migration. Enable
+them only after every serving instance runs Slice C.
+
+Do not roll the application back to Slice B/D while those endpoints are
+enabled. If rollback is required, disable actual submission and approval first
+and keep them disabled until Slice C is restored or an explicit reviewed
+recovery is approved. Existing legacy `SUBMITTED` rows are preserved and remain
+eligible for an explicit human approve or reject decision; they are never
+backfilled or silently auto-approved.

@@ -449,7 +449,7 @@ export const openApiDocument = {
         responses: {
           "201": {
             description:
-              "KPI actual submitted with its target snapshot, performance result and automatic risk summary when required",
+              "KPI actual submitted into pending approval or automatically approved with its target snapshot, performance result and automatic risk summary when required",
           },
           "400": {
             description:
@@ -463,6 +463,137 @@ export const openApiDocument = {
           "409": {
             description:
               "An active actual already exists for the configuration and period",
+          },
+          "501": {
+            description:
+              "Automatic approval requires evidence support that is not implemented",
+          },
+        },
+      },
+    },
+    "/kpi-actuals/{id}/approve": {
+      post: {
+        summary: "Approve a submitted Company KPI actual",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  comments: { type: "string", maxLength: 2_000 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "KPI actual approved" },
+          "403": {
+            description:
+              "Missing kpi-actual:approve, self-approval, or wrong configured approver",
+          },
+          "404": { description: "KPI actual not in the active Company" },
+          "409": {
+            description: "KPI actual is not awaiting an approval decision",
+          },
+          "501": {
+            description:
+              "Approval requires evidence support that is not implemented",
+          },
+        },
+      },
+    },
+    "/kpi-actuals/{id}/reject": {
+      post: {
+        summary: "Reject a submitted Company KPI actual",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["reason"],
+                properties: {
+                  reason: { type: "string", maxLength: 2_000 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "KPI actual rejected" },
+          "403": {
+            description:
+              "Missing kpi-actual:approve, self-approval, or wrong configured approver",
+          },
+          "404": { description: "KPI actual not in the active Company" },
+          "409": {
+            description: "KPI actual is not awaiting an approval decision",
+          },
+        },
+      },
+    },
+    "/kpi-actuals/{id}/resubmit": {
+      post: {
+        summary: "Resubmit a rejected Company KPI actual without changing data",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  comments: { type: "string", maxLength: 2_000 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "KPI actual resubmitted into pending approval or automatically approved",
+          },
+          "403": {
+            description:
+              "Missing kpi-actual:write or actor is not the original submitter",
+          },
+          "404": { description: "KPI actual not in the active Company" },
+          "409": { description: "KPI actual is not rejected" },
+          "501": {
+            description:
+              "Automatic approval requires evidence support that is not implemented",
           },
         },
       },

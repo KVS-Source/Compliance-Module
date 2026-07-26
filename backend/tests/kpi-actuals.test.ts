@@ -192,6 +192,9 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     ).toContain("kpi-actual:write");
     expect(
       adminRole.permissions.map(({ permission }) => permission.code),
+    ).toContain("kpi-actual:approve");
+    expect(
+      adminRole.permissions.map(({ permission }) => permission.code),
     ).toContain("risk:read");
     expect(
       adminRole.permissions.map(({ permission }) => permission.code),
@@ -199,6 +202,9 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     expect(
       companyUserRole.permissions.map(({ permission }) => permission.code),
     ).not.toContain("kpi-actual:write");
+    expect(
+      companyUserRole.permissions.map(({ permission }) => permission.code),
+    ).not.toContain("kpi-actual:approve");
     expect(
       companyUserRole.permissions.map(({ permission }) => permission.code),
     ).not.toContain("risk:read");
@@ -394,10 +400,9 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       variancePercentage: "-5",
       ragStatus: "GREEN",
       targetMet: false,
-      approvalStatus: "SUBMITTED",
+      approvalStatus: "APPROVED",
       submittedBy: { id: admin.user.id },
       approvedBy: null,
-      approvedAt: null,
       evidenceStatus: "PENDING",
       comments: "Synthetic KPI actual",
       riskRequired: false,
@@ -414,8 +419,9 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       kpiTargetId: target.body.data.id,
       submittedById: admin.user.id,
       approvedById: null,
-      approvalStatus: "SUBMITTED",
+      approvalStatus: "APPROVED",
     });
+    expect(stored.approvedAt).toEqual(stored.submittedAt);
     expect(stored.targetValueSnapshot.toString()).toBe("100");
     expect(await prisma.risk.count({ where: { kpiActualId: stored.id } })).toBe(
       0,
@@ -964,13 +970,13 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     expect(await prisma.kpiActual.count({ where: { code } })).toBe(0);
   });
 
-  it("does not enforce evidence and handles informational and zero-target actuals", async () => {
+  it("handles informational and zero-target actuals", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const informationalConfiguration = await createConfiguration(
       admin.accessToken,
       admin.user.id,
       "INFORMATIONAL",
-      { requiresEvidence: true },
+      { requiresEvidence: false },
     );
     expect(informationalConfiguration.status).toBe(201);
     await createApprovedTarget(
@@ -998,7 +1004,7 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       admin.accessToken,
       admin.user.id,
       "HIGHER_IS_BETTER",
-      { requiresEvidence: true },
+      { requiresEvidence: false },
     );
     expect(zeroConfiguration.status).toBe(201);
     await createApprovedTarget(

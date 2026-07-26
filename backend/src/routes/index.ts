@@ -27,6 +27,7 @@ import { KpiPerformanceService } from "../modules/kpis/performance-service.js";
 import { RiskRepository } from "../modules/risks/repository.js";
 import { RiskService } from "../modules/risks/service.js";
 import { riskRoutes } from "../modules/risks/routes.js";
+import { EvidenceGateService } from "../modules/kpis/evidence-gate-service.js";
 import {
   authenticate,
   authorizeTenantContext,
@@ -43,6 +44,7 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
     new KpiActualRepository(db),
     new KpiPerformanceService(),
     risks,
+    new EvidenceGateService(),
   );
   router.get("/health", (_req, res) =>
     res.json({
