@@ -14,49 +14,88 @@ enum RecordStatus {
   LOCKED
 }
 
+enum KpiDirection {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+  TARGET_EXACT
+  INFORMATIONAL
+}
+
+enum KpiFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  ANNUAL
+  CONTINUOUS
+  PER_EVENT
+  ONE_TIME
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
 model Tenant {
-  id            String          @id @default(uuid()) @db.Uuid
-  code          String          @unique
-  name          String
-  industry      String?
-  country       String?
-  status        RecordStatus    @default(ACTIVE)
-  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  memberships   UserCompany[]
-  defaultUsers  User[]          @relation("DefaultTenant")
-  roles         Role[]
-  userRoles     UserRole[]
-  departments   OrgDepartment[]
-  locations     OrgLocation[]
-  units         OrgUnit[]
-  goals         KpiGoal[]
-  auditEvents   AuditEvent[]
-  refreshTokens RefreshToken[]
+  id                       String             @id @default(uuid()) @db.Uuid
+  code                     String             @unique
+  name                     String
+  industry                 String?
+  country                  String?
+  status                   RecordStatus       @default(ACTIVE)
+  defaultAmberThresholdPct Decimal            @default(0.00) @map("default_amber_threshold_pct") @db.Decimal(6, 2)
+  defaultRedThresholdPct   Decimal            @default(10.00) @map("default_red_threshold_pct") @db.Decimal(6, 2)
+  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memberships              UserCompany[]
+  defaultUsers             User[]             @relation("DefaultTenant")
+  roles                    Role[]
+  userRoles                UserRole[]
+  departments              OrgDepartment[]
+  locations                OrgLocation[]
+  units                    OrgUnit[]
+  goals                    KpiGoal[]
+  kpiConfigurations        KpiConfiguration[]
+  kpiTargets               KpiTarget[]
+  auditEvents              AuditEvent[]
+  refreshTokens            RefreshToken[]
 
   @@map("tenants")
 }
 
 model User {
-  id               String         @id @default(uuid()) @db.Uuid
-  code             String         @unique
-  email            String         @unique
-  fullName         String         @map("full_name")
-  phone            String?
-  passwordHash     String         @map("password_hash")
-  status           RecordStatus   @default(ACTIVE)
-  defaultTenantId  String?        @map("default_tenant_id") @db.Uuid
-  failedLoginCount Int            @default(0) @map("failed_login_count")
-  lockedUntil      DateTime?      @map("locked_until") @db.Timestamptz(6)
-  lastLoginAt      DateTime?      @map("last_login_at") @db.Timestamptz(6)
-  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  memberships      UserCompany[]
-  defaultTenant    Tenant?        @relation("DefaultTenant", fields: [defaultTenantId], references: [id], onDelete: SetNull)
-  roles            UserRole[]     @relation("UserRoles")
-  rolesAssigned    UserRole[]     @relation("AssignedRoles")
-  refreshTokens    RefreshToken[]
-  auditEvents      AuditEvent[]
+  id                        String             @id @default(uuid()) @db.Uuid
+  code                      String             @unique
+  email                     String             @unique
+  fullName                  String             @map("full_name")
+  phone                     String?
+  passwordHash              String             @map("password_hash")
+  status                    RecordStatus       @default(ACTIVE)
+  defaultTenantId           String?            @map("default_tenant_id") @db.Uuid
+  failedLoginCount          Int                @default(0) @map("failed_login_count")
+  lockedUntil               DateTime?          @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt               DateTime?          @map("last_login_at") @db.Timestamptz(6)
+  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memberships               UserCompany[]
+  defaultTenant             Tenant?            @relation("DefaultTenant", fields: [defaultTenantId], references: [id], onDelete: SetNull)
+  roles                     UserRole[]         @relation("UserRoles")
+  rolesAssigned             UserRole[]         @relation("AssignedRoles")
+  refreshTokens             RefreshToken[]
+  auditEvents               AuditEvent[]
+  ownedKpiConfigurations    KpiConfiguration[] @relation("KpiConfigurationOwner")
+  approverKpiConfigurations KpiConfiguration[] @relation("KpiConfigurationApprover")
+  createdKpiConfigurations  KpiConfiguration[] @relation("KpiConfigurationCreatedBy")
+  updatedKpiConfigurations  KpiConfiguration[] @relation("KpiConfigurationUpdatedBy")
+  submittedKpiTargets       KpiTarget[]        @relation("KpiTargetSubmittedBy")
+  approvedKpiTargets        KpiTarget[]        @relation("KpiTargetApprovedBy")
+  createdKpiTargets         KpiTarget[]        @relation("KpiTargetCreatedBy")
+  updatedKpiTargets         KpiTarget[]        @relation("KpiTargetUpdatedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -135,49 +174,55 @@ model UserRole {
 }
 
 model OrgDepartment {
-  id          String        @id @default(uuid()) @db.Uuid
-  tenantId    String        @map("tenant_id") @db.Uuid
-  code        String
-  name        String
-  headName    String?       @map("head_name")
-  status      RecordStatus  @default(ACTIVE)
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  memberships UserCompany[]
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  code              String
+  name              String
+  headName          String?            @map("head_name")
+  status            RecordStatus       @default(ACTIVE)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships       UserCompany[]
+  kpiConfigurations KpiConfiguration[]
 
   @@unique([tenantId, code])
+  @@unique([tenantId, id])
   @@index([tenantId, status, createdAt])
   @@map("org_departments")
 }
 
 model OrgLocation {
-  id        String       @id @default(uuid()) @db.Uuid
-  tenantId  String       @map("tenant_id") @db.Uuid
-  code      String
-  name      String
-  city      String?
-  state     String?
-  country   String?
-  type      String?
-  status    RecordStatus @default(ACTIVE)
-  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  code              String
+  name              String
+  city              String?
+  state             String?
+  country           String?
+  type              String?
+  status            RecordStatus       @default(ACTIVE)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kpiConfigurations KpiConfiguration[]
 
   @@unique([tenantId, code])
+  @@unique([tenantId, id])
   @@index([tenantId, status, createdAt])
   @@map("org_locations")
 }
 
 model OrgUnit {
-  id        String       @id @default(uuid()) @db.Uuid
-  tenantId  String       @map("tenant_id") @db.Uuid
-  code      String
-  name      String
-  status    RecordStatus @default(ACTIVE)
-  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  code              String
+  name              String
+  status            RecordStatus       @default(ACTIVE)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kpiConfigurations KpiConfiguration[]
 
   @@unique([tenantId, code])
+  @@unique([tenantId, id])
   @@index([tenantId, status, createdAt])
   @@map("org_units")
 }
@@ -211,20 +256,23 @@ model FrameworkRule {
 }
 
 model KpiDefinition {
-  id          String       @id @default(uuid()) @db.Uuid
-  code        String       @unique
-  name        String
-  description String?
-  unit        String
-  direction   String
-  frequency   String
-  status      RecordStatus @default(ACTIVE)
-  goals       KpiGoal[]
+  id             String             @id @default(uuid()) @db.Uuid
+  code           String             @unique
+  name           String
+  description    String?
+  unit           String
+  direction      KpiDirection
+  frequency      KpiFrequency
+  status         RecordStatus       @default(ACTIVE)
+  goals          KpiGoal[]
+  configurations KpiConfiguration[]
 
   @@index([status, name])
   @@map("kpi_definitions")
 }
 
+/// Deprecated legacy KPI target. Superseded by KpiTarget; retained unchanged
+/// until a later retirement task.
 model KpiGoal {
   id              String        @id @default(uuid()) @db.Uuid
   tenantId        String        @map("tenant_id") @db.Uuid
@@ -243,6 +291,98 @@ model KpiGoal {
   @@unique([tenantId, code])
   @@index([tenantId, status, effectiveFrom])
   @@map("kpi_goals")
+}
+
+model KpiConfiguration {
+  id                String         @id @default(uuid()) @db.Uuid
+  tenantId          String         @map("tenant_id") @db.Uuid
+  kpiDefinitionId   String         @map("kpi_definition_id") @db.Uuid
+  orgUnitId         String?        @map("org_unit_id") @db.Uuid
+  orgLocationId     String?        @map("org_location_id") @db.Uuid
+  productService    String?        @map("product_service")
+  departmentId      String?        @map("department_id") @db.Uuid
+  ownerId           String         @map("owner_id") @db.Uuid
+  approverId        String?        @map("approver_id") @db.Uuid
+  enabled           Boolean        @default(true)
+  currency          String?
+  reviewFrequency   KpiFrequency   @map("review_frequency")
+  amberThresholdPct Decimal?       @map("amber_threshold_pct") @db.Decimal(6, 2)
+  redThresholdPct   Decimal?       @map("red_threshold_pct") @db.Decimal(6, 2)
+  requiresEvidence  Boolean        @default(false) @map("requires_evidence")
+  requiresApproval  Boolean        @default(true) @map("requires_approval")
+  effectiveFrom     DateTime       @map("effective_from") @db.Date
+  effectiveTo       DateTime?      @map("effective_to") @db.Date
+  status            RecordStatus   @default(ACTIVE)
+  createdById       String         @map("created_by_id") @db.Uuid
+  updatedById       String         @map("updated_by_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  definition        KpiDefinition  @relation(fields: [kpiDefinitionId], references: [id], onDelete: Restrict)
+  orgUnit           OrgUnit?       @relation(fields: [tenantId, orgUnitId], references: [tenantId, id], onDelete: Restrict)
+  orgLocation       OrgLocation?   @relation(fields: [tenantId, orgLocationId], references: [tenantId, id], onDelete: Restrict)
+  department        OrgDepartment? @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  owner             User           @relation("KpiConfigurationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  approver          User?          @relation("KpiConfigurationApprover", fields: [approverId], references: [id], onDelete: Restrict)
+  createdBy         User           @relation("KpiConfigurationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User           @relation("KpiConfigurationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  targets           KpiTarget[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, status, enabled, deletedAt, effectiveFrom])
+  @@index([tenantId, kpiDefinitionId])
+  @@index([ownerId])
+  @@index([approverId])
+  @@index([orgUnitId])
+  @@index([orgLocationId])
+  @@index([departmentId])
+  @@map("kpi_configurations")
+}
+
+model KpiTarget {
+  id                 String           @id @default(uuid()) @db.Uuid
+  tenantId           String           @map("tenant_id") @db.Uuid
+  kpiConfigurationId String           @map("kpi_configuration_id") @db.Uuid
+  code               String
+  period             String
+  periodStart        DateTime         @map("period_start") @db.Date
+  periodEnd          DateTime         @map("period_end") @db.Date
+  targetValue        Decimal          @map("target_value") @db.Decimal(18, 4)
+  minValue           Decimal?         @map("min_value") @db.Decimal(18, 4)
+  maxValue           Decimal?         @map("max_value") @db.Decimal(18, 4)
+  approvalStatus     SubmissionStatus @default(DRAFT) @map("approval_status")
+  submittedById      String?          @map("submitted_by_id") @db.Uuid
+  submittedAt        DateTime?        @map("submitted_at") @db.Timestamptz(6)
+  approvedById       String?          @map("approved_by_id") @db.Uuid
+  approvedAt         DateTime?        @map("approved_at") @db.Timestamptz(6)
+  rejectionReason    String?          @map("rejection_reason")
+  version            Int              @default(1)
+  supersededById     String?          @map("superseded_by_id") @db.Uuid
+  effectiveFrom      DateTime         @map("effective_from") @db.Date
+  effectiveTo        DateTime?        @map("effective_to") @db.Date
+  status             RecordStatus     @default(ACTIVE)
+  createdById        String           @map("created_by_id") @db.Uuid
+  updatedById        String           @map("updated_by_id") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  configuration      KpiConfiguration @relation(fields: [tenantId, kpiConfigurationId], references: [tenantId, id], onDelete: Restrict)
+  submittedBy        User?            @relation("KpiTargetSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  approvedBy         User?            @relation("KpiTargetApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  createdBy          User             @relation("KpiTargetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User             @relation("KpiTargetUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  supersededBy       KpiTarget?       @relation("KpiTargetSupersession", fields: [tenantId, supersededById], references: [tenantId, id], onDelete: Restrict)
+  supersedes         KpiTarget[]      @relation("KpiTargetSupersession")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@unique([tenantId, kpiConfigurationId, period, version])
+  @@index([tenantId, kpiConfigurationId, period, approvalStatus, deletedAt])
+  @@index([tenantId, approvalStatus, deletedAt])
+  @@index([supersededById])
+  @@map("kpi_targets")
 }
 
 model RefreshToken {

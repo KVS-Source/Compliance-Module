@@ -104,6 +104,12 @@ async function main() {
         ["units:write", "Create and update Company organisation units"],
         ["frameworks:read", "Read frameworks and rules"],
         ["kpis:read", "Read KPI definitions and goals"],
+        [
+          "kpi-config:write",
+          "Create and update Company KPI configurations",
+        ],
+        ["kpi-target:write", "Create and update Company KPI targets"],
+        ["kpi-target:approve", "Approve and reject Company KPI targets"],
       ] as const
     ).map(([code, name]) =>
       db.permission.upsert({
@@ -136,6 +142,24 @@ async function main() {
       update: {},
       create: { roleId: role.id, permissionId: allPermission.id },
     });
+    for (const permission of permissions.filter(({ code }) =>
+      [
+        "kpi-config:write",
+        "kpi-target:write",
+        "kpi-target:approve",
+      ].includes(code),
+    )) {
+      await db.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: role.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: { roleId: role.id, permissionId: permission.id },
+      });
+    }
     await roleAssignments.upsertActive({
       userId: admin.id,
       roleId: role.id,
@@ -170,7 +194,10 @@ async function main() {
           code !== "users:write" &&
           code !== "departments:write" &&
           code !== "locations:write" &&
-          code !== "units:write",
+          code !== "units:write" &&
+          code !== "kpi-config:write" &&
+          code !== "kpi-target:write" &&
+          code !== "kpi-target:approve",
       )) {
         await db.rolePermission.upsert({
           where: {
@@ -300,6 +327,73 @@ async function main() {
         effectiveTo: new Date("2026-09-30T00:00:00.000Z"),
       },
     });
+
+    const [department, location, unit] = await Promise.all([
+      db.orgDepartment.findUniqueOrThrow({
+        where: { tenantId_code: { tenantId: tenant.id, code: "DEP-001" } },
+      }),
+      db.orgLocation.findUniqueOrThrow({
+        where: { tenantId_code: { tenantId: tenant.id, code: "LOC-001" } },
+      }),
+      db.orgUnit.findUniqueOrThrow({
+        where: { tenantId_code: { tenantId: tenant.id, code: "UNIT-001" } },
+      }),
+    ]);
+    let configuration = await db.kpiConfiguration.findFirst({
+      where: {
+        tenantId: tenant.id,
+        kpiDefinitionId: kpi.id,
+        orgUnitId: unit.id,
+        orgLocationId: location.id,
+        productService: null,
+        departmentId: department.id,
+        deletedAt: null,
+      },
+    });
+    configuration ??= await db.kpiConfiguration.create({
+      data: {
+        tenantId: tenant.id,
+        kpiDefinitionId: kpi.id,
+        orgUnitId: unit.id,
+        orgLocationId: location.id,
+        departmentId: department.id,
+        ownerId: admin.id,
+        approverId: null,
+        reviewFrequency: "QUARTERLY",
+        requiresEvidence: false,
+        requiresApproval: true,
+        effectiveFrom: new Date("2026-07-01T00:00:00.000Z"),
+        createdById: admin.id,
+        updatedById: admin.id,
+      },
+    });
+
+    const existingTarget = await db.kpiTarget.findUnique({
+      where: {
+        tenantId_code: {
+          tenantId: tenant.id,
+          code: "KTG-001",
+        },
+      },
+    });
+    if (!existingTarget) {
+      await db.kpiTarget.create({
+        data: {
+          tenantId: tenant.id,
+          kpiConfigurationId: configuration.id,
+          code: "KTG-001",
+          period: "FY26-27 Q1",
+          periodStart: new Date("2026-07-01T00:00:00.000Z"),
+          periodEnd: new Date("2026-09-30T00:00:00.000Z"),
+          targetValue: "90",
+          approvalStatus: "DRAFT",
+          effectiveFrom: new Date("2026-07-01T00:00:00.000Z"),
+          effectiveTo: new Date("2026-09-30T00:00:00.000Z"),
+          createdById: admin.id,
+          updatedById: admin.id,
+        },
+      });
+    }
   }
 }
 
