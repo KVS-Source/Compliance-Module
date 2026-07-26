@@ -85,7 +85,7 @@ export const routeDefinitions: RouteDefinition[] = [
   route("/master/kpis", "#master/kpis", "KPI Master", "Master Data Setup", "Maintain the single source of truth for every KPI used in the platform.", Gauge, 3),
   route("/kpi/mapping", "#kpi/mapping", "KPI Mapping & Compliance Traceability", "KPI Management", "Connect KPI performance with risk, framework, control, policy, rule and evidence.", GitMerge, 3),
   route("/kpi/configuration", "#kpi/configuration", "KPI Configuration & Targets", "KPI Management", "Configure KPI scope, targets, periods, ownership and approvals.", Settings2, 3),
-  route("/kpi/actual-entry", "#kpi/actual-entry", "KPI Actual Entry", "KPI Management", "Record KPI performance, attach evidence and preview resulting risk.", SquarePen, 4),
+  route("/kpi/actual-entry", "#kpi/actual-entry", "KPI Actual Entry", "KPI Management", "Record KPI performance against an approved target and review the calculated result.", SquarePen, 2, { permission: "kpis:read", api: "GET /kpi-configurations · GET /kpi-targets · POST /kpi-actuals" }),
   route("/kpi/approval", "#kpi/approval", "KPI Approval", "KPI Management", "Review submitted KPI actuals after their evidence is approved.", BadgeCheck, 4),
   route("/kpi/dashboard", "#kpi/dashboard", "KPI Dashboard", "KPI Management", "Analyse target achievement, RAG trends and owner performance.", ChartLine, 4),
   route("/compliance/frameworks", "#compliance/frameworks", "Compliance Frameworks", "Compliance Management", "Monitor framework-level compliance, controls, gaps and supporting evidence.", Landmark, 3),
@@ -149,6 +149,7 @@ export const migratedPaths = new Set([
   "/admin/locations",
   "/admin/organisation-units",
   "/master/frameworks",
+  "/kpi/actual-entry",
 ]);
 
 export const routeByPath = new Map(

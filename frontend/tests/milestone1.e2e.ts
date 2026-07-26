@@ -77,7 +77,9 @@ async function installMockApi(
                     : path.startsWith("/api/v1/frameworks/") ? frameworks[0]
                       : path === "/api/v1/kpi-definitions" ? kpis
                         : path === "/api/v1/kpi-goals" ? []
-                          : null;
+                          : path === "/api/v1/kpi-configurations" ? []
+                            : path === "/api/v1/kpi-targets" ? []
+                              : null;
     if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(data)) });
   });
@@ -167,7 +169,7 @@ test("prototype routes are labelled while API-connected routes are not", async (
 
   for (const path of [
     "/admin/roles",
-    "/kpi/actual-entry",
+    "/kpi/configuration",
     "/upload/evidence-master",
     "/reports",
   ]) {
@@ -184,6 +186,7 @@ test("prototype routes are labelled while API-connected routes are not", async (
     "/admin/locations",
     "/admin/organisation-units",
     "/master/frameworks",
+    "/kpi/actual-entry",
   ]) {
     await navigateInApp(page, path);
     await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);

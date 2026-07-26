@@ -17,6 +17,7 @@ import {
 } from "../features/frameworks/FrameworksPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { NotFoundPage } from "../features/migration/PendingPage";
+import { KpiActualEntryPage } from "../features/kpis/KpiActualEntryPage";
 import { OrganisationPage } from "../features/organisation/OrganisationPage";
 import { PrototypeRoutePage } from "../features/prototype/PrototypeRoutePage";
 import { UsersPage } from "../features/users/UsersPage";
@@ -106,6 +107,14 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="frameworks:read">
         <FrameworkRulesPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "kpi/actual-entry",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiActualEntryPage />
       </PermissionBoundary>
     ),
   },
