@@ -399,5 +399,73 @@ export const openApiDocument = {
         },
       },
     },
+    "/kpi-actuals": {
+      post: {
+        summary: "Submit a Company KPI actual against an approved target",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "code",
+                  "kpiConfigurationId",
+                  "period",
+                  "actualValue",
+                ],
+                properties: {
+                  code: {
+                    type: "string",
+                    maxLength: 64,
+                    pattern: "^[A-Za-z0-9_-]+$",
+                  },
+                  kpiConfigurationId: {
+                    type: "string",
+                    format: "uuid",
+                  },
+                  period: { type: "string", maxLength: 64 },
+                  actualValue: {
+                    type: "string",
+                    pattern: "^-?\\d{1,14}(?:\\.\\d{1,4})?$",
+                  },
+                  evidenceStatus: {
+                    type: "string",
+                    nullable: true,
+                    maxLength: 64,
+                  },
+                  comments: {
+                    type: "string",
+                    nullable: true,
+                    maxLength: 2_000,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description:
+              "KPI actual submitted with its target snapshot and performance result",
+          },
+          "400": {
+            description:
+              "Invalid input or calculated values exceed Decimal(18,4)",
+          },
+          "403": { description: "Missing kpi-actual:write permission" },
+          "404": {
+            description:
+              "Configuration unavailable or no approved target for the period",
+          },
+          "409": {
+            description:
+              "An active actual already exists for the configuration and period",
+          },
+        },
+      },
+    },
   },
 } as const;
