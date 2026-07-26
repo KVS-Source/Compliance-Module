@@ -1,5 +1,9 @@
 import { Prisma } from "@prisma/client";
-import { AppError, unauthorized } from "../../common/errors/app-error.js";
+import {
+  AppError,
+  forbidden,
+  unauthorized,
+} from "../../common/errors/app-error.js";
 import type { AuditContext } from "./management-repository.js";
 import {
   type KpiActualRecord,
@@ -13,6 +17,7 @@ import type {
 import { kpiConfigurationDto } from "./management-service.js";
 import { riskSummaryDto, type RiskService } from "../risks/service.js";
 import type { RiskRecord } from "../risks/repository.js";
+import type { EvidenceGateService } from "./evidence-gate-service.js";
 
 const dateOnly = (value: Date) => value.toISOString().slice(0, 10);
 
@@ -61,6 +66,19 @@ export const kpiActualDto = (
   risk: risk ? riskSummaryDto(risk) : null,
 });
 
+const kpiActualWorkflowDto = (
+  record: KpiActualRecord,
+  risk: RiskRecord | null,
+) =>
+  kpiActualDto(
+    record,
+    {
+      riskRequired: risk !== null,
+      recommendedRiskClass: risk?.kpiRiskClass ?? null,
+    },
+    risk,
+  );
+
 const configurationNotFound = () =>
   new AppError(
     404,
@@ -82,11 +100,18 @@ const actualAlreadyExists = () =>
     "A KPI actual already exists for this configuration, period, or code",
   );
 
+const actualNotFound = () =>
+  new AppError(404, "KPI_ACTUAL_NOT_FOUND", "KPI actual not found");
+
+const invalidActualState = (message: string) =>
+  new AppError(409, "KPI_ACTUAL_INVALID_STATE", message);
+
 export class KpiActualService {
   constructor(
     private readonly repository: KpiActualRepository,
     private readonly performanceService: KpiPerformanceService,
     private readonly riskService: RiskService,
+    private readonly evidenceGate: EvidenceGateService,
   ) {}
 
   async submitActual(
@@ -140,12 +165,19 @@ export class KpiActualService {
             configuration.tenant.defaultRedThresholdPct,
         });
         const submittedAt = new Date();
+        const finalStatus = configuration.requiresApproval
+          ? "PENDING_APPROVAL"
+          : "APPROVED";
+        if (finalStatus === "APPROVED") {
+          this.evidenceGate.assertSatisfied(configuration.requiresEvidence);
+        }
         let actual: KpiActualRecord;
         try {
           actual = await transaction.createActual(
             tenantId,
             actorUserId,
             submittedAt,
+            finalStatus,
             {
               code: body.code,
               kpiConfigurationId: configuration.id,
@@ -215,8 +247,264 @@ export class KpiActualService {
           risk,
           context,
         );
+        if (finalStatus === "APPROVED") {
+          const approval = await transaction.createApproval(
+            tenantId,
+            actual.id,
+            null,
+            "APPROVED",
+            null,
+            submittedAt,
+          );
+          await transaction.writeWorkflowAudit(
+            tenantId,
+            actorUserId,
+            actual,
+            risk,
+            {
+              action: "KPI_ACTUAL_APPROVED",
+              approvalId: approval.id,
+              decision: "APPROVED",
+              automatic: true,
+              configuredApproverFallback: false,
+              comments: null,
+            },
+            context,
+          );
+        }
         return kpiActualDto(actual, performance, risk);
       },
     );
+  }
+
+  private assertDecisionActor(actual: KpiActualRecord, actorUserId: string) {
+    if (
+      actual.approvalStatus !== "SUBMITTED" &&
+      actual.approvalStatus !== "PENDING_APPROVAL"
+    ) {
+      throw invalidActualState("KPI actual is not pending approval");
+    }
+    if (actual.submittedById === actorUserId) {
+      throw forbidden("KPI actual self-approval is forbidden");
+    }
+    const configuredApproverId = actual.configuration.approverId;
+    const configuredApproverFallback =
+      configuredApproverId !== null &&
+      configuredApproverId === actual.submittedById;
+    if (
+      configuredApproverId &&
+      !configuredApproverFallback &&
+      configuredApproverId !== actorUserId
+    ) {
+      throw forbidden("Only the configured KPI actual approver may decide");
+    }
+    return configuredApproverFallback;
+  }
+
+  async approveActual(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    comments: string | null,
+    context: AuditContext,
+  ) {
+    return this.repository.runWorkflowTransaction(async (transaction) => {
+      const existing = await transaction.findWorkflowActual(tenantId, id);
+      if (!existing) throw actualNotFound();
+      const configuredApproverFallback = this.assertDecisionActor(
+        existing,
+        actorUserId,
+      );
+      this.evidenceGate.assertSatisfied(
+        existing.configuration.requiresEvidence,
+      );
+      const decidedAt = new Date();
+      const actual = await transaction.decideActual(
+        tenantId,
+        id,
+        actorUserId,
+        "APPROVED",
+        null,
+        decidedAt,
+      );
+      if (!actual) {
+        throw invalidActualState(
+          "KPI actual changed while it was being approved",
+        );
+      }
+      const approval = await transaction.createApproval(
+        tenantId,
+        id,
+        actorUserId,
+        "APPROVED",
+        comments,
+        decidedAt,
+      );
+      const risk = await transaction.findLinkedRisk(tenantId, id);
+      await transaction.writeWorkflowAudit(
+        tenantId,
+        actorUserId,
+        actual,
+        risk,
+        {
+          action: "KPI_ACTUAL_APPROVED",
+          approvalId: approval.id,
+          decision: "APPROVED",
+          automatic: false,
+          configuredApproverFallback,
+          comments,
+        },
+        context,
+      );
+      return kpiActualWorkflowDto(actual, risk);
+    });
+  }
+
+  async rejectActual(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    reason: string,
+    context: AuditContext,
+  ) {
+    return this.repository.runWorkflowTransaction(async (transaction) => {
+      const existing = await transaction.findWorkflowActual(tenantId, id);
+      if (!existing) throw actualNotFound();
+      const configuredApproverFallback = this.assertDecisionActor(
+        existing,
+        actorUserId,
+      );
+      const decidedAt = new Date();
+      const actual = await transaction.decideActual(
+        tenantId,
+        id,
+        actorUserId,
+        "REJECTED",
+        reason,
+        decidedAt,
+      );
+      if (!actual) {
+        throw invalidActualState(
+          "KPI actual changed while it was being rejected",
+        );
+      }
+      const approval = await transaction.createApproval(
+        tenantId,
+        id,
+        actorUserId,
+        "REJECTED",
+        reason,
+        decidedAt,
+      );
+      const risk = await transaction.findLinkedRisk(tenantId, id);
+      await transaction.writeWorkflowAudit(
+        tenantId,
+        actorUserId,
+        actual,
+        risk,
+        {
+          action: "KPI_ACTUAL_REJECTED",
+          approvalId: approval.id,
+          decision: "REJECTED",
+          automatic: false,
+          configuredApproverFallback,
+          comments: reason,
+        },
+        context,
+      );
+      return kpiActualWorkflowDto(actual, risk);
+    });
+  }
+
+  async resubmitActual(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    comments: string | null,
+    context: AuditContext,
+  ) {
+    return this.repository.runWorkflowTransaction(async (transaction) => {
+      const existing = await transaction.findWorkflowActual(tenantId, id);
+      if (!existing) throw actualNotFound();
+      if (existing.approvalStatus !== "REJECTED") {
+        throw invalidActualState(
+          "Only rejected KPI actuals can be resubmitted",
+        );
+      }
+      if (existing.submittedById !== actorUserId) {
+        throw forbidden("Only the original submitter may resubmit this actual");
+      }
+      const finalStatus = existing.configuration.requiresApproval
+        ? "PENDING_APPROVAL"
+        : "APPROVED";
+      if (finalStatus === "APPROVED") {
+        this.evidenceGate.assertSatisfied(
+          existing.configuration.requiresEvidence,
+        );
+      }
+      const submittedAt = new Date();
+      const actual = await transaction.resubmitActual(
+        tenantId,
+        id,
+        actorUserId,
+        finalStatus,
+        submittedAt,
+      );
+      if (!actual) {
+        throw invalidActualState(
+          "KPI actual changed while it was being resubmitted",
+        );
+      }
+      const resubmission = await transaction.createApproval(
+        tenantId,
+        id,
+        actorUserId,
+        "RESUBMITTED",
+        comments,
+        submittedAt,
+      );
+      const risk = await transaction.findLinkedRisk(tenantId, id);
+      await transaction.writeWorkflowAudit(
+        tenantId,
+        actorUserId,
+        actual,
+        risk,
+        {
+          action: "KPI_ACTUAL_RESUBMITTED",
+          approvalId: resubmission.id,
+          decision: "RESUBMITTED",
+          automatic: false,
+          configuredApproverFallback: false,
+          comments,
+        },
+        context,
+      );
+      if (finalStatus === "APPROVED") {
+        const approval = await transaction.createApproval(
+          tenantId,
+          id,
+          null,
+          "APPROVED",
+          null,
+          submittedAt,
+        );
+        await transaction.writeWorkflowAudit(
+          tenantId,
+          actorUserId,
+          actual,
+          risk,
+          {
+            action: "KPI_ACTUAL_APPROVED",
+            approvalId: approval.id,
+            decision: "APPROVED",
+            automatic: true,
+            configuredApproverFallback: false,
+            comments: null,
+          },
+          context,
+        );
+      }
+      return kpiActualWorkflowDto(actual, risk);
+    });
   }
 }
