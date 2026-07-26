@@ -3,10 +3,21 @@ node_modules/
 
 # Build output
 dist/
+**/dist/
+build/
+**/coverage/
 
-# Env
+# Env and secrets — never commit real values
 .env
-.env.local
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
 
 # Uploaded files (local dev storage)
 uploads/*
@@ -15,23 +26,40 @@ uploads/*
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Test / coverage
+# Test / coverage / Playwright
 coverage/
 .vitest/
 test-results/
+**/test-results/
 playwright-report/
+**/playwright-report/
+blob-report/
+**/blob-report/
 
 # Prisma local db
 prisma/*.db
+**/prisma/*.db
 
-# Local review and presentation artifacts
+# Local review, cache, and presentation artifacts
 .ppt_staging/
 outputs/
 .tmp/
+.cache/
+.turbo/
+*.tsbuildinfo
 
-# OS
+# OS / editor noise
 .DS_Store
+**/.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
 
 # Legacy Python backend leftovers (the folder itself is preserved under legacy/)
 .venv/
