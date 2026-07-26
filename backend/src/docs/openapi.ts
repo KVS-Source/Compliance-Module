@@ -251,9 +251,152 @@ export const openApiDocument = {
     },
     "/kpi-goals": {
       get: {
-        summary: "List Company KPI goals",
+        summary: "List legacy Company KPI goals",
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "Goal page" } },
+      },
+    },
+    "/kpi-configurations": {
+      get: {
+        summary: "List Company KPI configurations",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "KPI configuration page" } },
+      },
+      post: {
+        summary: "Create a Company KPI configuration",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "KPI configuration created" },
+          "403": { description: "Missing kpi-config:write permission" },
+          "409": { description: "Active configuration scope already exists" },
+        },
+      },
+    },
+    "/kpi-configurations/{id}": {
+      get: {
+        summary: "Get a Company KPI configuration",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI configuration" },
+          "404": { description: "Configuration not in Company context" },
+        },
+      },
+      patch: {
+        summary: "Update a Company KPI configuration",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI configuration updated" },
+          "403": { description: "Missing kpi-config:write permission" },
+          "404": { description: "Configuration not in Company context" },
+          "409": { description: "Active configuration scope already exists" },
+        },
+      },
+      delete: {
+        summary: "Soft-delete a Company KPI configuration",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI configuration disabled and deleted" },
+          "403": { description: "Missing kpi-config:write permission" },
+          "404": { description: "Configuration not in Company context" },
+        },
+      },
+    },
+    "/kpi-targets": {
+      get: {
+        summary: "List Company KPI targets",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "KPI target page" } },
+      },
+      post: {
+        summary: "Create a draft Company KPI target",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "KPI target created" },
+          "403": { description: "Missing kpi-target:write permission" },
+          "409": { description: "Target code, period or version conflict" },
+        },
+      },
+    },
+    "/kpi-targets/{id}": {
+      get: {
+        summary: "Get a Company KPI target",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI target" },
+          "404": { description: "Target not in Company context" },
+        },
+      },
+      patch: {
+        summary: "Update a draft or rejected KPI target",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI target updated" },
+          "403": { description: "Missing kpi-target:write permission" },
+          "409": { description: "Target state does not permit editing" },
+        },
+      },
+      delete: {
+        summary: "Soft-delete a draft or rejected KPI target",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI target disabled and deleted" },
+          "403": { description: "Missing kpi-target:write permission" },
+          "409": { description: "Target state does not permit deletion" },
+        },
+      },
+    },
+    "/kpi-targets/{id}/submit": {
+      post: {
+        summary: "Submit a KPI target for approval or auto-approval",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI target submitted" },
+          "403": {
+            description: "Missing permission or configured approver submitted",
+          },
+          "409": { description: "Target state does not permit submission" },
+        },
+      },
+    },
+    "/kpi-targets/{id}/approve": {
+      post: {
+        summary: "Approve a pending KPI target",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI target approved" },
+          "403": {
+            description:
+              "Missing permission, self-approval, or wrong configured approver",
+          },
+          "409": { description: "Target is not pending approval" },
+        },
+      },
+    },
+    "/kpi-targets/{id}/reject": {
+      post: {
+        summary: "Reject a pending KPI target with a reason",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI target rejected" },
+          "403": {
+            description:
+              "Missing permission, self-approval, or wrong configured approver",
+          },
+          "409": { description: "Target is not pending approval" },
+        },
+      },
+    },
+    "/kpi-targets/{id}/versions": {
+      post: {
+        summary: "Create a new draft version from an approved KPI target",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "New KPI target version created" },
+          "403": { description: "Missing kpi-target:write permission" },
+          "409": {
+            description: "Target is not approved or already superseded",
+          },
+        },
       },
     },
   },

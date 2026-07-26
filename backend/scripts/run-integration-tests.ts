@@ -64,6 +64,7 @@ run(
     "tests/api.test.ts",
     "tests/users-write.test.ts",
     "tests/organisation-write.test.ts",
+    "tests/kpi-management.test.ts",
   ],
   true,
 );
