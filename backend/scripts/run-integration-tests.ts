@@ -67,6 +67,7 @@ run(
     "tests/organisation-write.test.ts",
     "tests/kpi-management.test.ts",
     "tests/kpi-actuals.test.ts",
+    "tests/kpi-approval.test.ts",
   ],
   true,
 );
