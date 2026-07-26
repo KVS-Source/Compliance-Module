@@ -14,6 +14,9 @@ const childEnvironment = {
   NODE_ENV: "test",
   DATABASE_URL: testUrl,
   INTEGRATION_TEST_RUNNER: "isolated-postgres",
+  // The suite signs in far more often than a human would; limiter behaviour is
+  // covered separately in tests/hardening.test.ts.
+  RATE_LIMIT_DISABLED: "true",
 };
 
 const redact = (value: string) =>
@@ -24,11 +27,7 @@ const redact = (value: string) =>
       "$1=[REDACTED]",
     );
 
-const run = (
-  label: string,
-  argumentsList: string[],
-  showOutput = false,
-) => {
+const run = (label: string, argumentsList: string[], showOutput = false) => {
   const result = spawnSync(command, argumentsList, {
     cwd: process.cwd(),
     env: childEnvironment,
@@ -56,6 +55,14 @@ run("Test database migration deployment", [
 run("Deterministic test fixture", ["run", "prisma:seed:test"]);
 run(
   "Integration test suite",
-  ["exec", "--", "vitest", "run", "tests/api.test.ts"],
+  [
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "--no-file-parallelism",
+    "tests/api.test.ts",
+    "tests/users-write.test.ts",
+  ],
   true,
 );

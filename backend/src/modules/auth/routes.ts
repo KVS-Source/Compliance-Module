@@ -5,6 +5,10 @@ import {
   authenticate,
   validate,
 } from "../../common/middleware/http.js";
+import {
+  authRateLimiter,
+  refreshRateLimiter,
+} from "../../common/middleware/rate-limit.js";
 import { ok } from "../../common/responses/envelope.js";
 import { env } from "../../config/env.js";
 import type { AuthService } from "./service.js";
@@ -77,12 +81,22 @@ export class AuthController {
 export const authRoutes = (service: AuthService) => {
   const router = Router();
   const controller = new AuthController(service);
-  router.post("/login", validate(loginSchema), asyncHandler(controller.login));
-  router.post("/refresh", asyncHandler(controller.refresh));
+  router.post(
+    "/login",
+    authRateLimiter(),
+    validate(loginSchema),
+    asyncHandler(controller.login),
+  );
+  router.post(
+    "/refresh",
+    refreshRateLimiter(),
+    asyncHandler(controller.refresh),
+  );
   router.post("/logout", asyncHandler(controller.logout));
   router.get("/me", authenticate, asyncHandler(controller.me));
   router.post(
     "/tenant-context",
+    authRateLimiter(),
     authenticate,
     validate(switchSchema),
     asyncHandler(controller.switchCompany),

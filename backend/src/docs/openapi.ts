@@ -110,12 +110,31 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "User page" } },
       },
+      post: {
+        summary: "Create a Company user",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "User created with tenant membership" },
+          "403": { description: "Missing users:write permission" },
+          "409": { description: "Duplicate email or code" },
+        },
+      },
     },
     "/users/{id}": {
       get: {
         summary: "Get Company user",
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "User" } },
+      },
+      patch: {
+        summary: "Update a Company user",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "User updated" },
+          "403": { description: "Missing users:write permission" },
+          "404": { description: "User not in active Company context" },
+          "409": { description: "Duplicate email or code" },
+        },
       },
     },
     "/organisation/departments": {

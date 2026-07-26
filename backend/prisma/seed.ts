@@ -97,6 +97,7 @@ async function main() {
         ["*", "All permissions"],
         ["tenants:read", "Read Companies"],
         ["users:read", "Read Company users"],
+        ["users:write", "Create and update Company users"],
         ["organisation:read", "Read organisation master data"],
         ["frameworks:read", "Read frameworks and rules"],
         ["kpis:read", "Read KPI definitions and goals"],
@@ -160,7 +161,8 @@ async function main() {
         },
       });
       for (const readerPermission of permissions.filter(
-        ({ code }) => code !== "*" && code !== "users:read",
+        ({ code }) =>
+          code !== "*" && code !== "users:read" && code !== "users:write",
       )) {
         await db.rolePermission.upsert({
           where: {
@@ -294,9 +296,15 @@ async function main() {
 }
 
 main()
-  .then(() => console.log(`${seedMode === "test" ? "Test fixture" : "Development seed"} complete`))
+  .then(() =>
+    console.log(
+      `${seedMode === "test" ? "Test fixture" : "Development seed"} complete`,
+    ),
+  )
   .catch(() => {
-    console.error(`${seedMode === "test" ? "Test fixture" : "Development seed"} failed`);
+    console.error(
+      `${seedMode === "test" ? "Test fixture" : "Development seed"} failed`,
+    );
     process.exitCode = 1;
   })
   .finally(async () => db.$disconnect());

@@ -5,7 +5,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import swaggerUi from "swagger-ui-express";
 import type { PrismaClient } from "@prisma/client";
-import { env } from "./config/env.js";
+import { env, resolveTrustProxy } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { prisma } from "./config/prisma.js";
 import { errorHandler, notFoundHandler } from "./common/middleware/http.js";
@@ -16,7 +16,7 @@ import { apiRoutes } from "./routes/index.js";
 export const createApp = (db: PrismaClient = prisma) => {
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  app.set("trust proxy", resolveTrustProxy(env.TRUST_PROXY));
   app.use(pinoHttp({ logger }));
   app.use(
     helmet({
@@ -86,7 +86,8 @@ export const createApp = (db: PrismaClient = prisma) => {
       success: false,
       error: {
         code: "ASSET_NOT_FOUND",
-        message: "Frontend asset was not found. Hard-refresh to load the latest build.",
+        message:
+          "Frontend asset was not found. Hard-refresh to load the latest build.",
       },
     });
   });
