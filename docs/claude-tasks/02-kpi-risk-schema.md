@@ -246,17 +246,50 @@ Supports both KPI-triggered and manually raised enterprise risk.
 - `ownerId?`, `treatmentStrategy RiskTreatmentStrategy?`, `reviewDate?`
 - `status RiskStatus`, `closedAt?`, `closureReason?`
 
+Slice D automatic KPI risks use these reviewed rules:
+
+- The server allocates `code` from a transaction-safe, tenant-scoped sequence:
+  `RSK-001`, `RSK-002`, and so on. The numeric part is padded to at least three
+  digits and expands after `RSK-999`. Codes may repeat across tenants.
+- The caller supplies no Risk fields through `POST /api/v1/kpi-actuals`.
+  `title` and `description` are derived deterministically from authoritative
+  linked records. The title is
+  `KPI target missed: <kpiCode> <kpiName> (<period>)`; the description records
+  that the risk was automatically raised and includes the target snapshot,
+  actual value, variance and RAG result used to raise it.
+- All three source FKs are nullable as a group. They must either all be null
+  (for a future manually raised risk) or all be non-null and mutually
+  consistent. An automatic KPI risk always sets `kpiActualId`,
+  `kpiConfigurationId` and `kpiTargetId`.
+- The calculated class supplies reviewed starting assessment values:
+  `MAJOR` starts at likelihood `4` and impact `4`; `MINOR` starts at likelihood
+  `3` and impact `3`. These are starting points for later reviewed
+  reassessment, not a merger of KPI class and enterprise risk level.
+- `inherentScore` is computed by the risk-creation service. `generalLevel` is
+  independently derived from that score using the bands in §4.
+
 Checks (raw SQL):
 
 ```sql
 CHECK (inherent_likelihood BETWEEN 1 AND 5)
 CHECK (inherent_impact     BETWEEN 1 AND 5)
+CHECK (inherent_score = inherent_likelihood * inherent_impact)
 CHECK (residual_likelihood IS NULL OR residual_likelihood BETWEEN 1 AND 5)
 CHECK (residual_impact     IS NULL OR residual_impact     BETWEEN 1 AND 5)
+CHECK (
+  (kpi_actual_id IS NULL
+    AND kpi_configuration_id IS NULL
+    AND kpi_target_id IS NULL)
+  OR
+  (kpi_actual_id IS NOT NULL
+    AND kpi_configuration_id IS NOT NULL
+    AND kpi_target_id IS NOT NULL)
+)
 ```
 
 `inherentScore` = likelihood × impact, computed in the service (not a generated
-column) and asserted in tests.
+column), independently enforced by the database equality check, and asserted in
+tests.
 
 **No duplicate active risk per actual** — partial unique index:
 
@@ -328,11 +361,32 @@ Risk:
 - `AMBER` → `riskRequired = true`, `recommendedRiskClass = MINOR`
 - `RED`   → `riskRequired = true`, `recommendedRiskClass = MAJOR`
 
+When Slice D creates an automatic risk, the reviewed starting assessments and
+enterprise levels are:
+
+| KPI risk class | Likelihood | Impact | Inherent score | General level |
+|---|---:|---:|---:|---|
+| `MINOR` | 3 | 3 | 9 | `MEDIUM` |
+| `MAJOR` | 4 | 4 | 16 | `HIGH` |
+
+The complete `GeneralRiskLevel` score bands, including later reviewed
+reassessments, are:
+
+- score `>= 20` → `CRITICAL`
+- score `15–19` → `HIGH`
+- score `8–14` → `MEDIUM`
+- score `< 8` → `LOW`
+
 **Target met means no Risk row exists.** A missed target that evaluates to
-AMBER or RED creates or updates exactly one linked Major or Minor KPI risk. A
+AMBER or RED creates exactly one linked Major or Minor KPI risk in Slice D. A
 miss within the configured amber tolerance evaluates GREEN and creates no risk.
 With the default `amberThresholdPct = 0`, any miss is at least AMBER, so the
 default behaviour is unchanged. Never create a risk record meaning "No Risk".
+
+Slice D is create-only. It does not recalculate or update an existing linked
+risk. Slice C must make an explicit reviewed decision about the linked risk when
+an actual is rejected or resubmitted. Any later recalculation or update belongs
+to Slice E and must be an explicit, audited operation.
 
 ---
 
@@ -347,9 +401,12 @@ default behaviour is unchanged. Never create a risk record meaning "No Risk".
 5. Snapshot `targetValueSnapshot` from that target
 6. `KpiPerformanceService.calculate()`
 7. Insert `KpiActual`
-8. If `riskRequired`: create or update the linked `Risk`, relying on the partial
-   unique index to prevent duplicates. Set `kpiRiskClass` from the recommendation;
-   leave `generalLevel` null unless separately assessed
+8. If `riskRequired`: create the linked `Risk`, relying on the partial unique
+   index to prevent duplicates. The server allocates the tenant-scoped risk
+   code, derives title and description, sets all three KPI source FKs, applies
+   the reviewed class starting likelihood/impact, computes `inherentScore`, and
+   derives `generalLevel` from the score bands in §4. The request contains no
+   Risk fields.
 9. Write an `AuditEvent` (`KPI_ACTUAL_SUBMITTED`, and `RISK_CREATED` if raised)
 10. Commit
 
@@ -362,6 +419,15 @@ Slice B actuals are not backfilled: retroactively generating Risk Register
 entries would create unreviewed compliance records. Any future reconciliation
 must be an explicit, audited, human-triggered operation, never a migration.
 
+Risk creation is an inseparable server-side consequence of an authorised KPI
+actual submission. It is governed by `kpi-actual:write`; the submitter does not
+also need `risk:write`.
+
+Before Slice C implements actual rejection or resubmission, it must record an
+explicit decision for any already-linked risk and define the corresponding
+audit events. Slice D must not silently delete, close, archive, or rewrite a risk
+when an actual changes workflow state.
+
 ---
 
 ## 6. Permissions
@@ -370,6 +436,17 @@ Seed and enforce via existing `permit()`:
 `kpi-config:write`, `kpi-target:write`, `kpi-target:approve`,
 `kpi-actual:write`, `kpi-actual:approve`, `risk:read`, `risk:write`,
 `risk:treat`, `risk:close`.
+
+Slice D exposes only tenant-scoped read routes:
+
+- `GET /api/v1/risks`
+- `GET /api/v1/risks/:id`
+
+Both require `risk:read`. Slice D has no Risk create, update, delete, treatment
+or close route. Automatic creation occurs only inside
+`POST /api/v1/kpi-actuals` and requires only `kpi-actual:write`.
+`risk:write` is reserved for a later explicit/manual risk workflow;
+`risk:treat` and `risk:close` belong to Slice E.
 
 Exclude all from `COMPANY_USER` by default. For Slice A, add
 `kpi-config:write`, `kpi-target:write`, and `kpi-target:approve` explicitly to
@@ -405,8 +482,9 @@ approval, not target approval.
   transaction (without risk), RAG computation
 - **C. Approval workflow** — `KpiApproval`, approve/reject endpoints, evidence
   gate stub
-- **D. Automatic risk creation** — `Risk`, partial unique index, CHECK
-  constraints, wire step 8 of the transaction
+- **D. Automatic risk creation** — `Risk`, tenant risk-code allocation,
+  read-only risk API, partial unique index, CHECK constraints, wire the
+  create-only step 8 of the transaction
 - **E. Risk review and treatment** — `RiskReview`, `RiskTreatment`, endpoints
 
 Each slice: Prisma models → migration → validators → service → repository →
@@ -434,8 +512,14 @@ Workflow:
 - submission without an approved target → 404
 - duplicate actual for the same period → 409
 - target met → no Risk row created
-- target missed (amber) → one MINOR risk; (red) → one MAJOR risk
-- second submission cannot create a second active risk (partial index holds)
+- target missed (amber) → one MINOR risk starting at 3 × 3 = 9 / MEDIUM;
+  (red) → one MAJOR risk starting at 4 × 4 = 16 / HIGH
+- generated risk codes are sequential within a tenant, begin at `RSK-001`, and
+  may repeat across tenants
+- the actual-submission body rejects caller-supplied risk fields
+- duplicate actual submission returns 409 and leaves exactly one linked risk;
+  a direct second active risk for the same actual is rejected by the partial
+  unique index
 - transaction rollback leaves no partial writes
 - approved target cannot be mutated; a change creates a new version
 - `targetValueSnapshot` survives re-versioning of the target
@@ -446,10 +530,16 @@ Isolation (mandatory):
   actuals or risks
 - codes may repeat across tenants
 - risk raised in Company 001 is invisible to Company 002
+- the read-only Risk API returns only the authenticated tenant's rows and
+  cross-tenant risk detail lookup returns 404
 
 Constraints:
 
 - likelihood/impact outside 1–5 rejected at the database level
+- inherent score unequal to likelihood × impact is rejected at the database
+  level
+- partially populated KPI source FKs are rejected; automatic risk source FKs
+  must identify one coherent tenant/configuration/target/actual chain
 - audit events written for submission, approval, and risk creation
 
 Slice A tests cover only the applicable configuration and target behaviour.
