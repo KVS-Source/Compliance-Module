@@ -47,6 +47,33 @@ enum RagStatus {
   RED
 }
 
+enum KpiRiskClass {
+  MAJOR
+  MINOR
+}
+
+enum GeneralRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  OPEN
+  UNDER_REVIEW
+  TREATED
+  CLOSED
+  ARCHIVED
+}
+
+enum RiskTreatmentStrategy {
+  AVOID
+  MITIGATE
+  TRANSFER
+  ACCEPT
+}
+
 model Tenant {
   id                       String             @id @default(uuid()) @db.Uuid
   code                     String             @unique
@@ -56,6 +83,7 @@ model Tenant {
   status                   RecordStatus       @default(ACTIVE)
   defaultAmberThresholdPct Decimal            @default(0.00) @map("default_amber_threshold_pct") @db.Decimal(6, 2)
   defaultRedThresholdPct   Decimal            @default(10.00) @map("default_red_threshold_pct") @db.Decimal(6, 2)
+  nextRiskNumber           Int                @default(1) @map("next_risk_number")
   createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships              UserCompany[]
@@ -69,6 +97,7 @@ model Tenant {
   kpiConfigurations        KpiConfiguration[]
   kpiTargets               KpiTarget[]
   kpiActuals               KpiActual[]
+  risks                    Risk[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
 
@@ -107,6 +136,9 @@ model User {
   approvedKpiActuals        KpiActual[]        @relation("KpiActualApprovedBy")
   createdKpiActuals         KpiActual[]        @relation("KpiActualCreatedBy")
   updatedKpiActuals         KpiActual[]        @relation("KpiActualUpdatedBy")
+  ownedRisks                Risk[]             @relation("RiskOwner")
+  createdRisks              Risk[]             @relation("RiskCreatedBy")
+  updatedRisks              Risk[]             @relation("RiskUpdatedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -340,6 +372,7 @@ model KpiConfiguration {
   updatedBy         User           @relation("KpiConfigurationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   targets           KpiTarget[]
   actuals           KpiActual[]
+  risks             Risk[]
 
   @@unique([tenantId, id])
   @@index([tenantId, status, enabled, deletedAt, effectiveFrom])
@@ -388,6 +421,7 @@ model KpiTarget {
   supersededBy       KpiTarget?       @relation("KpiTargetSupersession", fields: [tenantId, supersededById], references: [tenantId, id], onDelete: Restrict)
   supersedes         KpiTarget[]      @relation("KpiTargetSupersession")
   actuals            KpiActual[]
+  risks              Risk[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, kpiConfigurationId, period, id])
@@ -434,12 +468,61 @@ model KpiActual {
   approvedBy          User?            @relation("KpiActualApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
   createdBy           User             @relation("KpiActualCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy           User             @relation("KpiActualUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  risks               Risk[]
 
   @@unique([tenantId, id])
+  @@unique([tenantId, id, kpiConfigurationId, kpiTargetId])
   @@unique([tenantId, code])
   @@index([tenantId, approvalStatus, deletedAt, submittedAt])
   @@index([tenantId, kpiTargetId])
   @@map("kpi_actuals")
+}
+
+model Risk {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  tenantId           String                 @map("tenant_id") @db.Uuid
+  code               String
+  title              String
+  description        String?
+  category           String?
+  kpiActualId        String?                @map("kpi_actual_id") @db.Uuid
+  kpiConfigurationId String?                @map("kpi_configuration_id") @db.Uuid
+  kpiTargetId        String?                @map("kpi_target_id") @db.Uuid
+  inherentLikelihood Int                    @map("inherent_likelihood")
+  inherentImpact     Int                    @map("inherent_impact")
+  inherentScore      Int                    @map("inherent_score")
+  residualLikelihood Int?                   @map("residual_likelihood")
+  residualImpact     Int?                   @map("residual_impact")
+  residualScore      Int?                   @map("residual_score")
+  kpiRiskClass       KpiRiskClass?          @map("kpi_risk_class")
+  generalLevel       GeneralRiskLevel?      @map("general_level")
+  ownerId            String?                @map("owner_id") @db.Uuid
+  treatmentStrategy  RiskTreatmentStrategy? @map("treatment_strategy")
+  reviewDate         DateTime?              @map("review_date") @db.Date
+  status             RiskStatus             @default(OPEN)
+  closedAt           DateTime?              @map("closed_at") @db.Timestamptz(6)
+  closureReason      String?                @map("closure_reason")
+  createdById        String                 @map("created_by_id") @db.Uuid
+  updatedById        String                 @map("updated_by_id") @db.Uuid
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  tenant             Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  kpiActual          KpiActual?             @relation(fields: [tenantId, kpiActualId, kpiConfigurationId, kpiTargetId], references: [tenantId, id, kpiConfigurationId, kpiTargetId], onDelete: Restrict)
+  configuration      KpiConfiguration?      @relation(fields: [tenantId, kpiConfigurationId], references: [tenantId, id], onDelete: Restrict)
+  target             KpiTarget?             @relation(fields: [tenantId, kpiTargetId], references: [tenantId, id], onDelete: Restrict)
+  owner              User?                  @relation("RiskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy          User                   @relation("RiskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User                   @relation("RiskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId, status, deletedAt, createdAt])
+  @@index([tenantId, kpiActualId])
+  @@index([tenantId, kpiConfigurationId])
+  @@index([tenantId, kpiTargetId])
+  @@index([tenantId, ownerId, status, deletedAt])
+  @@map("risks")
 }
 
 model RefreshToken {
