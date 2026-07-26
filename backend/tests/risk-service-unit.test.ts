@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type {
   RiskRepository,
@@ -13,6 +15,19 @@ import {
 } from "../src/modules/risks/service.js";
 
 describe("RiskService", () => {
+  it("keeps the Slice D migration create-only with no historical Risk backfill", () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        "prisma/migrations/20260726224500_slice_d_automatic_kpi_risk/migration.sql",
+      ),
+      "utf8",
+    );
+
+    expect(migration).not.toMatch(/\bINSERT\s+INTO\s+"risks"/iu);
+    expect(migration).not.toMatch(/\bUPDATE\s+"kpi_actuals"/iu);
+  });
+
   it.each([
     { score: 1, level: "LOW" },
     { score: 7, level: "LOW" },

@@ -137,6 +137,38 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
         ...overrides,
       });
 
+  const provisionFreshAdminTenant = async (adminUserId: string) => {
+    const wildcard = await prisma.permission.findUniqueOrThrow({
+      where: { code: "*" },
+    });
+    const tenant = await prisma.tenant.create({
+      data: {
+        code: `COM-RISK-SEQUENCE-${randomUUID()}`,
+        name: "Synthetic Risk Sequence Company",
+      },
+    });
+    const role = await prisma.role.create({
+      data: {
+        tenantId: tenant.id,
+        code: "COMPANY_ADMIN",
+        name: "Synthetic Company Administrator",
+        permissions: { create: { permissionId: wildcard.id } },
+      },
+    });
+    await prisma.userCompany.create({
+      data: { userId: adminUserId, tenantId: tenant.id },
+    });
+    await prisma.userRole.create({
+      data: {
+        userId: adminUserId,
+        roleId: role.id,
+        tenantId: tenant.id,
+        assignedBy: adminUserId,
+      },
+    });
+    return tenant;
+  };
+
   it("seeds KPI actual and Risk permissions explicitly for admins and excludes Company User", async () => {
     const company = await prisma.tenant.findUniqueOrThrow({
       where: { code: "COM-001" },
@@ -238,7 +270,7 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     ).toBe(true);
   });
 
-  it("rejects caller-supplied Risk details on an otherwise valid submission", async () => {
+  it("rejects each caller-controlled Risk field on an otherwise valid submission", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const configuration = await createConfiguration(
       admin.accessToken,
@@ -250,26 +282,66 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       configuration.body.data.id,
       "100",
     );
-    const code = `ACT-RISK-BODY-${randomUUID()}`;
-
-    const response = await submitActual(
-      admin.accessToken,
-      configuration.body.data.id,
-      code,
-      "95",
-      {
-        risk: {
+    const callerRiskFields: Array<[string, unknown]> = [
+      [
+        "risk",
+        {
           code: "RSK-CALLER",
           title: "Caller-controlled risk",
           inherentLikelihood: 1,
           inherentImpact: 1,
         },
-      },
-    );
+      ],
+      ["riskId", randomUUID()],
+      ["riskCode", "RSK-CALLER"],
+      ["riskTitle", "Caller-controlled risk"],
+      ["title", "Caller-controlled risk"],
+      ["description", "Caller-controlled description"],
+      ["category", "Caller-controlled category"],
+      ["kpiActualId", randomUUID()],
+      ["kpiTargetId", randomUUID()],
+      ["inherentLikelihood", 1],
+      ["inherentImpact", 1],
+      ["inherentScore", 1],
+      ["residualLikelihood", 1],
+      ["residualImpact", 1],
+      ["residualScore", 1],
+      ["kpiRiskClass", "MINOR"],
+      ["generalLevel", "LOW"],
+      ["ownerId", admin.user.id],
+      ["treatmentStrategy", "ACCEPT"],
+      ["reviewDate", "2026-09-30"],
+      ["status", "OPEN"],
+      ["closedAt", new Date().toISOString()],
+      ["closureReason", "Caller-controlled closure"],
+      ["createdById", admin.user.id],
+      ["updatedById", admin.user.id],
+      ["createdAt", new Date().toISOString()],
+      ["updatedAt", new Date().toISOString()],
+      ["deletedAt", new Date().toISOString()],
+    ];
+    const rejectedCodes: string[] = [];
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe("VALIDATION_ERROR");
-    expect(await prisma.kpiActual.count({ where: { code } })).toBe(0);
+    for (const [field, value] of callerRiskFields) {
+      const code = `ACT-RISK-BODY-${randomUUID()}`;
+      rejectedCodes.push(code);
+      const response = await submitActual(
+        admin.accessToken,
+        configuration.body.data.id,
+        code,
+        "95",
+        { [field]: value },
+      );
+
+      expect(response.status, field).toBe(400);
+      expect(response.body.error.code, field).toBe("VALIDATION_ERROR");
+    }
+
+    expect(
+      await prisma.kpiActual.count({
+        where: { code: { in: rejectedCodes } },
+      }),
+    ).toBe(0);
     expect(
       await prisma.risk.count({
         where: { tenantId: admin.user.activeCompany.id, code: "RSK-CALLER" },
@@ -617,51 +689,137 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
         },
       }),
     ).rejects.toThrow();
+
+    for (const status of ["CLOSED", "ARCHIVED"] as const) {
+      const historical = await prisma.risk.create({
+        data: {
+          tenantId: admin.user.activeCompany.id,
+          code: `RSK-${status}-${randomUUID()}`,
+          title: `Synthetic ${status.toLowerCase()} KPI risk`,
+          kpiActualId: actual.id,
+          kpiConfigurationId: actual.kpiConfigurationId,
+          kpiTargetId: actual.kpiTargetId,
+          inherentLikelihood: 3,
+          inherentImpact: 3,
+          inherentScore: 9,
+          kpiRiskClass: "MINOR",
+          generalLevel: "MEDIUM",
+          ownerId: admin.user.id,
+          status,
+          createdById: admin.user.id,
+          updatedById: admin.user.id,
+        },
+      });
+      expect(historical.status).toBe(status);
+    }
+    expect(
+      await prisma.risk.count({
+        where: {
+          tenantId: admin.user.activeCompany.id,
+          kpiActualId: actual.id,
+        },
+      }),
+    ).toBe(3);
   });
 
-  it("allocates distinct consecutive tenant Risk codes for simultaneous missed submissions", async () => {
+  it("starts fresh tenant Risk sequences independently at RSK-001", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
-    const firstConfiguration = await createConfiguration(
-      admin.accessToken,
-      admin.user.id,
-    );
-    const secondConfiguration = await createConfiguration(
-      admin.accessToken,
-      admin.user.id,
-    );
-    expect(firstConfiguration.status).toBe(201);
-    expect(secondConfiguration.status).toBe(201);
-    await Promise.all([
-      createApprovedTarget(
+    const tenants = [
+      await provisionFreshAdminTenant(admin.user.id),
+      await provisionFreshAdminTenant(admin.user.id),
+    ];
+    const tenantIds = tenants.map(({ id }) => id);
+
+    try {
+      const tenantTokens = await Promise.all(
+        tenants.map((tenant) => switchCompany(admin.accessToken, tenant.id)),
+      );
+      const configurationIds: string[] = [];
+
+      for (const token of tenantTokens) {
+        const configuration = await createConfiguration(token, admin.user.id);
+        expect(configuration.status).toBe(201);
+        configurationIds.push(String(configuration.body.data.id));
+      }
+      await Promise.all(
+        tenantTokens.map((token, index) =>
+          createApprovedTarget(token, configurationIds[index]!, "100"),
+        ),
+      );
+
+      const submissions = await Promise.all(
+        tenantTokens.map((token, index) =>
+          submitActual(
+            token,
+            configurationIds[index]!,
+            `ACT-FIRST-RISK-${randomUUID()}`,
+            "80",
+          ).expect(201),
+        ),
+      );
+      expect(submissions.map(({ body }) => body.data.risk.code)).toEqual([
+        "RSK-001",
+        "RSK-001",
+      ]);
+      expect(
+        await prisma.risk.count({
+          where: {
+            tenantId: { in: tenantIds },
+            code: "RSK-001",
+          },
+        }),
+      ).toBe(2);
+      expect(
+        (
+          await prisma.tenant.findMany({
+            where: { id: { in: tenantIds } },
+            select: { nextRiskNumber: true },
+          })
+        ).map(({ nextRiskNumber }) => nextRiskNumber),
+      ).toEqual([2, 2]);
+    } finally {
+      await prisma.userRole.deleteMany({
+        where: { userId: admin.user.id, tenantId: { in: tenantIds } },
+      });
+      await prisma.userCompany.deleteMany({
+        where: { userId: admin.user.id, tenantId: { in: tenantIds } },
+      });
+    }
+  });
+
+  it("allocates distinct consecutive tenant Risk codes for a concurrent burst", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const concurrentCount = 6;
+    const configurationIds: string[] = [];
+
+    for (let index = 0; index < concurrentCount; index += 1) {
+      const configuration = await createConfiguration(
         admin.accessToken,
-        firstConfiguration.body.data.id,
-        "100",
+        admin.user.id,
+      );
+      expect(configuration.status).toBe(201);
+      configurationIds.push(String(configuration.body.data.id));
+    }
+    await Promise.all(
+      configurationIds.map((configurationId) =>
+        createApprovedTarget(admin.accessToken, configurationId, "100"),
       ),
-      createApprovedTarget(
-        admin.accessToken,
-        secondConfiguration.body.data.id,
-        "100",
-      ),
-    ]);
+    );
     const before = await prisma.tenant.findUniqueOrThrow({
       where: { id: admin.user.activeCompany.id },
       select: { nextRiskNumber: true },
     });
 
-    const submissions = await Promise.all([
-      submitActual(
-        admin.accessToken,
-        firstConfiguration.body.data.id,
-        `ACT-SEQUENCE-A-${randomUUID()}`,
-        "80",
-      ).expect(201),
-      submitActual(
-        admin.accessToken,
-        secondConfiguration.body.data.id,
-        `ACT-SEQUENCE-B-${randomUUID()}`,
-        "80",
-      ).expect(201),
-    ]);
+    const submissions = await Promise.all(
+      configurationIds.map((configurationId) =>
+        submitActual(
+          admin.accessToken,
+          configurationId,
+          `ACT-SEQUENCE-${randomUUID()}`,
+          "80",
+        ).expect(201),
+      ),
+    );
     const risks = await prisma.risk.findMany({
       where: {
         tenantId: admin.user.activeCompany.id,
@@ -671,8 +829,10 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       },
       select: { code: true, kpiActualId: true },
     });
-    expect(risks).toHaveLength(2);
-    expect(new Set(risks.map(({ kpiActualId }) => kpiActualId)).size).toBe(2);
+    expect(risks).toHaveLength(concurrentCount);
+    expect(new Set(risks.map(({ kpiActualId }) => kpiActualId)).size).toBe(
+      concurrentCount,
+    );
     const allocatedNumbers = risks
       .map(({ code }) => {
         const match = /^RSK-(\d{3,})$/.exec(code);
@@ -680,15 +840,17 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
         return Number(match![1]);
       })
       .sort((left, right) => left - right);
-    expect(allocatedNumbers).toEqual([
-      before.nextRiskNumber,
-      before.nextRiskNumber + 1,
-    ]);
+    expect(allocatedNumbers).toEqual(
+      Array.from(
+        { length: concurrentCount },
+        (_, index) => before.nextRiskNumber + index,
+      ),
+    );
     const after = await prisma.tenant.findUniqueOrThrow({
       where: { id: admin.user.activeCompany.id },
       select: { nextRiskNumber: true },
     });
-    expect(after.nextRiskNumber).toBe(before.nextRiskNumber + 2);
+    expect(after.nextRiskNumber).toBe(before.nextRiskNumber + concurrentCount);
   });
 
   it("keeps its target snapshot after target re-versioning", async () => {
@@ -1309,6 +1471,29 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
           kpiActualId: actual.id,
           kpiConfigurationId: null,
           kpiTargetId: null,
+        }),
+      }),
+    ).rejects.toThrow();
+
+    const secondConfiguration = await createConfiguration(
+      admin.accessToken,
+      admin.user.id,
+    );
+    expect(secondConfiguration.status).toBe(201);
+    const secondTargetResponse = await createApprovedTarget(
+      admin.accessToken,
+      secondConfiguration.body.data.id,
+      "100",
+    );
+    const secondTarget = await prisma.kpiTarget.findUniqueOrThrow({
+      where: { id: secondTargetResponse.body.data.id },
+    });
+    await expect(
+      prisma.risk.create({
+        data: riskData({
+          kpiActualId: actual.id,
+          kpiConfigurationId: secondConfiguration.body.data.id,
+          kpiTargetId: secondTarget.id,
         }),
       }),
     ).rejects.toThrow();

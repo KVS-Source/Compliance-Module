@@ -22,3 +22,18 @@ Slice D does not update an existing linked risk and does not backfill Slice B
 actuals. Slice C must explicitly resolve and audit the effect of actual
 rejection or resubmission on an existing risk. Later recalculation or updates
 belong to Slice E and must be explicit and audited.
+
+## Deployment compatibility
+
+The Slice D migration intentionally remains compatible with existing Slice B
+rows and does not create historical Risk Register entries. That also means the
+application change and migration must not be deployed as an ordinary
+mixed-version rollout: an old Slice B instance could otherwise accept a new
+AMBER or RED actual without creating its required risk.
+
+Before applying the migration, quiesce KPI actual submissions. Re-enable them
+only after every serving instance runs Slice D. Do not roll the application back
+to Slice B while submissions are enabled. If an application rollback is
+required, disable KPI actual submission first and keep it disabled until Slice D
+is restored or an explicit reviewed recovery is approved. This operational gate
+prevents new omissions without violating the no-backfill decision.
