@@ -14,6 +14,12 @@ import {
   FrameworksRepository,
 } from "../modules/frameworks/routes.js";
 import { kpiDefinitionRoutes, kpiGoalRoutes } from "../modules/kpis/routes.js";
+import { KpiManagementRepository } from "../modules/kpis/management-repository.js";
+import { KpiManagementService } from "../modules/kpis/management-service.js";
+import {
+  kpiConfigurationRoutes,
+  kpiTargetRoutes,
+} from "../modules/kpis/management-routes.js";
 import {
   authenticate,
   authorizeTenantContext,
@@ -22,6 +28,9 @@ import { apiRateLimiter } from "../common/middleware/rate-limit.js";
 
 export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   const router = Router();
+  const kpiManagement = new KpiManagementService(
+    new KpiManagementRepository(db),
+  );
   router.get("/health", (_req, res) =>
     res.json({
       success: true,
@@ -59,5 +68,7 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   );
   router.use("/kpi-definitions", kpiDefinitionRoutes(provider));
   router.use("/kpi-goals", kpiGoalRoutes(provider));
+  router.use("/kpi-configurations", kpiConfigurationRoutes(kpiManagement));
+  router.use("/kpi-targets", kpiTargetRoutes(kpiManagement));
   return router;
 };
