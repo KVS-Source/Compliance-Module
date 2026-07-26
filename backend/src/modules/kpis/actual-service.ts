@@ -11,6 +11,8 @@ import type {
   KpiPerformanceResult,
 } from "./performance-service.js";
 import { kpiConfigurationDto } from "./management-service.js";
+import { riskSummaryDto, type RiskService } from "../risks/service.js";
+import type { RiskRecord } from "../risks/repository.js";
 
 const dateOnly = (value: Date) => value.toISOString().slice(0, 10);
 
@@ -25,6 +27,7 @@ export const kpiActualDto = (
     KpiPerformanceResult,
     "riskRequired" | "recommendedRiskClass"
   >,
+  risk: RiskRecord | null,
 ) => ({
   id: record.id,
   code: record.code,
@@ -55,6 +58,7 @@ export const kpiActualDto = (
   updatedAt: record.updatedAt,
   riskRequired: performance.riskRequired,
   recommendedRiskClass: performance.recommendedRiskClass,
+  risk: risk ? riskSummaryDto(risk) : null,
 });
 
 const configurationNotFound = () =>
@@ -82,6 +86,7 @@ export class KpiActualService {
   constructor(
     private readonly repository: KpiActualRepository,
     private readonly performanceService: KpiPerformanceService,
+    private readonly riskService: RiskService,
   ) {}
 
   async submitActual(
@@ -90,53 +95,54 @@ export class KpiActualService {
     body: CreateKpiActualBody,
     context: AuditContext,
   ) {
-    try {
-      return await this.repository.runSubmissionTransaction(
-        async (transaction) => {
-          const membership = await transaction.findActiveMembership(
-            tenantId,
-            actorUserId,
-          );
-          if (!membership) {
-            throw unauthorized("Company context is no longer active");
-          }
+    return this.repository.runSubmissionTransaction(
+      async (transaction, riskTransaction) => {
+        const membership = await transaction.findActiveMembership(
+          tenantId,
+          actorUserId,
+        );
+        if (!membership) {
+          throw unauthorized("Company context is no longer active");
+        }
 
-          const configuration = await transaction.findActiveConfiguration(
-            tenantId,
-            body.kpiConfigurationId,
-          );
-          if (!configuration) throw configurationNotFound();
+        const configuration = await transaction.findActiveConfiguration(
+          tenantId,
+          body.kpiConfigurationId,
+        );
+        if (!configuration) throw configurationNotFound();
 
-          const target = await transaction.findApprovedTarget(
-            tenantId,
-            configuration.id,
-            body.period,
-          );
-          if (!target) throw targetNotFound();
+        const target = await transaction.findApprovedTarget(
+          tenantId,
+          configuration.id,
+          body.period,
+        );
+        if (!target) throw targetNotFound();
 
-          const existing = await transaction.findActiveActual(
-            tenantId,
-            configuration.id,
-            body.period,
-          );
-          if (existing) throw actualAlreadyExists();
+        const existing = await transaction.findActiveActual(
+          tenantId,
+          configuration.id,
+          body.period,
+        );
+        if (existing) throw actualAlreadyExists();
 
-          const actualValue = new Prisma.Decimal(body.actualValue);
-          const performance = this.performanceService.calculate({
-            direction: configuration.definition.direction,
-            targetValue: target.targetValue,
-            actualValue,
-            minValue: target.minValue,
-            maxValue: target.maxValue,
-            amberThresholdPct:
-              configuration.amberThresholdPct ??
-              configuration.tenant.defaultAmberThresholdPct,
-            redThresholdPct:
-              configuration.redThresholdPct ??
-              configuration.tenant.defaultRedThresholdPct,
-          });
-          const submittedAt = new Date();
-          const actual = await transaction.createActual(
+        const actualValue = new Prisma.Decimal(body.actualValue);
+        const performance = this.performanceService.calculate({
+          direction: configuration.definition.direction,
+          targetValue: target.targetValue,
+          actualValue,
+          minValue: target.minValue,
+          maxValue: target.maxValue,
+          amberThresholdPct:
+            configuration.amberThresholdPct ??
+            configuration.tenant.defaultAmberThresholdPct,
+          redThresholdPct:
+            configuration.redThresholdPct ??
+            configuration.tenant.defaultRedThresholdPct,
+        });
+        const submittedAt = new Date();
+        let actual: KpiActualRecord;
+        try {
+          actual = await transaction.createActual(
             tenantId,
             actorUserId,
             submittedAt,
@@ -157,25 +163,60 @@ export class KpiActualService {
               comments: body.comments ?? null,
             },
           );
-          await transaction.writeSubmissionAudit(
-            tenantId,
-            actorUserId,
-            actual,
-            performance.riskRequired,
-            performance.recommendedRiskClass,
-            context,
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            throw actualAlreadyExists();
+          }
+          throw error;
+        }
+
+        let risk: RiskRecord | null = null;
+        if (performance.riskRequired) {
+          if (
+            !performance.recommendedRiskClass ||
+            (performance.ragStatus !== "AMBER" &&
+              performance.ragStatus !== "RED")
+          ) {
+            throw new AppError(
+              500,
+              "KPI_RISK_RECOMMENDATION_MISSING",
+              "KPI risk recommendation is unavailable",
+            );
+          }
+          risk = await this.riskService.createAutomaticKpiRisk(
+            riskTransaction,
+            {
+              tenantId,
+              actorUserId,
+              actualId: actual.id,
+              actualValue: actual.actualValue.toString(),
+              variance: actual.variance.toString(),
+              ragStatus: performance.ragStatus,
+              configurationId: configuration.id,
+              targetId: target.id,
+              targetValueSnapshot: actual.targetValueSnapshot.toString(),
+              period: actual.period,
+              kpiCode: configuration.definition.code,
+              kpiName: configuration.definition.name,
+              kpiRiskClass: performance.recommendedRiskClass,
+              context,
+            },
           );
-          return kpiActualDto(actual, performance);
-        },
-      );
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        throw actualAlreadyExists();
-      }
-      throw error;
-    }
+        }
+        await transaction.writeSubmissionAudit(
+          tenantId,
+          actorUserId,
+          actual,
+          performance.riskRequired,
+          performance.recommendedRiskClass,
+          risk,
+          context,
+        );
+        return kpiActualDto(actual, performance, risk);
+      },
+    );
   }
 }

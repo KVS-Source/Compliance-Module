@@ -449,7 +449,7 @@ export const openApiDocument = {
         responses: {
           "201": {
             description:
-              "KPI actual submitted with its target snapshot and performance result",
+              "KPI actual submitted with its target snapshot, performance result and automatic risk summary when required",
           },
           "400": {
             description:
@@ -464,6 +464,73 @@ export const openApiDocument = {
             description:
               "An active actual already exists for the configuration and period",
           },
+        },
+      },
+    },
+    "/risks": {
+      get: {
+        summary: "List Company risks",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "query",
+            name: "page",
+            schema: { type: "integer", minimum: 1, default: 1 },
+          },
+          {
+            in: "query",
+            name: "pageSize",
+            schema: {
+              type: "integer",
+              minimum: 1,
+              maximum: 100,
+              default: 20,
+            },
+          },
+          {
+            in: "query",
+            name: "status",
+            schema: {
+              type: "string",
+              enum: ["OPEN", "UNDER_REVIEW", "TREATED", "CLOSED", "ARCHIVED"],
+            },
+          },
+          {
+            in: "query",
+            name: "kpiRiskClass",
+            schema: { type: "string", enum: ["MAJOR", "MINOR"] },
+          },
+          {
+            in: "query",
+            name: "generalLevel",
+            schema: {
+              type: "string",
+              enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+            },
+          },
+        ],
+        responses: {
+          "200": { description: "Tenant-filtered risk page" },
+          "403": { description: "Missing risk:read permission" },
+        },
+      },
+    },
+    "/risks/{id}": {
+      get: {
+        summary: "Get a Company risk",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Risk in the active Company context" },
+          "403": { description: "Missing risk:read permission" },
+          "404": { description: "Risk not in the active Company context" },
         },
       },
     },
