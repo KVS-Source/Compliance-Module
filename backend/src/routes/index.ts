@@ -17,6 +17,7 @@ import {
   authenticate,
   authorizeTenantContext,
 } from "../common/middleware/http.js";
+import { apiRateLimiter } from "../common/middleware/rate-limit.js";
 
 export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   const router = Router();
@@ -41,6 +42,8 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
       });
     }
   });
+  // Mounted after the probes so orchestrator health checks never consume budget.
+  router.use(apiRateLimiter());
   router.use("/auth", authRoutes(new AuthService(new AuthRepository(db))));
   router.use(authenticate, authorizeTenantContext(db));
   router.use("/tenants", tenantsRoutes(provider));
