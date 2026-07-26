@@ -108,6 +108,8 @@ async function main() {
         ["kpi-target:write", "Create and update Company KPI targets"],
         ["kpi-target:approve", "Approve and reject Company KPI targets"],
         ["kpi-actual:write", "Submit Company KPI actuals"],
+        ["risk:read", "Read Company risks"],
+        ["risk:write", "Create and update Company risks"],
       ] as const
     ).map(([code, name]) =>
       db.permission.upsert({
@@ -146,6 +148,8 @@ async function main() {
         "kpi-target:write",
         "kpi-target:approve",
         "kpi-actual:write",
+        "risk:read",
+        "risk:write",
       ].includes(code),
     )) {
       await db.rolePermission.upsert({
@@ -197,7 +201,9 @@ async function main() {
           code !== "kpi-config:write" &&
           code !== "kpi-target:write" &&
           code !== "kpi-target:approve" &&
-          code !== "kpi-actual:write",
+          code !== "kpi-actual:write" &&
+          code !== "risk:read" &&
+          code !== "risk:write",
       )) {
         await db.rolePermission.upsert({
           where: {

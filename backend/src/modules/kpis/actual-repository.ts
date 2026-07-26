@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { kpiConfigurationInclude } from "./management-repository.js";
 import type { AuditContext } from "./management-repository.js";
+import { RiskTransactionRepository } from "../risks/repository.js";
 
 export const kpiActualInclude = Prisma.validator<Prisma.KpiActualInclude>()({
   configuration: { include: kpiConfigurationInclude },
@@ -144,6 +145,7 @@ export class KpiActualTransactionRepository {
     actual: KpiActualRecord,
     riskRequired: boolean,
     recommendedRiskClass: "MINOR" | "MAJOR" | null,
+    risk: { id: string; code: string } | null,
     context: AuditContext,
   ) {
     return this.transaction.auditEvent.create({
@@ -165,6 +167,7 @@ export class KpiActualTransactionRepository {
           ragStatus: actual.ragStatus,
           riskRequired,
           recommendedRiskClass,
+          ...(risk ? { riskId: risk.id, riskCode: risk.code } : {}),
         },
         ...(context.ip ? { ipAddress: context.ip } : {}),
         ...(context.userAgent ? { userAgent: context.userAgent } : {}),
@@ -177,10 +180,16 @@ export class KpiActualRepository {
   constructor(private readonly db: PrismaClient) {}
 
   runSubmissionTransaction<T>(
-    operation: (repository: KpiActualTransactionRepository) => Promise<T>,
+    operation: (
+      repository: KpiActualTransactionRepository,
+      riskRepository: RiskTransactionRepository,
+    ) => Promise<T>,
   ) {
     return this.db.$transaction((transaction) =>
-      operation(new KpiActualTransactionRepository(transaction)),
+      operation(
+        new KpiActualTransactionRepository(transaction),
+        new RiskTransactionRepository(transaction),
+      ),
     );
   }
 }
