@@ -14,6 +14,7 @@ const childEnvironment = {
   NODE_ENV: "test",
   DATABASE_URL: testUrl,
   INTEGRATION_TEST_RUNNER: "isolated-postgres",
+  LOG_LEVEL: "silent",
   // The suite signs in far more often than a human would; limiter behaviour is
   // covered separately in tests/hardening.test.ts.
   RATE_LIMIT_DISABLED: "true",
@@ -65,6 +66,7 @@ run(
     "tests/users-write.test.ts",
     "tests/organisation-write.test.ts",
     "tests/kpi-management.test.ts",
+    "tests/kpi-actuals.test.ts",
   ],
   true,
 );

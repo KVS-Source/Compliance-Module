@@ -48,9 +48,10 @@ change appears to require dormant code. See `legacy/README.md`.
 - A KPI must always show its code, name, unit of measure, frequency, owner, and
   department.
 - A met KPI target shows “No Risk” and creates no risk record.
-- A missed KPI target creates or updates exactly one linked Major or Minor risk
-  for that actual. Enforce a database partial unique index when this workflow is
-  implemented.
+- A missed target that evaluates to AMBER or RED creates or updates exactly one
+  linked Major or Minor KPI risk. A miss within the configured amber tolerance
+  evaluates GREEN and creates no risk. Enforce a database partial unique index
+  when this workflow is implemented.
 - KPI risk class (`Major` or `Minor`) and enterprise risk level (`Low`, `Medium`,
   `High`, or `Critical`) are separate fields and must not be merged.
 - Approved-evidence gates apply to KPI approval, policy approval, gap closure,

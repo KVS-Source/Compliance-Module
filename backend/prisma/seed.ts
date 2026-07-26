@@ -107,6 +107,7 @@ async function main() {
         ["kpi-config:write", "Create and update Company KPI configurations"],
         ["kpi-target:write", "Create and update Company KPI targets"],
         ["kpi-target:approve", "Approve and reject Company KPI targets"],
+        ["kpi-actual:write", "Submit Company KPI actuals"],
       ] as const
     ).map(([code, name]) =>
       db.permission.upsert({
@@ -140,9 +141,12 @@ async function main() {
       create: { roleId: role.id, permissionId: allPermission.id },
     });
     for (const permission of permissions.filter(({ code }) =>
-      ["kpi-config:write", "kpi-target:write", "kpi-target:approve"].includes(
-        code,
-      ),
+      [
+        "kpi-config:write",
+        "kpi-target:write",
+        "kpi-target:approve",
+        "kpi-actual:write",
+      ].includes(code),
     )) {
       await db.rolePermission.upsert({
         where: {
@@ -192,7 +196,8 @@ async function main() {
           code !== "units:write" &&
           code !== "kpi-config:write" &&
           code !== "kpi-target:write" &&
-          code !== "kpi-target:approve",
+          code !== "kpi-target:approve" &&
+          code !== "kpi-actual:write",
       )) {
         await db.rolePermission.upsert({
           where: {
