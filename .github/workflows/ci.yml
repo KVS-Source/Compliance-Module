@@ -172,4 +172,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan active runtime
-        run: semgrep scan --config auto --error frontend backend
+        run: >-
+          semgrep scan
+          --config p/typescript
+          --config p/expressjs
+          --config p/owasp-top-ten
+          --error frontend backend
