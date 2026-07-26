@@ -108,6 +108,7 @@ async function main() {
         ["kpi-target:write", "Create and update Company KPI targets"],
         ["kpi-target:approve", "Approve and reject Company KPI targets"],
         ["kpi-actual:write", "Submit Company KPI actuals"],
+        ["kpi-actual:approve", "Approve and reject Company KPI actuals"],
         ["risk:read", "Read Company risks"],
         ["risk:write", "Create and update Company risks"],
       ] as const
@@ -148,6 +149,7 @@ async function main() {
         "kpi-target:write",
         "kpi-target:approve",
         "kpi-actual:write",
+        "kpi-actual:approve",
         "risk:read",
         "risk:write",
       ].includes(code),
@@ -202,6 +204,7 @@ async function main() {
           code !== "kpi-target:write" &&
           code !== "kpi-target:approve" &&
           code !== "kpi-actual:write" &&
+          code !== "kpi-actual:approve" &&
           code !== "risk:read" &&
           code !== "risk:write",
       )) {

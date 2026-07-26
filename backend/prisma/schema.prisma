@@ -47,6 +47,12 @@ enum RagStatus {
   RED
 }
 
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+  RESUBMITTED
+}
+
 enum KpiRiskClass {
   MAJOR
   MINOR
@@ -97,6 +103,7 @@ model Tenant {
   kpiConfigurations        KpiConfiguration[]
   kpiTargets               KpiTarget[]
   kpiActuals               KpiActual[]
+  kpiApprovals             KpiApproval[]
   risks                    Risk[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
@@ -136,6 +143,7 @@ model User {
   approvedKpiActuals        KpiActual[]        @relation("KpiActualApprovedBy")
   createdKpiActuals         KpiActual[]        @relation("KpiActualCreatedBy")
   updatedKpiActuals         KpiActual[]        @relation("KpiActualUpdatedBy")
+  reviewedKpiActuals        KpiApproval[]      @relation("KpiApprovalReviewer")
   ownedRisks                Risk[]             @relation("RiskOwner")
   createdRisks              Risk[]             @relation("RiskCreatedBy")
   updatedRisks              Risk[]             @relation("RiskUpdatedBy")
@@ -468,6 +476,7 @@ model KpiActual {
   approvedBy          User?            @relation("KpiActualApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
   createdBy           User             @relation("KpiActualCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy           User             @relation("KpiActualUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  approvals           KpiApproval[]
   risks               Risk[]
 
   @@unique([tenantId, id])
@@ -476,6 +485,24 @@ model KpiActual {
   @@index([tenantId, approvalStatus, deletedAt, submittedAt])
   @@index([tenantId, kpiTargetId])
   @@map("kpi_actuals")
+}
+
+model KpiApproval {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  kpiActualId String           @map("kpi_actual_id") @db.Uuid
+  reviewerId  String?          @map("reviewer_id") @db.Uuid
+  decision    ApprovalDecision
+  comments    String?
+  decidedAt   DateTime         @default(now()) @map("decided_at") @db.Timestamptz(6)
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actual      KpiActual        @relation(fields: [tenantId, kpiActualId], references: [tenantId, id], onDelete: Restrict)
+  reviewer    User?            @relation("KpiApprovalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, kpiActualId, decidedAt])
+  @@index([tenantId, reviewerId, decidedAt])
+  @@map("kpi_approvals")
 }
 
 model Risk {
