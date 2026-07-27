@@ -1,49 +1,160 @@
-# GenBioCa Compliance Platform — PERN React Milestone 1
+# GenBioCa Compliance Platform
 
-GenBioCa is a multi-company compliance platform built with PostgreSQL, Express, React/TypeScript, and Node.js.
+Multi-company compliance platform on PostgreSQL, Express, React/TypeScript, and
+Node.js (PERN), with Prisma and JWT authentication.
 
-## Authoritative runtime
+Standing architecture and security rules live in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+Read that before changing non-trivial behaviour.
 
-Only these paths belong to the active application:
+---
 
-- `frontend/` — React frontend
-- `backend/` — Express backend
-- `backend/prisma/` — active Prisma schema and migrations
-- `backend/Dockerfile` and `docker-compose.yml` — local application infrastructure
+## Live routes vs prototype shells (read this first)
 
-Dormant implementations live under `legacy/` (`src/`, `prisma/`, `tests/`, and
-`legacy_python_backend/`). Do not run their migrations or add new features to
-them. See `docs/architecture/authoritative-runtime.md` and `legacy/README.md`.
+Most navigation entries are **prototype shells**. They look like product screens,
+but they do **not** call write APIs and they **do not persist** changes.
 
-## Requirements
+Prototype pages render through `PrototypeRoutePage` and show a banner:
 
-- Node.js 20 or later
-- PostgreSQL 16
-- npm
-- Docker with Compose for the container workflow
+> Prototype module — demonstration data only. Changes are not saved.
 
-## Configuration
+**Do not mistake a labelled prototype for a working module.**
 
-Copy `.env.example` to an ignored local environment file and replace every placeholder. Never commit environment files or reuse development credentials in a shared environment.
+### Live (API-connected) routes
 
-The backend validates required configuration at startup. Production requires a strong non-placeholder JWT secret and secure cookies.
+These use the real backend and must **not** show the prototype banner:
 
-## Install active dependencies
+| Path | Notes |
+|------|--------|
+| `/login` | Authentication |
+| `/dashboard` | Shell dashboard (partial live data) |
+| `/admin/users` | User management |
+| `/admin/companies` | Company list |
+| `/admin/departments` | Organisation masters |
+| `/admin/locations` | Organisation masters |
+| `/admin/organisation-units` | Organisation masters |
+| `/master/frameworks` | Framework master |
+| `/master/frameworks/:frameworkId/rules` | Framework rules |
+| `/kpi/actual-entry` | Submit KPI actuals |
+| `/compliance/risks` | Risk Register (read-only) |
+| `/compliance/risks/:riskId` | Risk detail (read-only) |
+
+Authoritative list: `migratedPaths` in
+`frontend/src/app/routeDefinitions.ts`, plus the nested framework-rules route in
+`frontend/src/app/router.tsx`.
+
+### Prototype (not persisted)
+
+Everything else in the sidebar — including **KPI Configuration**, **KPI
+Approval**, **KPI Mapping**, Evidence, CAPA, Reports, Audit Trail, Settings, and
+most Master Data screens — is still a prototype shell.
+
+KPI configuration and target **APIs** exist; their UIs do not. Use Swagger or
+`curl` for those steps (see walkthrough below).
+
+---
+
+## Prerequisites
+
+Verified on a development machine with:
+
+| Tool | Requirement | Checked |
+|------|-------------|---------|
+| Node.js | `>=20` (`engines` in `backend/` and `frontend/`) | `node -v` |
+| npm | Ships with Node | `npm -v` |
+| Docker | Recent Docker Desktop / Engine | `docker --version` |
+| Docker Compose | Compose V2 (`docker compose`) | `docker compose version` |
+
+PostgreSQL 16 is provided by Compose (`postgres:16-alpine`). You do not need a
+host-installed Postgres for the default workflow.
+
+---
+
+## Environment files (most common first-run failure)
+
+Compose and the Node backend load **different** env files.
+
+| File | Used by |
+|------|---------|
+| **Repository root** `.env` | `docker compose` (Postgres, test Postgres, optional app container) |
+| **`backend/.env`** | Backend when you run `npm run … --prefix backend` (Prisma + Express via `dotenv`) |
+
+### Setup
+
+1. Copy the example once:
+
+   ```bash
+   cp .env.example .env
+   cp .env.example backend/.env
+   ```
+
+2. Edit **both** files and replace every placeholder. Keep the same database
+   credentials in both so Compose Postgres matches `DATABASE_URL` in
+   `backend/.env`.
+
+3. Never commit `.env` or `backend/.env`.
+
+### Variables you must set (names only)
+
+From `.env.example`:
+
+- Runtime: `NODE_ENV`, `PORT`
+- Dev DB: `DATABASE_URL`, `DOCKER_DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`,
+  `POSTGRES_PASSWORD`, `POSTGRES_PORT`
+- Test DB: `DATABASE_URL_TEST`, `TEST_POSTGRES_DB`, `TEST_POSTGRES_USER`,
+  `TEST_POSTGRES_PASSWORD`, `TEST_POSTGRES_PORT`
+- Auth: `JWT_ACCESS_SECRET` (≥ 32 characters, not a placeholder),
+  `JWT_ACCESS_TTL`, `JWT_ISSUER`, `REFRESH_TOKEN_DAYS`, `COOKIE_SECURE`
+- Proxy / limits: `TRUST_PROXY`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_API_MAX`,
+  `RATE_LIMIT_AUTH_MAX`, `RATE_LIMIT_REFRESH_MAX`, `RATE_LIMIT_DISABLED`
+- Paths / logging: `FRONTEND_DIST`, `PROTOTYPE_DIR`, `FILE_STORAGE_DRIVER`,
+  `LOCAL_UPLOAD_DIR`, `LOG_LEVEL`
+
+If Compose starts Postgres but Prisma cannot connect, you almost always have a
+mismatch between root `.env` and `backend/.env`.
+
+---
+
+## Clone and install
+
+```bash
+git clone <repository-url> genbioca_compliance_platform
+cd genbioca_compliance_platform
+```
+
+Install active packages (authoritative runtime only):
 
 ```bash
 npm ci --prefix backend
 npm ci --prefix frontend
 ```
 
-## Local development
+Do **not** use the root `package.json` as the application runtime. Active apps
+live under `frontend/` and `backend/`.
 
-Start PostgreSQL:
+---
+
+## Start databases
 
 ```bash
 docker compose up -d postgres
+docker compose --profile test up -d postgres_test
 ```
 
-Prepare the active Prisma client and schema:
+- Development Postgres: host port from `POSTGRES_PORT` (default **5432**)
+- Isolated test Postgres: host port from `TEST_POSTGRES_PORT` (default **5433**)
+
+Check:
+
+```bash
+docker compose ps
+docker compose --profile test ps
+```
+
+---
+
+## Prisma migrate and seed
+
+Run from a shell where `backend/.env` is loaded (the npm scripts below do that):
 
 ```bash
 npm run prisma:validate --prefix backend
@@ -51,24 +162,193 @@ npm run prisma:generate --prefix backend
 npm run prisma:migrate --prefix backend
 ```
 
-Development seed data is never loaded automatically. Load deterministic synthetic fixtures only when explicitly required:
+`prisma:migrate` runs `prisma migrate deploy` against `DATABASE_URL`.
+
+**Seed is never automatic.** Load synthetic development fixtures only when you
+want them:
 
 ```bash
 npm run prisma:seed:dev --prefix backend
 ```
 
-Start the backend and frontend in separate terminals:
+Re-running the seed upserts the same synthetic Companies, users, KPI definition,
+draft target, and permissions.
+
+---
+
+## Run the application
+
+In two terminals:
 
 ```bash
 npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
 
-The frontend runs at `http://127.0.0.1:5173` and proxies `/api` to the backend at `http://127.0.0.1:8000`.
+| Service | URL |
+|---------|-----|
+| React UI | http://127.0.0.1:5173 |
+| API | http://127.0.0.1:8000/api/v1 |
+| Health | http://127.0.0.1:8000/api/v1/health |
+| Ready | http://127.0.0.1:8000/api/v1/ready |
+| Swagger | http://127.0.0.1:8000/api/docs |
 
-## Docker application
+Vite proxies `/api` to `http://127.0.0.1:8000`.
 
-The Docker application startup command starts the compiled application only. Migrations and development seed data are separate operations.
+---
+
+## Seeded accounts
+
+Passwords are **not** listed here. Read the hashes’ plaintext sources in
+`backend/prisma/seed.ts` (search for `argon2.hash`).
+
+| Email | Role (COM-001) | Access summary |
+|-------|----------------|----------------|
+| `admin001@example.test` | `COMPANY_ADMIN` | Wildcard `*` — full access for local development |
+| `user001@example.test` | `COMPANY_USER` | Read-oriented only: `tenants:read`, `organisation:read`, `frameworks:read`, `kpis:read`. **No** user/org writes, **no** KPI config/target/actual write or approve, **no** `risk:read` |
+
+Use the admin account for the walkthrough below. These credentials are synthetic
+fixtures for local use only — never reuse them in shared or production systems.
+
+---
+
+## Tests
+
+### Backend unit tests
+
+```bash
+npm run test:unit --prefix backend
+```
+
+### Backend integration tests
+
+Requires the isolated test database:
+
+```bash
+docker compose --profile test up -d postgres_test
+npm run test:integration --prefix backend
+```
+
+The runner refuses to use the development database, production-like names, or
+`NODE_ENV=production`. It migrates and seeds the **test** database only.
+
+### Frontend Playwright
+
+First time on a machine, install the browser from `frontend/`:
+
+```bash
+cd frontend
+npx playwright install chromium
+cd ..
+```
+
+Then:
+
+```bash
+npm run test:e2e --prefix frontend
+```
+
+Most Playwright suites mock `/api/v1/**` in the browser. They are **not**
+browser-to-PostgreSQL end-to-end tests.
+
+---
+
+## Walkthrough: missed KPI actual → Risk Register
+
+Goal: create a configuration, approve a target, submit a missed actual, and see
+the automatic risk.
+
+**UI reality check**
+
+- `/kpi/configuration` and `/kpi/approval` are **prototypes** — do not use them
+  for this flow.
+- Use **Swagger** (`http://127.0.0.1:8000/api/docs`) or `curl` for configuration
+  and target APIs.
+- Use the **live** UI for actual entry and the Risk Register.
+
+### 1. Sign in
+
+Open http://127.0.0.1:5173/login as `admin001@example.test` (password from
+`backend/prisma/seed.ts`).
+
+### 2. Create a KPI configuration (API)
+
+`POST /api/v1/kpi-configurations` with a bearer token from login.
+
+For a single-developer walkthrough, set:
+
+- `requiresEvidence`: `false`
+- `requiresApproval`: `false` (submit auto-approves the target; avoids
+  self-approval conflicts)
+
+Use the seeded definition `KPI-001` (Customer Satisfaction Score). Resolve its
+id via `GET /api/v1/kpi-definitions`. Set `ownerId` to the admin user id from
+the login response. Give `productService` a unique string so the configuration
+scope does not collide with the seed.
+
+### 3. Create and submit a target (API)
+
+`POST /api/v1/kpi-targets` with period dates and `targetValue` (for example
+`100`), then `POST /api/v1/kpi-targets/:id/submit`.
+
+With `requiresApproval: false`, the target becomes `APPROVED` on submit.
+
+If you use `requiresApproval: true`, a **different** user with
+`kpi-target:approve` must approve — the submitter cannot self-approve.
+
+### 4. Submit a missed actual (live UI)
+
+Open **KPI Actual Entry**: http://127.0.0.1:5173/kpi/actual-entry
+
+1. Select the configuration you created.
+2. Choose the approved period.
+3. Enter an actual well below the target (for example `50` against `100`).
+4. Submit.
+
+Expect RAG **RED** (or **AMBER** depending on thresholds) and an automatic risk
+summary in the response panel.
+
+You can also `POST /api/v1/kpi-actuals` with
+`{ kpiConfigurationId, period, actualValue }` — verified during README
+authoring.
+
+### 5. Confirm the risk (live UI)
+
+Open **Risk Register**: http://127.0.0.1:5173/compliance/risks
+
+- Title is primary (pattern:
+  `KPI target missed: KPI-001 Customer Satisfaction Score (<period>)`).
+- Code such as `RSK-001` is secondary.
+- Open the row for detail at `/compliance/risks/:riskId`.
+- With KPI lineage present, the detail page states the risk was raised
+  automatically because a KPI target was missed.
+
+`COMPANY_USER` cannot open the register (`risk:read` is not granted).
+
+---
+
+## Project structure
+
+| Path | Role |
+|------|------|
+| `frontend/` | React 19 + Vite + TypeScript UI. Live pages and `PrototypeRoutePage`. |
+| `backend/` | Express 5 + TypeScript API, auth, middleware, domain modules. |
+| `backend/prisma/` | Active schema, migrations, and seed scripts. |
+| `docs/` | Architecture notes, reviews, and prototype HTML reference assets. |
+| `legacy/` | **Dormant.** Old Node and Python implementations. Do not run their
+migrations, import them into active code, or build features there. See
+`legacy/README.md`. |
+| `docker-compose.yml` | Local Postgres, test Postgres, optional migrate/app images. |
+
+Authoritative runtime paths are also listed in
+`docs/architecture/authoritative-runtime.md`.
+
+---
+
+## Optional: Dockerised app container
+
+Local day-to-day development uses `npm run dev` for backend and frontend.
+Compose can also build and run the compiled API:
 
 ```bash
 docker compose build app
@@ -76,65 +356,15 @@ docker compose run --rm migrate
 docker compose up -d app
 ```
 
-Development seed data remains an explicit local backend command and must never be run in production.
+Migrations and seed remain separate. Never seed production.
 
-Open:
+---
 
-- React application: `http://127.0.0.1:8000/`
-- Liveness: `http://127.0.0.1:8000/api/v1/health`
-- Readiness: `http://127.0.0.1:8000/api/v1/ready`
-- Swagger: `http://127.0.0.1:8000/api/docs`
+## Further reading
 
-## Isolated integration tests
-
-Integration tests require `DATABASE_URL_TEST`. The runner refuses to use the normal development database, a production-like database name, or any database while `NODE_ENV=production`.
-
-```bash
-docker compose --profile test up -d postgres_test
-npm run test:integration --prefix backend
-docker compose --profile test stop postgres_test
-```
-
-The integration runner validates `DATABASE_URL_TEST`, applies active migrations to that isolated target, loads deterministic synthetic test fixtures, and then runs the API suite. It exits before Prisma starts if the safety checks fail.
-
-To remove only the isolated test service and volume:
-
-```bash
-docker compose --profile test rm -f postgres_test
-docker volume rm genbioca_compliance_test_data
-```
-
-Never remove the normal development volume during test cleanup.
-
-## Verification
-
-```bash
-npm run typecheck --prefix backend
-npm run lint --prefix backend
-npm run build --prefix backend
-npm run test:unit --prefix backend
-npm run test:integration --prefix backend
-npm run prisma:validate --prefix backend
-npm run prisma:generate --prefix backend
-
-npm run typecheck --prefix frontend
-npm run lint --prefix frontend
-npm run build --prefix frontend
-npm run test:e2e --prefix frontend
-
-docker compose config
-```
-
-## Milestone 1 scope
-
-React provides authentication, Company switching, the application shell, the dashboard, and the read-only master pages connected to the active API. Routes rendered through `PrototypeRoutePage` remain interactive design references and display demonstration data only; their changes are not persisted.
-
-Access tokens remain in memory. Rotating refresh tokens use a same-origin HttpOnly cookie.
-
-## Documentation
-
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — architecture, tenancy, security, workflow
 - `docs/architecture/authoritative-runtime.md`
 - `docs/frontend-route-mapping.md`
-- `docs/schema-alignment.md`
-- `docs/api-mapping.md`
-- `docs/architecture-decisions.md`
+- `docs/claude-tasks/02-kpi-risk-schema.md` — KPI/Risk domain vocabulary
+
+Deployment to AWS (or any cloud) is **out of scope** for this README.
