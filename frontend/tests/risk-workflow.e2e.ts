@@ -388,6 +388,7 @@ test.describe("Risk review, treatment and closure", () => {
     await installRiskWorkflowMock(page);
     await gotoRisk(page);
     await page.getByRole("button", { name: "Record treatment" }).click();
+    await expect(page.getByLabel("Notes (optional)")).toHaveCount(0);
     await page.getByLabel("Strategy *").selectOption("TRANSFER");
     await page.getByLabel("Plan *").fill("Transfer via insurance cover.");
     await page.getByLabel("Treatment owner").selectOption(otherUser.id);
@@ -434,6 +435,7 @@ test.describe("Risk review, treatment and closure", () => {
     await installRiskWorkflowMock(page);
     await gotoRisk(page);
     await page.getByRole("button", { name: "Assign owner" }).click();
+    await expect(page.getByLabel("Notes (optional)")).toHaveCount(0);
     await page.getByLabel("Risk owner").selectOption(otherUser.id);
     await page
       .getByRole("button", { name: "Assign owner", exact: true })

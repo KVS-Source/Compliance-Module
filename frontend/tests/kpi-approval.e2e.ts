@@ -423,6 +423,9 @@ test.describe("KPI actual approval", () => {
     const note = page.getByTestId("risk-unchanged-note");
     await expect(note).toBeVisible();
     await expect(note).toContainText("does not change any risk it raised");
+    await expect(note).toContainText(
+      "handled separately in the Risk Register",
+    );
 
     await shown(
       page.getByRole("button", { name: `Approve actual ${baseActual.code}` }),
