@@ -342,3 +342,75 @@ export interface CreateKpiActualInput {
   evidenceStatus?: string | null;
   comments?: string | null;
 }
+
+export type RiskStatus =
+  | "OPEN"
+  | "UNDER_REVIEW"
+  | "TREATED"
+  | "CLOSED"
+  | "ARCHIVED";
+
+export type GeneralRiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type RiskLifecycle = "active" | "closed" | "all";
+
+export type RiskTreatmentStrategy =
+  | "AVOID"
+  | "MITIGATE"
+  | "TRANSFER"
+  | "ACCEPT";
+
+export interface RiskActualSource {
+  id: string;
+  code: string;
+  period: string;
+  ragStatus: RagStatus | null;
+  targetMet: boolean;
+  actualValue: string;
+  variance: string;
+  targetValueSnapshot: string;
+}
+
+export interface Risk {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  kpiRiskClass: KpiRiskClass | null;
+  generalLevel: GeneralRiskLevel | null;
+  inherentLikelihood: number;
+  inherentImpact: number;
+  inherentScore: number;
+  status: RiskStatus;
+  source: {
+    actual: RiskActualSource | null;
+    configuration: KpiConfiguration | null;
+    target: { id: string; code: string; version: number } | null;
+  };
+  residualLikelihood: number | null;
+  residualImpact: number | null;
+  residualScore: number | null;
+  owner: KpiPerson | null;
+  treatmentStrategy: RiskTreatmentStrategy | null;
+  reviewDate: string | null;
+  closedAt: string | null;
+  closureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RiskListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: RiskStatus | "";
+  lifecycle?: RiskLifecycle;
+  kpiRiskClass?: KpiRiskClass | "";
+  generalLevel?: GeneralRiskLevel | "";
+}
+
+export interface RiskListResult {
+  data: Risk[];
+  meta: PageMeta;
+}

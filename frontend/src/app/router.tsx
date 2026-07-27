@@ -20,6 +20,8 @@ import { NotFoundPage } from "../features/migration/PendingPage";
 import { KpiActualEntryPage } from "../features/kpis/KpiActualEntryPage";
 import { OrganisationPage } from "../features/organisation/OrganisationPage";
 import { PrototypeRoutePage } from "../features/prototype/PrototypeRoutePage";
+import { RiskDetailPage } from "../features/risks/RiskDetailPage";
+import { RiskRegisterPage } from "../features/risks/RiskRegisterPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -115,6 +117,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="kpis:read">
         <KpiActualEntryPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/risks",
+    element: (
+      <PermissionBoundary permission="risk:read">
+        <RiskRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/risks/:riskId",
+    element: (
+      <PermissionBoundary permission="risk:read">
+        <RiskDetailPage />
       </PermissionBoundary>
     ),
   },

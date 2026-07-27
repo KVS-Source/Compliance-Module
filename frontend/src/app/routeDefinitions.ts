@@ -94,7 +94,7 @@ export const routeDefinitions: RouteDefinition[] = [
   route("/compliance/policy-register", "#compliance/policy-register", "Policy Register", "Compliance Management", "Track policy lifecycle, approvals, documents, reviews and compliance relationships.", NotebookTabs, 3),
   route("/compliance/gaps", "#compliance/gaps", "Gap Register", "Compliance Management", "Track compliance deficiencies, owners, due dates and remediation.", TriangleAlert, 5),
   route("/compliance/capa", "#compliance/capa", "CAPA Register", "Compliance Management", "Manage corrective and preventive actions from issue identification to verified closure.", Wrench, 5),
-  route("/compliance/risks", "#compliance/risks", "Risk Register", "Compliance Management", "Assess, classify and treat KPI-linked and enterprise compliance risks.", ShieldAlert, 5),
+  route("/compliance/risks", "#compliance/risks", "Risk Register", "Compliance Management", "Assess, classify and treat KPI-linked and enterprise compliance risks.", ShieldAlert, 5, { permission: "risk:read", api: "GET /risks · GET /risks/:id" }),
   route("/upload/policy-master", "#upload/policy-master", "Policy Master Upload", "File Upload", "Import policy reference records with validation and review.", FileUp, 5),
   route("/upload/evidence-master", "#upload/evidence-master", "Evidence Master Upload", "File Upload", "Upload and link evidence with integrity metadata.", UploadCloud, 5),
   route("/upload/kpi-data", "#upload/kpi-data", "KPI Data Upload", "File Upload", "Import target or actual KPI data with evidence references.", Database, 5),
@@ -150,6 +150,7 @@ export const migratedPaths = new Set([
   "/admin/organisation-units",
   "/master/frameworks",
   "/kpi/actual-entry",
+  "/compliance/risks",
 ]);
 
 export const routeByPath = new Map(

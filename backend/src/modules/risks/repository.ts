@@ -7,7 +7,11 @@ import {
 } from "@prisma/client";
 import type { AuditContext } from "../kpis/management-repository.js";
 import { kpiConfigurationInclude } from "../kpis/management-repository.js";
-import type { RiskListQuery } from "./validators.js";
+import {
+  ACTIVE_RISK_STATUSES,
+  CLOSED_RISK_STATUSES,
+  type RiskListQuery,
+} from "./validators.js";
 
 export const riskInclude = Prisma.validator<Prisma.RiskInclude>()({
   kpiActual: {
@@ -17,6 +21,9 @@ export const riskInclude = Prisma.validator<Prisma.RiskInclude>()({
       period: true,
       ragStatus: true,
       targetMet: true,
+      actualValue: true,
+      variance: true,
+      targetValueSnapshot: true,
     },
   },
   configuration: { include: kpiConfigurationInclude },
@@ -50,6 +57,56 @@ export interface AutomaticRiskCreateData {
   ownerId: null;
   status: Extract<RiskStatus, "OPEN">;
 }
+
+/** Builds the tenant-scoped list filter. Specific `status` overrides `lifecycle`. */
+export const buildRiskListWhere = (
+  tenantId: string,
+  query: RiskListQuery,
+): Prisma.RiskWhereInput => {
+  const where: Prisma.RiskWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(query.kpiRiskClass ? { kpiRiskClass: query.kpiRiskClass } : {}),
+    ...(query.generalLevel ? { generalLevel: query.generalLevel } : {}),
+  };
+
+  if (query.status) {
+    where.status = query.status;
+  } else if (query.lifecycle === "active") {
+    where.status = { in: [...ACTIVE_RISK_STATUSES] };
+  } else if (query.lifecycle === "closed") {
+    where.status = { in: [...CLOSED_RISK_STATUSES] };
+  }
+
+  if (query.q) {
+    where.OR = [
+      { title: { contains: query.q, mode: "insensitive" } },
+      { code: { contains: query.q, mode: "insensitive" } },
+      {
+        configuration: {
+          is: {
+            tenantId,
+            definition: {
+              code: { contains: query.q, mode: "insensitive" },
+            },
+          },
+        },
+      },
+      {
+        configuration: {
+          is: {
+            tenantId,
+            definition: {
+              name: { contains: query.q, mode: "insensitive" },
+            },
+          },
+        },
+      },
+    ];
+  }
+
+  return where;
+};
 
 export class RiskTransactionRepository {
   constructor(private readonly transaction: Prisma.TransactionClient) {}
@@ -122,13 +179,7 @@ export class RiskRepository {
   constructor(private readonly db: PrismaClient) {}
 
   async list(tenantId: string, query: RiskListQuery) {
-    const where: Prisma.RiskWhereInput = {
-      tenantId,
-      deletedAt: null,
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.kpiRiskClass ? { kpiRiskClass: query.kpiRiskClass } : {}),
-      ...(query.generalLevel ? { generalLevel: query.generalLevel } : {}),
-    };
+    const where = buildRiskListWhere(tenantId, query);
     const [items, total] = await this.db.$transaction([
       this.db.risk.findMany({
         where,
