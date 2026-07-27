@@ -20,6 +20,31 @@ export interface ApiFailure {
   };
 }
 
+export interface DashboardSummary {
+  kpis: {
+    activeConfigurations: number;
+    meetingTarget: number;
+    amberActuals: number;
+    redActuals: number;
+    pendingApprovals: number;
+  } | null;
+  risks: {
+    openRisks: number;
+    minorRisks: number;
+    majorRisks: number;
+    risksUnderTreatment: number;
+    closedRisks: number;
+  } | null;
+  organisation: {
+    departments: number;
+    locations: number;
+    organisationUnits: number;
+  } | null;
+  frameworks: {
+    activeFrameworks: number;
+  } | null;
+}
+
 export interface Company {
   id: string;
   code: string;

@@ -69,6 +69,7 @@ run(
     "tests/kpi-actuals.test.ts",
     "tests/kpi-approval.test.ts",
     "tests/risk-workflow.test.ts",
+    "tests/dashboard.test.ts",
   ],
   true,
 );
