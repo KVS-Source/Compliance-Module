@@ -169,7 +169,7 @@ test("prototype routes are labelled while API-connected routes are not", async (
 
   for (const path of [
     "/admin/roles",
-    "/kpi/configuration",
+    "/kpi/mapping",
     "/upload/evidence-master",
     "/reports",
   ]) {
@@ -186,6 +186,7 @@ test("prototype routes are labelled while API-connected routes are not", async (
     "/admin/locations",
     "/admin/organisation-units",
     "/master/frameworks",
+    "/kpi/configuration",
     "/kpi/actual-entry",
     "/compliance/risks",
   ]) {

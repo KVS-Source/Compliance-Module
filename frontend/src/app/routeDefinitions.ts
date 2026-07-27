@@ -84,7 +84,7 @@ export const routeDefinitions: RouteDefinition[] = [
   route("/master/rules", "#master/rules", "Rule Master", "Master Data Setup", "Maintain workflow and compliance business rules.", ListChecks, 3),
   route("/master/kpis", "#master/kpis", "KPI Master", "Master Data Setup", "Maintain the single source of truth for every KPI used in the platform.", Gauge, 3),
   route("/kpi/mapping", "#kpi/mapping", "KPI Mapping & Compliance Traceability", "KPI Management", "Connect KPI performance with risk, framework, control, policy, rule and evidence.", GitMerge, 3),
-  route("/kpi/configuration", "#kpi/configuration", "KPI Configuration & Targets", "KPI Management", "Configure KPI scope, targets, periods, ownership and approvals.", Settings2, 3),
+  route("/kpi/configuration", "#kpi/configuration", "KPI Configuration & Targets", "KPI Management", "Configure KPI scope, targets, periods, ownership and approvals.", Settings2, 2, { permission: "kpis:read", api: "GET/POST /kpi-configurations · PATCH/DELETE /kpi-configurations/:id · GET/POST /kpi-targets · POST /kpi-targets/:id/submit|approve|reject|versions" }),
   route("/kpi/actual-entry", "#kpi/actual-entry", "KPI Actual Entry", "KPI Management", "Record KPI performance against an approved target and review the calculated result.", SquarePen, 2, { permission: "kpis:read", api: "GET /kpi-configurations · GET /kpi-targets · POST /kpi-actuals" }),
   route("/kpi/approval", "#kpi/approval", "KPI Approval", "KPI Management", "Review submitted KPI actuals after their evidence is approved.", BadgeCheck, 4),
   route("/kpi/dashboard", "#kpi/dashboard", "KPI Dashboard", "KPI Management", "Analyse target achievement, RAG trends and owner performance.", ChartLine, 4),
@@ -149,6 +149,7 @@ export const migratedPaths = new Set([
   "/admin/locations",
   "/admin/organisation-units",
   "/master/frameworks",
+  "/kpi/configuration",
   "/kpi/actual-entry",
   "/compliance/risks",
 ]);

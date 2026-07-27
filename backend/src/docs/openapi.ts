@@ -272,6 +272,18 @@ export const openApiDocument = {
         },
       },
     },
+    "/kpi-configurations/threshold-defaults": {
+      get: {
+        summary: "Get Company default amber and red KPI thresholds",
+        description:
+          "Read-only Company defaults applied when a configuration leaves amberThresholdPct or redThresholdPct null.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Company threshold defaults" },
+          "403": { description: "Missing kpis:read permission" },
+        },
+      },
+    },
     "/kpi-configurations/{id}": {
       get: {
         summary: "Get a Company KPI configuration",

@@ -531,6 +531,64 @@ describe("KPI configuration and target Slice A", () => {
     expect(invalidScope.body.error.code).toBe("RELATED_RECORD_INVALID");
   });
 
+  it("scopes Company threshold defaults to the authenticated Company only", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const company1 = admin.user.activeCompany;
+    const company2 = admin.user.companies.find(
+      (company) => company.code === "COM-002",
+    );
+    expect(company2).toBeTruthy();
+
+    // Distinct values prove the response follows the token, not the row order.
+    await prisma.tenant.update({
+      where: { id: company1.id },
+      data: {
+        defaultAmberThresholdPct: "3.50",
+        defaultRedThresholdPct: "11.25",
+      },
+    });
+    await prisma.tenant.update({
+      where: { id: company2!.id },
+      data: {
+        defaultAmberThresholdPct: "7.00",
+        defaultRedThresholdPct: "19.75",
+      },
+    });
+
+    const first = await request(app)
+      .get("/api/v1/kpi-configurations/threshold-defaults")
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    // Decimal.toString() normalises trailing zeros, so compare numerically
+    // while still proving the transport type stays a string.
+    expect(typeof first.body.data.defaultAmberThresholdPct).toBe("string");
+    expect(Number(first.body.data.defaultAmberThresholdPct)).toBe(3.5);
+    expect(Number(first.body.data.defaultRedThresholdPct)).toBe(11.25);
+
+    const company2Token = await switchCompany(admin.accessToken, company2!.id);
+    const second = await request(app)
+      .get("/api/v1/kpi-configurations/threshold-defaults")
+      .set("Authorization", `Bearer ${company2Token}`)
+      .expect(200);
+    expect(Number(second.body.data.defaultAmberThresholdPct)).toBe(7);
+    expect(Number(second.body.data.defaultRedThresholdPct)).toBe(19.75);
+    expect(second.body.data).not.toHaveProperty("tenantId");
+  });
+
+  it("requires authentication and kpis:read for Company threshold defaults", async () => {
+    await request(app)
+      .get("/api/v1/kpi-configurations/threshold-defaults")
+      .expect(401);
+
+    const reader = await loginAs("user001@example.test", "User001!Secure");
+    expect(reader.user.permissions).toContain("kpis:read");
+    expect(reader.user.permissions).not.toContain("kpi-config:write");
+    await request(app)
+      .get("/api/v1/kpi-configurations/threshold-defaults")
+      .set("Authorization", `Bearer ${reader.accessToken}`)
+      .expect(200);
+  });
+
   it("enforces tenant foreign keys, active membership and target constraints in PostgreSQL", async () => {
     const [company1, company2, admin, regular, definition, company2Unit] =
       await Promise.all([

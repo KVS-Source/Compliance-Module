@@ -54,6 +54,9 @@ class KpiConfigurationController {
       ),
     );
 
+  thresholdDefaults = async (req: Request, res: Response) =>
+    ok(res, await this.service.getThresholdDefaults(req.auth!.tenantId));
+
   create = async (req: Request, res: Response) =>
     created(
       res,
@@ -197,6 +200,13 @@ export const kpiConfigurationRoutes = (service: KpiManagementService) => {
     permit("kpis:read"),
     validate(kpiConfigurationListSchema, "query"),
     asyncHandler(controller.list),
+  );
+  // Must precede "/:id": that param is uuid-validated and would reject the
+  // literal path with a 400 before this handler could run.
+  router.get(
+    "/threshold-defaults",
+    permit("kpis:read"),
+    asyncHandler(controller.thresholdDefaults),
   );
   router.get(
     "/:id",

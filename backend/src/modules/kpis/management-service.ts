@@ -83,6 +83,14 @@ export const kpiConfigurationDto = (record: KpiConfigurationRecord) => ({
   updatedAt: record.updatedAt,
 });
 
+export const kpiThresholdDefaultsDto = (defaults: {
+  defaultAmberThresholdPct: Prisma.Decimal;
+  defaultRedThresholdPct: Prisma.Decimal;
+}) => ({
+  defaultAmberThresholdPct: defaults.defaultAmberThresholdPct.toString(),
+  defaultRedThresholdPct: defaults.defaultRedThresholdPct.toString(),
+});
+
 export const kpiTargetDto = (record: KpiTargetRecord) => ({
   id: record.id,
   code: record.code,
@@ -136,6 +144,16 @@ export class KpiManagementService {
     const configuration = await this.repository.findConfiguration(tenantId, id);
     if (!configuration) throw notFound("KPI configuration not found");
     return configuration;
+  }
+
+  /**
+   * Company threshold defaults that apply when a configuration leaves
+   * `amberThresholdPct` / `redThresholdPct` null. Exposed read-only so the UI
+   * can name the inherited value instead of substituting a guess.
+   */
+  async getThresholdDefaults(tenantId: string) {
+    const defaults = await this.repository.getTenantThresholds(tenantId);
+    return kpiThresholdDefaultsDto(defaults);
   }
 
   private async assertConfigurationReferences(
