@@ -43,6 +43,127 @@ export function duplicateCodeFieldError(error: unknown): string | null {
   return null;
 }
 
+export interface MappedApiError {
+  fieldErrors: FieldErrors;
+  formError: string | null;
+}
+
+const nonApiError = (error: unknown): MappedApiError => ({
+  fieldErrors: {},
+  formError: error instanceof Error ? error.message : "Request failed",
+});
+
+/**
+ * The backend deliberately withholds which unique index fired (see the comment
+ * in backend/src/common/middleware/http.ts), so a 409 on a configuration write
+ * can only be attributed to the scope tuple as a whole.
+ */
+const DUPLICATE_SCOPE_MESSAGE =
+  "An active KPI configuration already exists for this KPI with the same Business Unit, Location, Organisation Unit, Product/Service and Department. Change the scope, or edit the existing configuration.";
+
+/** Two unique indexes can produce this 409; the response cannot say which. */
+const DUPLICATE_TARGET_MESSAGE =
+  "This conflicts with an existing target: either the target code is already used in this Company, or this period already has a target at this version number. Change the code or the period.";
+
+/** Map known KPI configuration write errors onto form fields or a banner. */
+export function kpiConfigurationError(error: unknown): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+  if (error.status === 409) {
+    return { fieldErrors: {}, formError: DUPLICATE_SCOPE_MESSAGE };
+  }
+  if (error.code === "KPI_THRESHOLDS_INVALID") {
+    return {
+      fieldErrors: { redThresholdPct: error.message },
+      formError: null,
+    };
+  }
+  if (error.code === "KPI_CONFIGURATION_DATES_INVALID") {
+    return { fieldErrors: { effectiveTo: error.message }, formError: null };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    // The server message names the offending relation; attach it to that field.
+    const message = error.message.toLowerCase();
+    const field = message.startsWith("owner")
+      ? "ownerId"
+      : message.startsWith("approver")
+        ? "approverId"
+        : message.startsWith("organisation unit")
+          ? "orgUnitId"
+          : message.startsWith("location")
+            ? "orgLocationId"
+            : message.startsWith("department")
+              ? "departmentId"
+              : message.startsWith("kpi definition")
+                ? "kpiDefinitionId"
+                : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
+/** Map known KPI target write and lifecycle errors onto fields or a banner. */
+export function kpiTargetError(error: unknown): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+  if (error.code === "KPI_TARGET_APPROVED_IMMUTABLE") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This target is approved and can no longer be edited. Create a new version instead.",
+    };
+  }
+  if (error.status === 409 && error.code === "CONFLICT") {
+    return { fieldErrors: {}, formError: DUPLICATE_TARGET_MESSAGE };
+  }
+  // KPI_TARGET_STATE_INVALID and the date/tolerance codes already carry
+  // specific, safe server wording.
+  if (error.code === "KPI_TARGET_TOLERANCE_INVALID") {
+    return { fieldErrors: { maxValue: error.message }, formError: null };
+  }
+  if (error.code === "KPI_TARGET_DATES_INVALID") {
+    return { fieldErrors: { periodEnd: error.message }, formError: null };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
+/**
+ * The backend returns a single FORBIDDEN code for four distinct cases, so the
+ * message is the only discriminator. Known messages get clearer wording; the
+ * fallback surfaces the server text verbatim rather than swallowing it.
+ */
+export function kpiTargetDecisionError(
+  error: unknown,
+  permission: string,
+): string {
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : "Request failed";
+  }
+  if (error.status === 403) {
+    if (error.message === "KPI target self-approval is forbidden") {
+      return "You submitted this target, so you cannot approve or reject it. Another user holding kpi-target:approve must decide.";
+    }
+    if (error.message === "Only the configured KPI target approver may decide") {
+      return "Only the approver named on this KPI configuration may approve or reject this target.";
+    }
+    if (error.message === "A KPI target approver cannot submit the same target") {
+      return "You are the configured approver for this KPI, so you cannot also submit its target. Another user must submit it.";
+    }
+    if (error.message === "Permission denied") {
+      return `Your active Company role does not include ${permission}.`;
+    }
+  }
+  return error.message;
+}
+
 /** Map known KPI actual submission errors onto form fields or a form banner. */
 export function kpiActualSubmissionError(error: unknown): {
   fieldErrors: FieldErrors;

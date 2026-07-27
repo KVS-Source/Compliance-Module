@@ -343,6 +343,86 @@ export interface CreateKpiActualInput {
   comments?: string | null;
 }
 
+export type RecordStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
+
+/**
+ * Company-level threshold defaults applied when a configuration leaves its
+ * overrides null. Server-owned: never substitute a local constant.
+ */
+export interface KpiThresholdDefaults {
+  defaultAmberThresholdPct: string;
+  defaultRedThresholdPct: string;
+}
+
+export interface CreateKpiConfigurationInput {
+  kpiDefinitionId: string;
+  orgUnitId?: string | null;
+  orgLocationId?: string | null;
+  productService?: string | null;
+  departmentId?: string | null;
+  ownerId: string;
+  approverId?: string | null;
+  enabled: boolean;
+  currency?: string | null;
+  reviewFrequency: KpiFrequency;
+  amberThresholdPct?: string | null;
+  redThresholdPct?: string | null;
+  requiresEvidence: boolean;
+  requiresApproval: boolean;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  status?: RecordStatus;
+}
+
+export type UpdateKpiConfigurationInput = Partial<CreateKpiConfigurationInput>;
+
+export interface KpiConfigurationListQuery {
+  page?: number;
+  pageSize?: number;
+  kpiDefinitionId?: string;
+  status?: RecordStatus | "";
+  enabled?: boolean;
+}
+
+export interface KpiConfigurationListResult {
+  data: KpiConfiguration[];
+  meta: PageMeta;
+}
+
+export interface CreateKpiTargetInput {
+  kpiConfigurationId: string;
+  code: string;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  targetValue: string;
+  minValue?: string | null;
+  maxValue?: string | null;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  status?: RecordStatus;
+}
+
+export type UpdateKpiTargetInput = Partial<
+  Omit<CreateKpiTargetInput, "kpiConfigurationId">
+>;
+
+/** Versioning requires a fresh code; every other field inherits when omitted. */
+export type VersionKpiTargetInput = UpdateKpiTargetInput & { code: string };
+
+export interface KpiTargetListQuery {
+  page?: number;
+  pageSize?: number;
+  kpiConfigurationId?: string;
+  approvalStatus?: SubmissionStatus | "";
+  status?: RecordStatus | "";
+}
+
+export interface KpiTargetListResult {
+  data: KpiTarget[];
+  meta: PageMeta;
+}
+
 export type RiskStatus =
   | "OPEN"
   | "UNDER_REVIEW"

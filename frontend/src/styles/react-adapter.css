@@ -528,3 +528,48 @@
     display: grid;
   }
 }
+
+.kpi-manage-mobile {
+  display: none;
+  gap: 12px;
+}
+
+.kpi-manage-card h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.kpi-manage-card .card-pad {
+  display: grid;
+  gap: 8px;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  margin-top: 3px;
+  flex: none;
+}
+
+@media (max-width: 900px) {
+  .kpi-manage-desktop {
+    display: none;
+  }
+  .kpi-manage-mobile {
+    display: grid;
+  }
+}
