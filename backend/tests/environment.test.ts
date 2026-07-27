@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseEnvironment } from "../src/config/env.js";
 import { assertSeedExecutionAllowed } from "../prisma/seed-safety.js";
+import { assertDemoSeedExecutionAllowed } from "../prisma/demo-seed-safety.js";
 
 const strongSecret = "8fd6b41004a74ce6a5342382180e76fca0bdf5aa";
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
@@ -68,5 +69,35 @@ describe("seed execution safety", () => {
     expect(() =>
       assertSeedExecutionAllowed(["--development"], "production"),
     ).toThrow(/disabled in production/);
+  });
+});
+
+describe("demo seed execution safety", () => {
+  it("requires a runtime password without persisting it", () => {
+    expect(() =>
+      assertDemoSeedExecutionAllowed({ NODE_ENV: "development" }),
+    ).toThrow(/DEMO_SEED_PASSWORD/);
+    expect(
+      assertDemoSeedExecutionAllowed({
+        NODE_ENV: "development",
+        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+      }),
+    ).toEqual({ password: "Synthetic-Only-001!" });
+  });
+
+  it("fails closed in production unless explicitly approved", () => {
+    expect(() =>
+      assertDemoSeedExecutionAllowed({
+        NODE_ENV: "production",
+        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+      }),
+    ).toThrow(/disabled in production/);
+    expect(
+      assertDemoSeedExecutionAllowed({
+        NODE_ENV: "production",
+        ALLOW_DEMO_SEED: "true",
+        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+      }),
+    ).toEqual({ password: "Synthetic-Only-001!" });
   });
 });
