@@ -117,6 +117,22 @@ Never auto-merge, accept automatic fixes without human review, run
 `npm audit fix --force`, or perform broad unrelated dependency upgrades. Handle
 React Router and ESLint advisories separately and deliberately.
 
+### Branch and pull-request rules
+
+- Never checkout, commit to, or push to `main`. All work happens on a feature
+  branch cut from the latest `origin/main`.
+- Stop at ready-to-push. The human handles the pull request and the merge.
+- When reporting a branch as ready, always give the pull-request URL in this
+  exact form, which sets the base explicitly:
+
+  ```text
+  https://github.com/riracreate/genbioca_compliance_platform/compare/main...<branch>
+  ```
+
+  Never use the `/pull/new/<branch>` form. The repository default branch
+  resolves to `governance/ci-hardening`, so that form defaults the base
+  incorrectly.
+
 ## Testing
 
 - Use unit tests for helpers and configuration.
