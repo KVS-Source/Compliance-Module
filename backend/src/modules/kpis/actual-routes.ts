@@ -10,8 +10,10 @@ import {
   approveKpiActualSchema,
   createKpiActualSchema,
   kpiActualIdParamsSchema,
+  kpiActualListSchema,
   rejectKpiActualSchema,
   resubmitKpiActualSchema,
+  type KpiActualListQuery,
 } from "./actual-validators.js";
 
 const auditContext = (req: Request) => {
@@ -24,6 +26,34 @@ const auditContext = (req: Request) => {
 
 export const kpiActualRoutes = (service: KpiActualService) => {
   const router = Router();
+  // Reads use kpis:read, matching every other KPI read route. Seeing submitted
+  // performance data and being allowed to decide on it are separate concerns:
+  // gating the list on kpi-actual:approve would hide a KPI owner's own
+  // submissions from them.
+  router.get(
+    "/",
+    permit("kpis:read"),
+    validate(kpiActualListSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.listActuals(
+        req.auth!.tenantId,
+        req.auth!.userId,
+        req.query as unknown as KpiActualListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
+  );
+  router.get(
+    "/:id",
+    permit("kpis:read"),
+    validate(kpiActualIdParamsSchema, "params"),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.getActual(req.auth!.tenantId, String(req.params.id)),
+      ),
+    ),
+  );
   router.post(
     "/",
     permit("kpi-actual:write"),

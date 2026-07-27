@@ -18,6 +18,7 @@ import {
 import { LoginPage } from "../features/auth/LoginPage";
 import { NotFoundPage } from "../features/migration/PendingPage";
 import { KpiActualEntryPage } from "../features/kpis/KpiActualEntryPage";
+import { KpiApprovalPage } from "../features/kpis/KpiApprovalPage";
 import { KpiConfigurationPage } from "../features/kpis/KpiConfigurationPage";
 import { KpiTargetsPage } from "../features/kpis/KpiTargetsPage";
 import { OrganisationPage } from "../features/organisation/OrganisationPage";
@@ -127,6 +128,14 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="kpis:read">
         <KpiTargetsPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "kpi/approval",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiApprovalPage />
       </PermissionBoundary>
     ),
   },

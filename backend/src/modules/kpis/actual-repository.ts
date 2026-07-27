@@ -11,6 +11,7 @@ import {
   RiskTransactionRepository,
   type RiskRecord,
 } from "../risks/repository.js";
+import type { KpiActualListQuery } from "./actual-validators.js";
 
 export const kpiActualInclude = Prisma.validator<Prisma.KpiActualInclude>()({
   configuration: { include: kpiConfigurationInclude },
@@ -27,6 +28,27 @@ export const kpiActualInclude = Prisma.validator<Prisma.KpiActualInclude>()({
 
 export type KpiActualRecord = Prisma.KpiActualGetPayload<{
   include: typeof kpiActualInclude;
+}>;
+
+/**
+ * Read-only include used by the list and detail routes. Kept separate from
+ * `kpiActualInclude` so the submission and workflow transactions keep their
+ * existing query shape.
+ *
+ * `kpi_approvals` is an append-only ledger enforced by the
+ * `kpi_approvals_append_only` database trigger, so the full history is
+ * returned in decision order rather than collapsed to a latest state.
+ */
+export const kpiActualReadInclude = Prisma.validator<Prisma.KpiActualInclude>()({
+  ...kpiActualInclude,
+  approvals: {
+    include: { reviewer: { select: { id: true, code: true, fullName: true } } },
+    orderBy: [{ decidedAt: "asc" }, { id: "asc" }],
+  },
+});
+
+export type KpiActualReadRecord = Prisma.KpiActualGetPayload<{
+  include: typeof kpiActualReadInclude;
 }>;
 
 export interface KpiActualCreateData {
@@ -379,5 +401,114 @@ export class KpiActualRepository {
     return this.db.$transaction((transaction) =>
       operation(new KpiActualTransactionRepository(transaction)),
     );
+  }
+
+  /**
+   * Rows the actor may decide, mirroring
+   * `KpiActualService.assertDecisionActor`.
+   *
+   * The third branch is the fallback where a configuration's approver is also
+   * the submitter: the approver restriction is waived rather than deadlocking
+   * the record. Prisma cannot compare `configuration.approverId` with
+   * `kpi_actuals.submitted_by_id` across the relation, so the tenant's
+   * approver-bearing configurations are resolved first and expanded into
+   * explicit (configuration, submitter) pairs. Configurations are bounded per
+   * Company, and doing it this way keeps the filter correct across pages
+   * without dropping to raw SQL.
+   */
+  private async awaitingDecisionFilter(
+    tenantId: string,
+    actorUserId: string,
+  ): Promise<Prisma.KpiActualWhereInput> {
+    const approverConfigurations = await this.db.kpiConfiguration.findMany({
+      where: { tenantId, deletedAt: null, approverId: { not: null } },
+      select: { id: true, approverId: true },
+    });
+    const fallbackPairs = approverConfigurations
+      .filter((configuration) => configuration.approverId !== actorUserId)
+      .map((configuration) => ({
+        kpiConfigurationId: configuration.id,
+        submittedById: configuration.approverId as string,
+      }));
+    return {
+      approvalStatus: { in: ["SUBMITTED", "PENDING_APPROVAL"] },
+      submittedById: { not: actorUserId },
+      OR: [
+        { configuration: { approverId: null } },
+        { configuration: { approverId: actorUserId } },
+        ...fallbackPairs,
+      ],
+    };
+  }
+
+  private async listWhere(
+    tenantId: string,
+    actorUserId: string,
+    query: KpiActualListQuery,
+  ): Promise<Prisma.KpiActualWhereInput> {
+    return {
+      tenantId,
+      deletedAt: null,
+      ...(query.approvalStatus
+        ? { approvalStatus: query.approvalStatus }
+        : {}),
+      ...(query.kpiConfigurationId
+        ? { kpiConfigurationId: query.kpiConfigurationId }
+        : {}),
+      ...(query.ragStatus ? { ragStatus: query.ragStatus } : {}),
+      ...(query.kpiDefinitionId
+        ? { configuration: { kpiDefinitionId: query.kpiDefinitionId } }
+        : {}),
+      ...(query.awaitingMyDecision
+        ? await this.awaitingDecisionFilter(tenantId, actorUserId)
+        : {}),
+    };
+  }
+
+  async listActuals(
+    tenantId: string,
+    actorUserId: string,
+    query: KpiActualListQuery,
+  ) {
+    const where = await this.listWhere(tenantId, actorUserId, query);
+    const [items, total] = await this.db.$transaction([
+      this.db.kpiActual.findMany({
+        where,
+        include: kpiActualReadInclude,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        orderBy: [{ submittedAt: "desc" }, { code: "desc" }],
+      }),
+      this.db.kpiActual.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  findActual(tenantId: string, id: string) {
+    return this.db.kpiActual.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      include: kpiActualReadInclude,
+    });
+  }
+
+  /**
+   * Linked risks for a page of actuals, batched rather than per row. Selection
+   * mirrors `KpiActualTransactionRepository.findLinkedRisk`: the most recent
+   * non-deleted risk for each actual.
+   */
+  async findLinkedRisks(tenantId: string, actualIds: string[]) {
+    if (actualIds.length === 0) return new Map<string, RiskRecord>();
+    const risks = await this.db.risk.findMany({
+      where: { tenantId, kpiActualId: { in: actualIds }, deletedAt: null },
+      include: riskInclude,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    const byActual = new Map<string, RiskRecord>();
+    for (const risk of risks) {
+      if (risk.kpiActualId && !byActual.has(risk.kpiActualId)) {
+        byActual.set(risk.kpiActualId, risk);
+      }
+    }
+    return byActual;
   }
 }

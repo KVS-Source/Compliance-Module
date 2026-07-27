@@ -35,6 +35,7 @@ const requiredLiveRoutes = [
   { path: "/master/frameworks", component: "FrameworksPage" },
   { path: "/kpi/configuration", component: "KpiConfigurationPage" },
   { path: "/kpi/actual-entry", component: "KpiActualEntryPage" },
+  { path: "/kpi/approval", component: "KpiApprovalPage" },
   { path: "/compliance/risks", component: "RiskRegisterPage" },
 ];
 

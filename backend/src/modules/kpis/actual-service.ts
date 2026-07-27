@@ -1,15 +1,20 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type ApprovalDecision } from "@prisma/client";
 import {
   AppError,
   forbidden,
   unauthorized,
 } from "../../common/errors/app-error.js";
+import { pageMeta } from "../../common/responses/envelope.js";
 import type { AuditContext } from "./management-repository.js";
 import {
+  type KpiActualReadRecord,
   type KpiActualRecord,
   type KpiActualRepository,
 } from "./actual-repository.js";
-import type { CreateKpiActualBody } from "./actual-validators.js";
+import type {
+  CreateKpiActualBody,
+  KpiActualListQuery,
+} from "./actual-validators.js";
 import type {
   KpiPerformanceService,
   KpiPerformanceResult,
@@ -73,6 +78,41 @@ export const kpiActualDto = (
   riskRequired: performance.riskRequired,
   recommendedRiskClass: performance.recommendedRiskClass,
   risk: risk ? riskSummaryDto(risk) : null,
+});
+
+const approvalDecisionDto = (approval: {
+  id: string;
+  decision: ApprovalDecision;
+  comments: string | null;
+  decidedAt: Date;
+  reviewer: { id: string; code: string; fullName: string } | null;
+}) => ({
+  id: approval.id,
+  decision: approval.decision,
+  reviewer: personDto(approval.reviewer),
+  comments: approval.comments,
+  decidedAt: approval.decidedAt,
+});
+
+/**
+ * Read shape for the approval UI: the workflow DTO plus the append-only
+ * `kpi_approvals` ledger in decision order. `riskRequired` and
+ * `recommendedRiskClass` are derived from the persisted risk exactly as the
+ * workflow responses derive them, so nothing is recalculated on read.
+ */
+export const kpiActualReadDto = (
+  record: KpiActualReadRecord,
+  risk: RiskRecord | null,
+) => ({
+  ...kpiActualDto(
+    record,
+    {
+      riskRequired: risk !== null,
+      recommendedRiskClass: risk?.kpiRiskClass ?? null,
+    },
+    risk,
+  ),
+  approvals: record.approvals.map(approvalDecisionDto),
 });
 
 const kpiActualWorkflowDto = (
@@ -146,6 +186,35 @@ export class KpiActualService {
     private readonly riskService: RiskService,
     private readonly evidenceGate: EvidenceGateService,
   ) {}
+
+  async listActuals(
+    tenantId: string,
+    actorUserId: string,
+    query: KpiActualListQuery,
+  ) {
+    const result = await this.repository.listActuals(
+      tenantId,
+      actorUserId,
+      query,
+    );
+    const risks = await this.repository.findLinkedRisks(
+      tenantId,
+      result.items.map((item) => item.id),
+    );
+    return {
+      data: result.items.map((item) =>
+        kpiActualReadDto(item, risks.get(item.id) ?? null),
+      ),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async getActual(tenantId: string, id: string) {
+    const actual = await this.repository.findActual(tenantId, id);
+    if (!actual) throw actualNotFound();
+    const risks = await this.repository.findLinkedRisks(tenantId, [actual.id]);
+    return kpiActualReadDto(actual, risks.get(actual.id) ?? null);
+  }
 
   async submitActual(
     tenantId: string,

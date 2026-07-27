@@ -936,4 +936,172 @@ describe("KPI actual approval workflow Slice C", () => {
       }),
     ).rejects.toThrow();
   });
+
+  it("lists actuals with their append-only approval history", async () => {
+    const removeApproval = await grantRegularApproval();
+    try {
+      const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+      const reviewer = await loginAs("user001@example.test", "User001!Secure");
+      const configuration = await createConfiguration(
+        admin.accessToken,
+        admin.user.id,
+      );
+      await createApprovedTarget(
+        admin.user.activeCompany.id,
+        configuration.body.data.id,
+        admin.user.id,
+      );
+      const submitted = await submitActual(
+        admin.accessToken,
+        configuration.body.data.id,
+      ).expect(201);
+
+      await request(app)
+        .post(`/api/v1/kpi-actuals/${submitted.body.data.id}/reject`)
+        .set("Authorization", `Bearer ${reviewer.accessToken}`)
+        .send({ reason: "Synthetic rejection for history" })
+        .expect(200);
+      await request(app)
+        .post(`/api/v1/kpi-actuals/${submitted.body.data.id}/resubmit`)
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .send({ comments: "Synthetic resubmission" })
+        .expect(200);
+      await request(app)
+        .post(`/api/v1/kpi-actuals/${submitted.body.data.id}/approve`)
+        .set("Authorization", `Bearer ${reviewer.accessToken}`)
+        .send({ comments: "Synthetic final approval" })
+        .expect(200);
+
+      const detail = await request(app)
+        .get(`/api/v1/kpi-actuals/${submitted.body.data.id}`)
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(200);
+      // Full ledger in decision order, not collapsed to a latest state.
+      expect(
+        detail.body.data.approvals.map(
+          (entry: { decision: string }) => entry.decision,
+        ),
+      ).toEqual(["REJECTED", "RESUBMITTED", "APPROVED"]);
+      expect(detail.body.data.approvals[0]).toMatchObject({
+        reviewer: { id: reviewer.user.id },
+        comments: "Synthetic rejection for history",
+      });
+      expect(detail.body.data).not.toHaveProperty("tenantId");
+
+      const listed = await request(app)
+        .get("/api/v1/kpi-actuals")
+        .query({ kpiConfigurationId: configuration.body.data.id })
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(200);
+      expect(listed.body.data).toHaveLength(1);
+      expect(listed.body.data[0].approvals).toHaveLength(3);
+      expect(listed.body.meta.total).toBe(1);
+    } finally {
+      await removeApproval();
+    }
+  });
+
+  it("filters awaitingMyDecision including the configured-approver fallback", async () => {
+    const removeApproval = await grantRegularApproval();
+    try {
+      const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+      const reviewer = await loginAs("user001@example.test", "User001!Secure");
+
+      // Reviewer is the configured approver and did not submit: decidable.
+      const decidable = await createConfiguration(
+        admin.accessToken,
+        admin.user.id,
+        { approverId: reviewer.user.id },
+      );
+      await createApprovedTarget(
+        admin.user.activeCompany.id,
+        decidable.body.data.id,
+        admin.user.id,
+      );
+      const decidableActual = await submitActual(
+        admin.accessToken,
+        decidable.body.data.id,
+      ).expect(201);
+
+      // Admin is both configured approver and submitter, so the approver
+      // restriction is waived and the reviewer may decide it too.
+      const fallback = await createConfiguration(
+        admin.accessToken,
+        admin.user.id,
+        { approverId: admin.user.id },
+      );
+      await createApprovedTarget(
+        admin.user.activeCompany.id,
+        fallback.body.data.id,
+        admin.user.id,
+      );
+      const fallbackActual = await submitActual(
+        admin.accessToken,
+        fallback.body.data.id,
+      ).expect(201);
+
+      const mine = await request(app)
+        .get("/api/v1/kpi-actuals")
+        .query({ awaitingMyDecision: "true", pageSize: "100" })
+        .set("Authorization", `Bearer ${reviewer.accessToken}`)
+        .expect(200);
+      const ids = mine.body.data.map((entry: { id: string }) => entry.id);
+      expect(ids).toContain(decidableActual.body.data.id);
+      expect(ids).toContain(fallbackActual.body.data.id);
+
+      // The submitter can never decide their own actual.
+      const adminView = await request(app)
+        .get("/api/v1/kpi-actuals")
+        .query({ awaitingMyDecision: "true", pageSize: "100" })
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(200);
+      const adminIds = adminView.body.data.map(
+        (entry: { id: string }) => entry.id,
+      );
+      expect(adminIds).not.toContain(decidableActual.body.data.id);
+      expect(adminIds).not.toContain(fallbackActual.body.data.id);
+    } finally {
+      await removeApproval();
+    }
+  });
+
+  it("prevents cross-tenant reads of actuals and approval history", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const company2 = admin.user.companies.find(
+      (company) => company.code === "COM-002",
+    );
+    expect(company2).toBeTruthy();
+    const configuration = await createConfiguration(
+      admin.accessToken,
+      admin.user.id,
+    );
+    await createApprovedTarget(
+      admin.user.activeCompany.id,
+      configuration.body.data.id,
+      admin.user.id,
+    );
+    const submitted = await submitActual(
+      admin.accessToken,
+      configuration.body.data.id,
+    ).expect(201);
+
+    const company2Token = await switchCompany(admin.accessToken, company2!.id);
+    await request(app)
+      .get(`/api/v1/kpi-actuals/${submitted.body.data.id}`)
+      .set("Authorization", `Bearer ${company2Token}`)
+      .expect(404);
+
+    const listed = await request(app)
+      .get("/api/v1/kpi-actuals")
+      .query({ pageSize: "100" })
+      .set("Authorization", `Bearer ${company2Token}`)
+      .expect(200);
+    expect(
+      listed.body.data.map((entry: { id: string }) => entry.id),
+    ).not.toContain(submitted.body.data.id);
+
+    await request(app)
+      .get("/api/v1/kpi-actuals")
+      .expect(401);
+  });
 });

@@ -164,6 +164,42 @@ export function kpiTargetDecisionError(
   return error.message;
 }
 
+/**
+ * Approve, reject and resubmit share one FORBIDDEN code across several
+ * distinct rules, so the message is the only discriminator. Known messages get
+ * clearer wording; anything else surfaces the server text verbatim rather than
+ * being flattened into a generic failure.
+ */
+export function kpiActualDecisionError(
+  error: unknown,
+  permission: string,
+): string {
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : "Request failed";
+  }
+  if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
+    return "This KPI configuration requires evidence, and the Evidence domain is not implemented yet. Approval is blocked and nothing was saved. Turn off “Requires evidence” on the configuration, or wait for Evidence to ship.";
+  }
+  if (error.status === 403) {
+    if (error.message === "KPI actual self-approval is forbidden") {
+      return "You submitted this actual, so you cannot approve or reject it. Another user holding kpi-actual:approve must decide.";
+    }
+    if (error.message === "Only the configured KPI actual approver may decide") {
+      return "Only the approver named on this KPI configuration may approve or reject this actual.";
+    }
+    if (error.message === "Only the original submitter may resubmit this actual") {
+      return "Only the user who submitted this actual may resubmit it.";
+    }
+    if (error.message === "Permission denied") {
+      return `Your active Company role does not include ${permission}.`;
+    }
+  }
+  if (error.code === "KPI_ACTUAL_INVALID_STATE") {
+    return error.message;
+  }
+  return error.message;
+}
+
 /** Map known KPI actual submission errors onto form fields or a form banner. */
 export function kpiActualSubmissionError(error: unknown): {
   fieldErrors: FieldErrors;

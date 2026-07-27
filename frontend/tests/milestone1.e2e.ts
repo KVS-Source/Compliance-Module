@@ -188,6 +188,7 @@ test("prototype routes are labelled while API-connected routes are not", async (
     "/master/frameworks",
     "/kpi/configuration",
     "/kpi/actual-entry",
+    "/kpi/approval",
     "/compliance/risks",
   ]) {
     await navigateInApp(page, path);
