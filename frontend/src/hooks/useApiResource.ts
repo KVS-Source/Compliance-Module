@@ -12,6 +12,8 @@ export function useApiResource<T>(
     let active = true;
     setLoading(true);
     setError(null);
+    // Drop prior tenant/page data immediately so UI never flashes stale rows.
+    setData(null);
     void loader()
       .then((value) => {
         if (active) setData(value);

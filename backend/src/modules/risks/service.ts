@@ -69,6 +69,9 @@ export const riskDto = (risk: RiskRecord) => ({
           period: risk.kpiActual.period,
           ragStatus: risk.kpiActual.ragStatus,
           targetMet: risk.kpiActual.targetMet,
+          actualValue: risk.kpiActual.actualValue.toString(),
+          variance: risk.kpiActual.variance.toString(),
+          targetValueSnapshot: risk.kpiActual.targetValueSnapshot.toString(),
         }
       : null,
     configuration: risk.configuration

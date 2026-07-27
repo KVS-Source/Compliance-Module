@@ -1265,10 +1265,26 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       kpiRiskClass: "MAJOR",
       generalLevel: "HIGH",
       source: {
-        actual: { id: submitted.body.data.id },
+        actual: {
+          id: submitted.body.data.id,
+          code: submitted.body.data.code,
+          period: submitted.body.data.period,
+          actualValue: submitted.body.data.actualValue,
+          variance: submitted.body.data.variance,
+          targetValueSnapshot: submitted.body.data.targetValueSnapshot,
+          ragStatus: submitted.body.data.ragStatus,
+        },
         configuration: { id: configuration.body.data.id },
         target: { id: submitted.body.data.target.id },
       },
+    });
+    const listed = list.body.data.find(
+      ({ id }: { id: string }) => id === risk.id,
+    );
+    expect(listed.source.actual).toMatchObject({
+      actualValue: submitted.body.data.actualValue,
+      variance: submitted.body.data.variance,
+      targetValueSnapshot: submitted.body.data.targetValueSnapshot,
     });
 
     const company2Token = await switchCompany(admin.accessToken, company2!.id);
@@ -1279,11 +1295,136 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
     expect(
       isolatedList.body.data.some(({ id }: { id: string }) => id === risk.id),
     ).toBe(false);
+    const isolatedSearch = await request(app)
+      .get(`/api/v1/risks?q=${encodeURIComponent(risk.code)}&lifecycle=all`)
+      .set("Authorization", `Bearer ${company2Token}`)
+      .expect(200);
+    expect(
+      isolatedSearch.body.data.some(({ id }: { id: string }) => id === risk.id),
+    ).toBe(false);
+    expect(
+      isolatedSearch.body.data.some(
+        (entry: { source?: { actual?: { id?: string } } }) =>
+          entry.source?.actual?.id === submitted.body.data.id,
+      ),
+    ).toBe(false);
     const crossTenant = await request(app)
       .get(`/api/v1/risks/${risk.id}`)
       .set("Authorization", `Bearer ${company2Token}`)
       .expect(404);
     expect(crossTenant.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("filters Risk list by search, lifecycle, status precedence and pagination", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const configuration = await createConfiguration(
+      admin.accessToken,
+      admin.user.id,
+    );
+    expect(configuration.status).toBe(201);
+    await createApprovedTarget(
+      admin.accessToken,
+      configuration.body.data.id,
+      "100",
+    );
+    const submitted = await submitActual(
+      admin.accessToken,
+      configuration.body.data.id,
+      "80",
+    ).expect(201);
+    const risk = await prisma.risk.findFirstOrThrow({
+      where: {
+        tenantId: admin.user.activeCompany.id,
+        kpiActualId: submitted.body.data.id,
+      },
+    });
+
+    const byCode = await request(app)
+      .get(`/api/v1/risks?q=${encodeURIComponent(risk.code)}&lifecycle=active`)
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(byCode.body.data.map(({ id }: { id: string }) => id)).toContain(
+      risk.id,
+    );
+
+    const byKpiName = await request(app)
+      .get(
+        `/api/v1/risks?q=${encodeURIComponent("Synthetic HIGHER_IS_BETTER")}&lifecycle=active`,
+      )
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(byKpiName.body.data.map(({ id }: { id: string }) => id)).toContain(
+      risk.id,
+    );
+
+    const activeOnly = await request(app)
+      .get("/api/v1/risks?lifecycle=active&pageSize=100")
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(
+      activeOnly.body.data.some(({ id }: { id: string }) => id === risk.id),
+    ).toBe(true);
+    expect(
+      activeOnly.body.data.every(({ status }: { status: string }) =>
+        ["OPEN", "UNDER_REVIEW", "TREATED"].includes(status),
+      ),
+    ).toBe(true);
+
+    await prisma.risk.update({
+      where: { id: risk.id },
+      data: { status: "CLOSED", closedAt: new Date() },
+    });
+
+    const activeAfterClose = await request(app)
+      .get(`/api/v1/risks?lifecycle=active&q=${encodeURIComponent(risk.code)}`)
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(
+      activeAfterClose.body.data.some(
+        ({ id }: { id: string }) => id === risk.id,
+      ),
+    ).toBe(false);
+
+    const historical = await request(app)
+      .get(`/api/v1/risks?lifecycle=closed&q=${encodeURIComponent(risk.code)}`)
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(
+      historical.body.data.some(({ id }: { id: string }) => id === risk.id),
+    ).toBe(true);
+
+    // Specific status wins over lifecycle (CLOSED with lifecycle=active).
+    const statusPrecedence = await request(app)
+      .get(
+        `/api/v1/risks?status=CLOSED&lifecycle=active&q=${encodeURIComponent(risk.code)}`,
+      )
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(
+      statusPrecedence.body.data.some(
+        ({ id }: { id: string }) => id === risk.id,
+      ),
+    ).toBe(true);
+    expect(
+      statusPrecedence.body.data.every(
+        ({ status }: { status: string }) => status === "CLOSED",
+      ),
+    ).toBe(true);
+
+    const page = await request(app)
+      .get(
+        `/api/v1/risks?lifecycle=closed&q=${encodeURIComponent(risk.code)}&page=1&pageSize=1`,
+      )
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(page.body.meta).toMatchObject({
+      page: 1,
+      pageSize: 1,
+      total: expect.any(Number),
+      totalPages: expect.any(Number),
+    });
+    expect(page.body.meta.total).toBeGreaterThanOrEqual(1);
+    expect(page.body.data).toHaveLength(1);
   });
 
   it("rolls back the actual, Risk, sequence and audits when RISK_CREATED audit fails", async () => {

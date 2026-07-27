@@ -503,3 +503,28 @@
     display: none;
   }
 }
+
+.risk-register-mobile {
+  display: none;
+  gap: 12px;
+}
+
+.risk-register-card h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.risk-register-card .card-pad {
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .risk-register-desktop {
+    display: none;
+  }
+  .risk-register-mobile {
+    display: grid;
+  }
+}

@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  RiskRepository,
-  RiskTransactionRepository,
+import {
+  buildRiskListWhere,
+  type RiskRepository,
+  type RiskTransactionRepository,
 } from "../src/modules/risks/repository.js";
 import {
   AUTOMATIC_KPI_RISK_FACTORS,
@@ -13,6 +14,7 @@ import {
   generalLevelForScore,
   type AutomaticKpiRiskInput,
 } from "../src/modules/risks/service.js";
+import { riskListSchema } from "../src/modules/risks/validators.js";
 
 describe("RiskService", () => {
   it("keeps the Slice D migration create-only with no historical Risk backfill", () => {
@@ -163,5 +165,45 @@ describe("RiskService", () => {
       MINOR: { likelihood: 3, impact: 3 },
       MAJOR: { likelihood: 4, impact: 4 },
     });
+  });
+
+  it("gives specific status precedence over lifecycle in list filters", () => {
+    const where = buildRiskListWhere("tenant-1", {
+      page: 1,
+      pageSize: 20,
+      status: "CLOSED",
+      lifecycle: "active",
+    });
+    expect(where.status).toBe("CLOSED");
+  });
+
+  it("maps lifecycle active and closed to RiskStatus groups", () => {
+    expect(
+      buildRiskListWhere("tenant-1", {
+        page: 1,
+        pageSize: 20,
+        lifecycle: "active",
+      }).status,
+    ).toEqual({ in: ["OPEN", "UNDER_REVIEW", "TREATED"] });
+    expect(
+      buildRiskListWhere("tenant-1", {
+        page: 1,
+        pageSize: 20,
+        lifecycle: "closed",
+      }).status,
+    ).toEqual({ in: ["CLOSED", "ARCHIVED"] });
+    expect(
+      buildRiskListWhere("tenant-1", {
+        page: 1,
+        pageSize: 20,
+        lifecycle: "all",
+      }).status,
+    ).toBeUndefined();
+  });
+
+  it("trims and length-limits the risk search query", () => {
+    expect(riskListSchema.parse({ q: "  RSK-001  " }).q).toBe("RSK-001");
+    expect(riskListSchema.parse({ q: "   " }).q).toBeUndefined();
+    expect(() => riskListSchema.parse({ q: "x".repeat(101) })).toThrow();
   });
 });

@@ -591,6 +591,17 @@ export const openApiDocument = {
     "/risks": {
       get: {
         summary: "List Company risks",
+        description:
+          "Tenant-filtered, paginated Risk Register. " +
+          "When both status and lifecycle are supplied, status takes precedence " +
+          "and lifecycle is ignored for status filtering. " +
+          "lifecycle=active → OPEN|UNDER_REVIEW|TREATED; " +
+          "lifecycle=closed → CLOSED|ARCHIVED; lifecycle=all → no status group. " +
+          "Omitting both returns all non-deleted statuses. " +
+          "q is trimmed, max 100 chars, case-insensitive over risk title, risk code, " +
+          "linked KPI code and KPI name. " +
+          "source.actual may include additive actualValue, variance and " +
+          "targetValueSnapshot strings when a KPI actual is linked.",
         security: [{ bearerAuth: [] }],
         parameters: [
           {
@@ -611,9 +622,22 @@ export const openApiDocument = {
           {
             in: "query",
             name: "status",
+            description:
+              "Exact RiskStatus. Takes precedence over lifecycle when both are set.",
             schema: {
               type: "string",
               enum: ["OPEN", "UNDER_REVIEW", "TREATED", "CLOSED", "ARCHIVED"],
+            },
+          },
+          {
+            in: "query",
+            name: "lifecycle",
+            description:
+              "Status group filter. Ignored when status is also supplied. " +
+              "active=OPEN|UNDER_REVIEW|TREATED; closed=CLOSED|ARCHIVED; all=no group.",
+            schema: {
+              type: "string",
+              enum: ["active", "closed", "all"],
             },
           },
           {
@@ -629,9 +653,19 @@ export const openApiDocument = {
               enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
             },
           },
+          {
+            in: "query",
+            name: "q",
+            description:
+              "Case-insensitive search across risk title, risk code, KPI code and KPI name (max 100 after trim).",
+            schema: { type: "string", maxLength: 100 },
+          },
         ],
         responses: {
-          "200": { description: "Tenant-filtered risk page" },
+          "200": {
+            description:
+              "Tenant-filtered risk page. Each item uses the risk detail DTO, including additive source.actual value fields when linked.",
+          },
           "403": { description: "Missing risk:read permission" },
         },
       },
@@ -639,6 +673,9 @@ export const openApiDocument = {
     "/risks/{id}": {
       get: {
         summary: "Get a Company risk",
+        description:
+          "Returns the risk detail DTO for the active Company. " +
+          "source.actual includes additive actualValue, variance and targetValueSnapshot strings when a KPI actual is linked.",
         security: [{ bearerAuth: [] }],
         parameters: [
           {

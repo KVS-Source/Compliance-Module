@@ -187,6 +187,7 @@ test("prototype routes are labelled while API-connected routes are not", async (
     "/admin/organisation-units",
     "/master/frameworks",
     "/kpi/actual-entry",
+    "/compliance/risks",
   ]) {
     await navigateInApp(page, path);
     await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
