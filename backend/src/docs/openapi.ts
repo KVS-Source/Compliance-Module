@@ -727,5 +727,98 @@ export const openApiDocument = {
         },
       },
     },
+    "/risks/{id}/reviews": {
+      post: {
+        summary: "Record an append-only risk review",
+        description:
+          "Records reviewer, comments and optionally a revised likelihood and impact. " +
+          "The service computes residualScore and re-derives generalLevel. " +
+          "Rows are immutable: the risk_reviews_append_only trigger rejects UPDATE and DELETE.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Review recorded" },
+          "400": { description: "Revised likelihood and impact must be given together" },
+          "403": { description: "Missing risk:treat permission" },
+          "404": { description: "Risk not in the active Company context" },
+          "409": { description: "Risk is closed or archived" },
+        },
+      },
+    },
+    "/risks/{id}/treatments": {
+      post: {
+        summary: "Record an append-only risk treatment",
+        description:
+          "Strategy, plan, owner and due date. Rows are immutable: the " +
+          "risk_treatments_append_only trigger rejects UPDATE and DELETE.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Treatment recorded" },
+          "400": { description: "Owner is not an active user in the Company" },
+          "403": { description: "Missing risk:treat permission" },
+          "404": { description: "Risk not in the active Company context" },
+          "409": { description: "Risk is closed or archived" },
+        },
+      },
+    },
+    "/risks/{id}/treatments/{treatmentId}/complete": {
+      post: {
+        summary: "Complete a treatment by appending a superseding entry",
+        description:
+          "Completion never edits the original row. It inserts a new COMPLETED " +
+          "treatment whose supersedesId points at the original, so the current " +
+          "treatment is the latest row.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Completion entry appended" },
+          "403": { description: "Missing risk:treat permission" },
+          "404": { description: "Risk or treatment not in the active Company context" },
+          "409": { description: "Treatment already completed, cancelled or superseded" },
+        },
+      },
+    },
+    "/risks/{id}/owner": {
+      patch: {
+        summary: "Assign or clear the risk owner",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Owner updated" },
+          "400": { description: "Owner is not an active user in the Company" },
+          "403": { description: "Missing risk:treat permission" },
+          "404": { description: "Risk not in the active Company context" },
+        },
+      },
+    },
+    "/risks/{id}/close": {
+      post: {
+        summary: "Close a risk with a recorded reason",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Risk closed and RISK_CLOSED audit written" },
+          "400": { description: "A closure reason is required" },
+          "403": { description: "Missing risk:close permission" },
+          "404": { description: "Risk not in the active Company context" },
+          "409": { description: "Risk is already closed or archived" },
+        },
+      },
+    },
+    "/risks/{id}/reopen": {
+      post: {
+        summary: "Reopen a closed risk",
+        description:
+          "Returns the risk to UNDER_REVIEW and clears the closure fields. " +
+          "Refused with RISK_ACTIVE_DUPLICATE_FOR_ACTUAL when another live risk " +
+          "already exists for the same KPI actual, which risks_one_active_per_kpi_actual forbids.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Risk reopened and RISK_REOPENED audit written" },
+          "403": { description: "Missing risk:close permission" },
+          "404": { description: "Risk not in the active Company context" },
+          "409": {
+            description:
+              "Risk is not closed, or another live risk exists for the same KPI actual",
+          },
+        },
+      },
+    },
   },
 } as const;

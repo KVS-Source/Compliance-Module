@@ -366,7 +366,34 @@ CREATE UNIQUE INDEX risks_one_active_per_kpi_actual
 ### 3.7 RiskTreatment
 
 `tenantId`, `riskId`, `strategy`, `plan`, `ownerId`, `dueDate?`,
-`completedAt?`, `status`, `effectivenessNotes?`
+`completedAt?`, `status`, `effectivenessNotes?`, `supersedesId?`,
+`recordedById`, `recordedAt`
+
+**Treatment rows are immutable.** Slice E supersedes the original wording of
+this section, which implied a treatment row is edited when it completes.
+`risk_treatments` is an append-only ledger like `kpi_approvals`, enforced by the
+`risk_treatments_append_only` trigger, so a row cannot be updated in place.
+
+Completing a treatment **inserts a new row** carrying the same strategy, plan,
+owner and due date, with `status = COMPLETED`, `completedAt` set, and
+`supersedesId` pointing at the entry it completes. The current treatment is the
+latest row for the risk. A partial-mutability trigger permitting updates to
+`status` and `completedAt` alone was rejected: it weakens the guarantee the
+trigger exists to provide.
+
+`status` uses `RiskTreatmentStatus`: `PLANNED`, `IN_PROGRESS`, `COMPLETED`,
+`CANCELLED`. These values were chosen by this project, not taken from the client
+workbook, which defines `CAPA_Status` but no treatment status. See
+`docs/reviews/risk-treatment-status-decision.md`.
+
+`RiskReview` is append-only on the same basis, enforced by
+`risk_reviews_append_only`. A review may carry a revised likelihood and impact,
+or neither; a half-supplied assessment is rejected by both the validator and a
+database check. When a review revises the assessment, the service computes
+`residualScore` and re-derives `generalLevel` from the §4 bands. The database
+independently enforces
+`residual_score = residual_likelihood * residual_impact`, all-or-none, through
+`risks_residual_score_consistent`.
 
 ---
 

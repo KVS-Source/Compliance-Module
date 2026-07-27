@@ -14,7 +14,11 @@ import {
   generalLevelForScore,
   type AutomaticKpiRiskInput,
 } from "../src/modules/risks/service.js";
-import { riskListSchema } from "../src/modules/risks/validators.js";
+import {
+  createRiskReviewSchema,
+  createRiskTreatmentSchema,
+  riskListSchema,
+} from "../src/modules/risks/validators.js";
 
 describe("RiskService", () => {
   it("keeps the Slice D migration create-only with no historical Risk backfill", () => {
@@ -199,6 +203,81 @@ describe("RiskService", () => {
         lifecycle: "all",
       }).status,
     ).toBeUndefined();
+  });
+
+  it("requires a revised likelihood and impact together or not at all", () => {
+    expect(
+      createRiskReviewSchema.safeParse({ comments: "Reviewed" }).success,
+    ).toBe(true);
+    expect(
+      createRiskReviewSchema.safeParse({
+        comments: "Reviewed",
+        likelihoodAtReview: 2,
+        impactAtReview: 3,
+      }).success,
+    ).toBe(true);
+
+    const partial = createRiskReviewSchema.safeParse({
+      comments: "Reviewed",
+      likelihoodAtReview: 2,
+    });
+    expect(partial.success).toBe(false);
+    if (!partial.success) {
+      expect(partial.error.issues[0]?.path).toEqual(["impactAtReview"]);
+    }
+  });
+
+  it("keeps review assessment values inside the 1 to 5 band", () => {
+    for (const value of [0, 6, -1]) {
+      expect(
+        createRiskReviewSchema.safeParse({
+          comments: "Reviewed",
+          likelihoodAtReview: value,
+          impactAtReview: 3,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("derives the residual general level from the reviewed score", () => {
+    // The service multiplies; the database independently enforces equality.
+    const cases: Array<[number, number, number, string]> = [
+      [1, 1, 1, "LOW"],
+      [2, 4, 8, "MEDIUM"],
+      [3, 5, 15, "HIGH"],
+      [5, 4, 20, "CRITICAL"],
+    ];
+    for (const [likelihood, impact, score, level] of cases) {
+      expect(likelihood * impact).toBe(score);
+      expect(generalLevelForScore(score)).toBe(level);
+    }
+  });
+
+  it("refuses a treatment without a plan and defaults its status to PLANNED", () => {
+    expect(
+      createRiskTreatmentSchema.safeParse({
+        strategy: "MITIGATE",
+        plan: "   ",
+      }).success,
+    ).toBe(false);
+
+    const parsed = createRiskTreatmentSchema.safeParse({
+      strategy: "MITIGATE",
+      plan: "Add a second reviewer to the survey process.",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.status).toBe("PLANNED");
+  });
+
+  it("never accepts COMPLETED directly on a treatment write", () => {
+    // Completion appends a superseding row instead of setting the status.
+    expect(
+      createRiskTreatmentSchema.safeParse({
+        strategy: "MITIGATE",
+        plan: "Plan",
+        status: "COMPLETED",
+      }).success,
+    ).toBe(false);
   });
 
   it("trims and length-limits the risk search query", () => {

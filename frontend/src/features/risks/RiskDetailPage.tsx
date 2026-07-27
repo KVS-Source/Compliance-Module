@@ -1,14 +1,57 @@
-import { ArrowLeft, Info, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Info,
+  RefreshCw,
+  RotateCcw,
+  ShieldAlert,
+  ShieldCheck,
+  UserRoundCog,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
+import { Modal } from "../../components/feedback/Modal";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
+import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
 import { ApiError } from "../../services/apiClient";
+import { masterDataApi } from "../../services/masterDataApi";
 import { riskApi } from "../../services/riskApi";
-import type { Risk } from "../../types/api";
+import type {
+  CompanyUser,
+  Risk,
+  RiskTreatmentEntry,
+  RiskTreatmentStrategy,
+} from "../../types/api";
+import { riskWorkflowError, type FieldErrors } from "../../utils/fieldErrors";
+import {
+  RiskReviewHistory,
+  RiskTreatmentHistory,
+} from "./RiskWorkflowHistory";
+
+const STRATEGIES: RiskTreatmentStrategy[] = [
+  "AVOID",
+  "MITIGATE",
+  "TRANSFER",
+  "ACCEPT",
+];
+
+const ASSESSMENT_VALUES = [1, 2, 3, 4, 5];
+
+type ActionKind = "review" | "treat" | "complete" | "owner" | "close" | "reopen";
+
+const ACTION_TITLES: Record<ActionKind, string> = {
+  review: "Record review",
+  treat: "Record treatment",
+  complete: "Complete treatment",
+  owner: "Assign owner",
+  close: "Close risk",
+  reopen: "Reopen risk",
+};
 
 const statusLabel = (status: string) => status.replaceAll("_", " ");
 
@@ -29,15 +72,171 @@ const hasKpiLineage = (risk: Risk) =>
 
 export function RiskDetailPage() {
   const { riskId = "" } = useParams();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
+  const { showToast } = useToast();
+  const canTreat = hasPermission("risk:treat");
+  const canClose = hasPermission("risk:close");
+
+  const [detailVersion, setDetailVersion] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [action, setAction] = useState<ActionKind | null>(null);
+  const [treatmentTarget, setTreatmentTarget] =
+    useState<RiskTreatmentEntry | null>(null);
+  const [comments, setComments] = useState("");
+  const [plan, setPlan] = useState("");
+  const [strategy, setStrategy] = useState<RiskTreatmentStrategy>("MITIGATE");
+  const [ownerId, setOwnerId] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [likelihood, setLikelihood] = useState("");
+  const [impact, setImpact] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [busyTreatmentId, setBusyTreatmentId] = useState<string | null>(null);
 
   const resource = useApiResource(
     () => riskApi.get(riskId),
-    [riskId, contextVersion, user?.activeCompany.id],
+    [riskId, contextVersion, user?.activeCompany.id, detailVersion],
   );
 
-  if (resource.loading) return <LoadingState label="Loading risk detail…" />;
+  // Only the treat and owner dialogs need the user list, so it is fetched when
+  // one of them opens rather than on every risk detail view. That avoids a
+  // needless request, and a spurious 403 for roles without users:read.
+  const needsUsers = action === "treat" || action === "owner";
+  const users = useApiResource<CompanyUser[]>(
+    () =>
+      needsUsers
+        ? masterDataApi.listUsers().catch(() => [])
+        : Promise.resolve([]),
+    [contextVersion, user?.activeCompany.id, needsUsers],
+  );
+
+  // A Company switch must drop any open dialog and its half-entered content.
+  useEffect(() => {
+    setAction(null);
+    setTreatmentTarget(null);
+    setFormError(null);
+    setFieldErrors({});
+  }, [contextVersion, user?.activeCompany.id, riskId]);
+
+  useEffect(() => {
+    if (!resource.loading) setRefreshing(false);
+  }, [resource.loading]);
+
+  const refresh = () => {
+    setRefreshing(true);
+    setDetailVersion((value) => value + 1);
+  };
+
+  const openAction = (kind: ActionKind, treatment?: RiskTreatmentEntry) => {
+    setAction(kind);
+    setTreatmentTarget(treatment ?? null);
+    setComments("");
+    setPlan("");
+    setStrategy("MITIGATE");
+    setOwnerId("");
+    setDueDate("");
+    setLikelihood("");
+    setImpact("");
+    setFieldErrors({});
+    setFormError(null);
+  };
+
+  const closeAction = () => {
+    setAction(null);
+    setTreatmentTarget(null);
+  };
+
+  const runAction = async () => {
+    if (!action) return;
+    setBusy(true);
+    if (treatmentTarget) setBusyTreatmentId(treatmentTarget.id);
+    setFormError(null);
+    setFieldErrors({});
+    const permission = action === "close" || action === "reopen"
+      ? "risk:close"
+      : "risk:treat";
+    try {
+      if (action === "review") {
+        await riskApi.recordReview(riskId, {
+          comments: comments.trim(),
+          likelihoodAtReview: likelihood ? Number(likelihood) : null,
+          impactAtReview: impact ? Number(impact) : null,
+        });
+        showToast(
+          "success",
+          "Review recorded",
+          "The review is written to the append-only trail.",
+        );
+      } else if (action === "treat") {
+        await riskApi.recordTreatment(riskId, {
+          strategy,
+          plan: plan.trim(),
+          ownerId: ownerId || null,
+          dueDate: dueDate || null,
+        });
+        showToast(
+          "success",
+          "Treatment recorded",
+          "The risk is now marked as treated.",
+        );
+      } else if (action === "complete" && treatmentTarget) {
+        await riskApi.completeTreatment(
+          riskId,
+          treatmentTarget.id,
+          comments.trim() || null,
+        );
+        showToast(
+          "success",
+          "Treatment completed",
+          "A new completion entry was added; the original entry is unchanged.",
+        );
+      } else if (action === "owner") {
+        await riskApi.assignOwner(riskId, ownerId || null);
+        showToast(
+          "success",
+          ownerId ? "Owner assigned" : "Owner cleared",
+          "The change is recorded in the audit trail.",
+        );
+      } else if (action === "close") {
+        await riskApi.close(riskId, comments.trim());
+        showToast(
+          "success",
+          "Risk closed",
+          "The closure reason is recorded and audited.",
+        );
+      } else if (action === "reopen") {
+        await riskApi.reopen(riskId, comments.trim());
+        showToast(
+          "success",
+          "Risk reopened",
+          "The risk is back under review.",
+        );
+      }
+      closeAction();
+      refresh();
+    } catch (error) {
+      const mapped = riskWorkflowError(error, permission);
+      setFieldErrors(mapped.fieldErrors);
+      setFormError(mapped.formError);
+    } finally {
+      setBusy(false);
+      setBusyTreatmentId(null);
+    }
+  };
+
+  if (resource.loading) {
+    return (
+      <div
+        data-testid={refreshing ? "risk-detail-refreshing" : "risk-detail-loading"}
+      >
+        <LoadingState
+          label={refreshing ? "Refreshing risk detail…" : "Loading risk detail…"}
+        />
+      </div>
+    );
+  }
   if (resource.error) {
     const notFound =
       resource.error instanceof ApiError && resource.error.status === 404;
@@ -77,6 +276,9 @@ export function RiskDetailPage() {
   const configuration = risk.source.configuration;
   const actual = risk.source.actual;
   const automatic = hasKpiLineage(risk);
+  const isClosed = risk.status === "CLOSED" || risk.status === "ARCHIVED";
+  const requiresReason =
+    action === "close" || action === "reopen" || action === "review";
 
   return (
     <div className="page">
@@ -86,9 +288,62 @@ export function RiskDetailPage() {
         description={`${risk.code} · ${user?.activeCompany.name ?? "Active Company"}`}
         connected
         actions={
-          <Link className="btn btn-secondary" to="/compliance/risks">
-            <ArrowLeft size={15} /> Back to register
-          </Link>
+          <>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={refresh}
+              disabled={resource.loading}
+            >
+              <RefreshCw size={15} /> Refresh
+            </button>
+            {canTreat && !isClosed ? (
+              <>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openAction("review")}
+                >
+                  <ShieldCheck size={15} /> Record review
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openAction("treat")}
+                >
+                  <CheckCircle2 size={15} /> Record treatment
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openAction("owner")}
+                >
+                  <UserRoundCog size={15} /> Assign owner
+                </button>
+              </>
+            ) : null}
+            {canClose && !isClosed ? (
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => openAction("close")}
+              >
+                <ShieldAlert size={15} /> Close risk
+              </button>
+            ) : null}
+            {canClose && risk.status === "CLOSED" ? (
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => openAction("reopen")}
+              >
+                <RotateCcw size={15} /> Reopen risk
+              </button>
+            ) : null}
+            <Link className="btn btn-secondary" to="/compliance/risks">
+              <ArrowLeft size={15} /> Back to register
+            </Link>
+          </>
         }
       />
 
@@ -300,6 +555,219 @@ export function RiskDetailPage() {
           </div>
         </section>
       </div>
+
+      {isClosed ? (
+        <div className="banner info" role="note" data-testid="risk-closed-note">
+          <Info size={15} aria-hidden /> This risk is {statusLabel(risk.status)}
+          {risk.closureReason ? ` — ${risk.closureReason}` : ""}. Reviews and
+          treatments cannot be recorded until it is reopened.
+        </div>
+      ) : null}
+
+      {!canTreat && !canClose ? (
+        <p className="muted" role="status">
+          Your active Company role includes neither <code>risk:treat</code> nor{" "}
+          <code>risk:close</code>, so this risk is read only.
+        </p>
+      ) : null}
+
+      <div className="stack">
+        {/* Default to empty so a response missing either ledger renders the
+            empty state rather than white-screening the whole detail page. */}
+        <RiskReviewHistory reviews={risk.reviews ?? []} />
+        <RiskTreatmentHistory
+          treatments={risk.treatments ?? []}
+          canTreat={canTreat && !isClosed}
+          busyId={busyTreatmentId}
+          onComplete={(treatment) => openAction("complete", treatment)}
+        />
+      </div>
+
+      {action ? (
+        <Modal
+          title={ACTION_TITLES[action]}
+          onClose={closeAction}
+          footer={
+            <>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={closeAction}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={
+                  busy ||
+                  (requiresReason && !comments.trim()) ||
+                  (action === "treat" && !plan.trim())
+                }
+                onClick={() => void runAction()}
+              >
+                {busy ? "Working…" : ACTION_TITLES[action]}
+              </button>
+            </>
+          }
+        >
+          {formError ? (
+            <div
+              className="banner warning"
+              role="alert"
+              data-testid="risk-action-error"
+            >
+              {formError}
+            </div>
+          ) : null}
+
+          {action === "treat" ? (
+            <>
+              <div className="field">
+                <label htmlFor="treatment-strategy">Strategy *</label>
+                <select
+                  id="treatment-strategy"
+                  className="control"
+                  value={strategy}
+                  onChange={(event) =>
+                    setStrategy(event.target.value as RiskTreatmentStrategy)
+                  }
+                >
+                  {STRATEGIES.map((entry) => (
+                    <option key={entry} value={entry}>
+                      {entry}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="treatment-plan">Plan *</label>
+                <textarea
+                  id="treatment-plan"
+                  className="control"
+                  rows={4}
+                  value={plan}
+                  onChange={(event) => setPlan(event.target.value)}
+                  maxLength={4000}
+                  required
+                  placeholder="What will be done, by whom, and how it reduces the risk."
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="treatment-due">Due date</label>
+                <input
+                  id="treatment-due"
+                  className="control"
+                  type="date"
+                  value={dueDate}
+                  onChange={(event) => setDueDate(event.target.value)}
+                />
+              </div>
+            </>
+          ) : null}
+
+          {action === "treat" || action === "owner" ? (
+            <div className="field">
+              <label htmlFor="risk-owner">
+                {action === "owner" ? "Risk owner" : "Treatment owner"}
+              </label>
+              <select
+                id="risk-owner"
+                className={`control ${fieldErrors.ownerId ? "invalid" : ""}`}
+                value={ownerId}
+                onChange={(event) => setOwnerId(event.target.value)}
+                aria-invalid={Boolean(fieldErrors.ownerId)}
+                aria-describedby="risk-owner-error"
+              >
+                <option value="">Not assigned</option>
+                {(users.data ?? []).map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.code} · {entry.name}
+                  </option>
+                ))}
+              </select>
+              <div className="error" id="risk-owner-error" role="alert">
+                {fieldErrors.ownerId ?? ""}
+              </div>
+            </div>
+          ) : null}
+
+          {action === "review" ? (
+            <>
+              <div className="field">
+                <label htmlFor="review-likelihood">
+                  Revised likelihood (1–5)
+                </label>
+                <select
+                  id="review-likelihood"
+                  className="control"
+                  value={likelihood}
+                  onChange={(event) => setLikelihood(event.target.value)}
+                >
+                  <option value="">No reassessment</option>
+                  {ASSESSMENT_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="review-impact">Revised impact (1–5)</label>
+                <select
+                  id="review-impact"
+                  className="control"
+                  value={impact}
+                  onChange={(event) => setImpact(event.target.value)}
+                >
+                  <option value="">No reassessment</option>
+                  {ASSESSMENT_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="muted">
+                Give both values or neither. The server calculates the residual
+                score and risk level from them.
+              </p>
+            </>
+          ) : null}
+
+          {action === "complete" ? (
+            <p className="muted" data-testid="complete-supersede-note">
+              This adds a <strong>new completion entry</strong> to the treatment
+              trail. The original entry is kept unchanged, because the trail is
+              append-only.
+            </p>
+          ) : null}
+
+          <div className="field">
+            <label htmlFor="risk-action-comments">
+              {action === "close"
+                ? "Closure reason *"
+                : action === "reopen"
+                  ? "Reason for reopening *"
+                  : action === "review"
+                    ? "Review comments *"
+                    : "Notes (optional)"}
+            </label>
+            <textarea
+              id="risk-action-comments"
+              className="control"
+              rows={4}
+              value={comments}
+              onChange={(event) => setComments(event.target.value)}
+              maxLength={2000}
+              required={requiresReason}
+            />
+            <p className="muted">
+              Recorded permanently and cannot be edited or removed afterwards.
+            </p>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }

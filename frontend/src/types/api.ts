@@ -514,6 +514,64 @@ export interface Risk {
   updatedAt: string;
 }
 
+export type RiskTreatmentStatus =
+  | "PLANNED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED";
+
+/**
+ * One entry in the append-only `risk_reviews` ledger. The
+ * `risk_reviews_append_only` database trigger rejects UPDATE and DELETE.
+ */
+export interface RiskReviewEntry {
+  id: string;
+  reviewer: KpiPerson | null;
+  comments: string;
+  likelihoodAtReview: number | null;
+  impactAtReview: number | null;
+  reviewedAt: string;
+}
+
+/**
+ * One entry in the append-only `risk_treatments` ledger. Completing a
+ * treatment appends a new COMPLETED entry whose `supersedesId` points at the
+ * original; entries are never edited.
+ */
+export interface RiskTreatmentEntry {
+  id: string;
+  strategy: RiskTreatmentStrategy;
+  plan: string;
+  owner: KpiPerson | null;
+  dueDate: string | null;
+  completedAt: string | null;
+  status: RiskTreatmentStatus;
+  effectivenessNotes: string | null;
+  supersedesId: string | null;
+  recordedBy: KpiPerson | null;
+  recordedAt: string;
+}
+
+/** Risk detail, adding the two append-only ledgers. */
+export interface RiskDetail extends Risk {
+  reviews: RiskReviewEntry[];
+  treatments: RiskTreatmentEntry[];
+}
+
+export interface CreateRiskReviewInput {
+  comments: string;
+  likelihoodAtReview?: number | null;
+  impactAtReview?: number | null;
+}
+
+export interface CreateRiskTreatmentInput {
+  strategy: RiskTreatmentStrategy;
+  plan: string;
+  ownerId?: string | null;
+  dueDate?: string | null;
+  status?: Exclude<RiskTreatmentStatus, "COMPLETED">;
+}
+
 export interface RiskListQuery {
   page?: number;
   pageSize?: number;
