@@ -200,6 +200,48 @@ export function kpiActualDecisionError(
   return error.message;
 }
 
+/**
+ * Map risk review, treatment, closure and reopen errors. The reopen conflict
+ * gets specific wording because a bare 409 would not explain that another live
+ * risk on the same KPI actual is the blocker.
+ */
+export function riskWorkflowError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+  if (error.code === "RISK_ACTIVE_DUPLICATE_FOR_ACTUAL") {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (
+    error.code === "RISK_STATUS_TRANSITION_INVALID" ||
+    error.code === "RISK_TREATMENT_ALREADY_COMPLETED" ||
+    error.code === "RISK_TREATMENT_CANCELLED" ||
+    error.code === "RISK_TREATMENT_SUPERSEDED"
+  ) {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const field = error.message.toLowerCase().includes("owner")
+      ? "ownerId"
+      : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (error.status === 403 && error.message === "Permission denied") {
+    return {
+      fieldErrors: {},
+      formError: `Your active Company role does not include ${permission}.`,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
 /** Map known KPI actual submission errors onto form fields or a form banner. */
 export function kpiActualSubmissionError(error: unknown): {
   fieldErrors: FieldErrors;

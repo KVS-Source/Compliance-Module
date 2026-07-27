@@ -4,6 +4,8 @@ import {
   type KpiRiskClass,
   type PrismaClient,
   type RiskStatus,
+  type RiskTreatmentStatus,
+  type RiskTreatmentStrategy,
 } from "@prisma/client";
 import type { AuditContext } from "../kpis/management-repository.js";
 import { kpiConfigurationInclude } from "../kpis/management-repository.js";
@@ -40,6 +42,35 @@ export const riskInclude = Prisma.validator<Prisma.RiskInclude>()({
 export type RiskRecord = Prisma.RiskGetPayload<{
   include: typeof riskInclude;
 }>;
+
+const personSelect = { select: { id: true, code: true, fullName: true } };
+
+/**
+ * Detail include adding the append-only review and treatment ledgers. Kept
+ * separate from `riskInclude` so the register list and the automatic-creation
+ * path keep their existing query shape.
+ */
+export const riskDetailInclude = Prisma.validator<Prisma.RiskInclude>()({
+  ...riskInclude,
+  reviews: {
+    include: { reviewer: personSelect },
+    orderBy: [{ reviewedAt: "asc" }, { id: "asc" }],
+  },
+  treatments: {
+    include: { owner: personSelect, recordedBy: personSelect },
+    orderBy: [{ recordedAt: "asc" }, { id: "asc" }],
+  },
+});
+
+export type RiskDetailRecord = Prisma.RiskGetPayload<{
+  include: typeof riskDetailInclude;
+}>;
+
+/**
+ * Prisma's own update input, so `exactOptionalPropertyTypes` does not smuggle
+ * `undefined` into optional columns when a patch is spread.
+ */
+export type RiskWorkflowPatch = Prisma.RiskUncheckedUpdateInput;
 
 export interface AutomaticRiskCreateData {
   code: string;
@@ -197,6 +228,141 @@ export class RiskRepository {
     return this.db.risk.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: riskInclude,
+    });
+  }
+
+  findDetail(tenantId: string, id: string) {
+    return this.db.risk.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      include: riskDetailInclude,
+    });
+  }
+
+  runWorkflowTransaction<T>(
+    operation: (repository: RiskWorkflowRepository) => Promise<T>,
+  ) {
+    return this.db.$transaction((transaction) =>
+      operation(new RiskWorkflowRepository(transaction)),
+    );
+  }
+}
+
+export class RiskWorkflowRepository {
+  constructor(private readonly transaction: Prisma.TransactionClient) {}
+
+  findForUpdate(tenantId: string, id: string) {
+    return this.transaction.risk.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      include: riskDetailInclude,
+    });
+  }
+
+  /**
+   * Another live risk on the same KPI actual, which
+   * `risks_one_active_per_kpi_actual` would reject. Used to refuse a reopen
+   * with a specific error instead of a bare unique-index violation.
+   */
+  findCompetingActiveRisk(tenantId: string, kpiActualId: string, excludeId: string) {
+    return this.transaction.risk.findFirst({
+      where: {
+        tenantId,
+        kpiActualId,
+        deletedAt: null,
+        id: { not: excludeId },
+        status: { notIn: ["CLOSED", "ARCHIVED"] },
+      },
+      select: { id: true, code: true, status: true },
+    });
+  }
+
+  findActiveMember(tenantId: string, userId: string) {
+    return this.transaction.userCompany.findFirst({
+      where: { tenantId, userId, status: "ACTIVE", user: { status: "ACTIVE" } },
+      select: { userId: true },
+    });
+  }
+
+  findTreatment(tenantId: string, riskId: string, treatmentId: string) {
+    return this.transaction.riskTreatment.findFirst({
+      where: { tenantId, riskId, id: treatmentId },
+    });
+  }
+
+  /** A later row already supersedes this treatment, so it cannot be reused. */
+  findSupersedingTreatment(tenantId: string, treatmentId: string) {
+    return this.transaction.riskTreatment.findFirst({
+      where: { tenantId, supersedesId: treatmentId },
+      select: { id: true },
+    });
+  }
+
+  createReview(
+    tenantId: string,
+    riskId: string,
+    reviewerId: string,
+    data: {
+      comments: string;
+      likelihoodAtReview: number | null;
+      impactAtReview: number | null;
+    },
+  ) {
+    return this.transaction.riskReview.create({
+      data: { tenantId, riskId, reviewerId, ...data },
+    });
+  }
+
+  createTreatment(
+    tenantId: string,
+    riskId: string,
+    recordedById: string,
+    data: {
+      strategy: RiskTreatmentStrategy;
+      plan: string;
+      ownerId: string | null;
+      dueDate: Date | null;
+      status: RiskTreatmentStatus;
+      completedAt: Date | null;
+      effectivenessNotes: string | null;
+      supersedesId: string | null;
+    },
+  ) {
+    return this.transaction.riskTreatment.create({
+      data: { tenantId, riskId, recordedById, ...data },
+    });
+  }
+
+  updateRisk(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    patch: RiskWorkflowPatch,
+  ) {
+    return this.transaction.risk.update({
+      where: { id },
+      data: { ...patch, updatedById: actorUserId },
+      include: riskDetailInclude,
+    });
+  }
+
+  writeAudit(
+    tenantId: string,
+    actorUserId: string,
+    action: string,
+    riskId: string,
+    metadata: Prisma.InputJsonValue,
+    context: AuditContext,
+  ) {
+    return this.transaction.auditEvent.create({
+      data: {
+        tenantId,
+        userId: actorUserId,
+        action,
+        entityType: "RISK",
+        entityId: riskId,
+        metadata,
+        ...(context.ip ? { ipAddress: context.ip } : {}),
+        ...(context.userAgent ? { userAgent: context.userAgent } : {}),
+      },
     });
   }
 }

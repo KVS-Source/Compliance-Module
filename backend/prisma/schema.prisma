@@ -80,6 +80,15 @@ enum RiskTreatmentStrategy {
   ACCEPT
 }
 
+/// Chosen by this project, not taken from the client workbook. See
+/// docs/reviews/risk-treatment-status-decision.md.
+enum RiskTreatmentStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 model Tenant {
   id                       String             @id @default(uuid()) @db.Uuid
   code                     String             @unique
@@ -106,6 +115,8 @@ model Tenant {
   kpiActuals               KpiActual[]
   kpiApprovals             KpiApproval[]
   risks                    Risk[]
+  riskReviews              RiskReview[]
+  riskTreatments           RiskTreatment[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
 
@@ -148,6 +159,9 @@ model User {
   ownedRisks                Risk[]             @relation("RiskOwner")
   createdRisks              Risk[]             @relation("RiskCreatedBy")
   updatedRisks              Risk[]             @relation("RiskUpdatedBy")
+  reviewedRisks             RiskReview[]       @relation("RiskReviewReviewer")
+  ownedRiskTreatments       RiskTreatment[]    @relation("RiskTreatmentOwner")
+  recordedRiskTreatments    RiskTreatment[]    @relation("RiskTreatmentRecordedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -542,6 +556,8 @@ model Risk {
   owner              User?                  @relation("RiskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   createdBy          User                   @relation("RiskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy          User                   @relation("RiskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  reviews            RiskReview[]
+  treatments         RiskTreatment[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -551,6 +567,58 @@ model Risk {
   @@index([tenantId, kpiTargetId])
   @@index([tenantId, ownerId, status, deletedAt])
   @@map("risks")
+}
+
+/// Append-only review ledger. The `risk_reviews_append_only` trigger rejects
+/// UPDATE and DELETE, so a recorded review stands as written.
+model RiskReview {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  riskId             String   @map("risk_id") @db.Uuid
+  reviewerId         String?  @map("reviewer_id") @db.Uuid
+  comments           String
+  likelihoodAtReview Int?     @map("likelihood_at_review")
+  impactAtReview     Int?     @map("impact_at_review")
+  reviewedAt         DateTime @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  risk               Risk     @relation(fields: [tenantId, riskId], references: [tenantId, id], onDelete: Restrict)
+  reviewer           User?    @relation("RiskReviewReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, riskId, reviewedAt])
+  @@index([tenantId, reviewerId, reviewedAt])
+  @@map("risk_reviews")
+}
+
+/// Append-only treatment ledger. Rows are immutable: completing a treatment
+/// inserts a new COMPLETED row rather than editing the original, so the
+/// current treatment is the latest row. The `risk_treatments_append_only`
+/// trigger rejects UPDATE and DELETE.
+model RiskTreatment {
+  id                 String                @id @default(uuid()) @db.Uuid
+  tenantId           String                @map("tenant_id") @db.Uuid
+  riskId             String                @map("risk_id") @db.Uuid
+  strategy           RiskTreatmentStrategy
+  plan               String
+  ownerId            String?               @map("owner_id") @db.Uuid
+  dueDate            DateTime?             @map("due_date") @db.Date
+  completedAt        DateTime?             @map("completed_at") @db.Timestamptz(6)
+  status             RiskTreatmentStatus   @default(PLANNED)
+  effectivenessNotes String?               @map("effectiveness_notes")
+  supersedesId       String?               @map("supersedes_id") @db.Uuid
+  recordedById       String                @map("recorded_by_id") @db.Uuid
+  recordedAt         DateTime              @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  risk               Risk                  @relation(fields: [tenantId, riskId], references: [tenantId, id], onDelete: Restrict)
+  owner              User?                 @relation("RiskTreatmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  recordedBy         User                  @relation("RiskTreatmentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  supersedes         RiskTreatment?        @relation("RiskTreatmentSupersedes", fields: [tenantId, supersedesId], references: [tenantId, id], onDelete: Restrict)
+  supersededBy       RiskTreatment[]       @relation("RiskTreatmentSupersedes")
+
+  @@unique([tenantId, id])
+  @@index([tenantId, riskId, recordedAt])
+  @@index([tenantId, ownerId, status])
+  @@map("risk_treatments")
 }
 
 model RefreshToken {

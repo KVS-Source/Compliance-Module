@@ -106,6 +106,8 @@ const openRisk = {
   closureReason: null,
   createdAt: "2026-07-27T00:00:00.000Z",
   updatedAt: "2026-07-27T00:00:00.000Z",
+  reviews: [],
+  treatments: [],
 };
 
 const closedRisk = {
@@ -115,6 +117,8 @@ const closedRisk = {
   title: "Closed historical KPI miss",
   status: "CLOSED",
   closedAt: "2026-07-20T00:00:00.000Z",
+  reviews: [],
+  treatments: [],
 };
 
 const manualRisk = {
@@ -129,6 +133,8 @@ const manualRisk = {
     configuration: null,
     target: null,
   },
+  reviews: [],
+  treatments: [],
 };
 
 const success = (data: unknown, meta?: unknown) => ({

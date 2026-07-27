@@ -43,3 +43,89 @@ export const riskListSchema = paginationSchema.extend({
 });
 
 export type RiskListQuery = z.infer<typeof riskListSchema>;
+
+const assessmentValue = z.coerce.number().int().min(1).max(5);
+
+const requiredText = (maximum: number) =>
+  z.string().trim().min(1).max(maximum);
+
+const dateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must use YYYY-MM-DD")
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return (
+      !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
+    );
+  }, "Date must be valid");
+
+/**
+ * A revised assessment needs both dimensions or neither: a likelihood without
+ * an impact yields no score, and the database enforces the same rule.
+ */
+export const createRiskReviewSchema = z
+  .object({
+    comments: requiredText(2_000),
+    likelihoodAtReview: assessmentValue.nullable().optional(),
+    impactAtReview: assessmentValue.nullable().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const hasLikelihood = value.likelihoodAtReview != null;
+    const hasImpact = value.impactAtReview != null;
+    if (hasLikelihood !== hasImpact) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [hasLikelihood ? "impactAtReview" : "likelihoodAtReview"],
+        message:
+          "Provide both a revised likelihood and impact, or neither",
+      });
+    }
+  });
+
+export const createRiskTreatmentSchema = z
+  .object({
+    strategy: z.enum(["AVOID", "MITIGATE", "TRANSFER", "ACCEPT"]),
+    plan: requiredText(4_000),
+    ownerId: z.string().uuid().nullable().optional(),
+    dueDate: dateSchema.nullable().optional(),
+    status: z.enum(["PLANNED", "IN_PROGRESS", "CANCELLED"]).default("PLANNED"),
+  })
+  .strict();
+
+/**
+ * Completion inserts a new COMPLETED row superseding the original rather than
+ * editing it, so the ledger stays append-only.
+ */
+export const completeRiskTreatmentSchema = z
+  .object({
+    effectivenessNotes: z.string().trim().min(1).max(4_000).optional(),
+  })
+  .strict()
+  .default({});
+
+export const assignRiskOwnerSchema = z
+  .object({ ownerId: z.string().uuid().nullable() })
+  .strict();
+
+export const closeRiskSchema = z
+  .object({ reason: requiredText(2_000) })
+  .strict();
+
+export const reopenRiskSchema = z
+  .object({ reason: requiredText(2_000) })
+  .strict();
+
+export const riskTreatmentParamsSchema = z.object({
+  id: z.string().uuid(),
+  treatmentId: z.string().uuid(),
+});
+
+export type CreateRiskReviewBody = z.infer<typeof createRiskReviewSchema>;
+export type CreateRiskTreatmentBody = z.infer<typeof createRiskTreatmentSchema>;
+export type CompleteRiskTreatmentBody = z.infer<
+  typeof completeRiskTreatmentSchema
+>;
+export type AssignRiskOwnerBody = z.infer<typeof assignRiskOwnerSchema>;
+export type CloseRiskBody = z.infer<typeof closeRiskSchema>;
+export type ReopenRiskBody = z.infer<typeof reopenRiskSchema>;
