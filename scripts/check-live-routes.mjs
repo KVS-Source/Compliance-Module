@@ -52,6 +52,20 @@ const requiredLiveChildRoutes = [
   { path: "master/frameworks/:frameworkId/rules", component: "FrameworkRulesPage" },
 ];
 
+const approvedClientNavigation = [
+  "/dashboard",
+  "/admin/companies",
+  "/admin/users",
+  "/admin/departments",
+  "/admin/locations",
+  "/admin/organisation-units",
+  "/master/frameworks",
+  "/kpi/configuration",
+  "/kpi/actual-entry",
+  "/kpi/approval",
+  "/compliance/risks",
+];
+
 const failures = [];
 const displayPath = (path) => relative(repositoryRoot, path);
 
@@ -76,6 +90,40 @@ if (!migratedBlockMatch) {
         `${displayPath(routeDefinitionsPath)} — "${path}" is missing from migratedPaths, so the router would render PrototypeRoutePage for it`,
       );
     }
+  }
+}
+
+const clientNavigationBlockMatch = definitionsSource.match(
+  /export const clientNavigationPaths = new Set\(\[([\s\S]*?)\]\);/,
+);
+if (!clientNavigationBlockMatch) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — could not locate the clientNavigationPaths set`,
+  );
+} else {
+  const visiblePaths = [
+    ...clientNavigationBlockMatch[1].matchAll(/"([^"]+)"/g),
+  ].map(([, path]) => path);
+  const unexpected = visiblePaths.filter(
+    (path) => !approvedClientNavigation.includes(path),
+  );
+  const missing = approvedClientNavigation.filter(
+    (path) => !visiblePaths.includes(path),
+  );
+  if (unexpected.length > 0) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — UAT navigation exposes unapproved routes: ${unexpected.join(", ")}`,
+    );
+  }
+  if (missing.length > 0) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — UAT navigation is missing approved routes: ${missing.join(", ")}`,
+    );
+  }
+  if (new Set(visiblePaths).size !== visiblePaths.length) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — UAT navigation contains duplicate paths`,
+    );
   }
 }
 
@@ -128,5 +176,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: ${requiredLiveRoutes.length + requiredLiveChildRoutes.length} routes remain API-connected.`,
+  `Live-route guard passed: ${requiredLiveRoutes.length + requiredLiveChildRoutes.length} routes remain API-connected and ${approvedClientNavigation.length} UAT routes are visible.`,
 );

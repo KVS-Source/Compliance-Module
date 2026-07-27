@@ -128,17 +128,42 @@ const groups: Array<[string, string, LucideIcon, string[]]> = [
   ["analytics", "Analytics & Reports", ChartColumnBig, ["Analytics & Reports"]],
 ];
 
-export const navigationGroups: NavigationGroup[] = groups.map(
-  ([id, label, icon, sections]) => ({
+/**
+ * Emergency UAT navigation freeze. Prototype URLs stay registered for
+ * development and retain their banner, but only API-backed release modules
+ * appear in the ordinary client navigation.
+ */
+export const clientNavigationPaths = new Set([
+  "/dashboard",
+  "/admin/companies",
+  "/admin/users",
+  "/admin/departments",
+  "/admin/locations",
+  "/admin/organisation-units",
+  "/master/frameworks",
+  "/kpi/configuration",
+  "/kpi/actual-entry",
+  "/kpi/approval",
+  "/compliance/risks",
+]);
+
+export const navigationGroups: NavigationGroup[] = groups
+  .map(([id, label, icon, sections]) => ({
     id,
     label,
     icon,
-    routes: routeDefinitions.filter((definition) => sections.includes(definition.section)),
-  }),
-);
+    routes: routeDefinitions.filter(
+      (definition) =>
+        sections.includes(definition.section) &&
+        clientNavigationPaths.has(definition.path),
+    ),
+  }))
+  .filter((group) => group.routes.length > 0);
 
 export const utilityRoutes = routeDefinitions.filter(
-  (definition) => definition.section === "Utility",
+  (definition) =>
+    definition.section === "Utility" &&
+    clientNavigationPaths.has(definition.path),
 );
 
 export const migratedPaths = new Set([

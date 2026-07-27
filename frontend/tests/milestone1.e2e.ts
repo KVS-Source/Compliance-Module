@@ -17,6 +17,28 @@ const units = [{ id: "50000000-0000-4000-8000-000000000001", code: "UNIT-001", n
 const frameworks = [{ id: "60000000-0000-4000-8000-000000000001", code: "FRM-001", name: "ISO 9001", version: "2025", description: "Quality management system", status: "ACTIVE" }];
 const rules = [{ id: "70000000-0000-4000-8000-000000000001", frameworkId: frameworks[0]!.id, code: "RUL-001", title: "Documented information control", description: "Control documented information and retained evidence.", status: "ACTIVE" }];
 const kpis = [{ id: "80000000-0000-4000-8000-000000000001", code: "KPI-001", name: "Customer Satisfaction Score", description: "Quarterly verified customer satisfaction.", unit: "%", direction: "HIGHER_IS_BETTER", frequency: "QUARTERLY", status: "ACTIVE" }];
+const dashboardSummary = {
+  kpis: {
+    activeConfigurations: 9,
+    meetingTarget: 3,
+    amberActuals: 2,
+    redActuals: 3,
+    pendingApprovals: 1,
+  },
+  risks: {
+    openRisks: 1,
+    minorRisks: 2,
+    majorRisks: 2,
+    risksUnderTreatment: 1,
+    closedRisks: 1,
+  },
+  organisation: {
+    departments: 8,
+    locations: 2,
+    organisationUnits: 4,
+  },
+  frameworks: { activeFrameworks: 12 },
+};
 
 const identity = (activeCompany = companies[0]!) => ({
   id: users[0]!.id,
@@ -67,6 +89,7 @@ async function installMockApi(
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "switched-access-token", user: identity(activeCompany) })) });
     }
     const data = path === "/api/v1/tenants" ? companies
+      : path === "/api/v1/dashboard/summary" ? dashboardSummary
       : path === "/api/v1/users" ? users
         : path.startsWith("/api/v1/users/") ? users.find((user) => path.endsWith(user.id))
           : path === "/api/v1/organisation/departments" ? departments
@@ -102,6 +125,8 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByText("Active KPI Configurations")).toBeVisible();
+  await expect(page.getByText("9", { exact: true })).toBeVisible();
   const stored = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } }));
   expect(JSON.stringify(stored)).not.toContain("Admin001!Secure");
   expect(JSON.stringify(stored)).not.toContain("mock-access-token");
@@ -134,6 +159,31 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
   await page.getByRole("button", { name: `View ${frameworks[0]!.id}` }).click();
   await expect(page).toHaveURL(new RegExp(`/master/frameworks/${frameworks[0]!.id}/rules$`));
   await expect(page.getByText("RUL-001")).toBeVisible();
+});
+
+test("UAT navigation exposes only working client modules", async ({ page }) => {
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+  const hrefs = await page
+    .locator(".sidebar nav a")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href")).filter(Boolean),
+    );
+  expect(hrefs).toEqual([
+    "/dashboard",
+    "/admin/users",
+    "/admin/companies",
+    "/admin/departments",
+    "/admin/locations",
+    "/admin/organisation-units",
+    "/master/frameworks",
+    "/kpi/configuration",
+    "/kpi/actual-entry",
+    "/kpi/approval",
+    "/compliance/risks",
+  ]);
+  await expect(page.getByRole("link", { name: "Policy Register" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Reports" })).toHaveCount(0);
 });
 
 const preservedPaths = [
