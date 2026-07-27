@@ -343,6 +343,40 @@ export interface CreateKpiActualInput {
   comments?: string | null;
 }
 
+export type ApprovalDecision = "APPROVED" | "REJECTED" | "RESUBMITTED";
+
+/**
+ * One entry in the append-only `kpi_approvals` ledger. Rows are immutable:
+ * the `kpi_approvals_append_only` database trigger rejects UPDATE and DELETE.
+ */
+export interface KpiApprovalEntry {
+  id: string;
+  decision: ApprovalDecision;
+  reviewer: KpiPerson | null;
+  comments: string | null;
+  decidedAt: string;
+}
+
+/** A KPI actual as returned by the read routes, with its decision history. */
+export interface KpiActualRecord extends KpiActual {
+  approvals: KpiApprovalEntry[];
+}
+
+export interface KpiActualListQuery {
+  page?: number;
+  pageSize?: number;
+  approvalStatus?: SubmissionStatus | "";
+  kpiConfigurationId?: string;
+  kpiDefinitionId?: string;
+  ragStatus?: RagStatus | "";
+  awaitingMyDecision?: boolean;
+}
+
+export interface KpiActualListResult {
+  data: KpiActualRecord[];
+  meta: PageMeta;
+}
+
 export type RecordStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
 
 /**

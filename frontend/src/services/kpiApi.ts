@@ -4,6 +4,9 @@ import type {
   CreateKpiConfigurationInput,
   CreateKpiTargetInput,
   KpiActual,
+  KpiActualListQuery,
+  KpiActualListResult,
+  KpiActualRecord,
   KpiConfiguration,
   KpiConfigurationListQuery,
   KpiConfigurationListResult,
@@ -63,6 +66,76 @@ export const kpiApi = {
         method: "POST",
         body: JSON.stringify(input),
       })
+    ).data;
+  },
+
+  async listActuals(
+    query: KpiActualListQuery = {},
+  ): Promise<KpiActualListResult> {
+    const params = new URLSearchParams();
+    params.set("page", String(query.page ?? 1));
+    params.set("pageSize", String(query.pageSize ?? DEFAULT_PAGE_SIZE));
+    if (query.approvalStatus) params.set("approvalStatus", query.approvalStatus);
+    if (query.kpiConfigurationId) {
+      params.set("kpiConfigurationId", query.kpiConfigurationId);
+    }
+    if (query.kpiDefinitionId) {
+      params.set("kpiDefinitionId", query.kpiDefinitionId);
+    }
+    if (query.ragStatus) params.set("ragStatus", query.ragStatus);
+    if (query.awaitingMyDecision) params.set("awaitingMyDecision", "true");
+    const response = await apiRequest<KpiActualRecord[]>(
+      `/kpi-actuals?${params.toString()}`,
+    );
+    return {
+      data: response.data,
+      meta: response.meta ?? {
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE,
+        total: response.data.length,
+        totalPages: 1,
+      },
+    };
+  },
+
+  async getActual(id: string) {
+    return (
+      await apiRequest<KpiActualRecord>(
+        `/kpi-actuals/${encodeURIComponent(id)}`,
+      )
+    ).data;
+  },
+
+  async approveActual(id: string, comments: string | null) {
+    return (
+      await apiRequest<KpiActual>(
+        `/kpi-actuals/${encodeURIComponent(id)}/approve`,
+        {
+          method: "POST",
+          body: JSON.stringify(comments ? { comments } : {}),
+        },
+      )
+    ).data;
+  },
+
+  async rejectActual(id: string, reason: string) {
+    return (
+      await apiRequest<KpiActual>(
+        `/kpi-actuals/${encodeURIComponent(id)}/reject`,
+        { method: "POST", body: JSON.stringify({ reason }) },
+      )
+    ).data;
+  },
+
+  async resubmitActual(id: string, comments: string | null) {
+    return (
+      await apiRequest<KpiActual>(
+        `/kpi-actuals/${encodeURIComponent(id)}/resubmit`,
+        {
+          method: "POST",
+          body: JSON.stringify(comments ? { comments } : {}),
+        },
+      )
     ).data;
   },
 

@@ -412,6 +412,16 @@ export const openApiDocument = {
       },
     },
     "/kpi-actuals": {
+      get: {
+        summary: "List Company KPI actuals",
+        description:
+          "Read-only. Filters: approvalStatus, kpiConfigurationId, kpiDefinitionId, ragStatus, and awaitingMyDecision, which narrows to rows the authenticated user may decide. Each row carries its append-only kpi_approvals history and any linked risk.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI actual page" },
+          "403": { description: "Missing kpis:read permission" },
+        },
+      },
       post: {
         summary: "Submit a Company KPI actual against an approved target",
         security: [{ bearerAuth: [] }],
@@ -470,6 +480,19 @@ export const openApiDocument = {
             description:
               "Automatic approval requires evidence support that is not implemented",
           },
+        },
+      },
+    },
+    "/kpi-actuals/{id}": {
+      get: {
+        summary: "Get a Company KPI actual with its approval history",
+        description:
+          "Read-only. The approvals array is the append-only kpi_approvals ledger in decision order, enforced by the kpi_approvals_append_only database trigger.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "KPI actual with approval history" },
+          "403": { description: "Missing kpis:read permission" },
+          "404": { description: "Actual not in Company context" },
         },
       },
     },
