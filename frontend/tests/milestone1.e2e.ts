@@ -1,5 +1,10 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+/**
+ * This suite uses browser-intercepted API responses. It verifies the React
+ * experience and request contract, not Express/Prisma/PostgreSQL integration.
+ */
+
 const companies = [
   { id: "10000000-0000-4000-8000-000000000001", code: "COM-001", name: "Company 001", industry: "Life Sciences", country: "Country 001", status: "ACTIVE", created: "2026-07-01T00:00:00.000Z" },
   { id: "10000000-0000-4000-8000-000000000002", code: "COM-002", name: "Company 002", industry: "Healthcare Operations", country: "Country 001", status: "ACTIVE", created: "2026-07-02T00:00:00.000Z" },
@@ -54,11 +59,14 @@ const identity = (activeCompany = companies[0]!) => ({
 });
 
 const success = (data: unknown) => ({ success: true, data });
+const SERVICE_UNAVAILABLE_COPY =
+  "The service is temporarily unavailable. Please retry when the connection is restored.";
 
 async function installMockApi(
   page: Page,
   startAuthenticated: boolean,
   undeclaredWrites: string[] = [],
+  summary: unknown = dashboardSummary,
 ) {
   let authenticated = startAuthenticated;
   let activeCompany = companies[0]!;
@@ -89,7 +97,7 @@ async function installMockApi(
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "switched-access-token", user: identity(activeCompany) })) });
     }
     const data = path === "/api/v1/tenants" ? companies
-      : path === "/api/v1/dashboard/summary" ? dashboardSummary
+      : path === "/api/v1/dashboard/summary" ? summary
       : path === "/api/v1/users" ? users
         : path.startsWith("/api/v1/users/") ? users.find((user) => path.endsWith(user.id))
           : path === "/api/v1/organisation/departments" ? departments
@@ -436,4 +444,323 @@ test("logout still survives a page reload from a status route", async ({
   await page.reload();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+});
+
+test("every dashboard card and View all control reaches its live route by keyboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  const metricDestinations = [
+    "/kpi/configuration",
+    "/kpi/approval",
+    "/kpi/approval",
+    "/kpi/approval",
+    "/kpi/approval",
+    "/compliance/risks",
+    "/compliance/risks",
+    "/compliance/risks",
+    "/compliance/risks",
+    "/compliance/risks",
+  ];
+  await expect(page.locator(".dashboard-cards a")).toHaveCount(
+    metricDestinations.length,
+  );
+  for (let index = 0; index < metricDestinations.length; index += 1) {
+    const link = page.locator(".dashboard-cards a").nth(index);
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(
+      new RegExp(`${metricDestinations[index]!.replaceAll("/", "\\/")}$`),
+    );
+    await page.goto("/dashboard");
+  }
+
+  const summaryDestinations = [
+    "/admin/departments",
+    "/admin/locations",
+    "/admin/organisation-units",
+    "/master/frameworks",
+  ];
+  await expect(page.locator(".boundary-grid a")).toHaveCount(
+    summaryDestinations.length,
+  );
+  for (let index = 0; index < summaryDestinations.length; index += 1) {
+    const link = page.locator(".boundary-grid a").nth(index);
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(
+      new RegExp(`${summaryDestinations[index]!.replaceAll("/", "\\/")}$`),
+    );
+    await page.goto("/dashboard");
+  }
+
+  await page.getByRole("link", { name: "View all departments" }).click();
+  await expect(page).toHaveURL(/\/admin\/departments$/);
+  await page.goto("/dashboard");
+  await page.getByRole("link", { name: "View all frameworks" }).click();
+  await expect(page).toHaveURL(/\/master\/frameworks$/);
+});
+
+test("desktop header controls are truthful, close correctly and do not write", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const undeclaredWrites: string[] = [];
+  await installMockApi(page, true, undeclaredWrites);
+  await page.goto("/dashboard");
+
+  const notificationButton = page.getByRole("button", {
+    name: "Notifications",
+  });
+  await notificationButton.click();
+  const notifications = page.getByRole("dialog", { name: "Notifications" });
+  await expect(notifications).toBeVisible();
+  await expect(notifications).toContainText("1 pending KPI approval");
+  await expect(notifications).toContainText("1 open · 2 major risks");
+  expect(undeclaredWrites).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(notifications).toBeHidden();
+  await notificationButton.click();
+  await page.locator(".page-head h1").click();
+  await expect(notifications).toBeHidden();
+
+  await notificationButton.click();
+  await page.locator("#company-switcher").selectOption(companies[1]!.id);
+  await expect(notifications).toBeHidden();
+
+  await page.getByRole("button", { name: "KPI Approval Centre" }).click();
+  await expect(page).toHaveURL(/\/kpi\/approval$/);
+  await page.goto("/dashboard");
+
+  const routeSearch = page.getByPlaceholder("Search pages and modules");
+  await routeSearch.fill("Policy Register");
+  const policyResult = page.getByRole("option", { name: /Policy Register/ });
+  await expect(policyResult).toContainText("In Development");
+  await policyResult.click();
+  await expect(page).toHaveURL(/\/compliance\/policy-register$/);
+
+  await page.goto("/dashboard");
+  await routeSearch.fill("User Master");
+  await expect(page.locator(".global-search .search-results")).toHaveCount(0);
+});
+
+test("notification fallback is explicit when no supported summary is available", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const undeclaredWrites: string[] = [];
+  await installMockApi(page, true, undeclaredWrites, {
+    kpis: null,
+    risks: null,
+    organisation: null,
+    frameworks: null,
+  });
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Notifications" }).click();
+  const notifications = page.getByRole("dialog", { name: "Notifications" });
+  await expect(
+    notifications.getByText(
+      "No notification feed is configured for this UAT release.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    notifications.getByRole("button", { name: "KPI Approval" }),
+  ).toBeVisible();
+  await expect(
+    notifications.getByRole("button", { name: "Risk Register" }),
+  ).toBeVisible();
+  expect(undeclaredWrites).toEqual([]);
+});
+
+test("mobile route search opens, identifies status, navigates and closes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  await page.getByRole("button", { name: "Open global search" }).click();
+  const searchDialog = page.getByRole("dialog", {
+    name: "Search pages and modules",
+  });
+  await expect(searchDialog).toBeVisible();
+  const input = searchDialog.getByPlaceholder("Search pages and modules");
+  await input.fill("GenRAC");
+  const result = searchDialog.getByRole("option", {
+    name: /GenRAC Integration/,
+  });
+  await expect(result).toContainText("Awaiting GenRAC Access");
+  await result.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/data\/genrac-integration$/);
+  await expect(searchDialog).toBeHidden();
+
+  await page.getByRole("button", { name: "Open global search" }).click();
+  await page.keyboard.press("Escape");
+  await expect(searchDialog).toBeHidden();
+});
+
+for (const outage of ["network", "500"] as const) {
+  test(`protected routes show retry and recover after refresh ${outage} failure without a loop`, async ({
+    page,
+  }) => {
+    let available = false;
+    let refreshRequests = 0;
+    await page.route("**/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/v1/auth/refresh") {
+        refreshRequests += 1;
+        if (!available) {
+          if (outage === "network") return route.abort("failed");
+          return route.fulfill({
+            status: 500,
+            contentType: "application/json",
+            body: JSON.stringify({
+              success: false,
+              error: { code: "INTERNAL_ERROR", message: "Unavailable" },
+            }),
+          });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            success({ accessToken: "recovered-access-token", user: identity() }),
+          ),
+        });
+      }
+      if (path === "/api/v1/dashboard/summary") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(success(dashboardSummary)),
+        });
+      }
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Not found" },
+        }),
+      });
+    });
+
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(
+      page.getByRole("alert").getByText("Service temporarily unavailable"),
+    ).toBeVisible();
+    expect(refreshRequests).toBe(1);
+    await page.waitForTimeout(300);
+    expect(refreshRequests).toBe(1);
+
+    available = true;
+    await page.getByRole("button", { name: "Retry connection" }).click();
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    expect(refreshRequests).toBe(2);
+  });
+}
+
+for (const invalidCase of [
+  ["invalid refresh token", "Invalid refresh token"],
+  ["revoked session", "Refresh token reuse detected"],
+] as const) {
+  test(`explicit ${invalidCase[0]} still redirects to login`, async ({
+    page,
+  }) => {
+    let refreshRequests = 0;
+    await page.route("**/api/v1/auth/refresh", async (route) => {
+      refreshRequests += 1;
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: { code: "UNAUTHORIZED", message: invalidCase[1] },
+        }),
+      });
+    });
+
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(refreshRequests).toBe(1);
+  });
+}
+
+test("an authenticated shell survives a transient refresh failure and recovers", async ({
+  page,
+}) => {
+  let refreshRequests = 0;
+  let dashboardRequests = 0;
+  let recovered = false;
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/auth/refresh") {
+      refreshRequests += 1;
+      if (refreshRequests >= 2 && !recovered) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: false,
+            error: { code: "INTERNAL_ERROR", message: "Unavailable" },
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({ accessToken: "active-access-token", user: identity() }),
+        ),
+      });
+    }
+    if (path === "/api/v1/dashboard/summary") {
+      dashboardRequests += 1;
+      if (!recovered) {
+        return route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: false,
+            error: { code: "UNAUTHORIZED", message: "Access token expired" },
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(success(dashboardSummary)),
+      });
+    }
+    return route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Not found" },
+      }),
+    });
+  });
+
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByText(SERVICE_UNAVAILABLE_COPY)).toBeVisible();
+  expect(refreshRequests).toBe(2);
+  await page.waitForTimeout(300);
+  expect(refreshRequests).toBe(2);
+
+  recovered = true;
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByText("Active KPI Configurations")).toBeVisible();
+  expect(refreshRequests).toBe(3);
 });
