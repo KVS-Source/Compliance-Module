@@ -2,6 +2,14 @@ import { ApiError } from "../services/apiClient";
 
 export type FieldErrors = Record<string, string>;
 
+export const SAFE_DECIMAL_MESSAGE =
+  "Enter a valid number with up to 14 digits before the decimal and up to 4 digits after it.";
+
+const safeValidationMessage = (message: string) =>
+  /decimal\s*\(\s*18\s*,\s*4\s*\)/i.test(message)
+    ? SAFE_DECIMAL_MESSAGE
+    : message;
+
 const isDetail = (
   value: unknown,
 ): value is { path: string; message: string } =>
@@ -22,7 +30,7 @@ export function fieldErrorsFromApi(error: unknown): FieldErrors {
   const fields: FieldErrors = {};
   for (const detail of error.details) {
     if (!isDetail(detail) || !detail.path || fields[detail.path]) continue;
-    fields[detail.path] = detail.message;
+    fields[detail.path] = safeValidationMessage(detail.message);
   }
   return fields;
 }

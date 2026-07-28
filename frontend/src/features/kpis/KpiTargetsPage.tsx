@@ -26,6 +26,8 @@ import { kpiTargetDecisionError } from "../../utils/fieldErrors";
 import { KpiTargetForm, type TargetFormMode } from "./KpiTargetForm";
 import {
   approvalStatusLabel,
+  directionDescription,
+  directionLabel,
   enumLabel,
   formatDateTime,
   named,
@@ -324,6 +326,15 @@ export function KpiTargetsPage() {
             <div>
               <dt>Review frequency</dt>
               <dd>{enumLabel(config.reviewFrequency)}</dd>
+            </div>
+            <div>
+              <dt>Direction</dt>
+              <dd>
+                <span>{directionLabel(config.kpi.direction)}</span>
+                <small className="detail-help">
+                  {directionDescription(config.kpi.direction)}
+                </small>
+              </dd>
             </div>
             <div>
               <dt>Owner</dt>

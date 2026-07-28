@@ -27,7 +27,12 @@ import type {
 } from "../../types/api";
 import { ApiError } from "../../services/apiClient";
 import { KpiConfigurationForm } from "./KpiConfigurationForm";
-import { enumLabel, named, scopeSummary } from "./kpiFormatting";
+import {
+  directionLabel,
+  enumLabel,
+  named,
+  scopeSummary,
+} from "./kpiFormatting";
 
 const PAGE_SIZE = 20;
 
@@ -314,6 +319,9 @@ export function KpiConfigurationPage({
                           <small className="mono">
                             {configuration.kpi.code}
                           </small>
+                          <small>
+                            {directionLabel(configuration.kpi.direction)}
+                          </small>
                         </div>
                       </td>
                       <td>
@@ -431,6 +439,10 @@ export function KpiConfigurationPage({
                     <span className="sr-only">Unit of measure </span>
                     {configuration.kpi.unit} ·{" "}
                     {enumLabel(configuration.reviewFrequency)}
+                  </p>
+                  <p>
+                    <span className="sr-only">Direction </span>
+                    {directionLabel(configuration.kpi.direction)}
                   </p>
                   <p>
                     <span className="sr-only">Scope </span>

@@ -165,7 +165,8 @@ type Mode =
   | "pending-other-submission"
   | "pending-server-rejects-self"
   | "duplicate-scope"
-  | "validation-error";
+  | "validation-error"
+  | "decimal-validation-error";
 
 interface MockOptions {
   permissions?: string[];
@@ -419,6 +420,18 @@ async function installKpiMock(page: Page, options: MockOptions = {}) {
       if (!has("kpi-target:write")) {
         return json(route, 403, failure("FORBIDDEN", "Permission denied"));
       }
+      if (mode === "decimal-validation-error") {
+        return json(
+          route,
+          400,
+          failure("VALIDATION_ERROR", "Request validation failed", [
+            {
+              path: "targetValue",
+              message: "Value must fit Decimal(18,4)",
+            },
+          ]),
+        );
+      }
       const body = request.postDataJSON() as Record<string, unknown>;
       const created = {
         ...baseTarget,
@@ -552,6 +565,16 @@ test.describe("KPI configuration and target management", () => {
 
     await gotoTargets(page);
     await expect(targetRows(page).first()).toBeVisible();
+    await expect(
+      page
+        .getByTestId("kpi-target-configuration-summary")
+        .getByText("Higher is better", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Values at or above target perform better.", {
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
   });
 
@@ -577,7 +600,11 @@ test.describe("KPI configuration and target management", () => {
     await page
       .getByLabel("KPI definition *")
       .selectOption(definition.id);
-    await expect(page.getByText("Higher is better")).toBeVisible();
+    await expect(
+      page
+        .getByLabel("Selected KPI definition")
+        .getByText("Higher is better", { exact: true }),
+    ).toBeVisible();
     await page.getByLabel("Owner *").selectOption(currentUser.id);
     await page.getByLabel("Effective from *").fill("2026-04-01");
     await page.getByRole("button", { name: "Create configuration" }).click();
@@ -600,6 +627,29 @@ test.describe("KPI configuration and target management", () => {
     await expect(
       page.getByText("Threshold must fit Decimal(6,2)"),
     ).toBeVisible();
+  });
+
+  test("replaces database decimal terminology with safe target copy", async ({
+    page,
+  }) => {
+    await installKpiMock(page, { mode: "decimal-validation-error" });
+    await gotoTargets(page);
+    await page.getByRole("button", { name: "New draft target" }).click();
+    await page.getByLabel("Period *").fill("FY26-27 Q2");
+    await page.getByLabel("Period start *").fill("2026-07-01");
+    await page.getByLabel("Period end *").fill("2026-09-30");
+    await page
+      .getByLabel(/Target value \*/)
+      .fill("123456789012345.12345");
+    await page.getByLabel("Effective from *").fill("2026-07-01");
+    await page.getByRole("button", { name: "New draft target" }).last().click();
+
+    await expect(
+      page.getByText(
+        "Enter a valid number with up to 14 digits before the decimal and up to 4 digits after it.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByText(/Decimal\(18,4\)/)).toHaveCount(0);
   });
 
   test("names the scope conflict on a 409", async ({ page }) => {
