@@ -38,13 +38,6 @@ const parseResponse = async <T>(response: Response): Promise<ApiSuccess<T>> => {
   } catch {
     // The envelope error below is safer than leaking an HTML proxy response.
   }
-  if (response.status >= 500) {
-    throw new ApiError(
-      SERVICE_UNAVAILABLE_MESSAGE,
-      response.status,
-      "SERVICE_UNAVAILABLE",
-    );
-  }
   if (!response.ok || !payload || payload.success === false) {
     const failure = payload && payload.success === false ? payload.error : null;
     throw new ApiError(
@@ -94,6 +87,16 @@ export const refreshSession = async (): Promise<AuthResult> => {
       .then(({ payload }) => {
         setAccessToken(payload.data.accessToken);
         return payload.data;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.status >= 500) {
+          throw new ApiError(
+            SERVICE_UNAVAILABLE_MESSAGE,
+            error.status,
+            "SERVICE_UNAVAILABLE",
+          );
+        }
+        throw error;
       })
       .finally(() => {
         refreshInFlight = null;
