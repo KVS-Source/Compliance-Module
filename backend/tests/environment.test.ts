@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseEnvironment } from "../src/config/env.js";
 import { assertSeedExecutionAllowed } from "../prisma/seed-safety.js";
 import { assertDemoSeedExecutionAllowed } from "../prisma/demo-seed-safety.js";
 
+const backendRoot = process.cwd();
+const repositoryRoot = resolve(backendRoot, "..");
 const strongSecret = "8fd6b41004a74ce6a5342382180e76fca0bdf5aa";
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
 
@@ -73,31 +77,74 @@ describe("seed execution safety", () => {
 });
 
 describe("demo seed execution safety", () => {
-  it("requires a runtime password without persisting it", () => {
+  it("allows approved non-production modes with a strong runtime password", () => {
+    for (const NODE_ENV of ["development", "test"]) {
+      expect(
+        assertDemoSeedExecutionAllowed({
+          NODE_ENV,
+          DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+        }),
+      ).toEqual({ password: "Synthetic-Only-001!" });
+    }
+  });
+
+  it("rejects missing or weak demo credentials", () => {
     expect(() =>
       assertDemoSeedExecutionAllowed({ NODE_ENV: "development" }),
     ).toThrow(/DEMO_SEED_PASSWORD/);
-    expect(
+    expect(() =>
       assertDemoSeedExecutionAllowed({
         NODE_ENV: "development",
-        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+        DEMO_SEED_PASSWORD: "too-short",
       }),
-    ).toEqual({ password: "Synthetic-Only-001!" });
+    ).toThrow(/DEMO_SEED_PASSWORD/);
   });
 
-  it("fails closed in production unless explicitly approved", () => {
+  it("always rejects production, including the retired override input", () => {
     expect(() =>
       assertDemoSeedExecutionAllowed({
         NODE_ENV: "production",
         DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
       }),
     ).toThrow(/disabled in production/);
-    expect(
+
+    const retiredOverrideEnvironment = {
+      NODE_ENV: "production",
+      ALLOW_DEMO_SEED: "true",
+      DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+    };
+    expect(() =>
+      assertDemoSeedExecutionAllowed(retiredOverrideEnvironment),
+    ).toThrow(/disabled in production/);
+  });
+
+  it("rejects missing or unapproved execution modes", () => {
+    expect(() =>
       assertDemoSeedExecutionAllowed({
-        NODE_ENV: "production",
-        ALLOW_DEMO_SEED: "true",
         DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
       }),
-    ).toEqual({ password: "Synthetic-Only-001!" });
+    ).toThrow(/only in development or test/);
+    expect(() =>
+      assertDemoSeedExecutionAllowed({
+        NODE_ENV: "staging",
+        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+      }),
+    ).toThrow(/only in development or test/);
+  });
+
+  it("is never invoked by application, Docker, or Compose startup", () => {
+    const packageJson = JSON.parse(
+      readFileSync(resolve(backendRoot, "package.json"), "utf8"),
+    ) as { scripts: Record<string, string> };
+    const startupSources = [
+      packageJson.scripts.start,
+      packageJson.scripts["start:docker"],
+      readFileSync(resolve(backendRoot, "src/server.ts"), "utf8"),
+      readFileSync(resolve(backendRoot, "src/app.ts"), "utf8"),
+      readFileSync(resolve(backendRoot, "Dockerfile"), "utf8"),
+      readFileSync(resolve(repositoryRoot, "docker-compose.yml"), "utf8"),
+    ].join("\n");
+
+    expect(startupSources).not.toMatch(/seed:demo|demo-seed/);
   });
 });

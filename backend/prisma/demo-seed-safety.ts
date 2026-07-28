@@ -1,18 +1,20 @@
 export interface DemoSeedEnvironment {
   NODE_ENV?: string;
-  ALLOW_DEMO_SEED?: string;
   DEMO_SEED_PASSWORD?: string;
 }
 
 export const assertDemoSeedExecutionAllowed = (
   environment: DemoSeedEnvironment = process.env,
 ) => {
+  if (environment.NODE_ENV === "production") {
+    throw new Error("Demo seed execution is disabled in production");
+  }
   if (
-    environment.NODE_ENV === "production" &&
-    environment.ALLOW_DEMO_SEED !== "true"
+    environment.NODE_ENV !== "development" &&
+    environment.NODE_ENV !== "test"
   ) {
     throw new Error(
-      "Demo seed execution is disabled in production unless ALLOW_DEMO_SEED=true",
+      "Demo seed execution is allowed only in development or test",
     );
   }
   const password = environment.DEMO_SEED_PASSWORD;

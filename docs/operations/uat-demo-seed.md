@@ -7,18 +7,20 @@ startup, Docker startup, or a migration.
 
 1. Apply the authoritative Prisma migrations.
 2. Choose a temporary UAT password of at least 12 characters.
-3. Run from `backend/`, supplying that value only through the environment:
+3. Confirm `DATABASE_URL` targets an isolated, disposable UAT database.
+4. Run from `backend/` with an explicitly non-production execution mode,
+   supplying the password only through the environment:
 
    ```sh
-   DEMO_SEED_PASSWORD='<temporary-uat-password>' npm run seed:demo
+   NODE_ENV=development DEMO_SEED_PASSWORD='<temporary-uat-password>' npm run seed:demo
    ```
 
-4. Run the command a second time. Entity counts must not increase.
+5. Run the exact command a second time. Entity counts must not increase.
 
-`NODE_ENV=production` is refused unless `ALLOW_DEMO_SEED=true` is also present.
-That override exists only for an explicitly approved UAT environment that
-happens to use production runtime settings. It must never be enabled against the
-final production database.
+The seed accepts only `NODE_ENV=development` or `NODE_ENV=test`.
+`NODE_ENV=production` is always refused and has no override. UAT operators must
+use an isolated database and the explicit non-production mode shown above;
+production runtime settings must never be weakened to run demonstration data.
 
 ## Synthetic login identities
 
