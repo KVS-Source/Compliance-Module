@@ -8,12 +8,18 @@ import {
   type PropsWithChildren,
 } from "react";
 import { authApi } from "../services/authApi";
-import { onSessionExpired } from "../services/apiClient";
+import {
+  SERVICE_UNAVAILABLE_MESSAGE,
+  isExplicitSessionInvalid,
+  onSessionExpired,
+} from "../services/apiClient";
 import type { AuthUser } from "../types/api";
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
+  restoreError: Error | null;
+  retrySessionRestore: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: AuthUser | null) => void;
@@ -23,40 +29,58 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUserState] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restoreError, setRestoreError] = useState<Error | null>(null);
+
+  const retrySessionRestore = useCallback(async () => {
+    setLoading(true);
+    setRestoreError(null);
+    try {
+      const identity = await authApi.refresh();
+      setUserState(identity);
+    } catch (error) {
+      if (isExplicitSessionInvalid(error)) {
+        setUserState(null);
+      } else {
+        setRestoreError(
+          error instanceof Error
+            ? error
+            : new Error(SERVICE_UNAVAILABLE_MESSAGE),
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    onSessionExpired(() => setUser(null));
-    void authApi
-      .refresh()
-      .then((identity) => {
-        if (active) setUser(identity);
-      })
-      .catch(() => {
-        if (active) setUser(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-      onSessionExpired(null);
-    };
-  }, []);
+    onSessionExpired(() => {
+      setUserState(null);
+      setRestoreError(null);
+    });
+    void retrySessionRestore();
+    return () => onSessionExpired(null);
+  }, [retrySessionRestore]);
 
   const login = useCallback(async (email: string, password: string) => {
     const identity = await authApi.login(email, password);
-    setUser(identity);
+    setRestoreError(null);
+    setUserState(identity);
   }, []);
 
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } finally {
-      setUser(null);
+      setRestoreError(null);
+      setUserState(null);
     }
+  }, []);
+
+  const setUser = useCallback((identity: AuthUser | null) => {
+    setRestoreError(null);
+    setUserState(identity);
   }, []);
 
   const hasPermission = useCallback(
@@ -67,8 +91,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const value = useMemo(
-    () => ({ user, loading, login, logout, setUser, hasPermission }),
-    [hasPermission, loading, login, logout, user],
+    () => ({
+      user,
+      loading,
+      restoreError,
+      retrySessionRestore,
+      login,
+      logout,
+      setUser,
+      hasPermission,
+    }),
+    [
+      hasPermission,
+      loading,
+      login,
+      logout,
+      restoreError,
+      retrySessionRestore,
+      setUser,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
