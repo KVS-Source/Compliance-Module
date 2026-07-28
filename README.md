@@ -26,7 +26,7 @@ These use the real backend and must **not** show the prototype banner:
 | Path | Notes |
 |------|--------|
 | `/login` | Authentication |
-| `/dashboard` | Shell dashboard (partial live data) |
+| `/dashboard` | Company-scoped PostgreSQL aggregates |
 | `/admin/users` | User management |
 | `/admin/companies` | Company list |
 | `/admin/departments` | Organisation masters |
@@ -34,9 +34,12 @@ These use the real backend and must **not** show the prototype banner:
 | `/admin/organisation-units` | Organisation masters |
 | `/master/frameworks` | Framework master |
 | `/master/frameworks/:frameworkId/rules` | Framework rules |
+| `/kpi/configuration` | KPI configurations |
+| `/kpi/configuration/:configurationId/targets` | KPI target lifecycle |
 | `/kpi/actual-entry` | Submit KPI actuals |
-| `/compliance/risks` | Risk Register (read-only) |
-| `/compliance/risks/:riskId` | Risk detail (read-only) |
+| `/kpi/approval` | KPI actual approval lifecycle |
+| `/compliance/risks` | Risk Register |
+| `/compliance/risks/:riskId` | Risk review, treatment and closure workflow |
 
 Authoritative list: `migratedPaths` in
 `frontend/src/app/routeDefinitions.ts`, plus the nested framework-rules route in
@@ -44,12 +47,10 @@ Authoritative list: `migratedPaths` in
 
 ### Prototype (not persisted)
 
-Everything else in the sidebar — including **KPI Configuration**, **KPI
-Approval**, **KPI Mapping**, Evidence, CAPA, Reports, Audit Trail, Settings, and
-most Master Data screens — is still a prototype shell.
-
-KPI configuration and target **APIs** exist; their UIs do not. Use Swagger or
-`curl` for those steps (see walkthrough below).
+Everything outside the live list — including **KPI Mapping**, Evidence, CAPA,
+Reports, Audit Trail and Settings — is still a prototype shell. Emergency UAT
+navigation hides these unfinished modules; direct development URLs retain the
+prototype banner.
 
 ---
 
@@ -258,24 +259,21 @@ browser-to-PostgreSQL end-to-end tests.
 Goal: create a configuration, approve a target, submit a missed actual, and see
 the automatic risk.
 
-**UI reality check**
-
-- `/kpi/configuration` and `/kpi/approval` are **prototypes** — do not use them
-  for this flow.
-- Use **Swagger** (`http://127.0.0.1:8000/api/docs`) or `curl` for configuration
-  and target APIs.
-- Use the **live** UI for actual entry and the Risk Register.
+All routes in this walkthrough are live and API-connected. For the deterministic
+local/UAT dataset and synthetic login setup, follow
+[`docs/operations/uat-demo-seed.md`](./docs/operations/uat-demo-seed.md).
 
 ### 1. Sign in
 
 Open http://127.0.0.1:5173/login as `admin001@example.test` (password from
 `backend/prisma/seed.ts`).
 
-### 2. Create a KPI configuration (API)
+### 2. Create a KPI configuration
 
-`POST /api/v1/kpi-configurations` with a bearer token from login.
+Open **KPI Configuration**:
+http://127.0.0.1:5173/kpi/configuration
 
-For a single-developer walkthrough, set:
+For a single-developer walkthrough, use:
 
 - `requiresEvidence`: `false`
 - `requiresApproval`: `false` (submit auto-approves the target; avoids
@@ -286,10 +284,10 @@ id via `GET /api/v1/kpi-definitions`. Set `ownerId` to the admin user id from
 the login response. Give `productService` a unique string so the configuration
 scope does not collide with the seed.
 
-### 3. Create and submit a target (API)
+### 3. Create and submit a target
 
-`POST /api/v1/kpi-targets` with period dates and `targetValue` (for example
-`100`), then `POST /api/v1/kpi-targets/:id/submit`.
+Open the configuration's **Targets** view, create a period target, and submit
+it.
 
 With `requiresApproval: false`, the target becomes `APPROVED` on submit.
 
@@ -308,11 +306,11 @@ Open **KPI Actual Entry**: http://127.0.0.1:5173/kpi/actual-entry
 Expect RAG **RED** (or **AMBER** depending on thresholds) and an automatic risk
 summary in the response panel.
 
-You can also `POST /api/v1/kpi-actuals` with
-`{ kpiConfigurationId, period, actualValue }` — verified during README
-authoring.
+### 5. Approve the actual and confirm the risk
 
-### 5. Confirm the risk (live UI)
+When approval is required, sign in as an authorised user other than the
+submitter and approve it from
+http://127.0.0.1:5173/kpi/approval.
 
 Open **Risk Register**: http://127.0.0.1:5173/compliance/risks
 
@@ -322,6 +320,8 @@ Open **Risk Register**: http://127.0.0.1:5173/compliance/risks
 - Open the row for detail at `/compliance/risks/:riskId`.
 - With KPI lineage present, the detail page states the risk was raised
   automatically because a KPI target was missed.
+- The detail page supports owner assignment, append-only review and treatment,
+  residual scoring, closure and reopening for authorised roles.
 
 `COMPANY_USER` cannot open the register (`risk:read` is not granted).
 

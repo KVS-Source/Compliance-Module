@@ -271,8 +271,8 @@ export function KpiApprovalPage() {
       <div className="banner info" role="note" data-testid="risk-unchanged-note">
         <ShieldAlert size={15} aria-hidden /> Approving or rejecting an actual
         does <strong>not</strong> change any risk it raised. Automatic risk
-        creation happens once, at submission. Reviewing and closing a risk is a
-        separate workflow that does not exist yet.
+        creation happens once, at submission. Review, treatment, closure and
+        reopening are handled separately in the Risk Register.
       </div>
 
       <form

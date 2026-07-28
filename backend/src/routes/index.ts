@@ -28,6 +28,9 @@ import { RiskRepository } from "../modules/risks/repository.js";
 import { RiskService } from "../modules/risks/service.js";
 import { riskRoutes } from "../modules/risks/routes.js";
 import { EvidenceGateService } from "../modules/kpis/evidence-gate-service.js";
+import { DashboardRepository } from "../modules/dashboard/repository.js";
+import { DashboardService } from "../modules/dashboard/service.js";
+import { dashboardRoutes } from "../modules/dashboard/routes.js";
 import {
   authenticate,
   authorizeTenantContext,
@@ -40,6 +43,7 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
     new KpiManagementRepository(db),
   );
   const risks = new RiskService(new RiskRepository(db));
+  const dashboard = new DashboardService(new DashboardRepository(db));
   const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
@@ -72,6 +76,7 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   router.use("/auth", authRoutes(new AuthService(new AuthRepository(db))));
   router.use(authenticate, authorizeTenantContext(db));
   router.use("/tenants", tenantsRoutes(provider));
+  router.use("/dashboard", dashboardRoutes(dashboard));
   router.use("/users", usersRoutes(provider, new UsersRepository(db)));
   router.use(
     "/organisation",

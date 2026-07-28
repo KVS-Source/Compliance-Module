@@ -31,12 +31,17 @@ import { enumLabel, named, scopeSummary } from "./kpiFormatting";
 
 const PAGE_SIZE = 20;
 
-export function KpiConfigurationPage() {
+export function KpiConfigurationPage({
+  mode = "configuration",
+}: {
+  mode?: "configuration" | "targets";
+}) {
   const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const canWrite = hasPermission("kpi-config:write");
+  const selectingTargets = mode === "targets";
 
   const [definitionId, setDefinitionId] = useState("");
   const [status, setStatus] = useState<RecordStatus | "">("");
@@ -142,9 +147,13 @@ export function KpiConfigurationPage() {
   return (
     <div className="page">
       <PageHeader
-        title="KPI Configuration"
+        title={selectingTargets ? "KPI Targets" : "KPI Configuration"}
         section="KPI Management"
-        description="Configure how shared KPI definitions operate inside the active Company: scope, ownership, approval and thresholds."
+        description={
+          selectingTargets
+            ? "Choose a KPI configuration to manage its live target lifecycle."
+            : "Configure how shared KPI definitions operate inside the active Company: scope, ownership, approval and thresholds."
+        }
         connected
         actions={
           <>
@@ -156,7 +165,7 @@ export function KpiConfigurationPage() {
             >
               <RefreshCw size={15} /> Refresh
             </button>
-            {canWrite ? (
+            {canWrite && !selectingTargets ? (
               <button
                 className="btn btn-primary"
                 type="button"

@@ -19,8 +19,8 @@ what counts as production-target code, read
 |--------|---------|----------|
 | **Company & Access** | Auth, tenants, users, roles/permissions, organisation masters | Live users, companies, departments, locations, units |
 | **Compliance masters (read)** | Frameworks and rules | Live framework list + rules |
-| **KPI** | Definitions (shared), configurations, targets, actuals, approval history, performance calculation | Live **actual entry** only; configuration / approval / mapping UIs are still prototypes |
-| **Risk** | Automatic create on KPI miss; read list/detail | Live Risk Register + detail (read-only) |
+| **KPI** | Definitions (shared), configurations, targets, actuals, approval history, performance calculation | Live configuration, targets, actual entry and approval; mapping remains a prototype |
+| **Risk** | Automatic create on KPI miss; owner assignment, review, treatment, residual scoring, closure and reopening | Live Risk Register and workflow-enabled detail |
 
 ### README-only seams (not implemented)
 

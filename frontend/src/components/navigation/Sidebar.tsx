@@ -135,6 +135,20 @@ export function Sidebar({
                           <Icon size={16} />
                         </span>
                         <span className="nav-label">{route.title}</span>
+                        {route.status !== "LIVE" ? (
+                          <span
+                            className={`nav-status-badge ${
+                              route.status === "AWAITING_INTEGRATION"
+                                ? "nav-status-awaiting"
+                                : ""
+                            }`}
+                            data-testid={`nav-status-${route.path}`}
+                          >
+                            {route.status === "AWAITING_INTEGRATION"
+                              ? "Awaiting Access"
+                              : "In Development"}
+                          </span>
+                        ) : null}
                       </NavLink>
                     );
                   })}

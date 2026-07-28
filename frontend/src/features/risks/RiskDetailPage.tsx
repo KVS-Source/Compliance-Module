@@ -743,29 +743,32 @@ export function RiskDetailPage() {
             </p>
           ) : null}
 
-          <div className="field">
-            <label htmlFor="risk-action-comments">
-              {action === "close"
-                ? "Closure reason *"
-                : action === "reopen"
-                  ? "Reason for reopening *"
-                  : action === "review"
-                    ? "Review comments *"
-                    : "Notes (optional)"}
-            </label>
-            <textarea
-              id="risk-action-comments"
-              className="control"
-              rows={4}
-              value={comments}
-              onChange={(event) => setComments(event.target.value)}
-              maxLength={2000}
-              required={requiresReason}
-            />
-            <p className="muted">
-              Recorded permanently and cannot be edited or removed afterwards.
-            </p>
-          </div>
+          {action !== "treat" && action !== "owner" ? (
+            <div className="field">
+              <label htmlFor="risk-action-comments">
+                {action === "close"
+                  ? "Closure reason *"
+                  : action === "reopen"
+                    ? "Reason for reopening *"
+                    : action === "review"
+                      ? "Review comments *"
+                      : "Notes (optional)"}
+              </label>
+              <textarea
+                id="risk-action-comments"
+                className="control"
+                rows={4}
+                value={comments}
+                onChange={(event) => setComments(event.target.value)}
+                maxLength={2000}
+                required={requiresReason}
+              />
+              <p className="muted">
+                Recorded permanently and cannot be edited or removed
+                afterwards.
+              </p>
+            </div>
+          ) : null}
         </Modal>
       ) : null}
     </div>

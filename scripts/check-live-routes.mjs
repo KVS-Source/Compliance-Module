@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Guards against a live, API-connected route silently reverting to
- * PrototypeRoutePage. The router builds its prototype routes from every
- * definition missing from `migratedPaths`, so dropping a path from that set is
- * enough to turn a real screen back into demonstration data without any other
- * visible change.
+ * Guards against a live, API-connected route silently reverting to the shared
+ * module-status page. The router builds its status routes from every definition
+ * missing from `migratedPaths`.
  */
 
 import { readFileSync } from "node:fs";
@@ -33,7 +31,9 @@ const requiredLiveRoutes = [
   { path: "/admin/locations", component: "OrganisationPage" },
   { path: "/admin/organisation-units", component: "OrganisationPage" },
   { path: "/master/frameworks", component: "FrameworksPage" },
+  { path: "/master/framework-rules", component: "FrameworksPage" },
   { path: "/kpi/configuration", component: "KpiConfigurationPage" },
+  { path: "/kpi/targets", component: "KpiConfigurationPage" },
   { path: "/kpi/actual-entry", component: "KpiActualEntryPage" },
   { path: "/kpi/approval", component: "KpiApprovalPage" },
   { path: "/compliance/risks", component: "RiskRegisterPage" },
@@ -50,6 +50,52 @@ const requiredLiveChildRoutes = [
   },
   { path: "compliance/risks/:riskId", component: "RiskDetailPage" },
   { path: "master/frameworks/:frameworkId/rules", component: "FrameworkRulesPage" },
+];
+
+const approvedClientNavigation = [
+  "/dashboard",
+  "/admin/companies",
+  "/admin/users",
+  "/admin/roles",
+  "/admin/departments",
+  "/admin/locations",
+  "/admin/organisation-units",
+  "/master/frameworks",
+  "/master/framework-rules",
+  "/compliance/policy-register",
+  "/compliance/policy-versions",
+  "/compliance/controls",
+  "/compliance/checkpoints",
+  "/master/kpis",
+  "/kpi/configuration",
+  "/kpi/targets",
+  "/kpi/actual-entry",
+  "/kpi/approval",
+  "/kpi/dashboard",
+  "/kpi/mapping",
+  "/compliance/risks",
+  "/evidence/register",
+  "/evidence/upload",
+  "/evidence/review",
+  "/evidence/approved",
+  "/evidence/rejected",
+  "/compliance/gaps",
+  "/compliance/gaps/review",
+  "/compliance/capa",
+  "/compliance/capa/review",
+  "/audit-trail",
+  "/tasks",
+  "/notifications",
+  "/data/import",
+  "/data/import-history",
+  "/data/upload-errors",
+  "/data/genrac-integration",
+  "/reports",
+  "/reports/kpi-performance",
+  "/reports/risk-summary",
+  "/reports/compliance-summary",
+  "/settings/tenant",
+  "/settings/integrations",
 ];
 
 const failures = [];
@@ -73,15 +119,49 @@ if (!migratedBlockMatch) {
   for (const { path } of requiredLiveRoutes) {
     if (!migrated.has(path)) {
       failures.push(
-        `${displayPath(routeDefinitionsPath)} — "${path}" is missing from migratedPaths, so the router would render PrototypeRoutePage for it`,
+        `${displayPath(routeDefinitionsPath)} — "${path}" is missing from migratedPaths, so the router would render ModuleStatusPage for it`,
       );
     }
   }
 }
 
+const clientNavigationBlockMatch = definitionsSource.match(
+  /export const clientNavigationPaths = new Set\(\[([\s\S]*?)\]\);/,
+);
+if (!clientNavigationBlockMatch) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — could not locate the clientNavigationPaths set`,
+  );
+} else {
+  const visiblePaths = [
+    ...clientNavigationBlockMatch[1].matchAll(/"([^"]+)"/g),
+  ].map(([, path]) => path);
+  const unexpected = visiblePaths.filter(
+    (path) => !approvedClientNavigation.includes(path),
+  );
+  const missing = approvedClientNavigation.filter(
+    (path) => !visiblePaths.includes(path),
+  );
+  if (unexpected.length > 0) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — UAT navigation exposes unapproved routes: ${unexpected.join(", ")}`,
+    );
+  }
+  if (missing.length > 0) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — UAT navigation is missing approved routes: ${missing.join(", ")}`,
+    );
+  }
+  if (new Set(visiblePaths).size !== visiblePaths.length) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — UAT navigation contains duplicate paths`,
+    );
+  }
+}
+
 /**
  * Finds the element bound to a router path so a live route cannot be pointed
- * at PrototypeRoutePage while still sitting in migratedPaths.
+ * at ModuleStatusPage while still sitting in migratedPaths.
  */
 const elementForPath = (routerPathValue) => {
   const escaped = routerPathValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -109,9 +189,12 @@ for (const { path, component } of [
     );
     continue;
   }
-  if (element.includes("PrototypeRoutePage")) {
+  if (
+    element.includes("PrototypeRoutePage") ||
+    element.includes("ModuleStatusPage")
+  ) {
     failures.push(
-      `${displayPath(routerPath)} — "${path}" renders PrototypeRoutePage but must stay live`,
+      `${displayPath(routerPath)} — "${path}" renders a non-operational status page but must stay live`,
     );
   }
   if (!element.includes(`<${component}`)) {
@@ -128,5 +211,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: ${requiredLiveRoutes.length + requiredLiveChildRoutes.length} routes remain API-connected.`,
+  `Live-route guard passed: ${requiredLiveRoutes.length + requiredLiveChildRoutes.length} routes remain API-connected and ${approvedClientNavigation.length} approved UAT routes are visible.`,
 );

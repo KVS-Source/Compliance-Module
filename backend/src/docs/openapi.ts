@@ -104,6 +104,18 @@ export const openApiDocument = {
         responses: { "200": { description: "Company page" } },
       },
     },
+    "/dashboard/summary": {
+      get: {
+        summary: "Get Company-scoped operational dashboard aggregates",
+        description:
+          "Returns KPI, risk, organisation and framework sections allowed by the authenticated user's read permissions. Restricted sections are null.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Permission-aware dashboard summary" },
+          "401": { description: "Missing or invalid Company context" },
+        },
+      },
+    },
     "/users": {
       get: {
         summary: "List Company users",
