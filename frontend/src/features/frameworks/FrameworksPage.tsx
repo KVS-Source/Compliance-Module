@@ -13,7 +13,11 @@ import { useApiResource } from "../../hooks/useApiResource";
 import { frameworkApi } from "../../services/frameworkApi";
 import type { Framework, FrameworkRule } from "../../types/api";
 
-export function FrameworksPage() {
+export function FrameworksPage({
+  mode = "frameworks",
+}: {
+  mode?: "frameworks" | "rules";
+}) {
   const { user } = useAuth();
   const { contextVersion } = useTenant();
   const { showToast } = useToast();
@@ -32,9 +36,10 @@ export function FrameworksPage() {
     { key: "scope", label: "Scope", render: () => <Badge tone="purple">Shared master</Badge> },
     { key: "status", label: "Status", render: (row) => <Badge>{row.status}</Badge> },
   ];
-  return <div className="page"><PageHeader title="Framework Master" section="Master Data Setup" description="Maintain active compliance frameworks and reference-only frameworks." connected primaryLabel="Add Framework" onPrimary={() => showToast("info", "Read-only in Milestone 1", "Framework write APIs are scheduled for the next backend milestone.")} />
+  const selectingRules = mode === "rules";
+  return <div className="page"><PageHeader title={selectingRules ? "Framework Rules" : "Framework Master"} section="Frameworks & Rules" description={selectingRules ? "Choose a framework to review its live shared-master rules." : "Maintain active compliance frameworks and reference-only frameworks."} connected primaryLabel={selectingRules ? undefined : "Add Framework"} onPrimary={() => showToast("info", "Read-only in Milestone 1", "Framework write APIs are scheduled for the next backend milestone.")} />
     <SearchToolbar value={search} onChange={setSearch} placeholder="Search frameworks or versions…" status={status} onStatusChange={setStatus} />
-    {resource.loading ? <LoadingState label="Loading shared frameworks…" /> : resource.error ? <ErrorState error={resource.error} /> : <DataTable rows={rows} columns={columns} caption="Framework Master" companyName={user?.activeCompany.name} onView={(row) => navigate(`/master/frameworks/${row.id}/rules`)} />}
+    {resource.loading ? <LoadingState label="Loading shared frameworks…" /> : resource.error ? <ErrorState error={resource.error} /> : <DataTable rows={rows} columns={columns} caption={selectingRules ? "Frameworks with rules" : "Framework Master"} companyName={user?.activeCompany.name} onView={(row) => navigate(`/master/frameworks/${row.id}/rules`)} />}
     <div className="grid-2"><section className="card information-card"><span className="feature-icon tone-green"><Landmark size={19} /></span><div><strong>Active frameworks</strong><p>Frameworks and their rules are shared master data. Company adoption and control mappings remain later-phase records.</p></div></section><section className="card information-card"><span className="feature-icon tone-purple"><BookOpenCheck size={19} /></span><div><strong>Reference-only frameworks</strong><p>GDPR, SOC 1, SOC 2 and ADA/WCAG remain reference terminology from the approved prototype.</p></div></section></div>
   </div>;
 }

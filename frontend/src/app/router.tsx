@@ -22,7 +22,7 @@ import { KpiApprovalPage } from "../features/kpis/KpiApprovalPage";
 import { KpiConfigurationPage } from "../features/kpis/KpiConfigurationPage";
 import { KpiTargetsPage } from "../features/kpis/KpiTargetsPage";
 import { OrganisationPage } from "../features/organisation/OrganisationPage";
-import { PrototypeRoutePage } from "../features/prototype/PrototypeRoutePage";
+import { ModuleStatusPage } from "../features/migration/ModuleStatusPage";
 import { RiskDetailPage } from "../features/risks/RiskDetailPage";
 import { RiskRegisterPage } from "../features/risks/RiskRegisterPage";
 import { UsersPage } from "../features/users/UsersPage";
@@ -108,6 +108,14 @@ const migratedRoutes: RouteObject[] = [
     ),
   },
   {
+    path: "master/framework-rules",
+    element: (
+      <PermissionBoundary permission="frameworks:read">
+        <FrameworksPage mode="rules" />
+      </PermissionBoundary>
+    ),
+  },
+  {
     path: "master/frameworks/:frameworkId/rules",
     element: (
       <PermissionBoundary permission="frameworks:read">
@@ -120,6 +128,14 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="kpis:read">
         <KpiConfigurationPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "kpi/targets",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiConfigurationPage mode="targets" />
       </PermissionBoundary>
     ),
   },
@@ -169,7 +185,7 @@ const pendingRoutes: RouteObject[] = routeDefinitions
   .filter((definition) => !migratedPaths.has(definition.path))
   .map((definition) => ({
     path: definition.path.slice(1),
-    element: <PrototypeRoutePage />,
+    element: <ModuleStatusPage />,
   }));
 
 export const router = createBrowserRouter([

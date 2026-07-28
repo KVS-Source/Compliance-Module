@@ -21,7 +21,13 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return [];
-    return routeDefinitions.filter((item) => `${item.title} ${item.section}`.toLowerCase().includes(query)).slice(0, 6);
+    return routeDefinitions
+      .filter(
+        (item) =>
+          !item.hidden &&
+          `${item.title} ${item.section}`.toLowerCase().includes(query),
+      )
+      .slice(0, 6);
   }, [search]);
   const initials = (user?.name ?? "User").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });

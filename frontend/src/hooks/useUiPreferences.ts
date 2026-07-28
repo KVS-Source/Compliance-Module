@@ -9,7 +9,7 @@ export interface UiPreferences {
 
 const fallback: UiPreferences = {
   collapsed: false,
-  openGroups: ["overview", "admin", "master"],
+  openGroups: ["dashboard", "administration", "frameworks"],
 };
 
 export function useUiPreferences() {
