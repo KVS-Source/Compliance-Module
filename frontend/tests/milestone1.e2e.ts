@@ -699,7 +699,6 @@ test("an authenticated shell survives a transient refresh failure and recovers",
   page,
 }) => {
   let refreshRequests = 0;
-  let dashboardRequests = 0;
   let recovered = false;
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -724,7 +723,6 @@ test("an authenticated shell survives a transient refresh failure and recovers",
       });
     }
     if (path === "/api/v1/dashboard/summary") {
-      dashboardRequests += 1;
       if (!recovered) {
         return route.fulfill({
           status: 401,
