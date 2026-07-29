@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { findForbiddenSecretPaths } from "./secret-safe-assertions.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -67,14 +68,16 @@ describe("User write API", () => {
       email,
       status: "ACTIVE",
     });
-    expect(created.body.data).not.toHaveProperty("passwordHash");
-    expect(JSON.stringify(created.body)).not.toContain("passwordHash");
+    expect(findForbiddenSecretPaths(created.body)).toEqual([]);
 
     const stored = await prisma.user.findUniqueOrThrow({
       where: { email },
       include: { memberships: true },
     });
-    expect(stored.passwordHash).toMatch(/^\$argon2/);
+    const passwordUsesArgon2 =
+      typeof stored.passwordHash === "string" &&
+      stored.passwordHash.startsWith("$argon2");
+    expect(passwordUsesArgon2).toBe(true);
     expect(stored.memberships).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ tenantId, status: "ACTIVE" }),
@@ -95,7 +98,7 @@ describe("User write API", () => {
       userId: admin.user.id,
       action: "USER_CREATE",
     });
-    expect(JSON.stringify(audit?.metadata)).not.toContain("password");
+    expect(findForbiddenSecretPaths(audit?.metadata)).toEqual([]);
   });
 
   it("rejects create without users:write permission", async () => {
@@ -233,7 +236,7 @@ describe("User write API", () => {
       phone: "+00 11111 22222",
       email,
     });
-    expect(updated.body.data).not.toHaveProperty("passwordHash");
+    expect(findForbiddenSecretPaths(updated.body)).toEqual([]);
 
     const audit = await prisma.auditEvent.findFirst({
       where: {
@@ -247,6 +250,9 @@ describe("User write API", () => {
       userId: admin.user.id,
       entityType: "USER",
     });
-    expect(JSON.stringify(audit?.metadata)).not.toMatch(/passwordHash|argon2/i);
+    expect(findForbiddenSecretPaths(audit?.metadata)).toEqual([]);
+    const auditContainsArgon2Material =
+      JSON.stringify(audit?.metadata).toLowerCase().includes("argon2");
+    expect(auditContainsArgon2Material).toBe(false);
   });
 });

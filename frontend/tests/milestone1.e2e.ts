@@ -136,9 +136,16 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
   await expect(page.getByText("Active KPI Configurations")).toBeVisible();
   await expect(page.getByText("9", { exact: true })).toBeVisible();
   const stored = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } }));
-  expect(JSON.stringify(stored)).not.toContain("Admin001!Secure");
-  expect(JSON.stringify(stored)).not.toContain("mock-access-token");
-  expect(JSON.stringify(stored)).not.toContain("refreshToken");
+  const storedText = JSON.stringify(stored);
+  const storageContainsSecretValue = [
+    "Synthetic001!",
+    "mock-access-token",
+  ].some((value) => storedText.includes(value));
+  const storageContainsSecretKey = Object.values(stored)
+    .flatMap((storage) => Object.keys(storage))
+    .some((key) => key === "refreshToken" || key === "refresh_token");
+  expect(storageContainsSecretValue).toBe(false);
+  expect(storageContainsSecretKey).toBe(false);
 
   const companySelect = page.locator("#company-switcher");
   await expect(companySelect.locator("option")).toHaveCount(3);

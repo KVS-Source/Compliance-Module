@@ -5,6 +5,10 @@ import { describe, expect, it } from "vitest";
 import { errorHandler } from "../src/common/middleware/http.js";
 import { createRateLimiter } from "../src/common/middleware/rate-limit.js";
 import { parseEnvironment, resolveTrustProxy } from "../src/config/env.js";
+import {
+  findForbiddenSecretPaths,
+  sanitiseSetCookieHeader,
+} from "./secret-safe-assertions.js";
 
 const strongSecret = "8fd6b41004a74ce6a5342382180e76fca0bdf5aa";
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
@@ -39,6 +43,47 @@ const knownRequestError = (code: string, target: string[]) =>
     clientVersion: "6.19.3",
     meta: { target },
   });
+
+describe("secret-safe test assertions", () => {
+  it("sanitises cookie metadata without retaining the original value", () => {
+    const originalCookieValue =
+      "synthetic-cookie-value-that-must-not-survive";
+    const metadata = sanitiseSetCookieHeader(
+      `genbioca_refresh=${originalCookieValue}; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=600`,
+    );
+
+    expect(metadata).toEqual({
+      name: "genbioca_refresh",
+      attributes: {
+        names: ["httponly", "max-age", "path", "samesite", "secure"],
+        httpOnly: true,
+        secure: true,
+        sameSite: "Strict",
+        path: "/api/v1/auth",
+      },
+    });
+    const retainsOriginalValue =
+      JSON.stringify(metadata).includes(originalCookieValue);
+    expect(retainsOriginalValue).toBe(false);
+  });
+
+  it("reports only forbidden property paths", () => {
+    const forbiddenPaths = findForbiddenSecretPaths({
+      data: {
+        accessToken: "synthetic-allowed-contract-value",
+        nested: {
+          password_hash: "synthetic-value-that-must-not-be-reported",
+          sessionSecret: "synthetic-value-that-must-not-be-reported",
+        },
+      },
+    });
+
+    expect(forbiddenPaths).toEqual([
+      "data.nested.password_hash",
+      "data.nested.sessionSecret",
+    ]);
+  });
+});
 
 describe("trust proxy resolution", () => {
   it("treats an unset or false value as no proxy", () => {

@@ -6,6 +6,10 @@ import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { env } from "../src/config/env.js";
 import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
+import {
+  findForbiddenSecretPaths,
+  sanitiseSetCookieHeader,
+} from "./secret-safe-assertions.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -51,14 +55,22 @@ describe("Milestone 1 API", () => {
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "Admin001!Secure" })
       .expect(200);
-    expect(response.headers["set-cookie"]?.[0]).toContain("HttpOnly");
-    expect(response.headers["set-cookie"]?.[0]).toContain("SameSite=Strict");
-    expect(response.body.data).not.toHaveProperty("refreshToken");
-    expect(JSON.stringify(response.body)).not.toMatch(
-      /passwordHash|tokenHash|refreshId/,
+    const cookieMetadata = sanitiseSetCookieHeader(
+      response.headers["set-cookie"]?.[0],
     );
-    expect(response.body.data.accessToken).toEqual(expect.any(String));
-    const token = response.body.data.accessToken as string;
+    expect(cookieMetadata).toMatchObject({
+      name: "genbioca_refresh",
+      attributes: {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+        path: "/api/v1/auth",
+      },
+    });
+    expect(findForbiddenSecretPaths(response.body)).toEqual([]);
+    const accessToken = response.body.data.accessToken as unknown;
+    expect(typeof accessToken === "string" && accessToken.length > 0).toBe(true);
+    const token = accessToken as string;
     const me = await request(app)
       .get("/api/v1/auth/me")
       .set("Authorization", `Bearer ${token}`)
@@ -108,11 +120,15 @@ describe("Milestone 1 API", () => {
       .expect(200);
     const originalCookie = login.headers["set-cookie"]?.[0] as string;
     const refresh = await agent.post("/api/v1/auth/refresh").expect(200);
-    expect(refresh.body.data.accessToken).not.toBe(login.body.data.accessToken);
-    expect(refresh.body.data).not.toHaveProperty("refreshToken");
-    expect(JSON.stringify(refresh.body)).not.toMatch(
-      /passwordHash|tokenHash|refreshId/,
-    );
+    const loginAccessToken = login.body.data.accessToken as unknown;
+    const refreshAccessToken = refresh.body.data.accessToken as unknown;
+    expect(
+      typeof loginAccessToken === "string" &&
+        typeof refreshAccessToken === "string" &&
+        refreshAccessToken.length > 0,
+    ).toBe(true);
+    expect(refreshAccessToken !== loginAccessToken).toBe(true);
+    expect(findForbiddenSecretPaths(refresh.body)).toEqual([]);
     await request(app)
       .post("/api/v1/auth/refresh")
       .set("Cookie", originalCookie)
