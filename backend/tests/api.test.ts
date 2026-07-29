@@ -6,6 +6,10 @@ import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { env } from "../src/config/env.js";
 import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
+import {
+  findForbiddenSecretPaths,
+  sanitiseSetCookieHeader,
+} from "./secret-safe-assertions.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -51,9 +55,22 @@ describe("Milestone 1 API", () => {
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "Admin001!Secure" })
       .expect(200);
-    expect(response.headers["set-cookie"]?.[0]).toContain("HttpOnly");
-    expect(response.body.data.accessToken).toEqual(expect.any(String));
-    const token = response.body.data.accessToken as string;
+    const cookieMetadata = sanitiseSetCookieHeader(
+      response.headers["set-cookie"]?.[0],
+    );
+    expect(cookieMetadata).toMatchObject({
+      name: "genbioca_refresh",
+      attributes: {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+        path: "/api/v1/auth",
+      },
+    });
+    expect(findForbiddenSecretPaths(response.body)).toEqual([]);
+    const accessToken = response.body.data.accessToken as unknown;
+    expect(typeof accessToken === "string" && accessToken.length > 0).toBe(true);
+    const token = accessToken as string;
     const me = await request(app)
       .get("/api/v1/auth/me")
       .set("Authorization", `Bearer ${token}`)
@@ -76,10 +93,10 @@ describe("Milestone 1 API", () => {
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "wrong-password" })
       .expect(401);
-    expect(invalid.body).toMatchObject({
-      success: false,
-      error: { code: "UNAUTHORIZED", message: "Incorrect email or password" },
-    });
+    expect(invalid.body.success).toBe(false);
+    expect(invalid.body.error?.code).toBe("UNAUTHORIZED");
+    expect(invalid.body.error?.message).toBe("Incorrect email or password");
+    expect(findForbiddenSecretPaths(invalid.body)).toEqual([]);
     await prisma.user.update({
       where: { email: "user001@example.test" },
       data: { status: "DISABLED" },
@@ -89,6 +106,7 @@ describe("Milestone 1 API", () => {
       .send({ email: "user001@example.test", password: "User001!Secure" })
       .expect(403);
     expect(disabled.body.error.code).toBe("FORBIDDEN");
+    expect(findForbiddenSecretPaths(disabled.body)).toEqual([]);
     await prisma.user.update({
       where: { email: "user001@example.test" },
       data: { status: "ACTIVE" },
@@ -103,7 +121,15 @@ describe("Milestone 1 API", () => {
       .expect(200);
     const originalCookie = login.headers["set-cookie"]?.[0] as string;
     const refresh = await agent.post("/api/v1/auth/refresh").expect(200);
-    expect(refresh.body.data.accessToken).not.toBe(login.body.data.accessToken);
+    const loginAccessToken = login.body.data.accessToken as unknown;
+    const refreshAccessToken = refresh.body.data.accessToken as unknown;
+    expect(
+      typeof loginAccessToken === "string" &&
+        typeof refreshAccessToken === "string" &&
+        refreshAccessToken.length > 0,
+    ).toBe(true);
+    expect(refreshAccessToken !== loginAccessToken).toBe(true);
+    expect(findForbiddenSecretPaths(refresh.body)).toEqual([]);
     await request(app)
       .post("/api/v1/auth/refresh")
       .set("Cookie", originalCookie)
@@ -479,6 +505,9 @@ describe("Milestone 1 API", () => {
         where: { id: event.id },
         data: { action: "MUTATED" },
       }),
+    ).rejects.toThrow();
+    await expect(
+      prisma.auditEvent.delete({ where: { id: event.id } }),
     ).rejects.toThrow();
   });
 });

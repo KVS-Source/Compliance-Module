@@ -8,16 +8,17 @@ Read that before changing non-trivial behaviour.
 
 ---
 
-## Live routes vs prototype shells (read this first)
+## Route status (read this first)
 
-Most navigation entries are **prototype shells**. They look like product screens,
-but they do **not** call write APIs and they **do not persist** changes.
+The product distinguishes `LIVE`, `IN_DEVELOPMENT`,
+`AWAITING_INTEGRATION`, `COMPATIBILITY` and `DORMANT` explicitly.
 
-Prototype pages render through `PrototypeRoutePage` and show a banner:
+Unfinished navigation entries render `ModuleStatusPage`; they do not display
+fake business data or persist changes. The old prototype React page/data are
+dormant and unrouted.
 
-> Prototype module — demonstration data only. Changes are not saved.
-
-**Do not mistake a labelled prototype for a working module.**
+See [`docs/frontend-route-mapping.md`](./docs/frontend-route-mapping.md) for the
+exhaustive enforced inventory.
 
 ### Live (API-connected) routes
 
@@ -33,8 +34,10 @@ These use the real backend and must **not** show the prototype banner:
 | `/admin/locations` | Organisation masters |
 | `/admin/organisation-units` | Organisation masters |
 | `/master/frameworks` | Framework master |
+| `/master/framework-rules` | Framework rule browser |
 | `/master/frameworks/:frameworkId/rules` | Framework rules |
 | `/kpi/configuration` | KPI configurations |
+| `/kpi/targets` | KPI target selection/lifecycle |
 | `/kpi/configuration/:configurationId/targets` | KPI target lifecycle |
 | `/kpi/actual-entry` | Submit KPI actuals |
 | `/kpi/approval` | KPI actual approval lifecycle |
@@ -42,15 +45,14 @@ These use the real backend and must **not** show the prototype banner:
 | `/compliance/risks/:riskId` | Risk review, treatment and closure workflow |
 
 Authoritative list: `migratedPaths` in
-`frontend/src/app/routeDefinitions.ts`, plus the nested framework-rules route in
+`frontend/src/app/routeDefinitions.ts`, plus three child/detail patterns in
 `frontend/src/app/router.tsx`.
 
-### Prototype (not persisted)
+### Not operational
 
-Everything outside the live list — including **KPI Mapping**, Evidence, CAPA,
-Reports, Audit Trail and Settings — is still a prototype shell. Emergency UAT
-navigation hides these unfinished modules; direct development URLs retain the
-prototype banner.
+The 29 visible unfinished routes are explicit **In Development** status pages.
+GenRAC is **Awaiting Integration** and has no live connection. Twenty-two older
+URLs are hidden **Compatibility** routes.
 
 ---
 
@@ -125,12 +127,11 @@ cd genbioca_compliance_platform
 Install active packages (authoritative runtime only):
 
 ```bash
-npm ci --prefix backend
-npm ci --prefix frontend
+npm run install:all
 ```
 
-Do **not** use the root `package.json` as the application runtime. Active apps
-live under `frontend/` and `backend/`.
+The root package only orchestrates child-package scripts. It is not a third
+application runtime.
 
 ---
 
@@ -331,7 +332,7 @@ Open **Risk Register**: http://127.0.0.1:5173/compliance/risks
 
 | Path | Role |
 |------|------|
-| `frontend/` | React 19 + Vite + TypeScript UI. Live pages and `PrototypeRoutePage`. |
+| `frontend/` | React 19 + Vite + TypeScript UI. Live pages and truthful module-status routes; prototype React data is dormant. |
 | `backend/` | Express 5 + TypeScript API, auth, middleware, domain modules. |
 | `backend/prisma/` | Active schema, migrations, and seed scripts. |
 | `docs/` | Architecture notes, reviews, and prototype HTML reference assets. |

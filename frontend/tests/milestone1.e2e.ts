@@ -136,9 +136,16 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
   await expect(page.getByText("Active KPI Configurations")).toBeVisible();
   await expect(page.getByText("9", { exact: true })).toBeVisible();
   const stored = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } }));
-  expect(JSON.stringify(stored)).not.toContain("Admin001!Secure");
-  expect(JSON.stringify(stored)).not.toContain("mock-access-token");
-  expect(JSON.stringify(stored)).not.toContain("refreshToken");
+  const storedText = JSON.stringify(stored);
+  const storageContainsSecretValue = [
+    "Synthetic001!",
+    "mock-access-token",
+  ].some((value) => storedText.includes(value));
+  const storageContainsSecretKey = Object.values(stored)
+    .flatMap((storage) => Object.keys(storage))
+    .some((key) => key === "refreshToken" || key === "refresh_token");
+  expect(storageContainsSecretValue).toBe(false);
+  expect(storageContainsSecretKey).toBe(false);
 
   const companySelect = page.locator("#company-switcher");
   await expect(companySelect.locator("option")).toHaveCount(3);
@@ -297,7 +304,7 @@ test("live navigation remains API-backed and never shows development status", as
   await expect(page.getByText("RUL-001")).toBeVisible();
 });
 
-test("unfinished routes use one non-operational status page without writes or console errors", async ({
+test("unfinished and compatibility routes use truthful non-operational status pages without writes or console errors", async ({
   page,
 }) => {
   const undeclaredWrites: string[] = [];
@@ -308,26 +315,35 @@ test("unfinished routes use one non-operational status page without writes or co
   await installMockApi(page, true, undeclaredWrites);
   await page.goto("/dashboard");
 
-  for (const path of [
-    "/admin/roles",
-    "/compliance/policy-register",
-    "/kpi/dashboard",
-    "/kpi/mapping",
-    "/evidence/register",
-    "/compliance/gaps",
-    "/audit-trail",
-    "/data/import",
-    "/reports",
-    "/settings/tenant",
-    "/upload/evidence-master",
-  ]) {
+  for (const [path, expectedStatus] of [
+    ["/admin/roles", "development"],
+    ["/compliance/policy-register", "development"],
+    ["/kpi/dashboard", "development"],
+    ["/kpi/mapping", "development"],
+    ["/evidence/register", "development"],
+    ["/compliance/gaps", "development"],
+    ["/audit-trail", "development"],
+    ["/data/import", "development"],
+    ["/reports", "development"],
+    ["/settings/tenant", "development"],
+    ["/upload/evidence-master", "compatibility"],
+  ] as const) {
     await navigateInApp(page, path);
     const statusPage = page.getByTestId("module-status-page");
     await expect(statusPage).toBeVisible();
-    await expect(page.getByTestId("development-status-message")).toBeVisible();
-    await expect(
-      statusPage.getByText("In Development", { exact: true }),
-    ).toBeVisible();
+    if (expectedStatus === "compatibility") {
+      await expect(
+        page.getByTestId("compatibility-status-message"),
+      ).toBeVisible();
+      await expect(
+        statusPage.getByText("Compatibility Route", { exact: true }),
+      ).toBeVisible();
+    } else {
+      await expect(page.getByTestId("development-status-message")).toBeVisible();
+      await expect(
+        statusPage.getByText("In Development", { exact: true }),
+      ).toBeVisible();
+    }
     await expect(page.locator(".data-table")).toHaveCount(0);
     await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
     await expect(page.getByText(/Prototype simulation/)).toHaveCount(0);
@@ -446,56 +462,95 @@ test("logout still survives a page reload from a status route", async ({
   await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
 });
 
-test("every dashboard card and View all control reaches its live route by keyboard", async ({
+async function assertDashboardKeyboardDestinations(
+  page: Page,
+  selector: string,
+  destinations: readonly string[],
+  offset: number,
+  expectedControlCount: number,
+) {
+  await expect(page.locator(selector)).toHaveCount(expectedControlCount);
+  for (let index = 0; index < destinations.length; index += 1) {
+    const destination = destinations[index]!;
+    const controlIndex = offset + index;
+    await test.step(
+      `dashboard control ${controlIndex + 1} reaches ${destination}`,
+      async () => {
+        const link = page.locator(selector).nth(controlIndex);
+        await link.focus();
+        await page.keyboard.press("Enter");
+        await expect(page).toHaveURL(
+          new RegExp(`${destination.replaceAll("/", "\\/")}$`),
+        );
+        await page.goto("/dashboard");
+      },
+    );
+  }
+}
+
+test("dashboard KPI metric cards reach their live routes by keyboard", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await installMockApi(page, true);
   await page.goto("/dashboard");
 
-  const metricDestinations = [
-    "/kpi/configuration",
-    "/kpi/approval",
-    "/kpi/approval",
-    "/kpi/approval",
-    "/kpi/approval",
-    "/compliance/risks",
-    "/compliance/risks",
-    "/compliance/risks",
-    "/compliance/risks",
-    "/compliance/risks",
-  ];
-  await expect(page.locator(".dashboard-cards a")).toHaveCount(
-    metricDestinations.length,
+  await assertDashboardKeyboardDestinations(
+    page,
+    ".dashboard-cards a",
+    [
+      "/kpi/configuration",
+      "/kpi/approval",
+      "/kpi/approval",
+      "/kpi/approval",
+      "/kpi/approval",
+    ],
+    0,
+    10,
   );
-  for (let index = 0; index < metricDestinations.length; index += 1) {
-    const link = page.locator(".dashboard-cards a").nth(index);
-    await link.focus();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(
-      new RegExp(`${metricDestinations[index]!.replaceAll("/", "\\/")}$`),
-    );
-    await page.goto("/dashboard");
-  }
+});
 
-  const summaryDestinations = [
-    "/admin/departments",
-    "/admin/locations",
-    "/admin/organisation-units",
-    "/master/frameworks",
-  ];
-  await expect(page.locator(".boundary-grid a")).toHaveCount(
-    summaryDestinations.length,
+test("dashboard Risk metric cards reach their live routes by keyboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  await assertDashboardKeyboardDestinations(
+    page,
+    ".dashboard-cards a",
+    [
+      "/compliance/risks",
+      "/compliance/risks",
+      "/compliance/risks",
+      "/compliance/risks",
+      "/compliance/risks",
+    ],
+    5,
+    10,
   );
-  for (let index = 0; index < summaryDestinations.length; index += 1) {
-    const link = page.locator(".boundary-grid a").nth(index);
-    await link.focus();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(
-      new RegExp(`${summaryDestinations[index]!.replaceAll("/", "\\/")}$`),
-    );
-    await page.goto("/dashboard");
-  }
+});
+
+test("dashboard administration and framework summaries reach their live routes by keyboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  await assertDashboardKeyboardDestinations(
+    page,
+    ".boundary-grid a",
+    [
+      "/admin/departments",
+      "/admin/locations",
+      "/admin/organisation-units",
+      "/master/frameworks",
+    ],
+    0,
+    4,
+  );
 
   await page.getByRole("link", { name: "View all departments" }).click();
   await expect(page).toHaveURL(/\/admin\/departments$/);

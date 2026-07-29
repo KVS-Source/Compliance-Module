@@ -1,23 +1,35 @@
-# API endpoints
+# Active API endpoint inventory
 
-All routes except login and health require a bearer JWT. Permission middleware additionally protects mutations and approvals.
+Base path: `/api/v1`
+Swagger UI: `/api/docs`
 
-| Module | Endpoints |
-|---|---|
-| Health/docs | `GET /health`, `GET /api-docs`, `GET /openapi.json` |
-| Auth | `POST /api/v1/auth/login`, `GET /api/v1/auth/me` |
-| Dashboard | `GET /api/v1/dashboard/summary` |
-| KPI | CRUD under `/api/v1/kpis`, `/kpi-targets`, `/kpi-actuals`; actual actions `submit`, `approve`, `reject`, `create-risk` |
-| KPI mapping | CRUD/deactivate under `/api/v1/kpi-mapping`; UI order from `GET /api/v1/kpi-mapping/sequence` |
-| Evidence | `POST /evidence/upload`, list/get, `approve`, `reject`, `request-more-info`, `link` |
-| Policy lifecycle | CRUD under `/policy-register`; `submit-review`, `approve`, `reject`, `mark-reviewed` |
-| Remediation | CRUD under `/gaps` and `/capa`; gap `reopen`; CAPA `close`, `reopen` |
-| Risk register | CRUD under `/api/v1/risks`; filter by `classification` or `kpi_id`; missed KPI endpoint `POST /api/v1/kpi-actuals/:id/create-risk` |
-| Admin/catalog | clients, users, roles, permissions, departments, employees, frameworks, controls, checkpoints, policies, lookups |
-| Audit | `GET /api/v1/audit-trail` with module/action/record filters |
+All responses use the success/error envelope. `health`, `ready`, login,
+refresh and logout have their route-specific authentication behavior; business
+routes require bearer authentication and active Company membership.
 
-Pagination uses `?offset=0&limit=50` (maximum 200). Cross-tenant IDs respond as not found.
+| Domain | Active endpoints |
+| --- | --- |
+| Operations | `GET /health`; `GET /ready` |
+| Auth | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me`; `POST /auth/tenant-context` |
+| Companies/dashboard | `GET /tenants`; `GET /dashboard/summary` |
+| Users | `GET /users`; `GET /users/:id`; `POST /users`; `PATCH /users/:id` |
+| Organisation | `GET/POST /organisation/departments`; `PATCH /organisation/departments/:id`; equivalent `locations` and `units` paths |
+| Frameworks | `GET /frameworks`; `GET /frameworks/:id`; `GET /frameworks/:id/rules` |
+| KPI catalogue/compatibility | `GET /kpi-definitions`; `GET /kpi-goals` (compatibility read only) |
+| KPI configuration | `GET/POST /kpi-configurations`; `GET /kpi-configurations/threshold-defaults`; `GET/PATCH/DELETE /kpi-configurations/:id` |
+| KPI Targets | `GET/POST /kpi-targets`; `GET/PATCH/DELETE /kpi-targets/:id`; `POST /kpi-targets/:id/submit`; `/approve`; `/reject`; `/versions` |
+| KPI actuals | `GET/POST /kpi-actuals`; `GET /kpi-actuals/:id`; `POST /kpi-actuals/:id/approve`; `/reject`; `/resubmit` |
+| Risks | `GET /risks`; `GET /risks/:id`; `POST /risks/:id/reviews`; `/treatments`; `/treatments/:treatmentId/complete`; `PATCH /risks/:id/owner`; `POST /risks/:id/close`; `/reopen` |
 
-KPI actual list/detail responses include the related KPI, exposing `unit` and `frequency` for the actual-entry page. `create-risk` accepts a `risk_code`, `classification` (`major` or `minor`), and optional ownership/mitigation fields; it is rejected when the KPI target was achieved or an open risk already exists for that actual.
+List endpoints use `page` and `pageSize` and return `meta.page`,
+`meta.pageSize`, `meta.total` and `meta.totalPages`.
 
-Dashboard summary includes `open_risks`, `major_risks`, and `minor_risks`, scoped to the authenticated client.
+## Explicitly absent
+
+No active API implements Policy, Control, Evidence, Gap, CAPA, Import, Tasks,
+Notifications, Reports, audit search/export, settings or GenRAC connectivity.
+No active endpoint writes to `kpi_goals`.
+
+The backend route mount in `backend/src/routes/index.ts` and the individual
+domain route modules are the code authority. Proposed endpoints in historical
+prototype material are not API commitments.

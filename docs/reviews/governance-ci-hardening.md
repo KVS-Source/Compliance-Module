@@ -1,7 +1,38 @@
 # Governance and CI Hardening
 
+## Current governance authority
+
+Evidence status on 2026-07-29:
+
+| Governance control | Status | Evidence |
+| --- | --- | --- |
+| Default branch is `main` | **VERIFIED** | Repository Settings screenshot supplied by the repository owner. |
+| `main` branch protection or ruleset | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Pull requests required before merging | **PENDING** | Independent Settings/ruleset evidence is required. |
+| At least one approving review | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Stale approvals dismissed | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Conversation resolution required | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Five exact CI check contexts required | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Force pushes blocked | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Branch deletion blocked | **PENDING** | Independent Settings/ruleset evidence is required. |
+| Administrator bypass policy | **PENDING** | Independent Settings/ruleset evidence is required. |
+
+The five contexts are `Backend and isolated PostgreSQL`, `Frontend and
+Playwright`, `Architecture guards`, `Gitleaks` and `Semgrep SAST`.
+
+An administrator must provide evidence from the active rule targeting `main`
+that shows the rule status, target and bypass list plus every pull-request,
+review, conversation, required-check, force-push and deletion control above.
+Milestone 0 does not change repository settings and must not merge until this
+protection/ruleset evidence is complete.
+
+## Historical delivery record
+
 Date: 26 July 2026  
 Branch: `governance/ci-hardening`
+
+PR #19 later merged with zero checks and remains a recorded governance
+exception.
 
 ## Steps 1–8 (approved scope)
 

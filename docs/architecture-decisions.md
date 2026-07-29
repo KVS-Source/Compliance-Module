@@ -18,19 +18,35 @@ Shared catalogue/organisation reads use `SharedMasterProvider`. The local implem
 
 ## AD-005 Milestone boundary
 
-Only auth, Company/membership/access, users, organisation masters, frameworks/rules, KPI definitions/goals, refresh sessions and minimal auth audit are persisted. Policy/control/evidence/risk/gap/CAPA/upload/report routes remain registered in React but are explicit migration-pending screens; they do not create authoritative-looking browser-local records.
+Auth, Company/membership/access, users, organisation masters,
+frameworks/rules, KPI configurations/targets/actuals/approvals, Risk workflow,
+refresh sessions, dashboard and audit writes are persisted. Policy, Control,
+Evidence, Gap, CAPA, Import, Task, Notification and Report routes are truthful
+status pages and do not create authoritative-looking browser-local records.
 
 ## AD-006 KPI target authority and traceability
 
-`kpi_definitions` is catalogue data; `kpi_goals` is Company target configuration. A future Target Service must be the only authoritative active-target interface. The accepted ribbon remains **Policy → Framework → Rule → Evidence → Control → KPI → Target vs Actual → Risk**. KPI risk `MAJOR`/`MINOR` and enterprise risk `LOW`/`MEDIUM`/`HIGH`/`CRITICAL` are separate dimensions.
+`kpi_definitions` is catalogue data; `kpi_targets` is the authoritative active
+target interface. `kpi_goals` remains read-only compatibility data. The
+accepted ribbon remains **Policy → Framework → Rule → Evidence → Control → KPI
+→ Target vs Actual → Risk**. KPI risk `MAJOR`/`MINOR` and enterprise risk
+`LOW`/`MEDIUM`/`HIGH`/`CRITICAL` are separate dimensions.
 
 ## AD-007 Audit and evidence isolation
 
-Milestone 1 records login, logout and Company switch where practical. A database trigger rejects audit update/delete. Future evidence services must validate Company identity across evidence, linked record, reviewer and storage metadata; files cannot be linked across Companies. Future audit query/export must always use verified Company context.
+Active auth, user, organisation, KPI and Risk workflows write audit events. A
+database trigger rejects audit UPDATE and DELETE. Future evidence services must
+validate Company identity across evidence, linked record, reviewer and storage
+metadata; files cannot be linked across Companies. Future audit query/export
+must always use verified Company context.
 
 ## AD-008 File storage seam
 
-`FileStorageProvider` defines put/get/delete. Local disk is the development adapter. The S3-compatible class is an explicit unconfigured foundation, not a production implementation. Malware scanning, signed URLs, encryption/key policy, retention and object-level Company isolation remain Milestone 2 work.
+`FileStorageProvider` defines put/get/delete. Local disk is the development
+adapter. Unknown providers fail clearly and selecting recognised but
+unimplemented S3 fails configuration closed. No bucket, SDK client or cloud
+credential is configured. Malware scanning, signed URLs, encryption/key
+policy, retention and object-level Company isolation remain future work.
 
 ## AD-009 Errors, logging and environment
 
@@ -38,7 +54,10 @@ Zod validates environment and request inputs. Safe response envelopes hide stack
 
 ## AD-010 Deployment
 
-Docker Compose runs PostgreSQL and the app. The app waits for database health, applies committed migrations, runs idempotent seed logic and starts the compiled server. This is development/reference infrastructure, not a production-readiness claim.
+Docker Compose can run PostgreSQL and the app. Migrations and seeds are explicit
+operator commands; application or container startup never applies them
+automatically. This is development/reference infrastructure, not a
+production-readiness claim.
 
 ## AD-011 CORS stays absent while the deployment is same-origin
 

@@ -6,7 +6,7 @@
  * missing from `migratedPaths`.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -52,70 +52,117 @@ const requiredLiveChildRoutes = [
   { path: "master/frameworks/:frameworkId/rules", component: "FrameworkRulesPage" },
 ];
 
-const approvedClientNavigation = [
-  "/dashboard",
-  "/admin/companies",
-  "/admin/users",
-  "/admin/roles",
-  "/admin/departments",
-  "/admin/locations",
-  "/admin/organisation-units",
-  "/master/frameworks",
-  "/master/framework-rules",
-  "/compliance/policy-register",
-  "/compliance/policy-versions",
-  "/compliance/controls",
-  "/compliance/checkpoints",
-  "/master/kpis",
-  "/kpi/configuration",
-  "/kpi/targets",
-  "/kpi/actual-entry",
-  "/kpi/approval",
-  "/kpi/dashboard",
-  "/kpi/mapping",
-  "/compliance/risks",
-  "/evidence/register",
-  "/evidence/upload",
-  "/evidence/review",
-  "/evidence/approved",
-  "/evidence/rejected",
-  "/compliance/gaps",
-  "/compliance/gaps/review",
-  "/compliance/capa",
-  "/compliance/capa/review",
-  "/audit-trail",
-  "/tasks",
-  "/notifications",
-  "/data/import",
-  "/data/import-history",
-  "/data/upload-errors",
-  "/data/genrac-integration",
-  "/reports",
-  "/reports/kpi-performance",
-  "/reports/risk-summary",
-  "/reports/compliance-summary",
-  "/settings/tenant",
-  "/settings/integrations",
-];
-
 const failures = [];
 const displayPath = (path) => relative(repositoryRoot, path);
 
 const definitionsSource = readFileSync(routeDefinitionsPath, "utf8");
 const routerSource = readFileSync(routerPath, "utf8");
-
-const migratedBlockMatch = definitionsSource.match(
-  /export const migratedPaths = new Set\(\[([\s\S]*?)\]\);/,
+const prototypePagePath = resolve(
+  repositoryRoot,
+  "frontend/src/features/prototype/PrototypeRoutePage.tsx",
+);
+const prototypeDataPath = resolve(
+  repositoryRoot,
+  "frontend/src/features/prototype/prototypeRouteData.ts",
 );
 
-if (!migratedBlockMatch) {
+const block = (start, end) => {
+  const match = definitionsSource.match(
+    new RegExp(`${start}([\\s\\S]*?)${end}`),
+  );
+  return match?.[1] ?? null;
+};
+
+const pathsFrom = (source) =>
+  [...source.matchAll(/"((?:\\.|[^"])*)"/g)]
+    .map(([, value]) => value)
+    .filter((value) => value.startsWith("/"));
+
+const navigationBlock = block(
+  "const navigationRouteDefinitions: RouteDefinition\\[\\] = \\[",
+  "\\n\\];\\n\\n/\\*\\*\\n \\* Previously published",
+);
+const compatibilityBlock = block(
+  "const legacyStatusRoutes: Array<\\[string, string\\]> = \\[",
+  "\\n\\];",
+);
+const clientPathsBlock = block(
+  "export const clientNavigationPaths = new Set\\(\\[",
+  "\\n\\]\\);",
+);
+const migratedPathsBlock = block(
+  "export const migratedPaths = new Set\\(\\[",
+  "\\n\\]\\);",
+);
+
+if (
+  navigationBlock === null ||
+  compatibilityBlock === null ||
+  clientPathsBlock === null ||
+  migratedPathsBlock === null
+) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — could not locate the migratedPaths set`,
+    `${displayPath(routeDefinitionsPath)} — could not parse authoritative route metadata blocks`,
   );
-} else {
-  const migrated = new Set(
-    [...migratedBlockMatch[1].matchAll(/"([^"]+)"/g)].map(([, path]) => path),
+}
+
+const navigationDefinitionPaths = navigationBlock
+  ? [
+      ...navigationBlock.matchAll(
+        /(?:live|development|route)\(\s*"([^"]+)"/g,
+      ),
+    ].map(([, path]) => path)
+  : [];
+const compatibilityPaths = compatibilityBlock
+  ? [...compatibilityBlock.matchAll(/\["([^"]+)",\s*"[^"]+"\]/g)].map(
+      ([, path]) => path,
+    )
+  : [];
+const visiblePaths = clientPathsBlock ? pathsFrom(clientPathsBlock) : [];
+const migratedPaths = migratedPathsBlock ? pathsFrom(migratedPathsBlock) : [];
+
+const duplicateValues = (values) =>
+  [...new Set(values.filter((value, index) => values.indexOf(value) !== index))];
+const routeId = (path) => path.slice(1).replaceAll("/", ".");
+
+for (const duplicate of duplicateValues([
+  ...navigationDefinitionPaths,
+  ...compatibilityPaths,
+])) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — duplicate route path "${duplicate}"`,
   );
+}
+for (const duplicate of duplicateValues(
+  [...navigationDefinitionPaths, ...compatibilityPaths].map(routeId),
+)) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — duplicate route ID "${duplicate}"`,
+  );
+}
+for (const duplicate of duplicateValues(visiblePaths)) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — duplicate visible navigation path "${duplicate}"`,
+  );
+}
+
+for (const path of visiblePaths) {
+  if (!navigationDefinitionPaths.includes(path)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — visible navigation path "${path}" has no route definition`,
+    );
+  }
+}
+for (const path of navigationDefinitionPaths) {
+  if (!visiblePaths.includes(path)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — visible route definition "${path}" is missing from navigation`,
+    );
+  }
+}
+
+if (migratedPathsBlock !== null) {
+  const migrated = new Set(migratedPaths);
   for (const { path } of requiredLiveRoutes) {
     if (!migrated.has(path)) {
       failures.push(
@@ -125,38 +172,61 @@ if (!migratedBlockMatch) {
   }
 }
 
-const clientNavigationBlockMatch = definitionsSource.match(
-  /export const clientNavigationPaths = new Set\(\[([\s\S]*?)\]\);/,
-);
-if (!clientNavigationBlockMatch) {
+const statusCounts = {
+  LIVE: (navigationBlock?.match(/\blive\(/g) ?? []).length,
+  IN_DEVELOPMENT: (navigationBlock?.match(/\bdevelopment\(/g) ?? []).length,
+  AWAITING_INTEGRATION:
+    (navigationBlock?.match(/"AWAITING_INTEGRATION"/g) ?? []).length,
+  COMPATIBILITY: compatibilityPaths.length,
+};
+if (
+  statusCounts.LIVE + requiredLiveChildRoutes.length !== 16 ||
+  statusCounts.IN_DEVELOPMENT !== 29 ||
+  statusCounts.AWAITING_INTEGRATION !== 1 ||
+  statusCounts.COMPATIBILITY !== 22 ||
+  visiblePaths.length !== 43
+) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — could not locate the clientNavigationPaths set`,
+    `${displayPath(routeDefinitionsPath)} — expected 16 protected LIVE route patterns, 29 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 43 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible`,
   );
-} else {
-  const visiblePaths = [
-    ...clientNavigationBlockMatch[1].matchAll(/"([^"]+)"/g),
-  ].map(([, path]) => path);
-  const unexpected = visiblePaths.filter(
-    (path) => !approvedClientNavigation.includes(path),
-  );
-  const missing = approvedClientNavigation.filter(
-    (path) => !visiblePaths.includes(path),
-  );
-  if (unexpected.length > 0) {
+}
+
+for (const path of compatibilityPaths) {
+  if (visiblePaths.includes(path) || migratedPaths.includes(path)) {
     failures.push(
-      `${displayPath(routeDefinitionsPath)} — UAT navigation exposes unapproved routes: ${unexpected.join(", ")}`,
+      `${displayPath(routeDefinitionsPath)} — compatibility route "${path}" must remain hidden and non-live`,
     );
   }
-  if (missing.length > 0) {
-    failures.push(
-      `${displayPath(routeDefinitionsPath)} — UAT navigation is missing approved routes: ${missing.join(", ")}`,
-    );
-  }
-  if (new Set(visiblePaths).size !== visiblePaths.length) {
-    failures.push(
-      `${displayPath(routeDefinitionsPath)} — UAT navigation contains duplicate paths`,
-    );
-  }
+}
+
+if (
+  !definitionsSource.includes('"COMPATIBILITY"') ||
+  !definitionsSource.includes("hidden: true")
+) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — compatibility routes lack explicit hidden compatibility metadata`,
+  );
+}
+if (
+  !definitionsSource.includes('"AWAITING_INTEGRATION"') ||
+  !definitionsSource.includes("No live connection is configured")
+) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — GenRAC route must explicitly state that no live connection is configured`,
+  );
+}
+if (
+  routerSource.includes("PrototypeRoutePage") ||
+  routerSource.includes("prototypeRouteData")
+) {
+  failures.push(
+    `${displayPath(routerPath)} — dormant prototype components must remain unrouted`,
+  );
+}
+if (!existsSync(prototypePagePath) || !existsSync(prototypeDataPath)) {
+  failures.push(
+    "Dormant prototype reference files are missing; removal requires a separate approved decision",
+  );
 }
 
 /**
@@ -211,5 +281,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: ${requiredLiveRoutes.length + requiredLiveChildRoutes.length} routes remain API-connected and ${approvedClientNavigation.length} approved UAT routes are visible.`,
+  `Live-route guard passed: 1 public login, 16 protected LIVE patterns, 29 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, and 22 hidden COMPATIBILITY routes.`,
 );

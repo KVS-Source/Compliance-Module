@@ -1,9 +1,13 @@
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseEnvironment } from "../src/config/env.js";
 import { assertSeedExecutionAllowed } from "../prisma/seed-safety.js";
 import { assertDemoSeedExecutionAllowed } from "../prisma/demo-seed-safety.js";
+import { refreshCookieOptions } from "../src/modules/auth/routes.js";
+import { createFileStorageProvider } from "../src/providers/file-storage/file-storage.js";
 
 const backendRoot = process.cwd();
 const repositoryRoot = resolve(backendRoot, "..");
@@ -14,6 +18,7 @@ const validDevelopment = {
   NODE_ENV: "development",
   DATABASE_URL: databaseUrl,
   JWT_ACCESS_SECRET: strongSecret,
+  JWT_ISSUER: "genbioca-compliance-development",
   COOKIE_SECURE: "false",
 };
 
@@ -36,6 +41,34 @@ describe("environment validation", () => {
     ).toThrow(/JWT_ACCESS_SECRET/);
   });
 
+  it("requires a non-empty JWT issuer", () => {
+    const { JWT_ISSUER: _removed, ...withoutIssuer } = validDevelopment;
+    void _removed;
+    expect(() => parseEnvironment(withoutIssuer)).toThrow(/JWT_ISSUER/);
+    expect(() =>
+      parseEnvironment({ ...validDevelopment, JWT_ISSUER: "   " }),
+    ).toThrow(/JWT_ISSUER/);
+  });
+
+  it.each(["15", "0m", "-1h", "soon", "1 hour", "1.5h"])(
+    "rejects unsupported JWT access TTL syntax %s",
+    (JWT_ACCESS_TTL) => {
+      expect(() =>
+        parseEnvironment({ ...validDevelopment, JWT_ACCESS_TTL }),
+      ).toThrow(/JWT_ACCESS_TTL/);
+    },
+  );
+
+  it.each(["30s", "15m", "2h", "7d", "1w"])(
+    "accepts supported JWT access TTL syntax %s",
+    (JWT_ACCESS_TTL) => {
+      expect(
+        parseEnvironment({ ...validDevelopment, JWT_ACCESS_TTL })
+          .JWT_ACCESS_TTL,
+      ).toBe(JWT_ACCESS_TTL);
+    },
+  );
+
   it("accepts valid development configuration", () => {
     expect(parseEnvironment(validDevelopment).NODE_ENV).toBe("development");
   });
@@ -46,6 +79,7 @@ describe("environment validation", () => {
         ...validDevelopment,
         NODE_ENV: "production",
         COOKIE_SECURE: "true",
+        JWT_ISSUER: "genbioca-compliance",
       }).NODE_ENV,
     ).toBe("production");
   });
@@ -60,6 +94,81 @@ describe("environment validation", () => {
           "replace-with-at-least-32-random-characters",
       }),
     ).toThrow(/JWT_ACCESS_SECRET/);
+  });
+
+  it("rejects unsafe placeholder issuers in production", () => {
+    expect(() =>
+      parseEnvironment({
+        ...validDevelopment,
+        NODE_ENV: "production",
+        COOKIE_SECURE: "true",
+        JWT_ISSUER: "replace-me-example",
+      }),
+    ).toThrow(/JWT_ISSUER/);
+  });
+
+  it("makes the production refresh cookie HttpOnly, Secure and SameSite=Strict", () => {
+    const production = parseEnvironment({
+      ...validDevelopment,
+      NODE_ENV: "production",
+      COOKIE_SECURE: "true",
+      JWT_ISSUER: "genbioca-compliance",
+    });
+    expect(refreshCookieOptions(production)).toMatchObject({
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+  });
+
+  it("fails closed for unknown and unimplemented storage providers", () => {
+    expect(() =>
+      parseEnvironment({
+        ...validDevelopment,
+        FILE_STORAGE_DRIVER: "unknown",
+      }),
+    ).toThrow(/FILE_STORAGE_DRIVER/);
+    expect(() =>
+      parseEnvironment({ ...validDevelopment, FILE_STORAGE_DRIVER: "s3" }),
+    ).toThrow(/recognised but not implemented/);
+    expect(() =>
+      createFileStorageProvider({
+        driver: "unknown",
+        localRoot: "/synthetic/not-used",
+      }),
+    ).toThrow(/Unknown FILE_STORAGE_DRIVER/);
+    expect(() =>
+      createFileStorageProvider({
+        driver: "s3",
+        localRoot: "/synthetic/not-used",
+      }),
+    ).toThrow(/recognised but not implemented/);
+  });
+
+  it("supports the configured local storage provider", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "genbioca-storage-test-"));
+    const provider = createFileStorageProvider({
+      driver: "local",
+      localRoot: root,
+    });
+    try {
+      const content = Buffer.from("synthetic evidence");
+      await expect(
+        provider.put("tenant/evidence.txt", content, "text/plain"),
+      ).resolves.toMatchObject({
+        key: "tenant/evidence.txt",
+        size: content.length,
+        contentType: "text/plain",
+      });
+      await expect(provider.get("tenant/evidence.txt")).resolves.toEqual(
+        content,
+      );
+      await expect(provider.delete("tenant/evidence.txt")).resolves.toBe(
+        undefined,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

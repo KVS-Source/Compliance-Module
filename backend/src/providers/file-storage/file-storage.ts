@@ -13,6 +13,11 @@ export interface FileStorageProvider {
   delete(key: string): Promise<void>;
 }
 
+export type FileStorageConfiguration = {
+  driver: string;
+  localRoot: string;
+};
+
 export class LocalFileStorageProvider implements FileStorageProvider {
   constructor(private readonly root: string) {}
 
@@ -55,3 +60,16 @@ export class S3CompatibleFileStorageProvider implements FileStorageProvider {
     );
   }
 }
+
+export const createFileStorageProvider = ({
+  driver,
+  localRoot,
+}: FileStorageConfiguration): FileStorageProvider => {
+  if (driver === "local") return new LocalFileStorageProvider(localRoot);
+  if (driver === "s3") {
+    throw new Error(
+      "FILE_STORAGE_DRIVER=s3 is recognised but not implemented; use local",
+    );
+  }
+  throw new Error(`Unknown FILE_STORAGE_DRIVER: ${driver}`);
+};

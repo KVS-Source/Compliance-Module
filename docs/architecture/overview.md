@@ -1,7 +1,8 @@
 # Architecture overview — extending GenBioCa
 
-This guide is for a competent developer joining the active codebase who needs to
-add domains such as Evidence, Policies, Controls, Gaps, or CAPA.
+This guide describes the active codebase and patterns a later approved domain
+milestone may use. Milestone 0 does not authorise implementation of Evidence,
+Policies, Controls, Gaps, CAPA or another future domain.
 
 It explains **patterns**, not every file. For local setup, live vs prototype
 routes, and seeded accounts, start with the repository [`README.md`](../../README.md).
@@ -19,7 +20,7 @@ what counts as production-target code, read
 |--------|---------|----------|
 | **Company & Access** | Auth, tenants, users, roles/permissions, organisation masters | Live users, companies, departments, locations, units |
 | **Compliance masters (read)** | Frameworks and rules | Live framework list + rules |
-| **KPI** | Definitions (shared), configurations, targets, actuals, approval history, performance calculation | Live configuration, targets, actual entry and approval; mapping remains a prototype |
+| **KPI** | Definitions (shared), configurations, targets, actuals, approval history, performance calculation | Live configuration, targets, actual entry and approval; KPI Mapping is an approved `IN_DEVELOPMENT` route rendered by the truthful `ModuleStatusPage`, is not operational and uses no prototype records |
 | **Risk** | Automatic create on KPI miss; owner assignment, review, treatment, residual scoring, closure and reopening | Live Risk Register and workflow-enabled detail |
 
 ### README-only seams (not implemented)
@@ -94,7 +95,7 @@ Sibling KPI management (configurations / targets) uses the same pattern in
 `management-routes.ts`, `management-validators.ts`, `management-service.ts`,
 `management-repository.ts`.
 
-Risk reads follow a thinner copy: `backend/src/modules/risks/routes.ts` →
+Risk reads and workflow writes follow `backend/src/modules/risks/routes.ts` →
 `service.ts` → `repository.ts`, mounted at `/risks`.
 
 ### Conventions that matter when copying
@@ -248,8 +249,8 @@ Follow the KPI shape. Example name: `evidence`.
    - Integration happy path
    - **Mandatory** cross-tenant negative tests for list/get/write
 9. **Frontend** — only when the API is real. Add a live route +
-   `migratedPaths` entry; otherwise leave `PrototypeRoutePage` and the
-   prototype banner. Never connect a prototype screen to fake writes.
+   `migratedPaths` entry; otherwise retain `ModuleStatusPage` with an accurate
+   status. Never connect dormant prototype data to active routes.
 10. **Gates** — if Evidence (or another gate) is required, fail closed until
     implemented (copy the `EvidenceGateService` idea).
 

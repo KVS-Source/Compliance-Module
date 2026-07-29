@@ -34,14 +34,26 @@ These implementations are retained for reference only. Never import them into
 `frontend/` or `backend/`. Stop and resolve the scope before proceeding if a
 change appears to require dormant code. See `legacy/README.md`.
 
-## Live and prototype frontend routes
+## Frontend route status
 
-- API-connected routes use the real backend and must not show the prototype
-  banner.
-- Prototype-only routes render through `PrototypeRoutePage` and must show:
-  “Prototype module — demonstration data only. Changes are not saved.”
-- Never connect a prototype screen to a fake or undeclared backend write. A
-  screen must be genuinely API-backed or clearly labelled as a prototype.
+`frontend/src/app/routeDefinitions.ts` is the frontend route-status authority:
+
+- `LIVE` — a real page uses a real API and PostgreSQL-backed state where
+  applicable;
+- `IN_DEVELOPMENT` — a dedicated, truthful `ModuleStatusPage` presents no
+  prototype records or simulated operational behaviour;
+- `AWAITING_INTEGRATION` — a dedicated integration status makes no fake
+  connection, synchronisation or success claim;
+- `COMPATIBILITY` — a retained route is hidden from normal navigation and route
+  search and is not an operational authority;
+- `DORMANT` — source is not routed and must not be imported into the active
+  runtime.
+
+`PrototypeRoutePage` is dormant. Never add a new unfinished route to it. Update
+the authoritative route metadata and run the router, route and active-boundary
+guards before committing any route change. Current delivery status is
+maintained in
+[`docs/status/current-status-and-v1-scope.md`](./docs/status/current-status-and-v1-scope.md).
 
 ## Non-negotiable business rules
 
@@ -121,6 +133,8 @@ React Router and ESLint advisories separately and deliberately.
 
 - Never checkout, commit to, or push to `main`. All work happens on a feature
   branch cut from the latest `origin/main`.
+- The default branch is `main`. Pull requests target `main` unless a documented
+  exception explicitly names another base.
 - Stop at ready-to-push. The human handles the pull request and the merge.
 - When reporting a branch as ready, always give the pull-request URL in this
   exact form, which sets the base explicitly:
@@ -129,9 +143,9 @@ React Router and ESLint advisories separately and deliberately.
   https://github.com/riracreate/genbioca_compliance_platform/compare/main...<branch>
   ```
 
-  Never use the `/pull/new/<branch>` form. The repository default branch
-  resolves to `governance/ci-hardening`, so that form defaults the base
-  incorrectly.
+  Use the explicit compare form so the intended base is reviewable. Current
+  GitHub governance evidence is maintained in
+  [`docs/reviews/governance-ci-hardening.md`](./docs/reviews/governance-ci-hardening.md).
 
 ## Testing
 
@@ -140,8 +154,8 @@ React Router and ESLint advisories separately and deliberately.
 - Run Playwright with its bundled, isolated Chromium environment rather than a
   personal browser profile.
 - Maintain negative cross-tenant coverage, expired-token logout coverage, and
-  prototype-banner coverage.
-- Live routes must not show the prototype banner.
+  truthful status-page and dormant-boundary coverage.
+- Live routes must not show `ModuleStatusPage` or the prototype banner.
 
 ## Style and data
 

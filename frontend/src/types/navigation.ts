@@ -3,9 +3,11 @@ import type { LucideIcon } from "lucide-react";
 export type ModuleStatus =
   | "LIVE"
   | "IN_DEVELOPMENT"
-  | "AWAITING_INTEGRATION";
+  | "AWAITING_INTEGRATION"
+  | "COMPATIBILITY";
 
 export interface RouteDefinition {
+  id: string;
   path: string;
   legacyHash: string;
   title: string;
