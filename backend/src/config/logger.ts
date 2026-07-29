@@ -6,7 +6,7 @@ import pino, {
 import type { Options as PinoHttpOptions } from "pino-http";
 import { env } from "./env.js";
 
-const REDACTED = "[REDACTED]";
+export const REDACTION_CENSOR = "[REDACTED]";
 
 const sensitivePaths = [
   "req.headers.authorization",
@@ -16,12 +16,30 @@ const sensitivePaths = [
   "password",
   "*.password",
   "*.*.password",
+  "passwordHash",
+  "*.passwordHash",
+  "*.*.passwordHash",
+  "password_hash",
+  "*.password_hash",
+  "*.*.password_hash",
   "refreshToken",
   "*.refreshToken",
   "*.*.refreshToken",
+  "refresh_token",
+  "*.refresh_token",
+  "*.*.refresh_token",
   "accessToken",
   "*.accessToken",
   "*.*.accessToken",
+  "access_token",
+  "*.access_token",
+  "*.*.access_token",
+  "tokenHash",
+  "*.tokenHash",
+  "*.*.tokenHash",
+  "token_hash",
+  "*.token_hash",
+  "*.*.token_hash",
   "cookie",
   "*.cookie",
   "cookies",
@@ -32,7 +50,7 @@ const loggerOptions: LoggerOptions = {
   level: env.LOG_LEVEL,
   redact: {
     paths: [...sensitivePaths],
-    censor: REDACTED,
+    censor: REDACTION_CENSOR,
   },
 };
 
@@ -53,8 +71,8 @@ export const redactResponseHeaders = (
       name,
       name.toLowerCase() === "set-cookie"
         ? Array.isArray(value)
-          ? value.map(() => REDACTED)
-          : REDACTED
+          ? value.map(() => REDACTION_CENSOR)
+          : REDACTION_CENSOR
         : value,
     ]),
   );
@@ -70,8 +88,10 @@ export const serializeHttpResponse = (response: unknown): unknown => {
   };
 };
 
-export const createLogger = (destination?: DestinationStream): Logger =>
-  pino(loggerOptions, destination);
+export const createLogger = (
+  destination?: DestinationStream,
+  level: LoggerOptions["level"] = env.LOG_LEVEL,
+): Logger => pino({ ...loggerOptions, level }, destination);
 
 export const httpLoggerOptions = (
   httpLogger: Logger,
