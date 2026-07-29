@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDirectory = fileURLToPath(new URL(".", import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
 const activeRoots = ["frontend", "backend"];
+const dormantPrototypeRoot = resolve(
+  repositoryRoot,
+  "frontend/src/features/prototype",
+);
 const excludedDirectories = new Set([
   "node_modules",
   "dist",
@@ -16,6 +20,59 @@ const excludedDirectories = new Set([
 ]);
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]);
 const failures = [];
+const rootPackage = JSON.parse(
+  readFileSync(resolve(repositoryRoot, "package.json"), "utf8"),
+);
+const rootRuntimeDependencies = new Set([
+  "@prisma/client",
+  "bcryptjs",
+  "cors",
+  "dotenv",
+  "express",
+  "helmet",
+  "jsonwebtoken",
+  "morgan",
+  "multer",
+  "prisma",
+  "supertest",
+  "swagger-ui-express",
+  "tsx",
+  "typescript",
+  "vitest",
+  "zod",
+]);
+
+if (rootPackage.private !== true) {
+  failures.push("package.json — repository package must be private");
+}
+
+for (const directory of ["src", "prisma"]) {
+  if (existsSync(resolve(repositoryRoot, directory))) {
+    failures.push(`${directory}/ — root-level runtime directory is prohibited`);
+  }
+}
+
+for (const dependencyGroup of ["dependencies", "devDependencies"]) {
+  for (const dependency of Object.keys(rootPackage[dependencyGroup] ?? {})) {
+    if (rootRuntimeDependencies.has(dependency)) {
+      failures.push(
+        `package.json — root ${dependencyGroup} declares active-runtime package ${dependency}`,
+      );
+    }
+  }
+}
+
+for (const [scriptName, command] of Object.entries(rootPackage.scripts ?? {})) {
+  if (
+    /\b(?:src|prisma)\//.test(command) ||
+    /\bdist\/server\b/.test(command) ||
+    /\b(?:node|tsx)\s+(?:watch\s+)?(?:src|server)\b/.test(command)
+  ) {
+    failures.push(
+      `package.json — root script ${scriptName} starts or manages a retired root runtime`,
+    );
+  }
+}
 
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -37,6 +94,19 @@ function walk(directory) {
         `${relative(repositoryRoot, path)} — active runtime imports from legacy/`,
       );
     }
+
+    const isDormantPrototypeSource =
+      path === dormantPrototypeRoot ||
+      path.startsWith(`${dormantPrototypeRoot}/`);
+    const importsDormantPrototype =
+      /(?:features\/prototype|prototypeRouteData|PrototypeRoutePage)/.test(
+        source,
+      );
+    if (!isDormantPrototypeSource && importsDormantPrototype) {
+      failures.push(
+        `${relative(repositoryRoot, path)} — active runtime imports dormant prototype route data`,
+      );
+    }
   }
 }
 
@@ -48,4 +118,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("Active-runtime boundary guard passed: no imports from legacy/.");
+console.log(
+  "Active-runtime boundary guard passed: root is orchestration-only and active runtimes do not import retired sources.",
+);

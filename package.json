@@ -1,54 +1,23 @@
 {
-  "name": "genbioca-grc-backend",
+  "name": "genbioca-compliance-platform",
   "version": "1.0.0",
-  "description": "GenBioCa GRC and KPI Compliance Management Platform - backend (Node + Express + Prisma + PostgreSQL)",
+  "private": true,
+  "description": "Repository-level orchestration for the active frontend and backend applications",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts",
-    "prisma:studio": "prisma studio",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "postinstall": "prisma generate"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.2.1",
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "helmet": "^8.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.1",
-    "swagger-ui-express": "^5.0.1",
-    "zod": "^3.24.1"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/jsonwebtoken": "^9.0.7",
-    "@types/morgan": "^1.9.9",
-    "@types/multer": "^1.4.12",
-    "@types/node": "^22.10.5",
-    "@types/supertest": "^6.0.2",
-    "@types/swagger-ui-express": "^4.1.7",
-    "prisma": "^6.2.1",
-    "supertest": "^7.0.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
-    "vitest": "^2.1.8"
+    "install:all": "npm ci --prefix backend && npm ci --prefix frontend",
+    "dev": "npm run dev --prefix backend & npm run dev --prefix frontend & wait",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "guard": "npm run guard:router --prefix frontend && npm run guard:boundaries --prefix frontend && npm run guard:routes --prefix frontend",
+    "test:unit": "npm run test:unit --prefix backend",
+    "test:integration": "npm run test:integration --prefix backend",
+    "test:e2e": "npm run test:e2e --prefix frontend",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "verify": "npm run typecheck && npm run lint && npm run build && npm run guard"
   }
 }
