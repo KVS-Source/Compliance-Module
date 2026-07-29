@@ -1,30 +1,55 @@
-# Entity relationship overview
+# Active entity relationship overview
+
+This diagram reflects the 23 Prisma models. It intentionally excludes proposed
+Policy, Control, Evidence, Gap, CAPA, Import, Task, Notification and Report
+models because they are not implemented.
 
 ```mermaid
 erDiagram
-  CLIENT ||--o{ USER : owns
-  CLIENT ||--o{ DEPARTMENT : owns
-  USER }o--o{ ROLE : user_roles
-  ROLE }o--o{ PERMISSION : role_permissions
-  CLIENT ||--o{ KPI : owns
-  KPI ||--o{ KPI_TARGET : configures
-  KPI ||--o{ KPI_ACTUAL : records
-  KPI ||--o{ RISK : exposes
-  KPI_TARGET ||--o{ RISK : triggers
-  KPI_ACTUAL ||--o{ RISK : creates
-  FRAMEWORK ||--o{ CONTROL : contains
-  CONTROL ||--o{ CHECKPOINT : contains
-  KPI ||--o{ KPI_FRAMEWORK_MAPPING : maps
-  FRAMEWORK ||--o{ KPI_FRAMEWORK_MAPPING : governs
-  CLIENT ||--o{ EVIDENCE_DOCUMENT : owns
-  EVIDENCE_DOCUMENT ||--o{ EVIDENCE_LINK : supports
-  CLIENT ||--o{ POLICY_REGISTER : tracks
-  CLIENT ||--o{ GAP : identifies
-  GAP ||--o{ CAPA : remediates
-  CLIENT ||--o{ RISK : assesses
-  CLIENT ||--o{ AUDIT_TRAIL : records
+  Tenant ||--o{ UserCompany : memberships
+  User ||--o{ UserCompany : belongs_to
+  Tenant o|--o{ User : default_for
+  Tenant ||--o{ Role : owns
+  User ||--o{ UserRole : assigned
+  Role ||--o{ UserRole : grants
+  Role ||--o{ RolePermission : contains
+  Permission ||--o{ RolePermission : grants
+
+  Tenant ||--o{ OrgDepartment : owns
+  Tenant ||--o{ OrgLocation : owns
+  Tenant ||--o{ OrgUnit : owns
+  OrgDepartment o|--o{ UserCompany : classifies
+
+  Framework ||--o{ FrameworkRule : contains
+  KpiDefinition ||--o{ KpiGoal : compatibility
+  Tenant ||--o{ KpiGoal : owns
+
+  KpiDefinition ||--o{ KpiConfiguration : configures
+  Tenant ||--o{ KpiConfiguration : owns
+  OrgDepartment o|--o{ KpiConfiguration : scopes
+  OrgLocation o|--o{ KpiConfiguration : scopes
+  OrgUnit o|--o{ KpiConfiguration : scopes
+
+  KpiConfiguration ||--o{ KpiTarget : versions
+  Tenant ||--o{ KpiTarget : owns
+  KpiConfiguration ||--o{ KpiActual : records
+  KpiTarget ||--o{ KpiActual : measured_against
+  KpiActual ||--o{ KpiApproval : decisions
+
+  KpiActual o|--o{ Risk : triggers
+  KpiConfiguration o|--o{ Risk : traces
+  KpiTarget o|--o{ Risk : traces
+  Tenant ||--o{ Risk : owns
+  Risk ||--o{ RiskReview : reviewed_by
+  Risk ||--o{ RiskTreatment : treated_by
+  RiskTreatment o|--o{ RiskTreatment : supersedes
+
+  User ||--o{ RefreshToken : sessions
+  Tenant ||--o{ RefreshToken : scopes
+  Tenant ||--o{ AuditEvent : records
+  User o|--o{ AuditEvent : acts
 ```
 
-`EVIDENCE_LINK` targets KPI actuals, policy register entries, CAPA, gaps, checkpoints, risks, and future proof-bearing modules through a validated polymorphic reference.
-
-The risk register classifies KPI-linked risks as major or minor. Frequency and unit of measure remain mastered on KPI so every target, actual, risk, and dashboard uses the same definition.
+`KpiTarget` is authoritative. `KpiGoal` is compatibility data. Composite tenant
+foreign keys, checks and triggers are detailed in
+[constraints-and-triggers.md](./database/constraints-and-triggers.md).

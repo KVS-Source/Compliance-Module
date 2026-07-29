@@ -3,6 +3,10 @@
 Date: 26 July 2026  
 Branch: `governance/ci-hardening`
 
+> Historical delivery record. PR #19 later merged with zero checks. Current
+> governance evidence and outstanding controls are maintained in
+> [`docs/security/security-baseline.md`](../security/security-baseline.md).
+
 ## Steps 1–8 (approved scope)
 
 | Step | Status | Deliverable |

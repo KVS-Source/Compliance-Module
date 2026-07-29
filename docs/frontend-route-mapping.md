@@ -1,79 +1,95 @@
-# Frontend route mapping
+# Frontend route inventory
 
-The approved prototype is preserved byte-for-byte at
-`docs/prototype/GenBioCa-Compliance-Platform.html` (SHA-256
-`3883b74dca30a55f72a36e062fa3d0c43e2447b799e8937a478a219cda277714`).
-Legacy hash URLs are translated by the React router when opened at the app
-root. Milestone 1 routes use PostgreSQL-backed Express APIs. Later-phase routes
-remain registered and navigable, but deliberately do not create browser-local
-business records.
+Authority: `frontend/src/app/routeDefinitions.ts` and
+`frontend/src/app/router.tsx`
 
-| Existing HTML route | React route | React page component | API endpoint | Migration status |
-|---|---|---|---|---|
-| `#login` | `/login` | `LoginPage` | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout` | Migrated — M1 |
-| `#dashboard` | `/dashboard` | `DashboardPage` | Connected master-data summary endpoints | Migrated — M1; later operational metrics remain unclaimed |
-| `#admin/users` | `/admin/users` | `UsersPage` | `GET /users`, `GET /users/:id` | Migrated — M1, read-only |
-| `#admin/roles` | `/admin/roles` | `PendingPage` | Role/permission write APIs pending | Preserved — later milestone |
-| `#admin/companies` | `/admin/companies` | `CompaniesPage` | `GET /tenants` | Migrated — M1, read-only |
-| `#admin/departments` | `/admin/departments` | `OrganisationPage` | `GET /organisation/departments` | Migrated — M1, read-only |
-| `#admin/locations` | `/admin/locations` | `OrganisationPage` | `GET /organisation/locations` | Migrated — M1, read-only |
-| Endpoint-only in prototype | `/admin/organisation-units` | `OrganisationPage` | `GET /organisation/units` | Migrated — M1, new visible adapter route |
-| `#master/users` | `/master/users` | `PendingPage` | User-master API pending | Preserved — Phase 3 |
-| `#master/frequencies` | `/master/frequencies` | `PendingPage` | Frequency API pending | Preserved — Phase 3 |
-| `#master/targets` | `/master/targets` | `PendingPage` | KPI target APIs exist; full screen migration pending | Preserved — Phase 3 |
-| `#master/customers` | `/master/customers` | `PendingPage` | Customer API pending | Preserved — Phase 3 |
-| `#master/frameworks` | `/master/frameworks` | `FrameworksPage` | `GET /frameworks` | Migrated — M1, read-only |
-| Framework drawer in `#master/frameworks` | `/master/frameworks/:frameworkId/rules` | `FrameworkRulesPage` | `GET /frameworks/:id`, `GET /frameworks/:id/rules` | Migrated — M1, read-only |
-| `#master/controls` | `/master/controls` | `PendingPage` | Control API pending | Preserved — Phase 3 |
-| `#master/policies` | `/master/policies` | `PendingPage` | Policy API pending | Preserved — Phase 3 |
-| `#master/rules` | `/master/rules` | `PendingPage` | Business-rule API pending | Preserved — Phase 3; distinct from framework rules |
-| `#master/kpis` | `/master/kpis` | `PendingPage` | `GET /kpi-definitions`; full workflow pending | Preserved — Phase 3 |
-| `#kpi/mapping` | `/kpi/mapping` | `PendingPage` | Traceability APIs pending | Preserved — Phase 3 |
-| `#kpi/configuration` | `/kpi/configuration` | `PendingPage` | KPI configuration APIs pending | Preserved — Phase 3 |
-| `#kpi/actual-entry` | `/kpi/actual-entry` | `PendingPage` | KPI actual/evidence/risk APIs pending | Preserved — Phase 4 |
-| `#kpi/approval` | `/kpi/approval` | `PendingPage` | Evidence-gated approval APIs pending | Preserved — Phase 4 |
-| `#kpi/dashboard` | `/kpi/dashboard` | `PendingPage` | KPI analytics APIs pending | Preserved — Phase 4 |
-| `#compliance/frameworks` | `/compliance/frameworks` | `PendingPage` | Company framework-adoption APIs pending | Preserved — Phase 3 |
-| `#compliance/controls` | `/compliance/controls` | `PendingPage` | Control APIs pending | Preserved — Phase 3 |
-| `#compliance/checkpoints` | `/compliance/checkpoints` | `PendingPage` | Checkpoint APIs pending | Preserved — Phase 3 |
-| `#compliance/policy-register` | `/compliance/policy-register` | `PendingPage` | Policy/evidence approval APIs pending | Preserved — Phase 3 |
-| `#compliance/gaps` | `/compliance/gaps` | `PendingPage` | Gap and closure APIs pending | Preserved — Phase 5 |
-| `#compliance/capa` | `/compliance/capa` | `PendingPage` | CAPA and closure APIs pending | Preserved — Phase 5 |
-| `#compliance/risks` | `/compliance/risks` | `PendingPage` | Risk/treatment APIs pending | Preserved — Phase 5 |
-| `#upload/policy-master` | `/upload/policy-master` | `PendingPage` | Upload processing API pending | Preserved — Phase 5 |
-| `#upload/evidence-master` | `/upload/evidence-master` | `PendingPage` | Evidence upload API pending | Preserved — Phase 5 |
-| `#upload/kpi-data` | `/upload/kpi-data` | `PendingPage` | KPI upload API pending | Preserved — Phase 5 |
-| `#upload/customer-data` | `/upload/customer-data` | `PendingPage` | Customer upload API pending | Preserved — Phase 5 |
-| `#upload/audit-reports` | `/upload/audit-reports` | `PendingPage` | Audit upload API pending | Preserved — Phase 5 |
-| `#evidence/register` | `/evidence/register` | `PendingPage` | Evidence API pending | Preserved — Phase 4 |
-| `#evidence/review` | `/evidence/review` | `PendingPage` | Evidence review API pending | Preserved — Phase 4 |
-| `#evidence/approved` | `/evidence/approved` | `PendingPage` | Evidence API pending | Preserved — Phase 4 |
-| `#evidence/rejected` | `/evidence/rejected` | `PendingPage` | Evidence API pending | Preserved — Phase 4 |
-| `#analytics/customers` | `/analytics/customers` | `PendingPage` | Customer analytics API pending | Preserved — Phase 5 |
-| `#analytics/kpis` | `/analytics/kpis` | `PendingPage` | KPI analytics API pending | Preserved — Phase 5 |
-| `#reports` | `/reports` | `PendingPage` | Report-generation API pending | Preserved — Phase 5 |
-| `#reports/compliance` | `/reports/compliance` | `PendingPage` | Compliance report API pending | Preserved — Phase 5 |
-| `#reports/evidence` | `/reports/evidence` | `PendingPage` | Evidence report API pending | Preserved — Phase 5 |
-| `#reports/audit` | `/reports/audit` | `PendingPage` | Audit report API pending | Preserved — Phase 5 |
-| `#reports/attribution` | `/reports/attribution` | `PendingPage` | Attribution report API pending | Preserved — Phase 5 |
-| `#reports/deals` | `/reports/deals` | `PendingPage` | Deal report API pending | Preserved — Phase 5 |
-| `#reports/customer-outcomes` | `/reports/customer-outcomes` | `PendingPage` | Customer outcome API pending | Preserved — Phase 5 |
-| `#audit-trail` | `/audit-trail` | `PendingPage` | Audit API pending | Preserved — Phase 5 |
-| `#settings` | `/settings` | `PendingPage` | Settings APIs pending | Preserved — Phase 5 |
+The route guard enforces unique paths and route IDs, navigation resolution,
+status/page consistency and these counts:
 
-## Milestone 1 component inventory
+- one public login;
+- 16 protected `LIVE` route patterns;
+- 29 visible `IN_DEVELOPMENT` routes;
+- one visible `AWAITING_INTEGRATION` route;
+- 22 hidden `COMPATIBILITY` routes.
 
-- Application: `App`, React Router configuration and protected shell.
-- Context: `AuthProvider`, `TenantProvider`, `ToastProvider`.
-- Layout/navigation: `AppShell`, `Sidebar`, `Topbar` and Company selector.
-- Tables/forms: generic `DataTable` and `SearchToolbar`.
-- Feedback: badges, page headers, loading/error states, permission boundary,
-  modal and toasts.
-- Charts: reusable `MetricCard` plus preserved dashboard bar/trace layouts.
-- Features: login, dashboard, Companies, users, departments, locations,
-  organisation units, frameworks and framework rules.
+## Public route
 
-The browser stores only `genbioca_ui_preferences` (sidebar collapse and open
-navigation groups). Access tokens remain module-memory only; refresh tokens
-remain HTTP-only cookies; database records are never persisted as local browser
-state.
+| Path | Page | Authority |
+| --- | --- | --- |
+| `/login` | `LoginPage` | real auth API; public |
+
+## Protected LIVE routes: 16
+
+These render dedicated business pages and call real Express/PostgreSQL APIs.
+They must never render `ModuleStatusPage`.
+
+| Path pattern | Page | Primary API |
+| --- | --- | --- |
+| `/dashboard` | `DashboardPage` | `GET /dashboard/summary` |
+| `/admin/companies` | `CompaniesPage` | `GET /tenants` |
+| `/admin/users` | `UsersPage` | user read/write API |
+| `/admin/departments` | `OrganisationPage` | department read/write API |
+| `/admin/locations` | `OrganisationPage` | location read/write API |
+| `/admin/organisation-units` | `OrganisationPage` | unit read/write API |
+| `/master/frameworks` | `FrameworksPage` | `GET /frameworks` |
+| `/master/framework-rules` | `FrameworksPage` | framework/rule reads |
+| `/master/frameworks/:frameworkId/rules` | `FrameworkRulesPage` | framework/rule reads |
+| `/kpi/configuration` | `KpiConfigurationPage` | KPI configuration API |
+| `/kpi/targets` | `KpiConfigurationPage` target mode | KPI configuration/target APIs |
+| `/kpi/configuration/:configurationId/targets` | `KpiTargetsPage` | KPI target lifecycle |
+| `/kpi/actual-entry` | `KpiActualEntryPage` | target/configuration reads and actual submission |
+| `/kpi/approval` | `KpiApprovalPage` | actual read/approve/reject/resubmit |
+| `/compliance/risks` | `RiskRegisterPage` | risk reads |
+| `/compliance/risks/:riskId` | `RiskDetailPage` | risk review/treatment/owner/close/reopen |
+
+The 13 top-level paths are in `migratedPaths`; three child/detail patterns are
+declared directly in the router and separately asserted by the guard.
+
+## Visible IN DEVELOPMENT routes: 29
+
+Each path resolves to `ModuleStatusPage` and explicitly states that the module
+is not operational:
+
+| Area | Paths |
+| --- | --- |
+| Administration | `/admin/roles` |
+| Policies & Controls | `/compliance/policy-register`, `/compliance/policy-versions`, `/compliance/controls`, `/compliance/checkpoints` |
+| KPI | `/master/kpis`, `/kpi/dashboard`, `/kpi/mapping` |
+| Evidence | `/evidence/register`, `/evidence/upload`, `/evidence/review`, `/evidence/approved`, `/evidence/rejected` |
+| Gap & CAPA | `/compliance/gaps`, `/compliance/gaps/review`, `/compliance/capa`, `/compliance/capa/review` |
+| Audit & Operations | `/audit-trail`, `/tasks`, `/notifications` |
+| Data Management | `/data/import`, `/data/import-history`, `/data/upload-errors` |
+| Reports | `/reports`, `/reports/kpi-performance`, `/reports/risk-summary`, `/reports/compliance-summary` |
+| Settings | `/settings/tenant`, `/settings/integrations` |
+
+## AWAITING INTEGRATION route: 1
+
+| Path | Status page contract |
+| --- | --- |
+| `/data/genrac-integration` | **Awaiting GenRAC Access**; no live connection is configured; client access and interface review are pending; a manual/CSV path is not represented as working integration |
+
+## Hidden COMPATIBILITY routes: 22
+
+These published URLs remain routable to a compatibility status page. They are
+excluded from sidebar navigation and global search and are not operational
+authorities:
+
+`/master/users`, `/master/frequencies`, `/master/targets`,
+`/master/customers`, `/master/controls`, `/master/policies`, `/master/rules`,
+`/compliance/frameworks`, `/upload/policy-master`,
+`/upload/evidence-master`, `/upload/kpi-data`, `/upload/customer-data`,
+`/upload/audit-reports`, `/analytics/customers`, `/analytics/kpis`,
+`/reports/compliance`, `/reports/evidence`, `/reports/audit`,
+`/reports/attribution`, `/reports/deals`, `/reports/customer-outcomes`, and
+`/settings`.
+
+## Dormant prototype boundary
+
+`frontend/src/features/prototype/PrototypeRoutePage.tsx` and
+`prototypeRouteData.ts` are retained reference source but are not imported by
+the active router. `scripts/check-active-boundaries.mjs` rejects active imports
+of prototype data and `scripts/check-live-routes.mjs` rejects prototype
+components in the router.
+
+The static HTML prototype is a compatibility/reference artifact. It is not an
+application runtime, database authority or source of production data.
