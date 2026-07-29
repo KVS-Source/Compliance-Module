@@ -45,7 +45,9 @@ language or status-page presentation.
 PR #19 was merged with zero checks and remains a recorded governance exception.
 The current workflow defines five checks, but a workflow file alone does not
 prove branch protection. The default branch has been independently verified as
-`main`; all protection/ruleset controls remain pending.
+`main`; all protection/ruleset controls remain pending. The authoritative
+evidence status is
+[governance-ci-hardening.md](./reviews/governance-ci-hardening.md).
 
 Current mutable references:
 

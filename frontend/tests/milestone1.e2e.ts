@@ -462,57 +462,95 @@ test("logout still survives a page reload from a status route", async ({
   await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
 });
 
-test("every dashboard card and View all control reaches its live route by keyboard", async ({
+async function assertDashboardKeyboardDestinations(
+  page: Page,
+  selector: string,
+  destinations: readonly string[],
+  offset: number,
+  expectedControlCount: number,
+) {
+  await expect(page.locator(selector)).toHaveCount(expectedControlCount);
+  for (let index = 0; index < destinations.length; index += 1) {
+    const destination = destinations[index]!;
+    const controlIndex = offset + index;
+    await test.step(
+      `dashboard control ${controlIndex + 1} reaches ${destination}`,
+      async () => {
+        const link = page.locator(selector).nth(controlIndex);
+        await link.focus();
+        await page.keyboard.press("Enter");
+        await expect(page).toHaveURL(
+          new RegExp(`${destination.replaceAll("/", "\\/")}$`),
+        );
+        await page.goto("/dashboard");
+      },
+    );
+  }
+}
+
+test("dashboard KPI metric cards reach their live routes by keyboard", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1280, height: 900 });
   await installMockApi(page, true);
   await page.goto("/dashboard");
 
-  const metricDestinations = [
-    "/kpi/configuration",
-    "/kpi/approval",
-    "/kpi/approval",
-    "/kpi/approval",
-    "/kpi/approval",
-    "/compliance/risks",
-    "/compliance/risks",
-    "/compliance/risks",
-    "/compliance/risks",
-    "/compliance/risks",
-  ];
-  await expect(page.locator(".dashboard-cards a")).toHaveCount(
-    metricDestinations.length,
+  await assertDashboardKeyboardDestinations(
+    page,
+    ".dashboard-cards a",
+    [
+      "/kpi/configuration",
+      "/kpi/approval",
+      "/kpi/approval",
+      "/kpi/approval",
+      "/kpi/approval",
+    ],
+    0,
+    10,
   );
-  for (let index = 0; index < metricDestinations.length; index += 1) {
-    const link = page.locator(".dashboard-cards a").nth(index);
-    await link.focus();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(
-      new RegExp(`${metricDestinations[index]!.replaceAll("/", "\\/")}$`),
-    );
-    await page.goto("/dashboard");
-  }
+});
 
-  const summaryDestinations = [
-    "/admin/departments",
-    "/admin/locations",
-    "/admin/organisation-units",
-    "/master/frameworks",
-  ];
-  await expect(page.locator(".boundary-grid a")).toHaveCount(
-    summaryDestinations.length,
+test("dashboard Risk metric cards reach their live routes by keyboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  await assertDashboardKeyboardDestinations(
+    page,
+    ".dashboard-cards a",
+    [
+      "/compliance/risks",
+      "/compliance/risks",
+      "/compliance/risks",
+      "/compliance/risks",
+      "/compliance/risks",
+    ],
+    5,
+    10,
   );
-  for (let index = 0; index < summaryDestinations.length; index += 1) {
-    const link = page.locator(".boundary-grid a").nth(index);
-    await link.focus();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(
-      new RegExp(`${summaryDestinations[index]!.replaceAll("/", "\\/")}$`),
-    );
-    await page.goto("/dashboard");
-  }
+});
+
+test("dashboard administration and framework summaries reach their live routes by keyboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installMockApi(page, true);
+  await page.goto("/dashboard");
+
+  await assertDashboardKeyboardDestinations(
+    page,
+    ".boundary-grid a",
+    [
+      "/admin/departments",
+      "/admin/locations",
+      "/admin/organisation-units",
+      "/master/frameworks",
+    ],
+    0,
+    4,
+  );
 
   await page.getByRole("link", { name: "View all departments" }).click();
   await expect(page).toHaveURL(/\/admin\/departments$/);

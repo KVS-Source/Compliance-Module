@@ -104,6 +104,8 @@ not place access tokens, cookies, passwords or private row data in evidence.
 
 ## Current baseline
 
-The real-stack UAT completed before Milestone 0 passed after PR #19
-remediation. Automated Playwright remains intercepted. A human real-stack
+Local Milestone 0 verification completed after PR #19 remediation. Human diff
+review and required GitHub CI and protection evidence are required before
+merge. Milestone 0 is accepted only after its pull request passes every
+required gate. Automated Playwright remains intercepted, and a human real-stack
 browser walkthrough remains required for each release candidate.

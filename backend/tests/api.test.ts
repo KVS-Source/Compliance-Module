@@ -93,10 +93,10 @@ describe("Milestone 1 API", () => {
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "wrong-password" })
       .expect(401);
-    expect(invalid.body).toMatchObject({
-      success: false,
-      error: { code: "UNAUTHORIZED", message: "Incorrect email or password" },
-    });
+    expect(invalid.body.success).toBe(false);
+    expect(invalid.body.error?.code).toBe("UNAUTHORIZED");
+    expect(invalid.body.error?.message).toBe("Incorrect email or password");
+    expect(findForbiddenSecretPaths(invalid.body)).toEqual([]);
     await prisma.user.update({
       where: { email: "user001@example.test" },
       data: { status: "DISABLED" },
@@ -106,6 +106,7 @@ describe("Milestone 1 API", () => {
       .send({ email: "user001@example.test", password: "User001!Secure" })
       .expect(403);
     expect(disabled.body.error.code).toBe("FORBIDDEN");
+    expect(findForbiddenSecretPaths(disabled.body)).toEqual([]);
     await prisma.user.update({
       where: { email: "user001@example.test" },
       data: { status: "ACTIVE" },

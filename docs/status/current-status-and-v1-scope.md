@@ -12,7 +12,9 @@ does not add business domains or deployment infrastructure.
 GitHub Settings evidence verifies that the default branch is `main`. Independent
 evidence for `main` protection/ruleset enforcement, reviews, required checks,
 force-push/deletion blocking and administrator bypass policy remains pending.
-GitHub governance verification is therefore incomplete.
+GitHub governance verification is therefore incomplete. The authoritative
+evidence status is
+[governance-ci-hardening.md](../reviews/governance-ci-hardening.md).
 
 ## Status vocabulary
 

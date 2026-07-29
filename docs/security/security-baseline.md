@@ -90,43 +90,7 @@ scans Git history with redacted output. Semgrep scans active `frontend` and
 
 ## Required GitHub governance
 
-The existence of `.github/workflows/ci.yml` does not prove enforcement. PR #19
-merged with zero checks and is a governance exception.
-
-Evidence status on 2026-07-29:
-
-| Governance control | Status | Evidence |
-| --- | --- | --- |
-| Default branch is `main` | **VERIFIED** | Repository Settings screenshot supplied by the repository owner. |
-| `main` branch protection or ruleset | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| Pull requests required before merging | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| At least one approving review | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| Stale approvals dismissed | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| Conversation resolution required | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| All five exact CI check contexts required | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| Force pushes blocked | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| Branch deletion blocked | **PENDING** | Independent Settings/ruleset evidence is still required. |
-| Administrator bypass policy | **PENDING** | Independent Settings/ruleset evidence is still required. |
-
-To collect the remaining evidence, a repository administrator must open
-**Settings → Rules → Rulesets** (or **Settings → Branches** for a legacy branch
-protection rule), open the rule targeting `main`, and capture the rule status,
-target, bypass list and each enabled pull-request/check/history control. The
-evidence must show that:
-
-1. the rule is active and targets `main`;
-2. merging requires a pull request;
-3. at least one approving human review is required;
-4. new commits dismiss stale approvals;
-5. conversations must be resolved;
-6. all five exact check names above are required;
-7. force pushes and branch deletion are blocked; and
-8. the administrator bypass policy is explicit.
-
-Preferred policy: administrators do not routinely bypass required checks. Any
-emergency bypass is exceptional, recorded and followed by retrospective
-verification.
-
-Milestone 0 did not change a repository setting. Default-branch governance is
-verified; protection/ruleset governance is not complete and must be
-demonstrated before Milestone 0 merges.
+The workflow file does not prove enforcement. The default branch is verified as
+`main`; protection/ruleset evidence remains pending and blocks merge. The
+authoritative evidence table and collection requirements are maintained in
+[governance-ci-hardening.md](../reviews/governance-ci-hardening.md).
