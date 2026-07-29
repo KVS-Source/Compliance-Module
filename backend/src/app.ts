@@ -3,21 +3,25 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import type { Logger } from "pino";
 import swaggerUi from "swagger-ui-express";
 import type { PrismaClient } from "@prisma/client";
 import { env, resolveTrustProxy } from "./config/env.js";
-import { logger } from "./config/logger.js";
+import { httpLoggerOptions, logger } from "./config/logger.js";
 import { prisma } from "./config/prisma.js";
 import { errorHandler, notFoundHandler } from "./common/middleware/http.js";
 import { openApiDocument } from "./docs/openapi.js";
 import { LocalPostgresSharedMasterProvider } from "./providers/shared-master/local-postgres.js";
 import { apiRoutes } from "./routes/index.js";
 
-export const createApp = (db: PrismaClient = prisma) => {
+export const createApp = (
+  db: PrismaClient = prisma,
+  httpLogger: Logger = logger,
+) => {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", resolveTrustProxy(env.TRUST_PROXY));
-  app.use(pinoHttp({ logger }));
+  app.use(pinoHttp(httpLoggerOptions(httpLogger)));
   app.use(
     helmet({
       contentSecurityPolicy: {

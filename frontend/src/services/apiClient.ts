@@ -12,6 +12,9 @@ export class ApiError extends Error {
   }
 }
 
+export const SERVICE_UNAVAILABLE_MESSAGE =
+  "The service is temporarily unavailable. Please retry when the connection is restored.";
+
 let accessToken = "";
 let refreshInFlight: Promise<AuthResult> | null = null;
 let sessionExpiredHandler: (() => void) | null = null;
@@ -54,13 +57,27 @@ const requestOnce = async <T>(path: string, options: RequestInit = {}) => {
     headers.set("Content-Type", "application/json");
   }
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
-  const response = await fetch(`/api/v1${path}`, {
-    credentials: "same-origin",
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`/api/v1${path}`, {
+      credentials: "same-origin",
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      SERVICE_UNAVAILABLE_MESSAGE,
+      0,
+      "SERVICE_UNAVAILABLE",
+    );
+  }
   return { response, payload: await parseResponse<T>(response) };
 };
+
+export const isExplicitSessionInvalid = (error: unknown) =>
+  error instanceof ApiError &&
+  error.status === 401 &&
+  error.code === "UNAUTHORIZED";
 
 export const refreshSession = async (): Promise<AuthResult> => {
   if (!refreshInFlight) {
@@ -70,6 +87,16 @@ export const refreshSession = async (): Promise<AuthResult> => {
       .then(({ payload }) => {
         setAccessToken(payload.data.accessToken);
         return payload.data;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.status >= 500) {
+          throw new ApiError(
+            SERVICE_UNAVAILABLE_MESSAGE,
+            error.status,
+            "SERVICE_UNAVAILABLE",
+          );
+        }
+        throw error;
       })
       .finally(() => {
         refreshInFlight = null;
@@ -96,14 +123,17 @@ export const apiRequest = async <T>(
       try {
         await refreshSession();
         return await apiRequest<T>(path, options, false);
-      } catch {
-        clearAccessToken();
-        sessionExpiredHandler?.();
-        throw new ApiError(
-          "Your session has expired. Please sign in again.",
-          401,
-          "SESSION_EXPIRED",
-        );
+      } catch (refreshError) {
+        if (isExplicitSessionInvalid(refreshError)) {
+          clearAccessToken();
+          sessionExpiredHandler?.();
+          throw new ApiError(
+            "Your session has expired. Please sign in again.",
+            401,
+            "SESSION_EXPIRED",
+          );
+        }
+        throw refreshError;
       }
     }
     throw error;

@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, RefreshCw, WifiOff } from "lucide-react";
 import { useEffect } from "react";
 import {
   Navigate,
@@ -29,12 +29,27 @@ import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
 function ProtectedShell() {
-  const { user, loading } = useAuth();
+  const { user, loading, restoreError, retrySessionRestore } = useAuth();
   if (loading)
     return (
       <div className="app-loading" role="status">
         <LoaderCircle className="spin" size={28} />
         <strong>Restoring secure session…</strong>
+      </div>
+    );
+  if (!user && restoreError)
+    return (
+      <div className="app-loading service-unavailable" role="alert">
+        <WifiOff size={28} />
+        <strong>Service temporarily unavailable</strong>
+        <p>{restoreError.message}</p>
+        <button
+          className="btn btn-primary"
+          type="button"
+          onClick={() => void retrySessionRestore()}
+        >
+          <RefreshCw size={15} /> Retry connection
+        </button>
       </div>
     );
   if (!user) return <Navigate to="/login" replace />;

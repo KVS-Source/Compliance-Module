@@ -29,6 +29,21 @@ export const directionLabel = (direction: KpiDirection) => {
   }
 };
 
+export const directionDescription = (direction: KpiDirection) => {
+  switch (direction) {
+    case "HIGHER_IS_BETTER":
+      return "Values at or above target perform better.";
+    case "LOWER_IS_BETTER":
+      return "Values at or below target perform better.";
+    case "TARGET_EXACT":
+      return "Values are evaluated using the configured tolerance.";
+    case "INFORMATIONAL":
+      return "No pass/fail risk is automatically generated.";
+    default:
+      return "";
+  }
+};
+
 export const approvalStatusLabel = (status: SubmissionStatus) =>
   status.replaceAll("_", " ");
 
