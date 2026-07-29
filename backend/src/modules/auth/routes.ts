@@ -20,13 +20,22 @@ const loginSchema = z.object({
 const switchSchema = z.object({ companyId: z.string().uuid() });
 const REFRESH_COOKIE = "genbioca_refresh";
 
-const cookieOptions = {
+type RefreshCookieConfiguration = Pick<
+  typeof env,
+  "COOKIE_SECURE" | "REFRESH_TOKEN_DAYS"
+>;
+
+export const refreshCookieOptions = (
+  configuration: RefreshCookieConfiguration,
+) => ({
   httpOnly: true,
-  secure: env.COOKIE_SECURE === "true",
+  secure: configuration.COOKIE_SECURE === "true",
   sameSite: "strict" as const,
   path: "/api/v1/auth",
-  maxAge: env.REFRESH_TOKEN_DAYS * 86_400_000,
-};
+  maxAge: configuration.REFRESH_TOKEN_DAYS * 86_400_000,
+});
+
+const cookieOptions = refreshCookieOptions(env);
 
 export class AuthController {
   constructor(private readonly service: AuthService) {}

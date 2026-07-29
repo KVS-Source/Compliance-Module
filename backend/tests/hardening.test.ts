@@ -12,6 +12,7 @@ const productionBase = {
   NODE_ENV: "production",
   DATABASE_URL: databaseUrl,
   JWT_ACCESS_SECRET: strongSecret,
+  JWT_ISSUER: "genbioca-compliance",
   COOKIE_SECURE: "true",
 };
 

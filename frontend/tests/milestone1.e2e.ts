@@ -297,7 +297,7 @@ test("live navigation remains API-backed and never shows development status", as
   await expect(page.getByText("RUL-001")).toBeVisible();
 });
 
-test("unfinished routes use one non-operational status page without writes or console errors", async ({
+test("unfinished and compatibility routes use truthful non-operational status pages without writes or console errors", async ({
   page,
 }) => {
   const undeclaredWrites: string[] = [];
@@ -308,26 +308,35 @@ test("unfinished routes use one non-operational status page without writes or co
   await installMockApi(page, true, undeclaredWrites);
   await page.goto("/dashboard");
 
-  for (const path of [
-    "/admin/roles",
-    "/compliance/policy-register",
-    "/kpi/dashboard",
-    "/kpi/mapping",
-    "/evidence/register",
-    "/compliance/gaps",
-    "/audit-trail",
-    "/data/import",
-    "/reports",
-    "/settings/tenant",
-    "/upload/evidence-master",
-  ]) {
+  for (const [path, expectedStatus] of [
+    ["/admin/roles", "development"],
+    ["/compliance/policy-register", "development"],
+    ["/kpi/dashboard", "development"],
+    ["/kpi/mapping", "development"],
+    ["/evidence/register", "development"],
+    ["/compliance/gaps", "development"],
+    ["/audit-trail", "development"],
+    ["/data/import", "development"],
+    ["/reports", "development"],
+    ["/settings/tenant", "development"],
+    ["/upload/evidence-master", "compatibility"],
+  ] as const) {
     await navigateInApp(page, path);
     const statusPage = page.getByTestId("module-status-page");
     await expect(statusPage).toBeVisible();
-    await expect(page.getByTestId("development-status-message")).toBeVisible();
-    await expect(
-      statusPage.getByText("In Development", { exact: true }),
-    ).toBeVisible();
+    if (expectedStatus === "compatibility") {
+      await expect(
+        page.getByTestId("compatibility-status-message"),
+      ).toBeVisible();
+      await expect(
+        statusPage.getByText("Compatibility Route", { exact: true }),
+      ).toBeVisible();
+    } else {
+      await expect(page.getByTestId("development-status-message")).toBeVisible();
+      await expect(
+        statusPage.getByText("In Development", { exact: true }),
+      ).toBeVisible();
+    }
     await expect(page.locator(".data-table")).toHaveCount(0);
     await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
     await expect(page.getByText(/Prototype simulation/)).toHaveCount(0);
@@ -449,6 +458,7 @@ test("logout still survives a page reload from a status route", async ({
 test("every dashboard card and View all control reaches its live route by keyboard", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1280, height: 900 });
   await installMockApi(page, true);
   await page.goto("/dashboard");

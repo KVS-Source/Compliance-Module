@@ -19,9 +19,14 @@ export function ModuleStatusPage() {
   if (!route) return <NotFoundPage />;
 
   const awaitingIntegration = route.status === "AWAITING_INTEGRATION";
+  const compatibility = route.status === "COMPATIBILITY";
   const statusLabel =
     route.statusLabel ??
-    (awaitingIntegration ? "Awaiting GenRAC Access" : "In Development");
+    (awaitingIntegration
+      ? "Awaiting GenRAC Access"
+      : compatibility
+        ? "Compatibility Route"
+        : "In Development");
 
   return (
     <div className="page module-status-page" data-testid="module-status-page">
@@ -46,6 +51,8 @@ export function ModuleStatusPage() {
           <h2>
             {awaitingIntegration
               ? "No live GenRAC connection is configured"
+              : compatibility
+                ? "This URL is retained for backwards compatibility"
               : "This module is not enabled for operational use"}
           </h2>
           {awaitingIntegration ? (
@@ -61,6 +68,12 @@ export function ModuleStatusPage() {
                 represented here as a working integration.
               </p>
             </>
+          ) : compatibility ? (
+            <p data-testid="compatibility-status-message">
+              This route is not an operational authority and is hidden from
+              product navigation and search. Use the current product
+              navigation to find implemented modules.
+            </p>
           ) : (
             <p data-testid="development-status-message">
               This module is part of the approved GenBioCa Compliance Platform

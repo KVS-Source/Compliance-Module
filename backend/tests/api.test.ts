@@ -52,6 +52,11 @@ describe("Milestone 1 API", () => {
       .send({ email: "admin001@example.test", password: "Admin001!Secure" })
       .expect(200);
     expect(response.headers["set-cookie"]?.[0]).toContain("HttpOnly");
+    expect(response.headers["set-cookie"]?.[0]).toContain("SameSite=Strict");
+    expect(response.body.data).not.toHaveProperty("refreshToken");
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /passwordHash|tokenHash|refreshId/,
+    );
     expect(response.body.data.accessToken).toEqual(expect.any(String));
     const token = response.body.data.accessToken as string;
     const me = await request(app)
@@ -104,6 +109,10 @@ describe("Milestone 1 API", () => {
     const originalCookie = login.headers["set-cookie"]?.[0] as string;
     const refresh = await agent.post("/api/v1/auth/refresh").expect(200);
     expect(refresh.body.data.accessToken).not.toBe(login.body.data.accessToken);
+    expect(refresh.body.data).not.toHaveProperty("refreshToken");
+    expect(JSON.stringify(refresh.body)).not.toMatch(
+      /passwordHash|tokenHash|refreshId/,
+    );
     await request(app)
       .post("/api/v1/auth/refresh")
       .set("Cookie", originalCookie)
@@ -479,6 +488,9 @@ describe("Milestone 1 API", () => {
         where: { id: event.id },
         data: { action: "MUTATED" },
       }),
+    ).rejects.toThrow();
+    await expect(
+      prisma.auditEvent.delete({ where: { id: event.id } }),
     ).rejects.toThrow();
   });
 });

@@ -67,6 +67,7 @@ const route = (
   status: ModuleStatus,
   options: RouteOptions = {},
 ): RouteDefinition => ({
+  id: path.slice(1).replaceAll("/", "."),
   path,
   legacyHash,
   title,
@@ -763,20 +764,26 @@ const legacyStatusRoutes: Array<[string, string]> = [
 
 const legacyStatusDefinitions: RouteDefinition[] = legacyStatusRoutes.map(
   ([path, title]) =>
-  development(
+  route(
     path,
     `#${path.slice(1)}`,
     title,
     "Scheduled Modules",
     "This preserved route is not enabled for operational use in the UAT release.",
     FileUp,
+    4,
+    "COMPATIBILITY",
     {
       hidden: true,
+      statusLabel: "Compatibility Route",
       plannedCapabilities: [
         "Complete the reviewed domain design",
         "Connect an authorised API",
         "Add acceptance and tenant-isolation coverage",
       ],
+      dependency:
+        "This previously published URL is retained only for backwards compatibility.",
+      targetMilestone: "No operational milestone assigned",
       backPath: "/dashboard",
     },
   ),

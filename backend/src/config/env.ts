@@ -3,6 +3,9 @@ import { z } from "zod";
 
 const unsafeProductionSecret =
   /replace|change[-_ ]?me|placeholder|development[-_ ]?secret/i;
+const unsafeProductionIssuer =
+  /replace|change[-_ ]?me|placeholder|development|example|localhost/i;
+const supportedJwtDuration = /^[1-9]\d*(?:ms|s|m|h|d|w|y)$/i;
 
 export const environmentSchema = z
   .object({
@@ -12,8 +15,8 @@ export const environmentSchema = z
     PORT: z.coerce.number().int().positive().default(8000),
     DATABASE_URL: z.string().min(1),
     JWT_ACCESS_SECRET: z.string().min(32),
-    JWT_ACCESS_TTL: z.string().default("15m"),
-    JWT_ISSUER: z.string().default("genbioca-compliance"),
+    JWT_ACCESS_TTL: z.string().regex(supportedJwtDuration).default("15m"),
+    JWT_ISSUER: z.string().trim().min(1),
     REFRESH_TOKEN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
     COOKIE_SECURE: z.enum(["true", "false"]).default("false"),
     TRUST_PROXY: z.string().default("false"),
@@ -33,6 +36,14 @@ export const environmentSchema = z
     S3_BUCKET: z.string().optional(),
   })
   .superRefine((value, context) => {
+    if (value.FILE_STORAGE_DRIVER === "s3") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["FILE_STORAGE_DRIVER"],
+        message:
+          "FILE_STORAGE_DRIVER=s3 is recognised but not implemented; use local",
+      });
+    }
     if (value.NODE_ENV !== "production") return;
     if (value.TRUST_PROXY === "true") {
       context.addIssue({
@@ -63,6 +74,13 @@ export const environmentSchema = z
         message: "JWT_ACCESS_SECRET contains an unsafe placeholder",
       });
     }
+    if (unsafeProductionIssuer.test(value.JWT_ISSUER)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["JWT_ISSUER"],
+        message: "JWT_ISSUER contains an unsafe production placeholder",
+      });
+    }
   });
 
 /**
@@ -82,7 +100,12 @@ export const parseEnvironment = (input: NodeJS.ProcessEnv) => {
   const parsed = environmentSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error(
-      `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
+      `Invalid environment: ${parsed.error.issues
+        .map(
+          (issue) =>
+            `${issue.path.join(".") || "environment"}: ${issue.message}`,
+        )
+        .join("; ")}`,
     );
   }
   return parsed.data;
