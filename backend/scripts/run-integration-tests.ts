@@ -71,6 +71,7 @@ run(
     "tests/risk-workflow.test.ts",
     "tests/dashboard.test.ts",
     "tests/governance-foundation.test.ts",
+    "tests/policies-api.test.ts",
   ],
   true,
 );

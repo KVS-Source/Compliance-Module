@@ -41,7 +41,9 @@ hidden `COMPATIBILITY` routes.
 - Risk Register, owner assignment, append-only review/treatment, residual
   scoring, closure and reopening;
 - tenant-scoped database-backed dashboard;
-- append-only audit-event writes for active workflows.
+- append-only audit-event writes for active workflows;
+- Policy register, Policy Version, Framework mapping, submit/approve/reject,
+  Policy-scoped audit read and traceability APIs (Milestone 4 Slice 2).
 
 `KpiTarget`/`kpi_targets` is the active target authority. `KpiGoal`/
 `kpi_goals` is read-only compatibility data; the active backend has no mutation
@@ -49,17 +51,17 @@ path for it.
 
 ## Not operational
 
-Policy, Policy Version, Control and Checkpoint PostgreSQL persistence exists as
-the Milestone 4 Slice 1 foundation. No backend API or operational frontend page
-exists for it yet. Policies, Controls and Checkpoints therefore remain
-`IN_DEVELOPMENT`, alongside Evidence, Gap, CAPA, Import, Tasks, Notifications,
-Reports, audit search/export, settings and most broader operations modules.
-Their visible routes are status pages, not simulated business screens.
+Control and Checkpoint PostgreSQL persistence exists as the Milestone 4 Slice 1
+foundation, but Control/Checkpoint APIs and React Policy/Control/Checkpoint
+pages remain `IN_DEVELOPMENT`. Evidence, Gap, CAPA, Import, Tasks,
+Notifications, Reports, global audit search/export, settings and most broader
+operations modules are also not operational. Their visible routes are status
+pages, not simulated business screens.
 
-Evidence-dependent KPI behaviour remains fail-closed where already defined.
-Policy approval also fails closed when `requiresEvidence=true` because Evidence
-is not implemented. No fake Evidence record, upload path or approval override
-exists.
+Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
+Evidence-dependent KPI and Policy approval behaviour remains fail-closed where
+`requiresEvidence=true`. No fake Evidence record, upload path or approval
+override exists.
 
 GenRAC is `AWAITING_INTEGRATION`. No connector, live sync, credentials or
 network access exists. Client access and reviewed interface documentation are
