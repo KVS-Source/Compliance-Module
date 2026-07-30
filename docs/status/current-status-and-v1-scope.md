@@ -56,6 +56,11 @@ exists for it yet. Policies, Controls and Checkpoints therefore remain
 Reports, audit search/export, settings and most broader operations modules.
 Their visible routes are status pages, not simulated business screens.
 
+Evidence-dependent KPI behaviour remains fail-closed where already defined.
+Policy approval also fails closed when `requiresEvidence=true` because Evidence
+is not implemented. No fake Evidence record, upload path or approval override
+exists.
+
 GenRAC is `AWAITING_INTEGRATION`. No connector, live sync, credentials or
 network access exists. Client access and reviewed interface documentation are
 required before a later integration milestone.

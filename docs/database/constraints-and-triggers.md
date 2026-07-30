@@ -37,11 +37,11 @@ update.
 | T31–T32 | `policies_current_approved_consistency`; `policy_versions_current_approved_consistency` | `policies`; `policy_versions` | deferred AFTER INSERT or guarded UPDATE | Policy pointer exactly matches its one approved version at transaction commit | same | one current approved version and atomic supersession |
 | T33 | `rule_controls_active_framework` | `rule_controls` | BEFORE INSERT or UPDATE | an active RuleControl requires an active matching ControlFramework | same | RuleControl Framework consistency |
 | T34 | `control_frameworks_active_rule_guard` | `control_frameworks` | BEFORE UPDATE | a ControlFramework cannot be deactivated while active RuleControls depend on it | same | mapping lifecycle consistency |
-| T35–T37 | `policies_archive_terminal`; `controls_archive_terminal`; `checkpoints_archive_terminal` | base governance records | BEFORE UPDATE | archived records are terminal and immutable | same | terminal archive |
+| T35–T37 | `policies_archive_terminal`; `controls_archive_terminal`; `checkpoints_archive_terminal` | base governance records | BEFORE UPDATE | archived records are terminal and immutable; a Control cannot transition to `ARCHIVED` while a same-tenant child Checkpoint is `ACTIVE` | same | terminal archive and explicit child resolution |
 | T38–T41 | `control_policy_versions_lineage_immutable`; `control_frameworks_lineage_immutable`; `rule_controls_lineage_immutable`; `checkpoints_control_lineage_immutable` | mapping tables and `checkpoints` | BEFORE UPDATE | retained mapping and parent-Control lineage cannot be rewritten | same | mapping lineage immutability |
 | T42–T48 | `policies_no_hard_delete`; `policy_frameworks_no_hard_delete`; `controls_no_hard_delete`; `control_policy_versions_no_hard_delete`; `control_frameworks_no_hard_delete`; `rule_controls_no_hard_delete`; `checkpoints_no_hard_delete` | named governance history tables | BEFORE DELETE | historically relevant records cannot be physically deleted | same | no hard-delete paths |
 | T49 | `checkpoint_reviews_period_guard` | `checkpoint_reviews` | BEFORE INSERT | Checkpoint is active and review period matches its `KpiFrequency` | same | review-period validation |
-| T50 | `checkpoint_reviews_sync_latest` | `checkpoint_reviews` | AFTER INSERT | latest review pointer, reviewed timestamp and next-review date advance from the append-only ledger | same | latest-review synchronization |
+| T50 | `checkpoint_reviews_sync_latest` | `checkpoint_reviews` | AFTER INSERT | latest review pointer, reviewed timestamp and next-review date advance by `(submitted_at, id)`, with lexicographically greater UUID text breaking equal-time ties | same | reordered, equal-time and concurrent latest-review synchronization |
 
 ### Safe trigger verification queries
 
@@ -214,9 +214,20 @@ Five partial unique indexes enforce active-state uniqueness:
   tenant/KPI actual.
 - `policy_versions_one_current_approved` — no more than one `APPROVED` version
   per tenant/Policy;
-- `control_policy_versions_one_active_mapping` — no duplicate active mapping
-  for one tenant/Control/Policy/Policy Version tuple while inactive history is
-  retained.
+- `control_policy_versions_one_active_mapping` — one active mapping per
+  `(tenant_id, control_id, policy_id)` stable Policy identity while the row
+  retains its exact `policy_version_id` and inactive version history remains
+  readable.
+
+Control archival uses both `tenant_id` and `control_id` when checking child
+Checkpoints. It rejects archival while any matching child remains `ACTIVE`; it
+does not mutate children automatically. `INACTIVE` or `ARCHIVED` children do
+not block the transition.
+
+Checkpoint latest-review summaries use the total ordering
+`(submitted_at, id::text)`. A later submission wins; when timestamps are equal,
+the lexicographically greater review UUID wins. The pointer, reviewed timestamp
+and next-review date are updated from the same winning row.
 
 `tenants.next_kpi_actual_number`, `next_risk_number`, `next_policy_number`,
 `next_control_number` and `next_checkpoint_number` are positive row counters.

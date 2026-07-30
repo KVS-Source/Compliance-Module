@@ -27,8 +27,13 @@ by UAT language or status-page presentation.
   but its API and frontend workflows are not operational. Evidence, Gap, CAPA,
   Import, Tasks, Notifications, Reports, audit query/export and settings
   domains are also not operational.
-- Evidence-required KPI approval deliberately fails closed because the Evidence
-  domain is not implemented.
+- Evidence-required KPI approval deliberately fails closed where already
+  defined because the Evidence domain is not implemented. Policy approval also
+  fails closed when `requiresEvidence=true`. There is no fake Evidence record,
+  upload path or approval override.
+- Checkpoint reviews are append-only and unique per Checkpoint/review period. A
+  mistaken review cannot currently be edited, deleted or replaced for that
+  period; a formal correction/supersession mechanism is deferred.
 - GenRAC has no live connection and awaits client access and interface review.
 - `kpi_goals` remains legacy compatibility data. `kpi_targets` is authoritative.
 - A non-blocking frontend bundle-size warning remains.
