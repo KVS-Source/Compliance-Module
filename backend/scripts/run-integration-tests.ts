@@ -70,6 +70,7 @@ run(
     "tests/kpi-approval.test.ts",
     "tests/risk-workflow.test.ts",
     "tests/dashboard.test.ts",
+    "tests/governance-foundation.test.ts",
   ],
   true,
 );
