@@ -40,7 +40,7 @@ Under **Databases → selected database → Schemas → public**:
 - **Tables → Columns** shows types, defaults and nullability;
 - **Tables → Constraints** shows PK, FK, unique and check constraints;
 - **Tables → Indexes** shows ordinary, unique and partial indexes;
-- **Tables → Triggers** shows the 50 application triggers;
+- **Tables → Triggers** shows the 51 application triggers;
 - **Functions** shows the trigger functions;
 - **Catalogs** provides PostgreSQL-owned metadata.
 

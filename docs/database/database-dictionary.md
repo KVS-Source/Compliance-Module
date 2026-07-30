@@ -29,14 +29,14 @@ Conventions:
 | Prisma models | 33/33 | `schema.prisma` |
 | Prisma enums | 16/16 | `schema.prisma` |
 | Migrations | 10/10 | `backend/prisma/migrations/` |
-| Application triggers | 50/50 | migration SQL and PostgreSQL catalogue |
+| Application triggers | 51/51 | migration SQL and PostgreSQL catalogue |
 
 Fresh-catalogue evidence from disposable database
 `genbioca_m4_empty_test_20260730a`:
 
 - 33 application tables plus `_prisma_migrations`;
 - 16 PostgreSQL enum types;
-- 50 non-internal application triggers;
+- 51 non-internal application triggers;
 - 204 `public` constraints, including 114 foreign keys and 54 checks;
 - 164 `public` indexes: 33 application primary-key indexes, 130 explicit
   application indexes, and the `_prisma_migrations` primary-key index;

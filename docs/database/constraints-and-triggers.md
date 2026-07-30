@@ -5,7 +5,7 @@ are read-only and safe for a disposable or read-only administration session.
 Catalogue totals in the current database dictionary come from a freshly
 migrated disposable PostgreSQL database.
 
-## Application triggers: 50/50
+## Application triggers: 51/51
 
 All application triggers are `FOR EACH ROW`. `INSERT/UPDATE OF` means the
 trigger runs only when one of the named guarded fields participates in the
@@ -130,7 +130,7 @@ adds:
 - `enforce_checkpoint_review_period`;
 - `sync_checkpoint_latest_review`.
 
-The fresh catalogue contains 29 `public` functions in total after all ten
+The fresh catalogue contains 30 `public` functions in total after all ten
 migrations.
 
 ## Check constraints

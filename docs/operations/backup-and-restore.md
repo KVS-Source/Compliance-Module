@@ -54,7 +54,7 @@ production or UAT.
    - ten finished, non-rolled-back Prisma migrations and their checksums;
    - selected business-table row counts;
    - all 33 application tables and 16 enum types;
-   - 50 non-internal triggers;
+   - 51 non-internal triggers;
    - constraint and index counts and definitions.
 
 4. Start the current backend against the disposable restore. Require

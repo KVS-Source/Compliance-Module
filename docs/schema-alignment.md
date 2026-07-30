@@ -4,7 +4,7 @@ The active schema is aligned across:
 
 - 33 models and 16 enums in `backend/prisma/schema.prisma`;
 - ten immutable migration directories in `backend/prisma/migrations/`;
-- 33 application tables, 50 application triggers, 204 constraints and 163
+- 33 application tables, 51 application triggers, 204 constraints and 163
   application indexes observed in a freshly migrated disposable PostgreSQL
   catalogue (164 `public` indexes including the `_prisma_migrations`
   primary-key index);
