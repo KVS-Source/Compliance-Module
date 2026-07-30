@@ -23,6 +23,7 @@ import {
   type DemoRiskScenario,
 } from "./demo-seed-data.js";
 import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
+import { seedGovernanceFoundation } from "./governance-seed.js";
 
 const { password } = assertDemoSeedExecutionAllowed();
 const db = new PrismaClient();
@@ -817,6 +818,12 @@ async function counts(tenantId: string) {
     risksCount,
     reviews,
     treatments,
+    policies,
+    policyVersions,
+    controls,
+    controlPolicyVersions,
+    checkpoints,
+    checkpointReviews,
   ] = await Promise.all([
     db.userCompany.count({ where: { tenantId, status: "ACTIVE" } }),
     db.orgDepartment.count({ where: { tenantId, status: "ACTIVE" } }),
@@ -830,6 +837,12 @@ async function counts(tenantId: string) {
     db.risk.count({ where: { tenantId, deletedAt: null } }),
     db.riskReview.count({ where: { tenantId } }),
     db.riskTreatment.count({ where: { tenantId } }),
+    db.policy.count({ where: { tenantId } }),
+    db.policyVersion.count({ where: { tenantId } }),
+    db.control.count({ where: { tenantId } }),
+    db.controlPolicyVersion.count({ where: { tenantId } }),
+    db.checkpoint.count({ where: { tenantId } }),
+    db.checkpointReview.count({ where: { tenantId } }),
   ]);
   return {
     tenants: 1,
@@ -845,6 +858,12 @@ async function counts(tenantId: string) {
     risks: risksCount,
     riskReviews: reviews,
     riskTreatments: treatments,
+    policies,
+    policyVersions,
+    controls,
+    controlPolicyVersions,
+    checkpoints,
+    checkpointReviews,
   };
 }
 
@@ -869,6 +888,39 @@ async function main() {
   const organisation = await seedOrganisation(tenant.id);
   const users = await seedAccess(tenant.id, organisation.departments);
   await seedFrameworks();
+  const governanceOwnerId = users.get("COMPLIANCE_MANAGER")?.id;
+  const governanceApproverId = users.get("KPI_APPROVER")?.id;
+  const governanceDepartmentId =
+    organisation.departments.get("DEMO-DEP-001");
+  if (
+    governanceOwnerId === undefined ||
+    governanceApproverId === undefined ||
+    governanceDepartmentId === undefined
+  ) {
+    throw new Error("Demo seed conflict: governance actors or scope are missing");
+  }
+  const governanceFramework = await db.framework.findUniqueOrThrow({
+    where: {
+      code_version: { code: "DEMO-FRM-001", version: "2015" },
+    },
+  });
+  const governanceRule = await db.frameworkRule.findUniqueOrThrow({
+    where: {
+      frameworkId_code: {
+        frameworkId: governanceFramework.id,
+        code: "DEMO-FRM-001-R1",
+      },
+    },
+  });
+  await seedGovernanceFoundation(db, {
+    tenantId: tenant.id,
+    ownerId: governanceOwnerId,
+    approverId: governanceApproverId,
+    departmentId: governanceDepartmentId,
+    frameworkId: governanceFramework.id,
+    frameworkRuleId: governanceRule.id,
+    codePrefix: "DEMO-",
+  });
   await seedKpiWorkflow(
     tenant.id,
     organisation.departments,
