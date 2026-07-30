@@ -89,21 +89,61 @@ enum RiskTreatmentStatus {
   CANCELLED
 }
 
+enum GovernanceRecordStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum PolicyVersionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  OBSOLETE
+}
+
+enum ControlImplementationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PARTIALLY_IMPLEMENTED
+  IMPLEMENTED
+  NOT_APPLICABLE
+}
+
+enum ControlType {
+  PREVENTIVE
+  DETECTIVE
+  CORRECTIVE
+  DIRECTIVE
+}
+
+enum CheckpointOutcome {
+  PASS
+  PARTIAL
+  FAIL
+  NOT_APPLICABLE
+}
+
 model Tenant {
-  id                       String             @id @default(uuid()) @db.Uuid
-  code                     String             @unique
+  id                       String                 @id @default(uuid()) @db.Uuid
+  code                     String                 @unique
   name                     String
   industry                 String?
   country                  String?
-  status                   RecordStatus       @default(ACTIVE)
-  defaultAmberThresholdPct Decimal            @default(0.00) @map("default_amber_threshold_pct") @db.Decimal(6, 2)
-  defaultRedThresholdPct   Decimal            @default(10.00) @map("default_red_threshold_pct") @db.Decimal(6, 2)
-  nextRiskNumber           Int                @default(1) @map("next_risk_number")
-  nextKpiActualNumber      Int                @default(1) @map("next_kpi_actual_number")
-  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status                   RecordStatus           @default(ACTIVE)
+  defaultAmberThresholdPct Decimal                @default(0.00) @map("default_amber_threshold_pct") @db.Decimal(6, 2)
+  defaultRedThresholdPct   Decimal                @default(10.00) @map("default_red_threshold_pct") @db.Decimal(6, 2)
+  nextRiskNumber           Int                    @default(1) @map("next_risk_number")
+  nextKpiActualNumber      Int                    @default(1) @map("next_kpi_actual_number")
+  nextPolicyNumber         Int                    @default(1) @map("next_policy_number")
+  nextControlNumber        Int                    @default(1) @map("next_control_number")
+  nextCheckpointNumber     Int                    @default(1) @map("next_checkpoint_number")
+  createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships              UserCompany[]
-  defaultUsers             User[]             @relation("DefaultTenant")
+  defaultUsers             User[]                 @relation("DefaultTenant")
   roles                    Role[]
   userRoles                UserRole[]
   departments              OrgDepartment[]
@@ -117,6 +157,16 @@ model Tenant {
   risks                    Risk[]
   riskReviews              RiskReview[]
   riskTreatments           RiskTreatment[]
+  policies                 Policy[]
+  policyVersions           PolicyVersion[]
+  policyFrameworks         PolicyFramework[]
+  policyApprovals          PolicyApproval[]
+  controls                 Control[]
+  controlPolicyVersions    ControlPolicyVersion[]
+  controlFrameworks        ControlFramework[]
+  ruleControls             RuleControl[]
+  checkpoints              Checkpoint[]
+  checkpointReviews        CheckpointReview[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
 
@@ -124,44 +174,68 @@ model Tenant {
 }
 
 model User {
-  id                        String             @id @default(uuid()) @db.Uuid
-  code                      String             @unique
-  email                     String             @unique
-  fullName                  String             @map("full_name")
+  id                        String                 @id @default(uuid()) @db.Uuid
+  code                      String                 @unique
+  email                     String                 @unique
+  fullName                  String                 @map("full_name")
   phone                     String?
-  passwordHash              String             @map("password_hash")
-  status                    RecordStatus       @default(ACTIVE)
-  defaultTenantId           String?            @map("default_tenant_id") @db.Uuid
-  failedLoginCount          Int                @default(0) @map("failed_login_count")
-  lockedUntil               DateTime?          @map("locked_until") @db.Timestamptz(6)
-  lastLoginAt               DateTime?          @map("last_login_at") @db.Timestamptz(6)
-  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  passwordHash              String                 @map("password_hash")
+  status                    RecordStatus           @default(ACTIVE)
+  defaultTenantId           String?                @map("default_tenant_id") @db.Uuid
+  failedLoginCount          Int                    @default(0) @map("failed_login_count")
+  lockedUntil               DateTime?              @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt               DateTime?              @map("last_login_at") @db.Timestamptz(6)
+  createdAt                 DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships               UserCompany[]
-  defaultTenant             Tenant?            @relation("DefaultTenant", fields: [defaultTenantId], references: [id], onDelete: SetNull)
-  roles                     UserRole[]         @relation("UserRoles")
-  rolesAssigned             UserRole[]         @relation("AssignedRoles")
+  defaultTenant             Tenant?                @relation("DefaultTenant", fields: [defaultTenantId], references: [id], onDelete: SetNull)
+  roles                     UserRole[]             @relation("UserRoles")
+  rolesAssigned             UserRole[]             @relation("AssignedRoles")
   refreshTokens             RefreshToken[]
   auditEvents               AuditEvent[]
-  ownedKpiConfigurations    KpiConfiguration[] @relation("KpiConfigurationOwner")
-  approverKpiConfigurations KpiConfiguration[] @relation("KpiConfigurationApprover")
-  createdKpiConfigurations  KpiConfiguration[] @relation("KpiConfigurationCreatedBy")
-  updatedKpiConfigurations  KpiConfiguration[] @relation("KpiConfigurationUpdatedBy")
-  submittedKpiTargets       KpiTarget[]        @relation("KpiTargetSubmittedBy")
-  approvedKpiTargets        KpiTarget[]        @relation("KpiTargetApprovedBy")
-  createdKpiTargets         KpiTarget[]        @relation("KpiTargetCreatedBy")
-  updatedKpiTargets         KpiTarget[]        @relation("KpiTargetUpdatedBy")
-  submittedKpiActuals       KpiActual[]        @relation("KpiActualSubmittedBy")
-  approvedKpiActuals        KpiActual[]        @relation("KpiActualApprovedBy")
-  createdKpiActuals         KpiActual[]        @relation("KpiActualCreatedBy")
-  updatedKpiActuals         KpiActual[]        @relation("KpiActualUpdatedBy")
-  reviewedKpiActuals        KpiApproval[]      @relation("KpiApprovalReviewer")
-  ownedRisks                Risk[]             @relation("RiskOwner")
-  createdRisks              Risk[]             @relation("RiskCreatedBy")
-  updatedRisks              Risk[]             @relation("RiskUpdatedBy")
-  reviewedRisks             RiskReview[]       @relation("RiskReviewReviewer")
-  ownedRiskTreatments       RiskTreatment[]    @relation("RiskTreatmentOwner")
-  recordedRiskTreatments    RiskTreatment[]    @relation("RiskTreatmentRecordedBy")
+  ownedKpiConfigurations    KpiConfiguration[]     @relation("KpiConfigurationOwner")
+  approverKpiConfigurations KpiConfiguration[]     @relation("KpiConfigurationApprover")
+  createdKpiConfigurations  KpiConfiguration[]     @relation("KpiConfigurationCreatedBy")
+  updatedKpiConfigurations  KpiConfiguration[]     @relation("KpiConfigurationUpdatedBy")
+  submittedKpiTargets       KpiTarget[]            @relation("KpiTargetSubmittedBy")
+  approvedKpiTargets        KpiTarget[]            @relation("KpiTargetApprovedBy")
+  createdKpiTargets         KpiTarget[]            @relation("KpiTargetCreatedBy")
+  updatedKpiTargets         KpiTarget[]            @relation("KpiTargetUpdatedBy")
+  submittedKpiActuals       KpiActual[]            @relation("KpiActualSubmittedBy")
+  approvedKpiActuals        KpiActual[]            @relation("KpiActualApprovedBy")
+  createdKpiActuals         KpiActual[]            @relation("KpiActualCreatedBy")
+  updatedKpiActuals         KpiActual[]            @relation("KpiActualUpdatedBy")
+  reviewedKpiActuals        KpiApproval[]          @relation("KpiApprovalReviewer")
+  ownedRisks                Risk[]                 @relation("RiskOwner")
+  createdRisks              Risk[]                 @relation("RiskCreatedBy")
+  updatedRisks              Risk[]                 @relation("RiskUpdatedBy")
+  reviewedRisks             RiskReview[]           @relation("RiskReviewReviewer")
+  ownedRiskTreatments       RiskTreatment[]        @relation("RiskTreatmentOwner")
+  recordedRiskTreatments    RiskTreatment[]        @relation("RiskTreatmentRecordedBy")
+  ownedPolicies             Policy[]               @relation("PolicyOwner")
+  createdPolicies           Policy[]               @relation("PolicyCreatedBy")
+  updatedPolicies           Policy[]               @relation("PolicyUpdatedBy")
+  requestedPolicyVersions   PolicyVersion[]        @relation("PolicyVersionRequestedApprover")
+  submittedPolicyVersions   PolicyVersion[]        @relation("PolicyVersionSubmittedBy")
+  approvedPolicyVersions    PolicyVersion[]        @relation("PolicyVersionApprovedBy")
+  createdPolicyVersions     PolicyVersion[]        @relation("PolicyVersionCreatedBy")
+  updatedPolicyVersions     PolicyVersion[]        @relation("PolicyVersionUpdatedBy")
+  createdPolicyFrameworks   PolicyFramework[]      @relation("PolicyFrameworkCreatedBy")
+  updatedPolicyFrameworks   PolicyFramework[]      @relation("PolicyFrameworkUpdatedBy")
+  policyApprovalActions     PolicyApproval[]       @relation("PolicyApprovalActor")
+  ownedControls             Control[]              @relation("ControlOwner")
+  createdControls           Control[]              @relation("ControlCreatedBy")
+  updatedControls           Control[]              @relation("ControlUpdatedBy")
+  createdControlPolicies    ControlPolicyVersion[] @relation("ControlPolicyVersionCreatedBy")
+  updatedControlPolicies    ControlPolicyVersion[] @relation("ControlPolicyVersionUpdatedBy")
+  createdControlFrameworks  ControlFramework[]     @relation("ControlFrameworkCreatedBy")
+  updatedControlFrameworks  ControlFramework[]     @relation("ControlFrameworkUpdatedBy")
+  createdRuleControls       RuleControl[]          @relation("RuleControlCreatedBy")
+  updatedRuleControls       RuleControl[]          @relation("RuleControlUpdatedBy")
+  ownedCheckpoints          Checkpoint[]           @relation("CheckpointOwner")
+  createdCheckpoints        Checkpoint[]           @relation("CheckpointCreatedBy")
+  updatedCheckpoints        Checkpoint[]           @relation("CheckpointUpdatedBy")
+  checkpointReviews         CheckpointReview[]     @relation("CheckpointReviewReviewer")
 
   @@index([status, createdAt])
   @@map("users")
@@ -250,6 +324,9 @@ model OrgDepartment {
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberships       UserCompany[]
   kpiConfigurations KpiConfiguration[]
+  policies          Policy[]
+  controls          Control[]
+  checkpoints       Checkpoint[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, id])
@@ -294,13 +371,15 @@ model OrgUnit {
 }
 
 model Framework {
-  id          String          @id @default(uuid()) @db.Uuid
-  code        String
-  name        String
-  version     String
-  description String?
-  status      RecordStatus    @default(ACTIVE)
-  rules       FrameworkRule[]
+  id                String             @id @default(uuid()) @db.Uuid
+  code              String
+  name              String
+  version           String
+  description       String?
+  status            RecordStatus       @default(ACTIVE)
+  rules             FrameworkRule[]
+  policyFrameworks  PolicyFramework[]
+  controlFrameworks ControlFramework[]
 
   @@unique([code, version])
   @@index([status, name])
@@ -308,17 +387,326 @@ model Framework {
 }
 
 model FrameworkRule {
-  id          String       @id @default(uuid()) @db.Uuid
-  frameworkId String       @map("framework_id") @db.Uuid
-  code        String
-  title       String
-  description String?
-  status      RecordStatus @default(ACTIVE)
-  framework   Framework    @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid()) @db.Uuid
+  frameworkId  String        @map("framework_id") @db.Uuid
+  code         String
+  title        String
+  description  String?
+  status       RecordStatus  @default(ACTIVE)
+  framework    Framework     @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  ruleControls RuleControl[]
 
   @@unique([frameworkId, code])
+  @@unique([frameworkId, id])
   @@index([frameworkId, status])
   @@map("framework_rules")
+}
+
+model Policy {
+  id                       String                 @id @default(uuid()) @db.Uuid
+  tenantId                 String                 @map("tenant_id") @db.Uuid
+  code                     String
+  title                    String
+  description              String?                @db.Text
+  ownerId                  String?                @map("owner_id") @db.Uuid
+  departmentId             String?                @map("department_id") @db.Uuid
+  lifecycleStatus          GovernanceRecordStatus @default(ACTIVE) @map("lifecycle_status")
+  currentApprovedVersionId String?                @map("current_approved_version_id") @db.Uuid
+  nextVersionSequence      Int                    @default(1) @map("next_version_sequence")
+  createdById              String                 @map("created_by_id") @db.Uuid
+  updatedById              String                 @map("updated_by_id") @db.Uuid
+  createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt               DateTime?              @map("archived_at") @db.Timestamptz(6)
+  tenant                   Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  owner                    User?                  @relation("PolicyOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department               OrgDepartment?         @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  currentApprovedVersion   PolicyVersion?         @relation("PolicyCurrentApprovedVersion", fields: [tenantId, id, currentApprovedVersionId], references: [tenantId, policyId, id], onDelete: Restrict)
+  versions                 PolicyVersion[]        @relation("PolicyVersions")
+  createdBy                User                   @relation("PolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy                User                   @relation("PolicyUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, currentApprovedVersionId])
+  @@unique([tenantId, code])
+  @@index([tenantId, lifecycleStatus, archivedAt])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([currentApprovedVersionId])
+  @@map("policies")
+}
+
+model PolicyVersion {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  tenantId            String                 @map("tenant_id") @db.Uuid
+  policyId            String                 @map("policy_id") @db.Uuid
+  sequence            Int
+  versionMajor        Int                    @map("version_major")
+  versionMinor        Int                    @map("version_minor")
+  content             String                 @db.Text
+  purpose             String?                @db.Text
+  scope               String?                @db.Text
+  changeSummary       String?                @map("change_summary") @db.Text
+  status              PolicyVersionStatus    @default(DRAFT)
+  effectiveDate       DateTime?              @map("effective_date") @db.Date
+  reviewDate          DateTime?              @map("review_date") @db.Date
+  requiresEvidence    Boolean                @default(false) @map("requires_evidence")
+  requestedApproverId String?                @map("requested_approver_id") @db.Uuid
+  submittedById       String?                @map("submitted_by_id") @db.Uuid
+  submittedAt         DateTime?              @map("submitted_at") @db.Timestamptz(6)
+  approvedById        String?                @map("approved_by_id") @db.Uuid
+  approvedAt          DateTime?              @map("approved_at") @db.Timestamptz(6)
+  supersededById      String?                @map("superseded_by_id") @db.Uuid
+  createdById         String                 @map("created_by_id") @db.Uuid
+  updatedById         String                 @map("updated_by_id") @db.Uuid
+  createdAt           DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant              Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  policy              Policy                 @relation("PolicyVersions", fields: [tenantId, policyId], references: [tenantId, id], onDelete: Restrict)
+  currentForPolicy    Policy?                @relation("PolicyCurrentApprovedVersion")
+  requestedApprover   User?                  @relation("PolicyVersionRequestedApprover", fields: [requestedApproverId], references: [id], onDelete: Restrict)
+  submittedBy         User?                  @relation("PolicyVersionSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  approvedBy          User?                  @relation("PolicyVersionApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  createdBy           User                   @relation("PolicyVersionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User                   @relation("PolicyVersionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  supersededBy        PolicyVersion?         @relation("PolicyVersionSupersession", fields: [tenantId, policyId, supersededById], references: [tenantId, policyId, id], onDelete: Restrict)
+  supersedes          PolicyVersion[]        @relation("PolicyVersionSupersession")
+  frameworkMappings   PolicyFramework[]
+  approvals           PolicyApproval[]
+  controlMappings     ControlPolicyVersion[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, policyId, id])
+  @@unique([tenantId, policyId, sequence])
+  @@unique([tenantId, policyId, versionMajor, versionMinor])
+  @@index([tenantId, policyId, status, sequence])
+  @@index([requestedApproverId])
+  @@index([submittedById])
+  @@index([approvedById])
+  @@index([supersededById])
+  @@map("policy_versions")
+}
+
+model PolicyFramework {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  policyId        String        @map("policy_id") @db.Uuid
+  policyVersionId String        @map("policy_version_id") @db.Uuid
+  frameworkId     String        @map("framework_id") @db.Uuid
+  isActive        Boolean       @default(true) @map("is_active")
+  createdById     String        @map("created_by_id") @db.Uuid
+  updatedById     String        @map("updated_by_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  version         PolicyVersion @relation(fields: [tenantId, policyId, policyVersionId], references: [tenantId, policyId, id], onDelete: Restrict)
+  framework       Framework     @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  createdBy       User          @relation("PolicyFrameworkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User          @relation("PolicyFrameworkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, policyVersionId, frameworkId])
+  @@index([tenantId, policyId, policyVersionId, isActive])
+  @@index([frameworkId, isActive])
+  @@map("policy_frameworks")
+}
+
+model PolicyApproval {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  policyId        String           @map("policy_id") @db.Uuid
+  policyVersionId String           @map("policy_version_id") @db.Uuid
+  actedById       String           @map("acted_by_id") @db.Uuid
+  decision        ApprovalDecision
+  comments        String?          @db.Text
+  decidedAt       DateTime         @default(now()) @map("decided_at") @db.Timestamptz(6)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  version         PolicyVersion    @relation(fields: [tenantId, policyId, policyVersionId], references: [tenantId, policyId, id], onDelete: Restrict)
+  actedBy         User             @relation("PolicyApprovalActor", fields: [actedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, policyVersionId, decidedAt])
+  @@index([tenantId, actedById, decidedAt])
+  @@map("policy_approvals")
+}
+
+model Control {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  tenantId              String                      @map("tenant_id") @db.Uuid
+  code                  String
+  title                 String
+  description           String?                     @db.Text
+  objective             String                      @db.Text
+  ownerId               String?                     @map("owner_id") @db.Uuid
+  departmentId          String?                     @map("department_id") @db.Uuid
+  implementationStatus  ControlImplementationStatus @default(NOT_STARTED) @map("implementation_status")
+  implementationNotes   String?                     @map("implementation_notes") @db.Text
+  controlType           ControlType                 @map("control_type")
+  frequency             KpiFrequency
+  verificationMethod    String                      @map("verification_method") @db.Text
+  requiresEvidence      Boolean                     @default(false) @map("requires_evidence")
+  lifecycleStatus       GovernanceRecordStatus      @default(ACTIVE) @map("lifecycle_status")
+  lastReviewDate        DateTime?                   @map("last_review_date") @db.Date
+  nextReviewDate        DateTime?                   @map("next_review_date") @db.Date
+  createdById           String                      @map("created_by_id") @db.Uuid
+  updatedById           String                      @map("updated_by_id") @db.Uuid
+  createdAt             DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt            DateTime?                   @map("archived_at") @db.Timestamptz(6)
+  tenant                Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  owner                 User?                       @relation("ControlOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department            OrgDepartment?              @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  createdBy             User                        @relation("ControlCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User                        @relation("ControlUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  policyVersionMappings ControlPolicyVersion[]
+  frameworkMappings     ControlFramework[]
+  checkpoints           Checkpoint[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId, lifecycleStatus, implementationStatus])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([tenantId, nextReviewDate])
+  @@map("controls")
+}
+
+model ControlPolicyVersion {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  controlId       String        @map("control_id") @db.Uuid
+  policyId        String        @map("policy_id") @db.Uuid
+  policyVersionId String        @map("policy_version_id") @db.Uuid
+  isActive        Boolean       @default(true) @map("is_active")
+  createdById     String        @map("created_by_id") @db.Uuid
+  updatedById     String        @map("updated_by_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  control         Control       @relation(fields: [tenantId, controlId], references: [tenantId, id], onDelete: Restrict)
+  policyVersion   PolicyVersion @relation(fields: [tenantId, policyId, policyVersionId], references: [tenantId, policyId, id], onDelete: Restrict)
+  createdBy       User          @relation("ControlPolicyVersionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User          @relation("ControlPolicyVersionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, controlId, isActive])
+  @@index([tenantId, policyId, policyVersionId, isActive])
+  @@map("control_policy_versions")
+}
+
+model ControlFramework {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  controlId    String        @map("control_id") @db.Uuid
+  frameworkId  String        @map("framework_id") @db.Uuid
+  isActive     Boolean       @default(true) @map("is_active")
+  createdById  String        @map("created_by_id") @db.Uuid
+  updatedById  String        @map("updated_by_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  control      Control       @relation(fields: [tenantId, controlId], references: [tenantId, id], onDelete: Restrict)
+  framework    Framework     @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  createdBy    User          @relation("ControlFrameworkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User          @relation("ControlFrameworkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  ruleControls RuleControl[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, controlId, frameworkId])
+  @@index([tenantId, controlId, isActive])
+  @@index([frameworkId, isActive])
+  @@map("control_frameworks")
+}
+
+model RuleControl {
+  id               String           @id @default(uuid()) @db.Uuid
+  tenantId         String           @map("tenant_id") @db.Uuid
+  controlId        String           @map("control_id") @db.Uuid
+  frameworkId      String           @map("framework_id") @db.Uuid
+  frameworkRuleId  String           @map("framework_rule_id") @db.Uuid
+  isActive         Boolean          @default(true) @map("is_active")
+  createdById      String           @map("created_by_id") @db.Uuid
+  updatedById      String           @map("updated_by_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  controlFramework ControlFramework @relation(fields: [tenantId, controlId, frameworkId], references: [tenantId, controlId, frameworkId], onDelete: Restrict)
+  frameworkRule    FrameworkRule    @relation(fields: [frameworkId, frameworkRuleId], references: [frameworkId, id], onDelete: Restrict)
+  createdBy        User             @relation("RuleControlCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy        User             @relation("RuleControlUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, controlId, frameworkRuleId])
+  @@index([tenantId, controlId, frameworkId, isActive])
+  @@index([frameworkId, frameworkRuleId, isActive])
+  @@map("rule_controls")
+}
+
+model Checkpoint {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  controlId             String                 @map("control_id") @db.Uuid
+  code                  String
+  title                 String
+  description           String?                @db.Text
+  verificationFrequency KpiFrequency           @map("verification_frequency")
+  ownerId               String?                @map("owner_id") @db.Uuid
+  departmentId          String?                @map("department_id") @db.Uuid
+  expectedResult        String                 @map("expected_result") @db.Text
+  evidenceRequired      Boolean                @default(false) @map("evidence_required")
+  lifecycleStatus       GovernanceRecordStatus @default(ACTIVE) @map("lifecycle_status")
+  initialReviewDate     DateTime?              @map("initial_review_date") @db.Date
+  nextReviewDate        DateTime?              @map("next_review_date") @db.Date
+  latestReviewId        String?                @map("latest_review_id") @db.Uuid
+  lastReviewedAt        DateTime?              @map("last_reviewed_at") @db.Timestamptz(6)
+  createdById           String                 @map("created_by_id") @db.Uuid
+  updatedById           String                 @map("updated_by_id") @db.Uuid
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt            DateTime?              @map("archived_at") @db.Timestamptz(6)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  control               Control                @relation(fields: [tenantId, controlId], references: [tenantId, id], onDelete: Restrict)
+  owner                 User?                  @relation("CheckpointOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department            OrgDepartment?         @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  latestReview          CheckpointReview?      @relation("CheckpointLatestReview", fields: [tenantId, id, latestReviewId], references: [tenantId, checkpointId, id], onDelete: Restrict)
+  reviews               CheckpointReview[]     @relation("CheckpointReviews")
+  createdBy             User                   @relation("CheckpointCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User                   @relation("CheckpointUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, latestReviewId])
+  @@unique([tenantId, code])
+  @@index([tenantId, controlId, lifecycleStatus])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([tenantId, nextReviewDate])
+  @@index([latestReviewId])
+  @@map("checkpoints")
+}
+
+model CheckpointReview {
+  id                  String            @id @default(uuid()) @db.Uuid
+  tenantId            String            @map("tenant_id") @db.Uuid
+  checkpointId        String            @map("checkpoint_id") @db.Uuid
+  reviewPeriod        String            @map("review_period") @db.VarChar(48)
+  reviewDate          DateTime          @map("review_date") @db.Date
+  reviewerId          String            @map("reviewer_id") @db.Uuid
+  outcome             CheckpointOutcome
+  observation         String?           @db.Text
+  recommendation      String?           @db.Text
+  nextReviewDate      DateTime?         @map("next_review_date") @db.Date
+  submittedAt         DateTime          @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  tenant              Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  checkpoint          Checkpoint        @relation("CheckpointReviews", fields: [tenantId, checkpointId], references: [tenantId, id], onDelete: Restrict)
+  latestForCheckpoint Checkpoint?       @relation("CheckpointLatestReview")
+  reviewer            User              @relation("CheckpointReviewReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, checkpointId, id])
+  @@unique([tenantId, checkpointId, reviewPeriod])
+  @@index([tenantId, checkpointId, reviewDate])
+  @@index([tenantId, reviewerId, submittedAt])
+  @@map("checkpoint_reviews")
 }
 
 model KpiDefinition {
