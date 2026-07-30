@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type {
   Framework,
@@ -29,10 +29,11 @@ if (
 const suffix = randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
 const code = (prefix: string) => `${prefix}-${suffix}`;
 const syntheticHash = "synthetic-test-hash-not-a-runtime-secret";
+const backendDirectory = resolve(__dirname, "..");
 const governanceMigrationSql = readFileSync(
-  join(
-    process.cwd(),
-    "prisma/migrations/20260730040412_milestone_4_policy_control_checkpoint_foundation/migration.sql",
+  resolve(
+    __dirname,
+    "../prisma/migrations/20260730040412_milestone_4_policy_control_checkpoint_foundation/migration.sql",
   ),
   "utf8",
 );
@@ -575,6 +576,21 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
       await submit(policyA.version, ownerA),
       approverA,
     );
+    const versionA11 = await prisma.policyVersion.create({
+      data: {
+        tenantId: tenantA.id,
+        policyId: policyA.policy.id,
+        sequence: 2,
+        versionMajor: 1,
+        versionMinor: 1,
+        content: "# Synthetic Policy MAP-A version 1.1",
+        effectiveDate: new Date("2026-08-01T00:00:00.000Z"),
+        reviewDate: new Date("2027-08-01T00:00:00.000Z"),
+        requestedApproverId: approverA.id,
+        createdById: ownerA.id,
+        updatedById: ownerA.id,
+      },
+    });
     const policyB = await createDraft("MAP-B", {
       tenant: tenantB,
       owner: ownerB,
@@ -619,7 +635,7 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
           tenantId: tenantA.id,
           controlId: control.id,
           policyId: policyA.policy.id,
-          policyVersionId: approvedA.approved.id,
+          policyVersionId: versionA11.id,
           createdById: ownerA.id,
           updatedById: ownerA.id,
         },
@@ -634,7 +650,7 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
         tenantId: tenantA.id,
         controlId: control.id,
         policyId: policyA.policy.id,
-        policyVersionId: approvedA.approved.id,
+        policyVersionId: versionA11.id,
         createdById: ownerA.id,
         updatedById: ownerA.id,
       },
@@ -645,10 +661,25 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
         where: {
           tenantId: tenantA.id,
           controlId: control.id,
-          policyVersionId: approvedA.approved.id,
+          policyId: policyA.policy.id,
         },
       }),
     ).toBe(2);
+    expect(
+      await prisma.controlPolicyVersion.findMany({
+        where: {
+          tenantId: tenantA.id,
+          controlId: control.id,
+          policyId: policyA.policy.id,
+        },
+        select: { policyVersionId: true, isActive: true },
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        { policyVersionId: approvedA.approved.id, isActive: false },
+        { policyVersionId: versionA11.id, isActive: true },
+      ]),
+    );
     const otherControl = await prisma.control.create({
       data: {
         tenantId: tenantA.id,
@@ -860,6 +891,186 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     ).toBeNull();
   });
 
+  it("blocks Control archival until its own active Checkpoints are resolved", async () => {
+    const createControl = (
+      label: string,
+      options: {
+        tenant?: Tenant;
+        owner?: User;
+        department?: OrgDepartment;
+      } = {},
+    ) => {
+      const tenant = options.tenant ?? tenantA;
+      const owner = options.owner ?? ownerA;
+      const department = options.department ?? departmentA;
+      return prisma.control.create({
+        data: {
+          tenantId: tenant.id,
+          code: code(`CTL-ARC-${label}`),
+          title: `Synthetic Archive Control ${label}`,
+          objective: "Verify explicit child lifecycle resolution.",
+          ownerId: owner.id,
+          departmentId: department.id,
+          implementationStatus: "IMPLEMENTED",
+          controlType: "PREVENTIVE",
+          frequency: "MONTHLY",
+          verificationMethod: "Synthetic verification.",
+          createdById: owner.id,
+          updatedById: owner.id,
+        },
+      });
+    };
+    const createCheckpoint = (
+      label: string,
+      controlId: string,
+      options: {
+        tenant?: Tenant;
+        owner?: User;
+        department?: OrgDepartment;
+      } = {},
+    ) => {
+      const tenant = options.tenant ?? tenantA;
+      const owner = options.owner ?? ownerA;
+      const department = options.department ?? departmentA;
+      return prisma.checkpoint.create({
+        data: {
+          tenantId: tenant.id,
+          controlId,
+          code: code(`CHK-ARC-${label}`),
+          title: `Synthetic Archive Checkpoint ${label}`,
+          verificationFrequency: "MONTHLY",
+          ownerId: owner.id,
+          departmentId: department.id,
+          expectedResult: "The synthetic archive condition passes.",
+          createdById: owner.id,
+          updatedById: owner.id,
+        },
+      });
+    };
+
+    const inactiveChildControl = await createControl("INACTIVE");
+    const activeCheckpoint = await createCheckpoint(
+      "ACTIVE",
+      inactiveChildControl.id,
+    );
+    const originalTitle = inactiveChildControl.title;
+    await expect(
+      prisma.$transaction(async (transaction) => {
+        await transaction.control.update({
+          where: { id: inactiveChildControl.id },
+          data: {
+            title: "This staged change must roll back",
+            updatedById: ownerA.id,
+          },
+        });
+        await transaction.control.update({
+          where: { id: inactiveChildControl.id },
+          data: {
+            lifecycleStatus: "ARCHIVED",
+            archivedAt: new Date(),
+            updatedById: ownerA.id,
+          },
+        });
+      }),
+    ).rejects.toBeTruthy();
+    expect(
+      await prisma.control.findUniqueOrThrow({
+        where: { id: inactiveChildControl.id },
+      }),
+    ).toMatchObject({
+      title: originalTitle,
+      lifecycleStatus: "ACTIVE",
+      archivedAt: null,
+    });
+    expect(
+      await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: activeCheckpoint.id },
+      }),
+    ).toMatchObject({ lifecycleStatus: "ACTIVE", archivedAt: null });
+
+    await prisma.checkpoint.update({
+      where: { id: activeCheckpoint.id },
+      data: { lifecycleStatus: "INACTIVE", updatedById: ownerA.id },
+    });
+    await prisma.control.update({
+      where: { id: inactiveChildControl.id },
+      data: {
+        lifecycleStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        updatedById: ownerA.id,
+      },
+    });
+    expect(
+      await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: activeCheckpoint.id },
+      }),
+    ).toMatchObject({ lifecycleStatus: "INACTIVE", archivedAt: null });
+
+    const archivedChildControl = await createControl("ARCHIVED");
+    const archivedCheckpoint = await createCheckpoint(
+      "ARCHIVED",
+      archivedChildControl.id,
+    );
+    await prisma.checkpoint.update({
+      where: { id: archivedCheckpoint.id },
+      data: {
+        lifecycleStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        updatedById: ownerA.id,
+      },
+    });
+    await prisma.control.update({
+      where: { id: archivedChildControl.id },
+      data: {
+        lifecycleStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        updatedById: ownerA.id,
+      },
+    });
+    await expect(
+      prisma.control.update({
+        where: { id: archivedChildControl.id },
+        data: {
+          title: "Forbidden archived mutation",
+          updatedById: ownerA.id,
+        },
+      }),
+    ).rejects.toBeTruthy();
+
+    const tenantAControl = await createControl("TENANT-A");
+    const tenantBControl = await createControl("TENANT-B", {
+      tenant: tenantB,
+      owner: ownerB,
+      department: departmentB,
+    });
+    const tenantBCheckpoint = await createCheckpoint(
+      "TENANT-B",
+      tenantBControl.id,
+      {
+        tenant: tenantB,
+        owner: ownerB,
+        department: departmentB,
+      },
+    );
+    await prisma.control.update({
+      where: { id: tenantAControl.id },
+      data: {
+        lifecycleStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        updatedById: ownerA.id,
+      },
+    });
+    expect(
+      await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: tenantBCheckpoint.id },
+      }),
+    ).toMatchObject({
+      tenantId: tenantB.id,
+      controlId: tenantBControl.id,
+      lifecycleStatus: "ACTIVE",
+    });
+  });
+
   it("enforces Checkpoint review periods, uniqueness, append-only history and terminal archive", async () => {
     const control = await prisma.control.create({
       data: {
@@ -989,6 +1200,181 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     ).rejects.toBeTruthy();
   });
 
+  it("selects the latest Checkpoint review deterministically under reordered and concurrent inserts", async () => {
+    const reviewIdPrefix = randomUUID().slice(0, 24);
+    const reviewId = (ordinal: number) =>
+      `${reviewIdPrefix}${String(ordinal).padStart(12, "0")}`;
+    const control = await prisma.control.create({
+      data: {
+        tenantId: tenantA.id,
+        code: code("CTL-ORDER"),
+        title: "Checkpoint Review Ordering Control",
+        objective: "Verify deterministic latest-review summaries.",
+        ownerId: ownerA.id,
+        departmentId: departmentA.id,
+        implementationStatus: "IMPLEMENTED",
+        controlType: "DETECTIVE",
+        frequency: "MONTHLY",
+        verificationMethod: "Synthetic verification.",
+        createdById: ownerA.id,
+        updatedById: ownerA.id,
+      },
+    });
+    const createCheckpoint = (label: string) =>
+      prisma.checkpoint.create({
+        data: {
+          tenantId: tenantA.id,
+          controlId: control.id,
+          code: code(`CHK-ORDER-${label}`),
+          title: `Synthetic Review Ordering Checkpoint ${label}`,
+          verificationFrequency: "MONTHLY",
+          ownerId: ownerA.id,
+          departmentId: departmentA.id,
+          expectedResult: "The deterministic ordering condition passes.",
+          createdById: ownerA.id,
+          updatedById: ownerA.id,
+        },
+      });
+    const createReview = (input: {
+      id: string;
+      checkpointId: string;
+      reviewPeriod: string;
+      submittedAt: Date;
+      nextReviewDate: Date;
+      outcome: "PASS" | "NOT_APPLICABLE";
+    }) =>
+      prisma.checkpointReview.create({
+        data: {
+          id: input.id,
+          tenantId: tenantA.id,
+          checkpointId: input.checkpointId,
+          reviewPeriod: input.reviewPeriod,
+          reviewDate: new Date("2026-07-30T00:00:00.000Z"),
+          reviewerId: approverA.id,
+          outcome: input.outcome,
+          nextReviewDate: input.nextReviewDate,
+          submittedAt: input.submittedAt,
+        },
+      });
+    const expectLatest = async (
+      checkpointId: string,
+      expected: {
+        id: string;
+        submittedAt: Date;
+        nextReviewDate: Date;
+        outcome: "PASS" | "NOT_APPLICABLE";
+      },
+    ) => {
+      const checkpoint = await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: checkpointId },
+        include: { latestReview: true },
+      });
+      expect(checkpoint).toMatchObject({
+        latestReviewId: expected.id,
+        lastReviewedAt: expected.submittedAt,
+        nextReviewDate: expected.nextReviewDate,
+      });
+      expect(checkpoint.latestReview).toMatchObject({
+        id: expected.id,
+        checkpointId,
+        submittedAt: expected.submittedAt,
+        nextReviewDate: expected.nextReviewDate,
+        outcome: expected.outcome,
+      });
+    };
+
+    const chronologicalCheckpoint = await createCheckpoint("CHRONOLOGICAL");
+    const chronologicalEarlier = {
+      id: reviewId(10),
+      checkpointId: chronologicalCheckpoint.id,
+      reviewPeriod: "2026-07",
+      submittedAt: new Date("2026-07-30T10:00:00.000Z"),
+      nextReviewDate: new Date("2026-08-31T00:00:00.000Z"),
+      outcome: "PASS" as const,
+    };
+    const chronologicalLater = {
+      id: reviewId(20),
+      checkpointId: chronologicalCheckpoint.id,
+      reviewPeriod: "2026-08",
+      submittedAt: new Date("2026-07-30T11:00:00.000Z"),
+      nextReviewDate: new Date("2026-09-30T00:00:00.000Z"),
+      outcome: "NOT_APPLICABLE" as const,
+    };
+    await createReview(chronologicalEarlier);
+    await createReview(chronologicalLater);
+    await expectLatest(chronologicalCheckpoint.id, chronologicalLater);
+
+    const olderAfterNewerCheckpoint =
+      await createCheckpoint("OLDER-AFTER-NEWER");
+    const newerFirst = {
+      ...chronologicalLater,
+      id: reviewId(40),
+      checkpointId: olderAfterNewerCheckpoint.id,
+    };
+    const olderSecond = {
+      ...chronologicalEarlier,
+      id: reviewId(30),
+      checkpointId: olderAfterNewerCheckpoint.id,
+    };
+    await createReview(newerFirst);
+    await createReview(olderSecond);
+    await expectLatest(olderAfterNewerCheckpoint.id, newerFirst);
+
+    const equalForwardCheckpoint = await createCheckpoint("EQUAL-FORWARD");
+    const equalSubmittedAt = new Date("2026-07-30T12:00:00.000Z");
+    const equalForwardSmaller = {
+      id: reviewId(50),
+      checkpointId: equalForwardCheckpoint.id,
+      reviewPeriod: "2026-07",
+      submittedAt: equalSubmittedAt,
+      nextReviewDate: new Date("2026-08-31T00:00:00.000Z"),
+      outcome: "PASS" as const,
+    };
+    const equalForwardGreater = {
+      id: reviewId(60),
+      checkpointId: equalForwardCheckpoint.id,
+      reviewPeriod: "2026-08",
+      submittedAt: equalSubmittedAt,
+      nextReviewDate: new Date("2026-09-30T00:00:00.000Z"),
+      outcome: "NOT_APPLICABLE" as const,
+    };
+    await createReview(equalForwardSmaller);
+    await createReview(equalForwardGreater);
+    await expectLatest(equalForwardCheckpoint.id, equalForwardGreater);
+
+    const equalReverseCheckpoint = await createCheckpoint("EQUAL-REVERSE");
+    const equalReverseSmaller = {
+      ...equalForwardSmaller,
+      id: reviewId(70),
+      checkpointId: equalReverseCheckpoint.id,
+    };
+    const equalReverseGreater = {
+      ...equalForwardGreater,
+      id: reviewId(80),
+      checkpointId: equalReverseCheckpoint.id,
+    };
+    await createReview(equalReverseGreater);
+    await createReview(equalReverseSmaller);
+    await expectLatest(equalReverseCheckpoint.id, equalReverseGreater);
+
+    const concurrentCheckpoint = await createCheckpoint("CONCURRENT");
+    const concurrentEarlier = {
+      ...chronologicalEarlier,
+      id: reviewId(90),
+      checkpointId: concurrentCheckpoint.id,
+    };
+    const concurrentLater = {
+      ...chronologicalLater,
+      id: reviewId(100),
+      checkpointId: concurrentCheckpoint.id,
+    };
+    await Promise.all([
+      createReview(concurrentEarlier),
+      createReview(concurrentLater),
+    ]);
+    await expectLatest(concurrentCheckpoint.id, concurrentLater);
+  });
+
   it("seeds the permission catalogue idempotently without altering unknown roles", async () => {
     const seededTenant = await prisma.tenant.findUniqueOrThrow({
       where: { code: "COM-001" },
@@ -1010,6 +1396,21 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
         permissionId: existingPermission.id,
       },
     });
+    const activeGovernanceMapping =
+      await prisma.controlPolicyVersion.findFirstOrThrow({
+        where: { tenantId: seededTenant.id, isActive: true },
+      });
+    const preservedInactiveMapping = await prisma.controlPolicyVersion.create({
+      data: {
+        tenantId: seededTenant.id,
+        controlId: activeGovernanceMapping.controlId,
+        policyId: activeGovernanceMapping.policyId,
+        policyVersionId: activeGovernanceMapping.policyVersionId,
+        isActive: false,
+        createdById: activeGovernanceMapping.createdById,
+        updatedById: activeGovernanceMapping.updatedById,
+      },
+    });
     await prisma.tenant.update({
       where: { id: seededTenant.id },
       data: {
@@ -1021,7 +1422,7 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
 
     const command = process.platform === "win32" ? "npm.cmd" : "npm";
     const result = spawnSync(command, ["run", "prisma:seed:test"], {
-      cwd: process.cwd(),
+      cwd: backendDirectory,
       env: process.env,
       encoding: "utf8",
     });
@@ -1090,6 +1491,21 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
         where: { id: preservedAssignment.id },
       }),
     ).toBeTruthy();
+    expect(
+      await prisma.controlPolicyVersion.findUniqueOrThrow({
+        where: { id: preservedInactiveMapping.id },
+      }),
+    ).toMatchObject({ isActive: false });
+    expect(
+      await prisma.controlPolicyVersion.count({
+        where: {
+          tenantId: seededTenant.id,
+          controlId: activeGovernanceMapping.controlId,
+          policyId: activeGovernanceMapping.policyId,
+          isActive: true,
+        },
+      }),
+    ).toBe(1);
     expect(
       await prisma.tenant.findUniqueOrThrow({
         where: { id: seededTenant.id },
@@ -1232,25 +1648,46 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     expect(indexRows.map(({ name }) => name)).toEqual(
       expect.arrayContaining(expectedIndexes),
     );
-    expect(
-      indexRows.find(
-        ({ name }) => name === "control_policy_versions_one_active_mapping",
-      )?.definition,
-    ).toMatch(/UNIQUE.*WHERE is_active/);
+    const activeControlPolicyIndex = indexRows.find(
+      ({ name }) => name === "control_policy_versions_one_active_mapping",
+    )?.definition;
+    expect(activeControlPolicyIndex).toMatch(
+      /UNIQUE INDEX .* USING btree \(tenant_id, control_id, policy_id\) WHERE is_active/,
+    );
+    expect(activeControlPolicyIndex).not.toContain("policy_version_id");
     expect(
       indexRows.find(
         ({ name }) => name === "policy_versions_one_current_approved",
       )?.definition,
     ).toMatch(/UNIQUE.*WHERE \(status = 'APPROVED'/);
 
-    const functionRows = await prisma.$queryRaw<{ name: string }[]>`
-      SELECT procedure.proname AS name
+    const functionRows = await prisma.$queryRaw<
+      { name: string; definition: string }[]
+    >`
+      SELECT procedure.proname AS name,
+             pg_get_functiondef(procedure.oid) AS definition
       FROM pg_proc AS procedure
       JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
       WHERE namespace.nspname = 'public'
     `;
     expect(functionRows.map(({ name }) => name)).toEqual(
       expect.arrayContaining(expectedFunctions),
+    );
+    const archiveFunction = functionRows.find(
+      ({ name }) => name === "enforce_terminal_governance_archive",
+    )?.definition;
+    expect(archiveFunction).toContain("TG_TABLE_NAME = 'controls'");
+    expect(archiveFunction).toContain('"tenant_id" = OLD."tenant_id"');
+    expect(archiveFunction).toContain('"control_id" = OLD."id"');
+    expect(archiveFunction).toContain("\"lifecycle_status\" = 'ACTIVE'");
+    const latestReviewFunction = functionRows.find(
+      ({ name }) => name === "sync_checkpoint_latest_review",
+    )?.definition;
+    expect(latestReviewFunction).toContain(
+      '"last_reviewed_at" < NEW."submitted_at"',
+    );
+    expect(latestReviewFunction).toContain(
+      '"latest_review_id"::TEXT < NEW."id"::TEXT',
     );
 
     const triggerRows = await prisma.$queryRaw<{ name: string }[]>`

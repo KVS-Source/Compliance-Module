@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   assertCheckpointReview,
+  compareCheckpointReviewOrder,
   isReviewPeriodValid,
 } from "../src/modules/checkpoints/domain.js";
 import {
+  assertControlArchiveAllowed,
   assertControlImplementation,
   assertGovernanceLifecycleTransition,
+  assertUniqueActiveControlPolicyMappings,
   assertUniqueMappingIds,
 } from "../src/modules/controls/domain.js";
 import {
@@ -145,6 +148,36 @@ describe("Control lifecycle and mappings", () => {
       assertUniqueMappingIds(["one", "two", "one"], "frameworkIds"),
     ).toThrowError(/duplicate mapping/);
   });
+
+  it("allows only one active mapping for each Control and stable Policy identity", () => {
+    expect(() =>
+      assertUniqueActiveControlPolicyMappings([
+        { controlId: "control-1", policyId: "policy-1", isActive: false },
+        { controlId: "control-1", policyId: "policy-1", isActive: true },
+      ]),
+    ).not.toThrow();
+    expect(() =>
+      assertUniqueActiveControlPolicyMappings([
+        { controlId: "control-1", policyId: "policy-1", isActive: true },
+        { controlId: "control-1", policyId: "policy-1", isActive: true },
+      ]),
+    ).toThrowError(/stable Policy identity/);
+    expect(() =>
+      assertUniqueActiveControlPolicyMappings([
+        { controlId: "control-1", policyId: "policy-1", isActive: true },
+        { controlId: "control-1", policyId: "policy-2", isActive: true },
+        { controlId: "control-2", policyId: "policy-1", isActive: true },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("rejects Control archival while active Checkpoints exist", () => {
+    expect(() => assertControlArchiveAllowed("ARCHIVED", 1)).toThrowError(
+      /active Checkpoints/,
+    );
+    expect(() => assertControlArchiveAllowed("ARCHIVED", 0)).not.toThrow();
+    expect(() => assertControlArchiveAllowed("INACTIVE", 2)).not.toThrow();
+  });
 });
 
 describe("Checkpoint review validation", () => {
@@ -171,17 +204,34 @@ describe("Checkpoint review validation", () => {
     );
   });
 
-  it("requires observations for PARTIAL and FAIL", () => {
-    expect(() =>
-      assertCheckpointReview({
-        frequency: "MONTHLY",
-        reviewPeriod: "2026-07",
-        outcome: "FAIL",
-        observation: "",
-        reviewDate: "2026-07-30",
-      }),
-    ).toThrowError(/require an observation/);
-  });
+  it.each(["PASS", "NOT_APPLICABLE"] as const)(
+    "accepts %s without an observation",
+    (outcome) => {
+      expect(() =>
+        assertCheckpointReview({
+          frequency: "MONTHLY",
+          reviewPeriod: "2026-07",
+          outcome,
+          reviewDate: "2026-07-30",
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it.each(["PARTIAL", "FAIL"] as const)(
+    "requires an observation for %s",
+    (outcome) => {
+      expect(() =>
+        assertCheckpointReview({
+          frequency: "MONTHLY",
+          reviewPeriod: "2026-07",
+          outcome,
+          observation: "",
+          reviewDate: "2026-07-30",
+        }),
+      ).toThrowError(/require an observation/);
+    },
+  );
 
   it("requires the next review date to follow the review date", () => {
     expect(() =>
@@ -193,6 +243,27 @@ describe("Checkpoint review validation", () => {
         nextReviewDate: "2026-07-01",
       }),
     ).toThrowError(/after reviewDate/);
+  });
+
+  it("orders reviews by submittedAt and then lexicographically by id", () => {
+    const submittedAt = new Date("2026-07-30T10:00:00.000Z");
+    const smaller = {
+      id: "00000000-0000-4000-8000-000000000010",
+      submittedAt,
+    };
+    const greater = {
+      id: "00000000-0000-4000-8000-000000000020",
+      submittedAt,
+    };
+    expect(compareCheckpointReviewOrder(smaller, greater)).toBe(-1);
+    expect(compareCheckpointReviewOrder(greater, smaller)).toBe(1);
+    expect(compareCheckpointReviewOrder(smaller, smaller)).toBe(0);
+    expect(
+      compareCheckpointReviewOrder(
+        { ...greater, submittedAt: new Date("2026-07-30T09:59:59.000Z") },
+        smaller,
+      ),
+    ).toBe(-1);
   });
 });
 
