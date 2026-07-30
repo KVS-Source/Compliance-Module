@@ -35,7 +35,8 @@ complete.
 
 Backend `permit()` is authoritative; frontend permission boundaries are user
 experience only. Named permissions protect active reads, writes, approvals and
-risk actions.
+risk actions, including `policies:read`, `policies:write`, `policies:submit`
+and `policies:approve`.
 
 `COMPANY_ADMIN` accepts wildcard `"*"`. This is UAT-only technical debt and a
 production blocker. New roles must not copy the wildcard.
