@@ -72,6 +72,7 @@ run(
     "tests/dashboard.test.ts",
     "tests/governance-foundation.test.ts",
     "tests/policies-api.test.ts",
+    "tests/controls-api.test.ts",
   ],
   true,
 );

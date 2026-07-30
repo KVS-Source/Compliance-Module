@@ -11,8 +11,9 @@
 | KPI calculations/actual | performance/approval unit suites | `kpi-actuals.test.ts`, `kpi-approval.test.ts` | actual/approval UI flows | real target-versus-actual |
 | Automatic risk | risk/performance unit suites | `kpi-actuals.test.ts` | risk fixture flows | real missed KPI |
 | Risk review/treatment/closure | risk service unit suite | `risk-workflow.test.ts` | Risk Register/detail flows | real append-only history |
-| Policy/Control/Checkpoint foundation | `governance-domain-unit.test.ts` | `governance-foundation.test.ts` reciprocal lifecycle and catalogue invariants | — (Control/Checkpoint routes remain `IN_DEVELOPMENT`) | API/UI for Controls/Checkpoints deferred; `INACTIVE` Control + `ACTIVE` Checkpoint remains accepted |
+| Policy/Control/Checkpoint foundation | `governance-domain-unit.test.ts` | `governance-foundation.test.ts` reciprocal lifecycle and catalogue invariants | — (Checkpoint routes remain `IN_DEVELOPMENT`) | Checkpoint APIs deferred; `INACTIVE` Control + `ACTIVE` Checkpoint remains accepted |
 | Policy APIs | `policies-unit.test.ts` | `policies-api.test.ts` tenant isolation, concurrency, submit/approve/reject, Evidence 501, archive rules, audit metadata safety | — (React Policy UI remains `IN_DEVELOPMENT`) | Postman Policy collection + pgAdmin inspection guide |
+| Control APIs | `controls-unit.test.ts` | `controls-api.test.ts` tenant isolation, concurrency, lifecycle, archive protection, mapping replace, audit metadata safety | — (React Control UI remains `IN_DEVELOPMENT`) | Postman Control collection + pgAdmin inspection guide |
 | Dashboard | — | `dashboard.test.ts` | dashboard fixture flows | compare API/database counts |
 | Route truthfulness | route/router/boundary scripts | — | navigation/status assertions | visible route review |
 | Migration history | — | runner deploys ten migrations | — | empty history and nine-migration upgrade drills |
@@ -32,7 +33,8 @@ Existing tenant-isolation coverage is distributed across:
 - `kpi-approval.test.ts`;
 - `risk-workflow.test.ts`;
 - `dashboard.test.ts`;
-- `policies-api.test.ts`.
+- `policies-api.test.ts`;
+- `controls-api.test.ts`.
 
 Existing immutability coverage is retained in the domain suites:
 

@@ -980,5 +980,154 @@ export const openApiDocument = {
         },
       },
     },
+    "/controls": {
+      get: {
+        summary: "List Controls",
+        description:
+          "Supports filters for lifecycle, implementation, owner, department, " +
+          "controlType, frequency, requiresEvidence, review-due dates, and active " +
+          "Policy/Framework/Rule mappings. List rows omit large text fields and " +
+          "include small active mapping and Checkpoint counts.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated Control list" },
+          "403": { description: "Missing controls:read" },
+        },
+      },
+      post: {
+        summary: "Create Control",
+        description:
+          "Server allocates CTL-### codes. Optional initial Policy Version, " +
+          "Framework and Framework Rule mappings must satisfy APPROVED-only and " +
+          "Framework/Rule dependency rules. lifecycleStatus is server-controlled.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Control created" },
+          "400": { description: "Validation, mapping or related-record failure" },
+          "403": { description: "Missing controls:write" },
+        },
+      },
+    },
+    "/controls/{controlId}": {
+      get: {
+        summary: "Get Control detail",
+        description:
+          "Returns scalar fields plus active mapping and Checkpoint counts. " +
+          "Archived Controls remain readable.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Control detail with counts" },
+          "404": { description: "Control not found in active Company" },
+        },
+      },
+      patch: {
+        summary: "Update Control register fields",
+        description:
+          "Does not accept lifecycle or mapping fields. Archived Controls are immutable.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Control updated" },
+          "409": { description: "Control archived" },
+        },
+      },
+    },
+    "/controls/{controlId}/activate": {
+      post: {
+        summary: "Activate Control",
+        description: "INACTIVE → ACTIVE only. Same-state and archived calls return 409.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Control activated" },
+          "409": { description: "CONTROL_INVALID_STATE" },
+        },
+      },
+    },
+    "/controls/{controlId}/deactivate": {
+      post: {
+        summary: "Deactivate Control",
+        description:
+          "ACTIVE → INACTIVE only. Active Checkpoints may remain (accepted limitation).",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Control deactivated" },
+          "409": { description: "CONTROL_INVALID_STATE" },
+        },
+      },
+    },
+    "/controls/{controlId}/archive": {
+      post: {
+        summary: "Archive Control",
+        description:
+          "Refused with 409 CONTROL_HAS_ACTIVE_CHECKPOINTS while any Checkpoint is ACTIVE. " +
+          "Does not alter Checkpoint or mapping rows.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Control archived" },
+          "409": {
+            description:
+              "CONTROL_INVALID_STATE or CONTROL_HAS_ACTIVE_CHECKPOINTS",
+          },
+        },
+      },
+    },
+    "/controls/{controlId}/policy-versions": {
+      put: {
+        summary: "Replace active Policy Version mappings",
+        description:
+          "Body: { policyVersionIds }. Only currently APPROVED Versions. " +
+          "One active mapping per stable Policy. Soft-replace; identical PUT is a no-op.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Mappings updated" },
+          "400": { description: "CONTROL_MAPPING_INVALID or RELATED_RECORD_INVALID" },
+          "409": { description: "Archived Control" },
+        },
+      },
+    },
+    "/controls/{controlId}/frameworks": {
+      put: {
+        summary: "Replace active Framework mappings",
+        description:
+          "Body: { frameworkIds }. Rejects removals that still have active RuleControl rows.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Mappings updated" },
+          "409": {
+            description:
+              "Archived Control or Framework still has active Rule mappings",
+          },
+        },
+      },
+    },
+    "/controls/{controlId}/framework-rules": {
+      put: {
+        summary: "Replace active Framework Rule mappings",
+        description:
+          "Body: { frameworkRuleIds }. Requires an existing active ControlFramework " +
+          "for each Rule's Framework; does not auto-create Framework mappings.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Mappings updated" },
+          "400": { description: "CONTROL_MAPPING_INVALID when Framework mapping missing" },
+        },
+      },
+    },
+    "/controls/{controlId}/traceability": {
+      get: {
+        summary: "Control mapping traceability",
+        description:
+          "Active and inactive Policy Version, Framework and Rule mappings with Version status.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Bounded read-only traceability" } },
+      },
+    },
+    "/controls/{controlId}/audit-events": {
+      get: {
+        summary: "Control-scoped audit events",
+        description: "Filters by entityType CONTROL and entityId controlId.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Paginated safe audit events" } },
+      },
+    },
   },
 } as const;

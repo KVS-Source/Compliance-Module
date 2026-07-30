@@ -23,9 +23,9 @@ by UAT language or status-page presentation.
 
 ## Product limitations
 
-- Policy REST APIs are operational. React Policy pages, Control APIs, Checkpoint
-  APIs, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports, global audit
-  query/export and settings domains are not operational.
+- Policy and Control REST APIs are operational. React Policy/Control pages,
+  Checkpoint APIs, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports,
+  global audit query/export and settings domains are not operational.
 - Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
 - Evidence-required KPI approval deliberately fails closed where already
   defined because the Evidence domain is not implemented. Policy approval also

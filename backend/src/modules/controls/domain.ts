@@ -75,3 +75,76 @@ export const assertControlArchiveAllowed = (
     );
   }
 };
+
+const safeControlAuditFields = new Set([
+  "title",
+  "description",
+  "objective",
+  "ownerId",
+  "departmentId",
+  "implementationStatus",
+  "implementationNotes",
+  "controlType",
+  "frequency",
+  "verificationMethod",
+  "requiresEvidence",
+  "lastReviewDate",
+  "nextReviewDate",
+  "lifecycleStatus",
+]);
+
+export const safeControlAuditMetadata = (input: {
+  code: string;
+  fromStatus?: GovernanceRecordStatus;
+  toStatus?: GovernanceRecordStatus;
+  changedFields?: readonly string[];
+  mappingType?: "POLICY_VERSION" | "FRAMEWORK" | "FRAMEWORK_RULE";
+  addedIds?: readonly string[];
+  removedIds?: readonly string[];
+  activeCount?: number;
+}) => ({
+  code: input.code,
+  ...(input.fromStatus ? { fromStatus: input.fromStatus } : {}),
+  ...(input.toStatus ? { toStatus: input.toStatus } : {}),
+  ...(input.changedFields
+    ? {
+        changedFields: [...new Set(input.changedFields)]
+          .filter((field) => safeControlAuditFields.has(field))
+          .sort(),
+      }
+    : {}),
+  ...(input.mappingType ? { mappingType: input.mappingType } : {}),
+  ...(input.addedIds ? { addedIds: [...input.addedIds].sort() } : {}),
+  ...(input.removedIds ? { removedIds: [...input.removedIds].sort() } : {}),
+  ...(input.activeCount !== undefined
+    ? { activeCount: input.activeCount }
+    : {}),
+});
+
+/** Compare two ID sets for effective active-mapping equality. */
+export const mappingIdSetsEqual = (
+  left: readonly string[],
+  right: readonly string[],
+) => {
+  if (left.length !== right.length) return false;
+  const rightSet = new Set(right);
+  return left.every((id) => rightSet.has(id));
+};
+
+export const assertSameStateLifecycleForbidden = (
+  current: GovernanceRecordStatus,
+  target: GovernanceRecordStatus,
+) => {
+  if (current === target) {
+    throw new GovernanceRuleError(
+      "CONTROL_INVALID_STATE",
+      `Control is already ${current}`,
+    );
+  }
+  if (current === "ARCHIVED") {
+    throw new GovernanceRuleError(
+      "CONTROL_INVALID_STATE",
+      "Archived Control cannot change lifecycle state",
+    );
+  }
+};
