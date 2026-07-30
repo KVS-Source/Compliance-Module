@@ -299,6 +299,18 @@
       }
     },
     {
+      "name": "17d. Approve resubmitted Version",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{approverToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/policy-versions/{{versionId}}/approve"
+      }
+    },
+    {
       "name": "18. Permission denied (approver create)",
       "request": {
         "method": "POST",

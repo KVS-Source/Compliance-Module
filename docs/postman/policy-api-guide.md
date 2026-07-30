@@ -35,9 +35,10 @@ Synthetic emails already in the environment:
 10. Approve Version
 11. Version history, traceability, audit events
 12. Create another Version, submit, reject with comments, resubmit
-13. Permission-denied create as approver — expect `403`
-14. Cross-tenant or unknown Policy ID — expect safe `404`
-15. Archive Policy — empty body `{}`
+13. Approver approves the resubmitted Version (clears SUBMITTED so archive is allowed)
+14. Permission-denied create as approver — expect `403`
+15. Cross-tenant or unknown Policy ID — expect safe `404`
+16. Archive Policy — empty body `{}` (409 if any Version is still SUBMITTED)
 
 ## Response terminology
 
