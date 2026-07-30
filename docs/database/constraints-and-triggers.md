@@ -37,11 +37,12 @@ update.
 | T31–T32 | `policies_current_approved_consistency`; `policy_versions_current_approved_consistency` | `policies`; `policy_versions` | deferred AFTER INSERT or guarded UPDATE | Policy pointer exactly matches its one approved version at transaction commit | same | one current approved version and atomic supersession |
 | T33 | `rule_controls_active_framework` | `rule_controls` | BEFORE INSERT or UPDATE | an active RuleControl requires an active matching ControlFramework | same | RuleControl Framework consistency |
 | T34 | `control_frameworks_active_rule_guard` | `control_frameworks` | BEFORE UPDATE | a ControlFramework cannot be deactivated while active RuleControls depend on it | same | mapping lifecycle consistency |
-| T35–T37 | `policies_archive_terminal`; `controls_archive_terminal`; `checkpoints_archive_terminal` | base governance records | BEFORE UPDATE | archived records are terminal and immutable; a Control cannot transition to `ARCHIVED` while a same-tenant child Checkpoint is `ACTIVE` | same | terminal archive and explicit child resolution |
-| T38–T41 | `control_policy_versions_lineage_immutable`; `control_frameworks_lineage_immutable`; `rule_controls_lineage_immutable`; `checkpoints_control_lineage_immutable` | mapping tables and `checkpoints` | BEFORE UPDATE | retained mapping and parent-Control lineage cannot be rewritten | same | mapping lineage immutability |
-| T42–T48 | `policies_no_hard_delete`; `policy_frameworks_no_hard_delete`; `controls_no_hard_delete`; `control_policy_versions_no_hard_delete`; `control_frameworks_no_hard_delete`; `rule_controls_no_hard_delete`; `checkpoints_no_hard_delete` | named governance history tables | BEFORE DELETE | historically relevant records cannot be physically deleted | same | no hard-delete paths |
-| T49 | `checkpoint_reviews_period_guard` | `checkpoint_reviews` | BEFORE INSERT | Checkpoint is active and review period matches its `KpiFrequency` | same | review-period validation |
-| T50 | `checkpoint_reviews_sync_latest` | `checkpoint_reviews` | AFTER INSERT | latest review pointer, reviewed timestamp and next-review date advance by `(submitted_at, id)`, with lexicographically greater UUID text breaking equal-time ties | same | reordered, equal-time and concurrent latest-review synchronization |
+| T35–T37 | `policies_archive_terminal`; `controls_archive_terminal`; `checkpoints_archive_terminal` | base governance records | BEFORE UPDATE | archived records are terminal and immutable; Control archival locks the Control row then rejects the transition while a same-tenant child Checkpoint is `ACTIVE` | same | terminal archive and explicit child resolution |
+| T38 | `checkpoints_parent_control_lifecycle` | `checkpoints` | BEFORE INSERT or UPDATE | locks the parent Control row before validating; rejects `ACTIVE` Checkpoint INSERT or reactivation under an `ARCHIVED` Control; non-lifecycle updates skip the lock | same | reciprocal Control/Checkpoint lifecycle |
+| T39–T42 | `control_policy_versions_lineage_immutable`; `control_frameworks_lineage_immutable`; `rule_controls_lineage_immutable`; `checkpoints_control_lineage_immutable` | mapping tables and `checkpoints` | BEFORE UPDATE | retained mapping and parent-Control lineage cannot be rewritten | same | mapping lineage immutability |
+| T43–T49 | `policies_no_hard_delete`; `policy_frameworks_no_hard_delete`; `controls_no_hard_delete`; `control_policy_versions_no_hard_delete`; `control_frameworks_no_hard_delete`; `rule_controls_no_hard_delete`; `checkpoints_no_hard_delete` | named governance history tables | BEFORE DELETE | historically relevant records cannot be physically deleted | same | no hard-delete paths |
+| T50 | `checkpoint_reviews_period_guard` | `checkpoint_reviews` | BEFORE INSERT | Checkpoint is active and review period matches its `KpiFrequency` | same | review-period validation |
+| T51 | `checkpoint_reviews_sync_latest` | `checkpoint_reviews` | AFTER INSERT | latest review pointer, reviewed timestamp and next-review date advance by `(submitted_at, id)`, with lexicographically greater UUID text breaking equal-time ties | same | reordered, equal-time and concurrent latest-review synchronization |
 
 ### Safe trigger verification queries
 
@@ -108,7 +109,7 @@ WHERE n.nspname = 'public' AND NOT t.tgisinternal
 ORDER BY c.relname, t.tgname;
 ```
 
-## Milestone 4 functions: 14/14
+## Milestone 4 functions: 15/15
 
 Migration `20260730040412_milestone_4_policy_control_checkpoint_foundation`
 adds:
@@ -123,6 +124,7 @@ adds:
 - `enforce_active_rule_control_framework`;
 - `prevent_framework_mapping_deactivation`;
 - `enforce_terminal_governance_archive`;
+- `enforce_checkpoint_parent_control_lifecycle`;
 - `enforce_governance_lineage_immutability`;
 - `prevent_governance_history_delete`;
 - `enforce_checkpoint_review_period`;
@@ -220,9 +222,19 @@ Five partial unique indexes enforce active-state uniqueness:
   readable.
 
 Control archival uses both `tenant_id` and `control_id` when checking child
-Checkpoints. It rejects archival while any matching child remains `ACTIVE`; it
-does not mutate children automatically. `INACTIVE` or `ARCHIVED` children do
-not block the transition.
+Checkpoints. It locks the parent Control row before inspecting children, rejects
+archival while any matching child remains `ACTIVE`, and does not mutate children
+automatically. `INACTIVE` or `ARCHIVED` children do not block the transition.
+
+The reciprocal path is enforced on Checkpoint INSERT and activation: the trigger
+locks the same parent Control row (`SELECT ... FOR UPDATE`) before validating
+lifecycle, then rejects an `ACTIVE` Checkpoint under an `ARCHIVED` Control.
+`INACTIVE` Checkpoints under an `ARCHIVED` Control remain permitted. Concurrent
+archive-versus-activation races therefore serialize on the Control row; only one
+compatible outcome commits, and `ARCHIVED` Control + `ACTIVE` Checkpoint is
+impossible. An `INACTIVE` Control may still retain an `ACTIVE` Checkpoint in
+Slice 1. No trigger automatically reactivates or deactivates Controls or
+Checkpoints.
 
 Checkpoint latest-review summaries use the total ordering
 `(submitted_at, id::text)`. A later submission wins; when timestamps are equal,

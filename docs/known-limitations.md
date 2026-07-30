@@ -34,6 +34,9 @@ by UAT language or status-page presentation.
 - Checkpoint reviews are append-only and unique per Checkpoint/review period. A
   mistaken review cannot currently be edited, deleted or replaced for that
   period; a formal correction/supersession mechanism is deferred.
+- An `INACTIVE` Control may still retain an `ACTIVE` Checkpoint. Reciprocal
+  enforcement covers only `ARCHIVED` Control versus `ACTIVE` Checkpoint; the
+  database does not automatically deactivate or reactivate children or parents.
 - GenRAC has no live connection and awaits client access and interface review.
 - `kpi_goals` remains legacy compatibility data. `kpi_targets` is authoritative.
 - A non-blocking frontend bundle-size warning remains.
