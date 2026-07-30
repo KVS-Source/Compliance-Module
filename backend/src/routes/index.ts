@@ -37,6 +37,9 @@ import {
   policyRoutes,
   policyVersionRoutes,
 } from "../modules/policies/routes.js";
+import { ControlRepository } from "../modules/controls/repository.js";
+import { ControlService } from "../modules/controls/service.js";
+import { controlRoutes } from "../modules/controls/routes.js";
 import {
   authenticate,
   authorizeTenantContext,
@@ -51,6 +54,7 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   const risks = new RiskService(new RiskRepository(db));
   const dashboard = new DashboardService(new DashboardRepository(db));
   const policies = new PolicyService(new PolicyRepository(db));
+  const controls = new ControlService(new ControlRepository(db));
   const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
@@ -101,5 +105,6 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   router.use("/risks", riskRoutes(risks));
   router.use("/policies", policyRoutes(policies));
   router.use("/policy-versions", policyVersionRoutes(policies));
+  router.use("/controls", controlRoutes(controls));
   return router;
 };
