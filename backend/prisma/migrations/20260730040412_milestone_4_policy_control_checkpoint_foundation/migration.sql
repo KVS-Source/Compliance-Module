@@ -1072,15 +1072,24 @@ BEGIN
   IF TG_TABLE_NAME = 'controls'
     AND OLD."lifecycle_status" <> 'ARCHIVED'
     AND NEW."lifecycle_status" = 'ARCHIVED'
-    AND EXISTS (
+  THEN
+    -- Reaffirm the Control row lock already held by this UPDATE so Checkpoint
+    -- INSERT/activation (which locks the same parent row) serializes here.
+    PERFORM 1
+    FROM "controls"
+    WHERE "tenant_id" = OLD."tenant_id"
+      AND "id" = OLD."id"
+    FOR UPDATE;
+
+    IF EXISTS (
       SELECT 1
       FROM "checkpoints"
       WHERE "tenant_id" = OLD."tenant_id"
         AND "control_id" = OLD."id"
         AND "lifecycle_status" = 'ACTIVE'
-    )
-  THEN
-    RAISE EXCEPTION 'Control cannot be archived while active Checkpoints exist';
+    ) THEN
+      RAISE EXCEPTION 'Control cannot be archived while active Checkpoints exist';
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -1097,6 +1106,51 @@ FOR EACH ROW EXECUTE FUNCTION enforce_terminal_governance_archive();
 CREATE TRIGGER "checkpoints_archive_terminal"
 BEFORE UPDATE ON "checkpoints"
 FOR EACH ROW EXECUTE FUNCTION enforce_terminal_governance_archive();
+
+CREATE OR REPLACE FUNCTION enforce_checkpoint_parent_control_lifecycle()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  parent_lifecycle "GovernanceRecordStatus";
+BEGIN
+  -- Skip non-lifecycle/non-lineage Checkpoint updates (for example latest-review
+  -- sync) so parent locking stays scoped to INSERT and activation paths.
+  IF TG_OP = 'UPDATE'
+    AND NEW."lifecycle_status" IS NOT DISTINCT FROM OLD."lifecycle_status"
+    AND NEW."control_id" IS NOT DISTINCT FROM OLD."control_id"
+  THEN
+    RETURN NEW;
+  END IF;
+
+  -- Lock the parent Control before validating. Same lock order as Control
+  -- archival prevents ARCHIVED Control + ACTIVE Checkpoint races.
+  SELECT "lifecycle_status"
+  INTO parent_lifecycle
+  FROM "controls"
+  WHERE "tenant_id" = NEW."tenant_id"
+    AND "id" = NEW."control_id"
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Checkpoint Control lineage is invalid'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW."lifecycle_status" = 'ACTIVE'
+    AND parent_lifecycle = 'ARCHIVED'
+  THEN
+    RAISE EXCEPTION 'ACTIVE Checkpoint cannot reference an ARCHIVED Control'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "checkpoints_parent_control_lifecycle"
+BEFORE INSERT OR UPDATE ON "checkpoints"
+FOR EACH ROW EXECUTE FUNCTION enforce_checkpoint_parent_control_lifecycle();
 
 CREATE OR REPLACE FUNCTION enforce_governance_lineage_immutability()
 RETURNS trigger
