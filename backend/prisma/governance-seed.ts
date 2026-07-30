@@ -221,7 +221,6 @@ export async function seedGovernanceFoundation(
       tenantId: input.tenantId,
       controlId: control.id,
       policyId: policy.id,
-      policyVersionId: version.id,
       isActive: true,
     },
     select: { id: true },

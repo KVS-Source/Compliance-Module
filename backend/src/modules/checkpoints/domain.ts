@@ -91,3 +91,19 @@ export const assertCheckpointReview = (input: {
     );
   }
 };
+
+export type CheckpointReviewOrderKey = Readonly<{
+  id: string;
+  submittedAt: Date;
+}>;
+
+export const compareCheckpointReviewOrder = (
+  left: CheckpointReviewOrderKey,
+  right: CheckpointReviewOrderKey,
+) => {
+  const timestampComparison =
+    left.submittedAt.valueOf() - right.submittedAt.valueOf();
+  if (timestampComparison !== 0) return timestampComparison < 0 ? -1 : 1;
+  if (left.id === right.id) return 0;
+  return left.id < right.id ? -1 : 1;
+};

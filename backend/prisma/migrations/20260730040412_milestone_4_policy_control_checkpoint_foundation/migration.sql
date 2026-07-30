@@ -318,7 +318,7 @@ CREATE UNIQUE INDEX "control_policy_versions_tenant_id_id_key" ON "control_polic
 
 -- CreateIndex
 CREATE UNIQUE INDEX "control_policy_versions_one_active_mapping"
-ON "control_policy_versions"("tenant_id", "control_id", "policy_id", "policy_version_id")
+ON "control_policy_versions"("tenant_id", "control_id", "policy_id")
 WHERE "is_active";
 
 -- CreateIndex
@@ -1069,6 +1069,19 @@ BEGIN
   THEN
     RAISE EXCEPTION 'archived % records are immutable', TG_TABLE_NAME;
   END IF;
+  IF TG_TABLE_NAME = 'controls'
+    AND OLD."lifecycle_status" <> 'ARCHIVED'
+    AND NEW."lifecycle_status" = 'ARCHIVED'
+    AND EXISTS (
+      SELECT 1
+      FROM "checkpoints"
+      WHERE "tenant_id" = OLD."tenant_id"
+        AND "control_id" = OLD."id"
+        AND "lifecycle_status" = 'ACTIVE'
+    )
+  THEN
+    RAISE EXCEPTION 'Control cannot be archived while active Checkpoints exist';
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -1259,7 +1272,14 @@ BEGIN
     AND "id" = NEW."checkpoint_id"
     AND (
       "last_reviewed_at" IS NULL
-      OR "last_reviewed_at" <= NEW."submitted_at"
+      OR "last_reviewed_at" < NEW."submitted_at"
+      OR (
+        "last_reviewed_at" = NEW."submitted_at"
+        AND (
+          "latest_review_id" IS NULL
+          OR "latest_review_id"::TEXT < NEW."id"::TEXT
+        )
+      )
     );
   RETURN NEW;
 END;

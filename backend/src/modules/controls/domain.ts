@@ -45,3 +45,33 @@ export const assertUniqueMappingIds = (
     );
   }
 };
+
+export const assertUniqueActiveControlPolicyMappings = (
+  mappings: readonly {
+    controlId: string;
+    policyId: string;
+    isActive: boolean;
+  }[],
+) => {
+  const activeIdentities = mappings
+    .filter(({ isActive }) => isActive)
+    .map(({ controlId, policyId }) => `${controlId}\u0000${policyId}`);
+  if (new Set(activeIdentities).size !== activeIdentities.length) {
+    throw new GovernanceRuleError(
+      "CONTROL_POLICY_ACTIVE_MAPPING_DUPLICATE",
+      "A Control may have only one active mapping to a stable Policy identity",
+    );
+  }
+};
+
+export const assertControlArchiveAllowed = (
+  targetStatus: GovernanceRecordStatus,
+  activeCheckpointCount: number,
+) => {
+  if (targetStatus === "ARCHIVED" && activeCheckpointCount > 0) {
+    throw new GovernanceRuleError(
+      "CONTROL_ACTIVE_CHECKPOINTS_EXIST",
+      "A Control cannot be archived while active Checkpoints exist",
+    );
+  }
+};
