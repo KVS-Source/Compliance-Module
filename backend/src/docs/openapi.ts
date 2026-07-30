@@ -832,5 +832,152 @@ export const openApiDocument = {
         },
       },
     },
+    "/policies": {
+      get: {
+        summary: "List Policies",
+        description:
+          "versionStatus and frameworkId filter latestVersion; review-due filters " +
+          "require currentApprovedVersion.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated Policy list" },
+          "403": { description: "Missing policies:read" },
+        },
+      },
+      post: {
+        summary: "Create Policy with Version 1.0 DRAFT",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Policy created" },
+          "400": { description: "Validation or related-record failure" },
+          "403": { description: "Missing policies:write" },
+        },
+      },
+    },
+    "/policies/{policyId}": {
+      get: {
+        summary: "Get Policy detail",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Policy detail with latestVersion and currentApprovedVersion" },
+          "404": { description: "Policy not found in active Company" },
+        },
+      },
+      patch: {
+        summary: "Update Policy register fields",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Policy updated" },
+          "409": { description: "Policy archived" },
+        },
+      },
+    },
+    "/policies/{policyId}/archive": {
+      post: {
+        summary: "Archive Policy",
+        description:
+          "Refused while any Version is SUBMITTED. Historical Versions remain unchanged.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Policy archived" },
+          "409": { description: "Already archived or SUBMITTED Version present" },
+        },
+      },
+    },
+    "/policies/{policyId}/versions": {
+      get: {
+        summary: "List Policy Versions",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Version history" } },
+      },
+      post: {
+        summary: "Create DRAFT Policy Version",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Version created with server-allocated MAJOR/MINOR" },
+          "409": { description: "Policy archived" },
+        },
+      },
+    },
+    "/policies/{policyId}/versions/{versionId}": {
+      get: {
+        summary: "Get Policy Version",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Version detail" },
+          "404": { description: "Version not found" },
+        },
+      },
+    },
+    "/policies/{policyId}/traceability": {
+      get: {
+        summary: "Policy Framework and Control mapping traceability",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Bounded read-only traceability" } },
+      },
+    },
+    "/policies/{policyId}/audit-events": {
+      get: {
+        summary: "Policy-scoped audit events",
+        description:
+          "Filters by POLICY and POLICY_VERSION entity types for the Policy and its Versions.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Paginated safe audit events" } },
+      },
+    },
+    "/policy-versions/{versionId}": {
+      patch: {
+        summary: "Update DRAFT or REJECTED Policy Version",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Version updated" },
+          "409": { description: "Immutable or archived" },
+        },
+      },
+    },
+    "/policy-versions/{versionId}/frameworks": {
+      put: {
+        summary: "Replace active Framework mappings",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Mappings updated without hard deletes" },
+          "409": { description: "Version not editable" },
+        },
+      },
+    },
+    "/policy-versions/{versionId}/submit": {
+      post: {
+        summary: "Submit or resubmit Policy Version",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Version submitted" },
+          "409": { description: "Invalid state or archived Policy" },
+        },
+      },
+    },
+    "/policy-versions/{versionId}/approve": {
+      post: {
+        summary: "Approve submitted Policy Version",
+        description:
+          "Fails with 501 EVIDENCE_GATE_NOT_IMPLEMENTED when requiresEvidence is true. " +
+          "Rejects future-effective dates and self-approval.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Approved with atomic supersession" },
+          "403": { description: "Self-approval or requested-approver mismatch" },
+          "501": { description: "Evidence gate not implemented" },
+        },
+      },
+    },
+    "/policy-versions/{versionId}/reject": {
+      post: {
+        summary: "Reject submitted Policy Version",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Rejected with mandatory comments on PolicyApproval only" },
+          "403": { description: "Self-decision or requested-approver mismatch" },
+        },
+      },
+    },
   },
 } as const;
