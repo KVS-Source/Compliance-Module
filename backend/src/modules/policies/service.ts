@@ -127,6 +127,29 @@ export const policyVersionDto = (version: PolicyVersionRecord) => ({
   updatedAt: version.updatedAt,
 });
 
+/** List summaries omit bulky Version body fields. */
+export const policyVersionListDto = (version: PolicyVersionRecord) => ({
+  id: version.id,
+  policyId: version.policyId,
+  sequence: version.sequence,
+  version: versionLabel(version),
+  versionMajor: version.versionMajor,
+  versionMinor: version.versionMinor,
+  status: version.status,
+  effectiveDate: dateOnly(version.effectiveDate),
+  reviewDate: dateOnly(version.reviewDate),
+  requiresEvidence: version.requiresEvidence,
+  requestedApprover: personDto(version.requestedApprover),
+  submittedBy: personDto(version.submittedBy),
+  submittedAt: version.submittedAt,
+  approvedBy: personDto(version.approvedBy),
+  approvedAt: version.approvedAt,
+  supersededById: version.supersededById,
+  frameworks: frameworkDto(version),
+  createdAt: version.createdAt,
+  updatedAt: version.updatedAt,
+});
+
 export const policyDto = (policy: PolicyDetailRecord | PolicyListRecord) => {
   const latest = policy.versions[0] ?? null;
   return {
@@ -153,6 +176,32 @@ export const policyDto = (policy: PolicyDetailRecord | PolicyListRecord) => {
   };
 };
 
+export const policyListDto = (policy: PolicyListRecord) => {
+  const latest = policy.versions[0] ?? null;
+  return {
+    id: policy.id,
+    code: policy.code,
+    title: policy.title,
+    description: policy.description,
+    lifecycleStatus: policy.lifecycleStatus,
+    owner: personDto(policy.owner),
+    department: policy.department
+      ? {
+          id: policy.department.id,
+          code: policy.department.code,
+          name: policy.department.name,
+        }
+      : null,
+    currentApprovedVersion: policy.currentApprovedVersion
+      ? policyVersionListDto(policy.currentApprovedVersion)
+      : null,
+    latestVersion: latest ? policyVersionListDto(latest) : null,
+    archivedAt: policy.archivedAt,
+    createdAt: policy.createdAt,
+    updatedAt: policy.updatedAt,
+  };
+};
+
 const assertEditableVersion = (status: PolicyVersionStatus) => {
   if (status !== "DRAFT" && status !== "REJECTED") {
     throw versionImmutable();
@@ -167,7 +216,7 @@ const assertEditableVersion = (status: PolicyVersionStatus) => {
  * SUBMITTED → APPROVED, so null dates must be filled while still DRAFT/REJECTED
  * (typically on submit) rather than on the approve update itself.
  */
-const resolveApprovalDates = (input: {
+export const resolveApprovalDates = (input: {
   effectiveDate: Date | null;
   reviewDate: Date | null;
   /** UTC instant used when effectiveDate is null (approval/submit time). */
@@ -193,6 +242,31 @@ const resolveApprovalDates = (input: {
     effectiveDate: new Date(`${effective}T00:00:00.000Z`),
     reviewDate: new Date(`${review}T00:00:00.000Z`),
   };
+};
+
+/** Aligns merged dates with policy_versions_dates_valid. */
+export const assertPolicyDatesPair = (
+  effectiveDate: Date | null,
+  reviewDate: Date | null,
+) => {
+  if ((effectiveDate == null) !== (reviewDate == null)) {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "effectiveDate and reviewDate must both be set or both be null",
+    );
+  }
+  if (
+    effectiveDate &&
+    reviewDate &&
+    dateOnly(reviewDate)! <= dateOnly(effectiveDate)!
+  ) {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "Review date must be later than effective date",
+    );
+  }
 };
 
 const assertDatesForApproval = (input: {
@@ -264,7 +338,7 @@ export class PolicyService {
   async list(tenantId: string, query: PolicyListQuery) {
     const result = await this.repository.listPolicies(tenantId, query);
     return {
-      data: result.items.map((item) => policyDto(item)),
+      data: result.items.map((item) => policyListDto(item)),
       meta: pageMeta(query.page, query.pageSize, result.total),
     };
   }
@@ -588,17 +662,7 @@ export class PolicyService {
         body.reviewDate !== undefined
           ? inputDate(body.reviewDate)
           : lockedVersion[0].review_date;
-      if (
-        effectiveDate &&
-        reviewDate &&
-        dateOnly(reviewDate)! <= dateOnly(effectiveDate)!
-      ) {
-        throw new AppError(
-          400,
-          "VALIDATION_ERROR",
-          "Review date must be later than effective date",
-        );
-      }
+      assertPolicyDatesPair(effectiveDate, reviewDate);
 
       await tx.policyVersion.update({
         where: { id: versionId },
@@ -1090,4 +1154,3 @@ export class PolicyService {
     };
   }
 }
-

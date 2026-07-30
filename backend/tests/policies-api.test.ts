@@ -417,4 +417,78 @@ describe("Policy API Slice 2", () => {
       })
       .expect(403);
   });
+
+  it("rejects one-sided policy dates with VALIDATION_ERROR", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    await request(app)
+      .post("/api/v1/policies")
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        title: `One-sided ${randomUUID()}`,
+        content: "Content",
+        effectiveDate: "2026-01-01",
+      })
+      .expect(400)
+      .expect((res) => {
+        expect(res.body.error.code).toBe("VALIDATION_ERROR");
+      });
+  });
+
+  it("paginates versionStatus filters with accurate meta.total", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const marker = `FilterPage ${randomUUID().slice(0, 8)}`;
+    const createdIds: string[] = [];
+    for (let index = 0; index < 3; index += 1) {
+      const created = await request(app)
+        .post("/api/v1/policies")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .send({
+          title: `${marker} ${index}`,
+          content: `Filter content ${index}`,
+        })
+        .expect(201);
+      createdIds.push(created.body.data.id as string);
+    }
+
+    const page1 = await request(app)
+      .get("/api/v1/policies")
+      .query({
+        q: marker,
+        versionStatus: "DRAFT",
+        page: 1,
+        pageSize: 2,
+      })
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+
+    expect(page1.body.meta.total).toBe(3);
+    expect(page1.body.meta.totalPages).toBe(2);
+    expect(page1.body.data).toHaveLength(2);
+    for (const item of page1.body.data) {
+      expect(item.latestVersion.content).toBeUndefined();
+      expect(item.latestVersion.purpose).toBeUndefined();
+      expect(item.latestVersion.scope).toBeUndefined();
+      expect(item.latestVersion.changeSummary).toBeUndefined();
+      expect(item.latestVersion.status).toBe("DRAFT");
+    }
+
+    const page2 = await request(app)
+      .get("/api/v1/policies")
+      .query({
+        q: marker,
+        versionStatus: "DRAFT",
+        page: 2,
+        pageSize: 2,
+      })
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(page2.body.meta.total).toBe(3);
+    expect(page2.body.data).toHaveLength(1);
+
+    const detail = await request(app)
+      .get(`/api/v1/policies/${createdIds[0]}`)
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(detail.body.data.latestVersion.content).toBe("Filter content 0");
+  });
 });

@@ -6,7 +6,9 @@ export const POLICY_TITLE_MAX_LENGTH = 200;
 export const POLICY_DESCRIPTION_MAX_LENGTH = 4_000;
 export const POLICY_CONTENT_MAX_LENGTH = 100_000;
 export const POLICY_TEXT_MAX_LENGTH = 20_000;
-export const POLICY_COMMENT_MAX_LENGTH = 4_000;
+/** Aligns with policy_approvals_rejection_comments_required (2–2000). */
+export const POLICY_COMMENT_MIN_LENGTH = 2;
+export const POLICY_COMMENT_MAX_LENGTH = 2_000;
 
 const dateSchema = z
   .string()
@@ -22,6 +24,17 @@ const optionalNullableUuid = z.string().uuid().nullable().optional();
 const optionalNullableText = (maximum: number) =>
   z.string().trim().min(1).max(maximum).nullable().optional();
 
+const approvalCommentsSchema = z
+  .string()
+  .trim()
+  .min(POLICY_COMMENT_MIN_LENGTH)
+  .max(POLICY_COMMENT_MAX_LENGTH);
+
+/**
+ * Aligns with DB CHECK policy_versions_dates_valid:
+ * both null, or both set with reviewDate > effectiveDate.
+ * When either date field appears in the payload, both must appear together.
+ */
 const refinePolicyDates = <
   T extends {
     effectiveDate?: string | null | undefined;
@@ -31,10 +44,37 @@ const refinePolicyDates = <
   value: T,
   context: z.RefinementCtx,
 ) => {
+  const hasEffective = value.effectiveDate !== undefined;
+  const hasReview = value.reviewDate !== undefined;
+
+  if (hasEffective !== hasReview) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: hasEffective ? ["reviewDate"] : ["effectiveDate"],
+      message:
+        "effectiveDate and reviewDate must both be provided or both omitted",
+    });
+    return;
+  }
+
+  if (!hasEffective && !hasReview) return;
+
+  const effective = value.effectiveDate ?? null;
+  const review = value.reviewDate ?? null;
+
+  if ((effective == null) !== (review == null)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reviewDate"],
+      message: "effectiveDate and reviewDate must both be set or both be null",
+    });
+    return;
+  }
+
   if (
-    value.effectiveDate != null &&
-    value.reviewDate != null &&
-    value.reviewDate <= value.effectiveDate
+    effective != null &&
+    review != null &&
+    review <= effective
   ) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -176,18 +216,13 @@ export const emptyBodySchema = z.object({}).strict();
 
 export const approvePolicyVersionSchema = z
   .object({
-    comments: z
-      .string()
-      .trim()
-      .min(1)
-      .max(POLICY_COMMENT_MAX_LENGTH)
-      .optional(),
+    comments: approvalCommentsSchema.optional(),
   })
   .strict();
 
 export const rejectPolicyVersionSchema = z
   .object({
-    comments: z.string().trim().min(1).max(POLICY_COMMENT_MAX_LENGTH),
+    comments: approvalCommentsSchema,
   })
   .strict();
 

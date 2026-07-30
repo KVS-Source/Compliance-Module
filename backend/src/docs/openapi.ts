@@ -836,8 +836,9 @@ export const openApiDocument = {
       get: {
         summary: "List Policies",
         description:
-          "versionStatus and frameworkId filter latestVersion; review-due filters " +
-          "require currentApprovedVersion.",
+          "versionStatus and frameworkId filter latestVersion at SQL level with " +
+          "accurate pagination totals; review-due filters require currentApprovedVersion. " +
+          "List Version summaries omit content, purpose, scope, and changeSummary.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Paginated Policy list" },

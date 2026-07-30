@@ -158,8 +158,11 @@ export class PolicyRepository {
     });
   }
 
-  async listPolicies(tenantId: string, query: PolicyListQuery) {
-    const where: Prisma.PolicyWhereInput = {
+  private policyListWhere(
+    tenantId: string,
+    query: PolicyListQuery,
+  ): Prisma.PolicyWhereInput {
+    return {
       tenantId,
       ...(query.lifecycleStatus
         ? { lifecycleStatus: query.lifecycleStatus }
@@ -198,62 +201,176 @@ export class PolicyRepository {
           }
         : {}),
     };
+  }
 
-    // versionStatus / frameworkId refer to latestVersion. Fetch a bounded
-    // oversample when those filters are present, then apply exact latest match.
+  private policyListInclude() {
+    return {
+      owner: { select: personSelect },
+      department: { select: { id: true, code: true, name: true } },
+      currentApprovedVersion: { include: policyVersionInclude },
+      versions: {
+        include: policyVersionInclude,
+        orderBy: [{ sequence: "desc" as const }],
+        take: 1,
+      },
+    };
+  }
+
+  /**
+   * Tenant-scoped policy IDs whose latest Version matches versionStatus
+   * and/or frameworkId. Uses SQL so count and page are accurate.
+   */
+  private async listPolicyIdsByLatestVersionFilters(
+    tenantId: string,
+    query: PolicyListQuery,
+  ): Promise<{ ids: string[]; total: number }> {
+    const filters: Prisma.Sql[] = [Prisma.sql`p.tenant_id = ${tenantId}::uuid`];
+
+    if (query.lifecycleStatus) {
+      filters.push(
+        Prisma.sql`p.lifecycle_status = ${query.lifecycleStatus}::"GovernanceRecordStatus"`,
+      );
+    }
+    if (query.ownerId) {
+      filters.push(Prisma.sql`p.owner_id = ${query.ownerId}::uuid`);
+    }
+    if (query.departmentId) {
+      filters.push(Prisma.sql`p.department_id = ${query.departmentId}::uuid`);
+    }
+    if (query.code) {
+      filters.push(Prisma.sql`lower(p.code) = lower(${query.code})`);
+    }
+    if (query.title) {
+      filters.push(Prisma.sql`p.title ILIKE ${`%${query.title}%`}`);
+    }
+    if (query.q) {
+      const pattern = `%${query.q}%`;
+      filters.push(
+        Prisma.sql`(p.code ILIKE ${pattern} OR p.title ILIKE ${pattern})`,
+      );
+    }
+    if (query.reviewDueFrom) {
+      filters.push(Prisma.sql`
+        EXISTS (
+          SELECT 1
+          FROM policy_versions cav
+          WHERE cav.tenant_id = p.tenant_id
+            AND cav.id = p.current_approved_version_id
+            AND cav.review_date >= ${new Date(`${query.reviewDueFrom}T00:00:00.000Z`)}
+        )
+      `);
+    }
+    if (query.reviewDueTo) {
+      filters.push(Prisma.sql`
+        EXISTS (
+          SELECT 1
+          FROM policy_versions cav
+          WHERE cav.tenant_id = p.tenant_id
+            AND cav.id = p.current_approved_version_id
+            AND cav.review_date <= ${new Date(`${query.reviewDueTo}T00:00:00.000Z`)}
+        )
+      `);
+    }
+
+    const latestPredicates: Prisma.Sql[] = [];
+    if (query.versionStatus) {
+      latestPredicates.push(
+        Prisma.sql`lv.status = ${query.versionStatus}::"PolicyVersionStatus"`,
+      );
+    }
+    if (query.frameworkId) {
+      latestPredicates.push(Prisma.sql`
+        EXISTS (
+          SELECT 1
+          FROM policy_frameworks pf
+          WHERE pf.tenant_id = lv.tenant_id
+            AND pf.policy_version_id = lv.id
+            AND pf.framework_id = ${query.frameworkId}::uuid
+            AND pf.is_active = true
+        )
+      `);
+    }
+
+    const whereSql = Prisma.join(filters, " AND ");
+    const latestSql = Prisma.join(latestPredicates, " AND ");
+    const skip = (query.page - 1) * query.pageSize;
+
+    const [countRows, idRows] = await this.db.$transaction([
+      this.db.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COUNT(*)::bigint AS total
+        FROM policies p
+        INNER JOIN LATERAL (
+          SELECT pv.id, pv.tenant_id, pv.status
+          FROM policy_versions pv
+          WHERE pv.tenant_id = p.tenant_id AND pv.policy_id = p.id
+          ORDER BY pv.sequence DESC
+          LIMIT 1
+        ) lv ON true
+        WHERE ${whereSql}
+          AND ${latestSql}
+      `,
+      this.db.$queryRaw<Array<{ id: string }>>`
+        SELECT p.id
+        FROM policies p
+        INNER JOIN LATERAL (
+          SELECT pv.id, pv.tenant_id, pv.status
+          FROM policy_versions pv
+          WHERE pv.tenant_id = p.tenant_id AND pv.policy_id = p.id
+          ORDER BY pv.sequence DESC
+          LIMIT 1
+        ) lv ON true
+        WHERE ${whereSql}
+          AND ${latestSql}
+        ORDER BY p.code ASC
+        OFFSET ${skip}
+        LIMIT ${query.pageSize}
+      `,
+    ]);
+
+    return {
+      ids: idRows.map((row) => row.id),
+      total: Number(countRows[0]?.total ?? 0),
+    };
+  }
+
+  async listPolicies(tenantId: string, query: PolicyListQuery) {
     const needsLatestFilter = Boolean(query.versionStatus || query.frameworkId);
-    const bounds = needsLatestFilter
-      ? {
-          skip: 0,
-          take: Math.min(500, Math.max(query.page * query.pageSize * 5, 100)),
-        }
-      : {
-          skip: (query.page - 1) * query.pageSize,
-          take: query.pageSize,
-        };
+    const include = this.policyListInclude();
 
-    const [items, totalWithoutLatest] = await this.db.$transaction([
+    if (needsLatestFilter) {
+      const { ids, total } = await this.listPolicyIdsByLatestVersionFilters(
+        tenantId,
+        query,
+      );
+      if (ids.length === 0) {
+        return { items: [] as PolicyListRecord[], total };
+      }
+      const unordered = (await this.db.policy.findMany({
+        where: { tenantId, id: { in: ids } },
+        include,
+      })) as PolicyListRecord[];
+      const byId = new Map(unordered.map((policy) => [policy.id, policy]));
+      return {
+        items: ids
+          .map((id) => byId.get(id))
+          .filter((policy): policy is PolicyListRecord => Boolean(policy)),
+        total,
+      };
+    }
+
+    const where = this.policyListWhere(tenantId, query);
+    const [items, total] = await this.db.$transaction([
       this.db.policy.findMany({
         where,
-        include: {
-          owner: { select: personSelect },
-          department: { select: { id: true, code: true, name: true } },
-          currentApprovedVersion: { include: policyVersionInclude },
-          versions: {
-            include: policyVersionInclude,
-            orderBy: [{ sequence: "desc" }],
-            take: 1,
-          },
-        },
-        ...bounds,
+        include,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
         orderBy: [{ code: "asc" }],
       }),
       this.db.policy.count({ where }),
     ]);
 
-    let filtered = items as PolicyListRecord[];
-    if (needsLatestFilter) {
-      filtered = filtered.filter((policy) => {
-        const latest = policy.versions[0];
-        if (!latest) return false;
-        if (query.versionStatus && latest.status !== query.versionStatus) {
-          return false;
-        }
-        if (query.frameworkId) {
-          return latest.frameworkMappings.some(
-            (mapping) => mapping.frameworkId === query.frameworkId,
-          );
-        }
-        return true;
-      });
-      const start = (query.page - 1) * query.pageSize;
-      return {
-        items: filtered.slice(start, start + query.pageSize),
-        total: filtered.length,
-      };
-    }
-
-    return { items: filtered, total: totalWithoutLatest };
+    return { items: items as PolicyListRecord[], total };
   }
 
   listVersions(tenantId: string, policyId: string) {

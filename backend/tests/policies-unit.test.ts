@@ -9,6 +9,7 @@ import {
 } from "../src/modules/policies/domain.js";
 import { GovernanceRuleError } from "../src/modules/governance/domain-error.js";
 import {
+  approvePolicyVersionSchema,
   createPolicySchema,
   createPolicyVersionSchema,
   emptyBodySchema,
@@ -16,6 +17,10 @@ import {
   rejectPolicyVersionSchema,
   updatePolicyVersionSchema,
 } from "../src/modules/policies/validators.js";
+import {
+  resolveApprovalDates,
+} from "../src/modules/policies/service.js";
+import { AppError } from "../src/common/errors/app-error.js";
 
 describe("Policy domain and validators", () => {
   it("allocates first version as 1.0 and applies MAJOR/MINOR bumps", () => {
@@ -121,6 +126,28 @@ describe("Policy domain and validators", () => {
     expect(() => emptyBodySchema.parse({ reason: "nope" })).toThrow();
   });
 
+  it("enforces rejection and approval comment bounds matching DB CHECK", () => {
+    expect(() =>
+      rejectPolicyVersionSchema.parse({ comments: "x" }),
+    ).toThrow();
+    expect(() =>
+      rejectPolicyVersionSchema.parse({ comments: "ab" }),
+    ).not.toThrow();
+    expect(() =>
+      rejectPolicyVersionSchema.parse({ comments: "a".repeat(2000) }),
+    ).not.toThrow();
+    expect(() =>
+      rejectPolicyVersionSchema.parse({ comments: "a".repeat(2001) }),
+    ).toThrow();
+    expect(() =>
+      approvePolicyVersionSchema.parse({ comments: "x" }),
+    ).toThrow();
+    expect(approvePolicyVersionSchema.parse({})).toEqual({});
+    expect(
+      approvePolicyVersionSchema.parse({ comments: "ok" }),
+    ).toEqual({ comments: "ok" });
+  });
+
   it("parses list filters with approved semantics fields", () => {
     const parsed = policyListSchema.parse({
       page: "1",
@@ -141,5 +168,94 @@ describe("Policy domain and validators", () => {
         reviewDate: "2026-08-10",
       }),
     ).toThrow();
+  });
+
+  it("enforces both-or-neither policy dates on create and update", () => {
+    expect(() =>
+      createPolicySchema.parse({
+        title: "Policy",
+        content: "Body text",
+        effectiveDate: "2026-08-10",
+      }),
+    ).toThrow(/both/i);
+    expect(() =>
+      createPolicySchema.parse({
+        title: "Policy",
+        content: "Body text",
+        reviewDate: "2026-09-10",
+      }),
+    ).toThrow(/both/i);
+    expect(() =>
+      createPolicySchema.parse({
+        title: "Policy",
+        content: "Body text",
+        effectiveDate: "2026-08-10",
+        reviewDate: null,
+      }),
+    ).toThrow(/both/i);
+    expect(
+      createPolicySchema.parse({
+        title: "Policy",
+        content: "Body text",
+        effectiveDate: null,
+        reviewDate: null,
+      }),
+    ).toMatchObject({ effectiveDate: null, reviewDate: null });
+    expect(
+      createPolicySchema.parse({
+        title: "Policy",
+        content: "Body text",
+        effectiveDate: "2026-08-10",
+        reviewDate: "2026-09-10",
+      }),
+    ).toMatchObject({
+      effectiveDate: "2026-08-10",
+      reviewDate: "2026-09-10",
+    });
+    expect(() =>
+      updatePolicyVersionSchema.parse({
+        effectiveDate: "2026-08-10",
+      }),
+    ).toThrow(/both/i);
+    expect(() =>
+      createPolicyVersionSchema.parse({
+        bump: "MINOR",
+        content: "Body text",
+        effectiveDate: "2026-08-10",
+      }),
+    ).toThrow(/both/i);
+  });
+
+  it("fills null effective/review dates at submit time", () => {
+    const decisionAt = new Date("2026-07-15T12:00:00.000Z");
+    const bothNull = resolveApprovalDates({
+      effectiveDate: null,
+      reviewDate: null,
+      decisionAt,
+    });
+    expect(bothNull.effectiveDate.toISOString().slice(0, 10)).toBe(
+      "2026-07-15",
+    );
+    expect(bothNull.reviewDate.toISOString().slice(0, 10)).toBe("2027-07-15");
+
+    const effectiveOnly = resolveApprovalDates({
+      effectiveDate: new Date("2026-01-01T00:00:00.000Z"),
+      reviewDate: null,
+      decisionAt,
+    });
+    expect(effectiveOnly.effectiveDate.toISOString().slice(0, 10)).toBe(
+      "2026-01-01",
+    );
+    expect(effectiveOnly.reviewDate.toISOString().slice(0, 10)).toBe(
+      "2027-01-01",
+    );
+
+    expect(() =>
+      resolveApprovalDates({
+        effectiveDate: new Date("2026-06-01T00:00:00.000Z"),
+        reviewDate: new Date("2026-05-01T00:00:00.000Z"),
+        decisionAt,
+      }),
+    ).toThrow(AppError);
   });
 });
