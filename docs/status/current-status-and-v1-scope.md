@@ -1,6 +1,6 @@
 # Current status and V1 scope
 
-Baseline date: 2026-07-29
+Baseline date: 2026-07-30
 
 ## Release classification
 
@@ -49,10 +49,17 @@ path for it.
 
 ## Not operational
 
-Policies, Controls, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports,
-audit search/export, settings and most broader operations modules remain
-unfinished. Their visible routes are status pages, not simulated business
-screens.
+Policy, Policy Version, Control and Checkpoint PostgreSQL persistence exists as
+the Milestone 4 Slice 1 foundation. No backend API or operational frontend page
+exists for it yet. Policies, Controls and Checkpoints therefore remain
+`IN_DEVELOPMENT`, alongside Evidence, Gap, CAPA, Import, Tasks, Notifications,
+Reports, audit search/export, settings and most broader operations modules.
+Their visible routes are status pages, not simulated business screens.
+
+Evidence-dependent KPI behaviour remains fail-closed where already defined.
+Policy approval also fails closed when `requiresEvidence=true` because Evidence
+is not implemented. No fake Evidence record, upload path or approval override
+exists.
 
 GenRAC is `AWAITING_INTEGRATION`. No connector, live sync, credentials or
 network access exists. Client access and reviewed interface documentation are
@@ -73,12 +80,12 @@ baseline does not establish cloud deployment readiness.
 - Access tokens are memory-only. Opaque refresh tokens are hashed at rest and
   transported only by an HTTP-only, `SameSite=Strict` cookie; production
   requires `Secure`.
-- Audit events, KPI approval history, risk reviews and risk treatments are
-  append-only in PostgreSQL.
+- Audit events, KPI and Policy approval history, Checkpoint reviews, risk
+  reviews and risk treatments are append-only in PostgreSQL.
 
 ## Test boundary
 
-Backend integration tests use real disposable PostgreSQL and all nine
+Backend integration tests use real disposable PostgreSQL and all ten
 migrations. Automated Playwright uses browser-intercepted API responses and is
 not browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
 required for each release candidate.

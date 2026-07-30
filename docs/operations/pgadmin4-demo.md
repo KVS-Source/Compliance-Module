@@ -40,7 +40,7 @@ Under **Databases → selected database → Schemas → public**:
 - **Tables → Columns** shows types, defaults and nullability;
 - **Tables → Constraints** shows PK, FK, unique and check constraints;
 - **Tables → Indexes** shows ordinary, unique and partial indexes;
-- **Tables → Triggers** shows the 15 application triggers;
+- **Tables → Triggers** shows the 51 application triggers;
 - **Functions** shows the trigger functions;
 - **Catalogs** provides PostgreSQL-owned metadata.
 
@@ -52,7 +52,7 @@ FROM public."_prisma_migrations"
 ORDER BY started_at;
 ```
 
-There must be nine finished, non-rolled-back migrations for this baseline.
+There must be ten finished, non-rolled-back migrations for this baseline.
 Never edit `_prisma_migrations` manually.
 
 ## Safe inspection queries

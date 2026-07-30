@@ -1,7 +1,7 @@
 # Database dictionary
 
-Status: Milestone 0 re-baseline
-Authority: `backend/prisma/schema.prisma` plus the nine ordered directories in
+Status: Milestone 4 Slice 1 database foundation
+Authority: `backend/prisma/schema.prisma` plus the ten ordered directories in
 `backend/prisma/migrations/`
 
 This dictionary describes the PostgreSQL schema used by the active backend. It
@@ -26,22 +26,21 @@ Conventions:
 
 | Item | Documented | Authoritative source |
 | --- | ---: | --- |
-| Prisma models | 23/23 | `schema.prisma` |
-| Prisma enums | 11/11 | `schema.prisma` |
-| Migrations | 9/9 | `backend/prisma/migrations/` |
-| Application triggers | 15/15 | migration SQL and PostgreSQL catalogue |
+| Prisma models | 33/33 | `schema.prisma` |
+| Prisma enums | 16/16 | `schema.prisma` |
+| Migrations | 10/10 | `backend/prisma/migrations/` |
+| Application triggers | 51/51 | migration SQL and PostgreSQL catalogue |
 
 Fresh-catalogue evidence from disposable database
-`genbioca_m0_catalog_20260729`:
+`genbioca_m4_empty_test_20260730a`:
 
-- 23 application tables plus `_prisma_migrations`;
-- 11 PostgreSQL enum types;
-- 15 non-internal application triggers;
-- 118 `public` constraints;
-- 98 `public` indexes: 23 application primary-key indexes, 74 explicit
+- 33 application tables plus `_prisma_migrations`;
+- 16 PostgreSQL enum types;
+- 51 non-internal application triggers;
+- 204 `public` constraints, including 114 foreign keys and 54 checks;
+- 164 `public` indexes: 33 application primary-key indexes, 130 explicit
   application indexes, and the `_prisma_migrations` primary-key index;
-- three partial unique indexes and 59 unique indexes when primary-key and
-  Prisma-history indexes are included.
+- five partial unique indexes.
 
 ## Enums
 
@@ -58,6 +57,11 @@ Fresh-catalogue evidence from disposable database
 | `RiskStatus` | `OPEN`, `UNDER_REVIEW`, `TREATED`, `CLOSED`, `ARCHIVED` | risk lifecycle |
 | `RiskTreatmentStrategy` | `AVOID`, `MITIGATE`, `TRANSFER`, `ACCEPT` | risk and treatment strategy |
 | `RiskTreatmentStatus` | `PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` | append-only treatment lifecycle |
+| `GovernanceRecordStatus` | `ACTIVE`, `INACTIVE`, `ARCHIVED` | independent Policy, Control and Checkpoint lifecycle |
+| `PolicyVersionStatus` | `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`, `SUPERSEDED`, `OBSOLETE` | controlled Policy Version lifecycle |
+| `ControlImplementationStatus` | `NOT_STARTED`, `IN_PROGRESS`, `PARTIALLY_IMPLEMENTED`, `IMPLEMENTED`, `NOT_APPLICABLE` | Control implementation state, separate from lifecycle |
+| `ControlType` | `PREVENTIVE`, `DETECTIVE`, `CORRECTIVE`, `DIRECTIVE` | Control classification |
+| `CheckpointOutcome` | `PASS`, `PARTIAL`, `FAIL`, `NOT_APPLICABLE` | append-only Checkpoint review outcomes |
 
 ## Physical model dictionary
 
@@ -70,7 +74,7 @@ trigger semantics are expanded in
 
 | Model / table | Scope; authority; lifecycle | Physical columns (PostgreSQL type, nullability, default) | Foreign keys | Unique constraints and indexes |
 | --- | --- | --- | --- | --- |
-| `Tenant` / `tenants` | global registry; authoritative; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `industry text NULL`; `country text NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `default_amber_threshold_pct numeric(6,2) NN DEFAULT 0.00`; `default_red_threshold_pct numeric(6,2) NN DEFAULT 10.00`; `next_risk_number integer NN DEFAULT 1`; `next_kpi_actual_number integer NN DEFAULT 1`; `created_at timestamptz(6) NN DEFAULT now`; `updated_at timestamptz(6) NN` | none | UQ `tenants_code_key(code)` |
+| `Tenant` / `tenants` | global registry; authoritative; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `industry text NULL`; `country text NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `default_amber_threshold_pct numeric(6,2) NN DEFAULT 0.00`; `default_red_threshold_pct numeric(6,2) NN DEFAULT 10.00`; positive atomic counters `next_risk_number`, `next_kpi_actual_number`, `next_policy_number`, `next_control_number`, `next_checkpoint_number` integer NN DEFAULT 1; `created_at timestamptz(6) NN DEFAULT now`; `updated_at timestamptz(6) NN` | none | UQ `tenants_code_key(code)` |
 | `User` / `users` | global identity with tenant memberships; authoritative; `RecordStatus` plus lock fields | `id uuid NN PK`; `code text NN`; `email text NN`; `full_name text NN`; `phone text NULL`; `password_hash text NN`; `status RecordStatus NN DEFAULT ACTIVE`; `default_tenant_id uuid NULL`; `failed_login_count integer NN DEFAULT 0`; `locked_until timestamptz(6) NULL`; `last_login_at timestamptz(6) NULL`; `created_at timestamptz(6) NN DEFAULT now`; `updated_at timestamptz(6) NN` | `default_tenant_id → tenants.id` (`SET NULL`) | UQ `users_code_key`, `users_email_key`; index `users_status_created_at_idx` |
 | `UserCompany` / `user_companies` | tenant membership; authoritative; `RecordStatus` | `id uuid NN PK`; `user_id uuid NN`; `tenant_id uuid NN`; `department_id uuid NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `created_at timestamptz(6) NN DEFAULT now` | `user_id → users.id`, `tenant_id → tenants.id` (`CASCADE`); `department_id → org_departments.id` (`SET NULL`) | UQ `(user_id,tenant_id)`; indexes `(tenant_id,status)`, `department_id` |
 | `Role` / `roles` | tenant; authoritative RBAC; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `description text NULL`; `tenant_id uuid NN`; `status RecordStatus NN DEFAULT ACTIVE` | `tenant_id → tenants.id` (`CASCADE`) | UQ `(tenant_id,code)`; index `(tenant_id,status)` |
@@ -86,13 +90,42 @@ trigger semantics are expanded in
 | `OrgLocation` / `org_locations` | tenant; authoritative; `RecordStatus` | `id uuid NN PK`; `tenant_id uuid NN`; `code text NN`; `name text NN`; `city text NULL`; `state text NULL`; `country text NULL`; `type text NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `created_at timestamptz(6) NN DEFAULT now` | `tenant_id → tenants.id` (`CASCADE`) | UQ `(tenant_id,code)`, `(tenant_id,id)`; index `(tenant_id,status,created_at)` |
 | `OrgUnit` / `org_units` | tenant; authoritative; `RecordStatus` | `id uuid NN PK`; `tenant_id uuid NN`; `code text NN`; `name text NN`; `status RecordStatus NN DEFAULT ACTIVE`; `created_at timestamptz(6) NN DEFAULT now` | `tenant_id → tenants.id` (`CASCADE`) | UQ `(tenant_id,code)`, `(tenant_id,id)`; index `(tenant_id,status,created_at)` |
 | `Framework` / `frameworks` | global framework catalogue; authoritative; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `version text NN`; `description text NULL`; `status RecordStatus NN DEFAULT ACTIVE` | none | UQ `(code,version)`; index `(status,name)` |
-| `FrameworkRule` / `framework_rules` | global within framework; authoritative; `RecordStatus` | `id uuid NN PK`; `framework_id uuid NN`; `code text NN`; `title text NN`; `description text NULL`; `status RecordStatus NN DEFAULT ACTIVE` | `framework_id → frameworks.id` (`CASCADE`) | UQ `(framework_id,code)`; index `(framework_id,status)` |
+| `FrameworkRule` / `framework_rules` | global within framework; authoritative; `RecordStatus` | `id uuid NN PK`; `framework_id uuid NN`; `code text NN`; `title text NN`; `description text NULL`; `status RecordStatus NN DEFAULT ACTIVE` | `framework_id → frameworks.id` (`CASCADE`) | UQ `(framework_id,code)`, `(framework_id,id)`; index `(framework_id,status)` |
 | `KpiDefinition` / `kpi_definitions` | global KPI catalogue; authoritative; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `description text NULL`; `unit text NN`; `direction KpiDirection NN`; `frequency KpiFrequency NN`; `status RecordStatus NN DEFAULT ACTIVE` | none | UQ `code`; index `(status,name)` |
 | `KpiGoal` / `kpi_goals` | tenant; **compatibility, not target authority**; `RecordStatus` | `id uuid NN PK`; `tenant_id uuid NN`; `kpi_definition_id uuid NN`; `code text NN`; `target_value numeric(18,4) NN`; `warning_value numeric(18,4) NULL`; `critical_value numeric(18,4) NULL`; `period text NN`; `effective_from date NN`; `effective_to date NULL`; `status RecordStatus NN DEFAULT ACTIVE` | `tenant_id → tenants.id` (`CASCADE`); `kpi_definition_id → kpi_definitions.id` (`RESTRICT`) | UQ `(tenant_id,code)`; index `(tenant_id,status,effective_from)` |
 
 `KpiGoal` is read-only compatibility data in the active API. The only route is
 `GET /api/v1/kpi-goals`; no active mutation service or repository method writes
 to `kpi_goals`. `KpiTarget` is the active target authority.
+
+### Policy, Control and Checkpoint foundation
+
+These tables are the Milestone 4 Slice 1 database foundation. They have no
+backend routes or live frontend pages yet; the corresponding routes remain
+`IN_DEVELOPMENT`.
+
+| Model / table | Scope; authority; lifecycle | Physical columns | Foreign keys | Unique constraints and indexes |
+| --- | --- | --- | --- | --- |
+| `Policy` / `policies` | tenant; stable governed-document identity; `GovernanceRecordStatus`; archive terminal | `id uuid NN PK`; `tenant_id uuid NN`; `code text NN`; `title text NN`; `description text NULL`; `owner_id uuid NULL`; `department_id uuid NULL`; `lifecycle_status GovernanceRecordStatus NN DEFAULT ACTIVE`; `current_approved_version_id uuid NULL`; `next_version_sequence integer NN DEFAULT 1`; actor UUIDs `created_by_id`, `updated_by_id` NN; `created_at`, `updated_at` timestamptz NN; `archived_at timestamptz NULL` | tenant; optional owner; composite tenant/department; deferred composite pointer to its own approved version; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,id,current_approved_version_id)`, `(tenant_id,code)`; lifecycle, owner, department and current-version indexes |
+| `PolicyVersion` / `policy_versions` | tenant; version-specific bounded Markdown and lifecycle authority; approved/superseded/obsolete immutable | `id uuid NN PK`; `tenant_id`, `policy_id` uuid NN; `sequence`, `version_major`, `version_minor` integer NN; `content text NN`; optional `purpose`, `scope`, `change_summary` text; `status PolicyVersionStatus NN DEFAULT DRAFT`; `effective_date`, `review_date` date NULL; `requires_evidence boolean NN DEFAULT false`; optional approver/submission/approval/supersession actor and timestamp fields; creator/updater UUIDs and timestamps | tenant; composite tenant/policy; requested approver, submitter, approver, creator, updater; composite same-policy supersession | UQ `(tenant_id,id)`, `(tenant_id,policy_id,id)`, sequence and semantic version; partial UQ `policy_versions_one_current_approved`; workflow and actor indexes |
+| `PolicyFramework` / `policy_frameworks` | tenant; version-scoped Framework lineage; immutable after version submission; no hard delete | IDs for tenant, Policy, Policy Version and Framework; `is_active boolean NN DEFAULT true`; creator/updater UUIDs and timestamps | tenant; composite Policy Version proves Policy lineage; global Framework; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,policy_version_id,framework_id)`; version/lifecycle and Framework indexes |
+| `PolicyApproval` / `policy_approvals` | tenant; append-only approval-decision ledger | IDs for tenant, Policy, Policy Version and actor; `decision ApprovalDecision NN`; `comments text NULL`; `decided_at timestamptz NN DEFAULT now` | tenant; composite Policy Version proves Policy lineage; actor | UQ `(tenant_id,id)`; version/time and actor/time indexes; CHECK restricts decisions to `APPROVED` or `REJECTED` |
+| `Control` / `controls` | tenant; control authority; independent lifecycle and implementation state; archive terminal; archival locks the Control row and is rejected while a same-tenant child Checkpoint is `ACTIVE`; children are never auto-mutated | `id`, `tenant_id`; `code`, `title`; optional `description`; `objective text NN`; optional owner/department; `implementation_status ControlImplementationStatus`; optional implementation notes; `control_type ControlType`; `frequency KpiFrequency`; `verification_method text`; `requires_evidence`; `lifecycle_status GovernanceRecordStatus`; review dates; actor UUIDs/timestamps; `archived_at` | tenant; optional owner; composite tenant/department; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,code)`; lifecycle/implementation, owner, department and next-review indexes |
+| `ControlPolicyVersion` / `control_policy_versions` | tenant; version-preserving Control-to-Policy lineage; active/inactive history; no hard delete | IDs for tenant, Control, stable Policy and exact Policy Version; `is_active boolean NN DEFAULT true`; creator/updater UUIDs and timestamps | tenant; composite tenant/Control; composite tenant/Policy/Policy Version; creator/updater | UQ `(tenant_id,id)`; partial UQ on `(tenant_id,control_id,policy_id) WHERE is_active` named `control_policy_versions_one_active_mapping`; Control and Policy Version lifecycle indexes |
+| `ControlFramework` / `control_frameworks` | tenant; Control-to-Framework lineage; no hard delete | IDs for tenant, Control and Framework; `is_active`; creator/updater UUIDs and timestamps | tenant; composite tenant/Control; global Framework; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,control_id,framework_id)`; Control and Framework lifecycle indexes |
+| `RuleControl` / `rule_controls` | tenant; Framework Rule-to-Control lineage; no hard delete | IDs for tenant, Control, Framework and Framework Rule; `is_active`; creator/updater UUIDs and timestamps | tenant; composite active Control Framework; composite Framework/Framework Rule; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,control_id,framework_rule_id)`; Control/Framework and Framework/Rule lifecycle indexes |
+| `Checkpoint` / `checkpoints` | tenant; belongs to one Control; `GovernanceRecordStatus`; archive terminal; INSERT/activation locks the parent Control and rejects `ACTIVE` under `ARCHIVED` Control; `INACTIVE` under `ARCHIVED` remains allowed; latest review is selected by later `submitted_at`, then lexicographically greater review UUID on ties | IDs for tenant and Control; `code`, `title`; optional `description`; `verification_frequency KpiFrequency`; optional owner/department; `expected_result text`; `evidence_required`; lifecycle, initial/next review dates; optional latest-review pointer and last-reviewed timestamp; actor UUIDs/timestamps; `archived_at` | tenant; composite tenant/Control and tenant/department; optional owner; deferred composite pointer to one of its own reviews; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,id,latest_review_id)`, `(tenant_id,code)`; lifecycle, owner, department, dates and latest-review indexes |
+| `CheckpointReview` / `checkpoint_reviews` | tenant; authoritative append-only operational review ledger; one row per Checkpoint/review period | IDs for tenant, Checkpoint and reviewer; canonical `review_period text NN`; `review_date date NN`; `outcome CheckpointOutcome NN`; optional `observation`, `recommendation`; optional `next_review_date`; `submitted_at timestamptz NN DEFAULT now` | tenant; composite tenant/Checkpoint; reviewer | UQ `(tenant_id,id)`, `(tenant_id,checkpoint_id,id)`, `(tenant_id,checkpoint_id,review_period)`; review-date and reviewer/submission indexes. Rows cannot be edited or deleted, and a mistaken same-period review cannot currently be replaced; correction/supersession is deferred. |
+
+The database prohibits future-effective Policy approval, raw dangerous HTML
+elements, Policy self-approval, `RESUBMITTED` approval rows, mutable approval
+and review history, duplicate active Control/stable-Policy mappings, Control
+archival with active Checkpoints, `ACTIVE` Checkpoints under `ARCHIVED`
+Controls, invalid frequency-specific review periods, and cross-tenant actors or
+relationships. Concurrent Control archive versus Checkpoint activation
+serializes on the parent Control row so `ARCHIVED` + `ACTIVE` cannot commit.
+An `INACTIVE` Control may still retain an `ACTIVE` Checkpoint in Slice 1; no
+trigger automatically changes child or parent lifecycle.
 
 ### KPI workflow
 
@@ -131,8 +164,8 @@ to `kpi_goals`. `KpiTarget` is the active target authority.
 
 ## Explicit application index catalogue
 
-Every application table also has its `<table>_pkey` index. The 74 additional
-indexes created explicitly by the nine migrations are:
+Every application table also has its `<table>_pkey` index. The 130 additional
+indexes created explicitly by the ten migrations are:
 
 | Table | Explicit index names (`UQ` means unique) |
 | --- | --- |
@@ -147,7 +180,17 @@ indexes created explicitly by the nine migrations are:
 | `org_locations` | `org_locations_tenant_id_status_created_at_idx`; `org_locations_tenant_id_code_key` (UQ); `org_locations_tenant_id_id_key` (UQ) |
 | `org_units` | `org_units_tenant_id_status_created_at_idx`; `org_units_tenant_id_code_key` (UQ); `org_units_tenant_id_id_key` (UQ) |
 | `frameworks` | `frameworks_status_name_idx`; `frameworks_code_version_key` (UQ) |
-| `framework_rules` | `framework_rules_framework_id_status_idx`; `framework_rules_framework_id_code_key` (UQ) |
+| `framework_rules` | `framework_rules_framework_id_status_idx`; `framework_rules_framework_id_code_key` (UQ); `framework_rules_framework_id_id_key` (UQ) |
+| `policies` | `policies_tenant_id_lifecycle_status_archived_at_idx`; `policies_tenant_id_owner_id_idx`; `policies_tenant_id_department_id_idx`; `policies_current_approved_version_id_idx`; `policies_tenant_id_id_key` (UQ); `policies_tenant_id_id_current_approved_version_id_key` (UQ); `policies_tenant_id_code_key` (UQ) |
+| `policy_versions` | `policy_versions_tenant_id_policy_id_status_sequence_idx`; actor indexes for requested approver, submitter and approver; `policy_versions_superseded_by_id_idx`; `policy_versions_tenant_id_id_key` (UQ); `policy_versions_tenant_id_policy_id_id_key` (UQ); sequence and semantic-version UQs; `policy_versions_one_current_approved` (partial UQ) |
+| `policy_frameworks` | `policy_frameworks_tenant_id_policy_id_policy_version_id_is__idx`; `policy_frameworks_framework_id_is_active_idx`; `policy_frameworks_tenant_id_id_key` (UQ); `policy_frameworks_tenant_id_policy_version_id_framework_id_key` (UQ) |
+| `policy_approvals` | `policy_approvals_tenant_id_policy_version_id_decided_at_idx`; `policy_approvals_tenant_id_acted_by_id_decided_at_idx`; `policy_approvals_tenant_id_id_key` (UQ) |
+| `controls` | `controls_tenant_id_lifecycle_status_implementation_status_idx`; owner, department and next-review indexes; `controls_tenant_id_id_key` (UQ); `controls_tenant_id_code_key` (UQ) |
+| `control_policy_versions` | `control_policy_versions_tenant_id_control_id_is_active_idx`; `control_policy_versions_tenant_id_policy_id_policy_version__idx`; `control_policy_versions_tenant_id_id_key` (UQ); `control_policy_versions_one_active_mapping` (partial UQ) |
+| `control_frameworks` | `control_frameworks_tenant_id_control_id_is_active_idx`; `control_frameworks_framework_id_is_active_idx`; `control_frameworks_tenant_id_id_key` (UQ); `control_frameworks_tenant_id_control_id_framework_id_key` (UQ) |
+| `rule_controls` | `rule_controls_tenant_id_control_id_framework_id_is_active_idx`; `rule_controls_framework_id_framework_rule_id_is_active_idx`; `rule_controls_tenant_id_id_key` (UQ); `rule_controls_tenant_id_control_id_framework_rule_id_key` (UQ) |
+| `checkpoints` | `checkpoints_tenant_id_control_id_lifecycle_status_idx`; owner, department, next-review and latest-review indexes; `checkpoints_tenant_id_id_key` (UQ); `checkpoints_tenant_id_id_latest_review_id_key` (UQ); `checkpoints_tenant_id_code_key` (UQ) |
+| `checkpoint_reviews` | `checkpoint_reviews_tenant_id_checkpoint_id_review_date_idx`; `checkpoint_reviews_tenant_id_reviewer_id_submitted_at_idx`; `checkpoint_reviews_tenant_id_id_key` (UQ); `checkpoint_reviews_tenant_id_checkpoint_id_id_key` (UQ); `checkpoint_reviews_tenant_id_checkpoint_id_review_period_key` (UQ) |
 | `kpi_definitions` | `kpi_definitions_code_key` (UQ); `kpi_definitions_status_name_idx` |
 | `kpi_goals` | `kpi_goals_tenant_id_status_effective_from_idx`; `kpi_goals_tenant_id_code_key` (UQ) |
 | `kpi_configurations` | `kpi_configurations_tenant_id_id_key` (UQ); `kpi_configurations_tenant_status_enabled_deleted_effective_idx`; `kpi_configurations_tenant_definition_idx`; `kpi_configurations_owner_id_idx`; `kpi_configurations_approver_id_idx`; `kpi_configurations_org_unit_id_idx`; `kpi_configurations_org_location_id_idx`; `kpi_configurations_department_id_idx`; `kpi_configurations_one_active_scope_key` (partial UQ, `NULLS NOT DISTINCT`) |
@@ -165,8 +208,6 @@ indexes created explicitly by the nine migrations are:
 No private workbook row is reproduced here. The following requested domains do
 not have PostgreSQL models in the current schema:
 
-- Policy — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
-- Control — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
 - Evidence — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
 - Gap — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
 - CAPA — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**

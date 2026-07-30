@@ -1,6 +1,7 @@
 import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
 import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
+import { seedGovernanceFoundation } from "./governance-seed.js";
 import { assertSeedExecutionAllowed } from "./seed-safety.js";
 
 const seedMode = assertSeedExecutionAllowed(process.argv.slice(2));
@@ -113,6 +114,15 @@ async function main() {
         ["risk:write", "Create and update Company risks"],
         ["risk:treat", "Review, treat and assign Company risks"],
         ["risk:close", "Close and reopen Company risks"],
+        ["policies:read", "Read Company Policies and Policy Versions"],
+        ["policies:write", "Create and update Company Policies and Policy Versions"],
+        ["policies:submit", "Submit Company Policy Versions for approval"],
+        ["policies:approve", "Approve and reject Company Policy Versions"],
+        ["controls:read", "Read Company Controls and mappings"],
+        ["controls:write", "Create and update Company Controls and mappings"],
+        ["checkpoints:read", "Read Company Checkpoints and reviews"],
+        ["checkpoints:write", "Create and update Company Checkpoints"],
+        ["checkpoints:review", "Record Company Checkpoint reviews"],
       ] as const
     ).map(([code, name]) =>
       db.permission.upsert({
@@ -156,6 +166,15 @@ async function main() {
         "risk:write",
         "risk:treat",
         "risk:close",
+        "policies:read",
+        "policies:write",
+        "policies:submit",
+        "policies:approve",
+        "controls:read",
+        "controls:write",
+        "checkpoints:read",
+        "checkpoints:write",
+        "checkpoints:review",
       ].includes(code),
     )) {
       await db.rolePermission.upsert({
@@ -212,7 +231,13 @@ async function main() {
           code !== "risk:read" &&
           code !== "risk:write" &&
           code !== "risk:treat" &&
-          code !== "risk:close",
+          code !== "risk:close" &&
+          code !== "policies:write" &&
+          code !== "policies:submit" &&
+          code !== "policies:approve" &&
+          code !== "controls:write" &&
+          code !== "checkpoints:write" &&
+          code !== "checkpoints:review",
       )) {
         await db.rolePermission.upsert({
           where: {
@@ -297,7 +322,7 @@ async function main() {
       description: "Quality management system",
     },
   });
-  await db.frameworkRule.upsert({
+  const frameworkRule = await db.frameworkRule.upsert({
     where: { frameworkId_code: { frameworkId: framework.id, code: "RUL-001" } },
     update: { title: "Documented information control", status: "ACTIVE" },
     create: {
@@ -306,6 +331,19 @@ async function main() {
       title: "Documented information control",
       description: "Control documented information and retained evidence.",
     },
+  });
+  const governanceDepartment = await db.orgDepartment.findUniqueOrThrow({
+    where: {
+      tenantId_code: { tenantId: company001.id, code: "DEP-001" },
+    },
+  });
+  await seedGovernanceFoundation(db, {
+    tenantId: company001.id,
+    ownerId: user.id,
+    approverId: admin.id,
+    departmentId: governanceDepartment.id,
+    frameworkId: framework.id,
+    frameworkRuleId: frameworkRule.id,
   });
 
   const kpi = await db.kpiDefinition.upsert({

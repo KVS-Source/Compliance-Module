@@ -1,7 +1,7 @@
 # Known limitations
 
-These limitations remain after Milestone 0. They must not be hidden by UAT
-language or status-page presentation.
+These limitations remain through Milestone 4 Slice 1. They must not be hidden
+by UAT language or status-page presentation.
 
 ## Production blockers
 
@@ -23,10 +23,20 @@ language or status-page presentation.
 
 ## Product limitations
 
-- Policy, Control, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports,
-  audit query/export and settings domains are not operational.
-- Evidence-required KPI approval deliberately fails closed because the Evidence
-  domain is not implemented.
+- Policy, Policy Version, Control and Checkpoint database persistence exists,
+  but its API and frontend workflows are not operational. Evidence, Gap, CAPA,
+  Import, Tasks, Notifications, Reports, audit query/export and settings
+  domains are also not operational.
+- Evidence-required KPI approval deliberately fails closed where already
+  defined because the Evidence domain is not implemented. Policy approval also
+  fails closed when `requiresEvidence=true`. There is no fake Evidence record,
+  upload path or approval override.
+- Checkpoint reviews are append-only and unique per Checkpoint/review period. A
+  mistaken review cannot currently be edited, deleted or replaced for that
+  period; a formal correction/supersession mechanism is deferred.
+- An `INACTIVE` Control may still retain an `ACTIVE` Checkpoint. Reciprocal
+  enforcement covers only `ARCHIVED` Control versus `ACTIVE` Checkpoint; the
+  database does not automatically deactivate or reactivate children or parents.
 - GenRAC has no live connection and awaits client access and interface review.
 - `kpi_goals` remains legacy compatibility data. `kpi_targets` is authoritative.
 - A non-blocking frontend bundle-size warning remains.
@@ -39,6 +49,11 @@ language or status-page presentation.
   key policy and object-level tenant controls are not implemented.
 - pgAdmin is administrative tooling only; Prisma migrations remain the schema
   authority.
+- `prisma migrate diff` reports pre-existing name-only differences for several
+  KPI/Risk foreign keys and indexes because the reviewed SQL names differ from
+  Prisma's generated defaults. `prisma migrate status` is up to date and the
+  Milestone 4 catalogue is reconciled independently; no existing migration is
+  rewritten to rename applied objects.
 
 ## Governance and CI supply chain
 

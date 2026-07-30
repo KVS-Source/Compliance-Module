@@ -20,9 +20,12 @@ Shared catalogue/organisation reads use `SharedMasterProvider`. The local implem
 
 Auth, Company/membership/access, users, organisation masters,
 frameworks/rules, KPI configurations/targets/actuals/approvals, Risk workflow,
-refresh sessions, dashboard and audit writes are persisted. Policy, Control,
-Evidence, Gap, CAPA, Import, Task, Notification and Report routes are truthful
-status pages and do not create authoritative-looking browser-local records.
+refresh sessions, dashboard and audit writes are persisted and operational.
+Policy, Policy Version, Control and Checkpoint persistence exists as the
+Milestone 4 Slice 1 database foundation, but its routes remain truthful status
+pages with no API or operational UI. Evidence, Gap, CAPA, Import, Task,
+Notification and Report routes also remain truthful status pages and do not
+create authoritative-looking browser-local records.
 
 ## AD-006 KPI target authority and traceability
 
