@@ -3,7 +3,7 @@
 ## Authority
 
 `backend/prisma/migrations/` is the only authoritative database migration
-history. The current baseline contains nine ordered migrations:
+history. The current baseline contains ten ordered migrations:
 
 1. `20260721181500_milestone_1`
 2. `20260721190000_membership_hardening`
@@ -14,8 +14,11 @@ history. The current baseline contains nine ordered migrations:
 7. `20260727113000_slice_c_kpi_actual_approval`
 8. `20260727123000_kpi_actual_server_generated_codes`
 9. `20260727150000_slice_e_risk_workflow`
+10. `20260730040412_milestone_4_policy_control_checkpoint_foundation`
 
-Milestone 0 does not add or modify a migration.
+Migration ten adds only the Policy, Control and Checkpoint database foundation.
+Permission catalogue entries and role assignments are applied by the
+idempotent seed mechanism, not migration SQL.
 
 ## Commands by environment
 

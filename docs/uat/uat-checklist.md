@@ -8,7 +8,7 @@ does not establish production or AWS readiness.
 - [ ] Approved UAT change/owner and test window recorded.
 - [ ] Branch/commit under test recorded.
 - [ ] Database name independently confirmed as non-production.
-- [ ] All nine Prisma migrations applied with `prisma migrate deploy`.
+- [ ] All ten Prisma migrations applied with `prisma migrate deploy`.
 - [ ] Only synthetic identities and `.test` email addresses are present.
 - [ ] Demo seed run explicitly with a temporary password and then rerun with
       identical baseline entity counts.

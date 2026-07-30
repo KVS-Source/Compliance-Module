@@ -1,8 +1,9 @@
 # Active entity relationship overview
 
-This diagram reflects the 23 Prisma models. It intentionally excludes proposed
-Policy, Control, Evidence, Gap, CAPA, Import, Task, Notification and Report
-models because they are not implemented.
+This diagram reflects all 33 Prisma models. It intentionally excludes Evidence,
+Gap, CAPA, Import, Task, Notification and Report models because they are not
+implemented. Policy, Control and Checkpoint persistence is present, although
+its APIs and live frontend workflows are deferred beyond Milestone 4 Slice 1.
 
 ```mermaid
 erDiagram
@@ -21,6 +22,22 @@ erDiagram
   OrgDepartment o|--o{ UserCompany : classifies
 
   Framework ||--o{ FrameworkRule : contains
+  Tenant ||--o{ Policy : owns
+  Policy ||--o{ PolicyVersion : versions
+  PolicyVersion ||--o{ PolicyFramework : maps
+  Framework ||--o{ PolicyFramework : classifies
+  PolicyVersion ||--o{ PolicyApproval : decisions
+
+  Tenant ||--o{ Control : owns
+  Control ||--o{ ControlPolicyVersion : maps
+  PolicyVersion ||--o{ ControlPolicyVersion : governs
+  Control ||--o{ ControlFramework : maps
+  Framework ||--o{ ControlFramework : classifies
+  ControlFramework ||--o{ RuleControl : enables
+  FrameworkRule ||--o{ RuleControl : specifies
+  Control ||--o{ Checkpoint : verifies
+  Checkpoint ||--o{ CheckpointReview : reviews
+
   KpiDefinition ||--o{ KpiGoal : compatibility
   Tenant ||--o{ KpiGoal : owns
 

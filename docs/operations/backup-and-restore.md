@@ -51,10 +51,10 @@ production or UAT.
 
 3. Compare source and restore:
 
-   - nine finished, non-rolled-back Prisma migrations and their checksums;
+   - ten finished, non-rolled-back Prisma migrations and their checksums;
    - selected business-table row counts;
-   - all application tables and 11 enum types;
-   - 15 non-internal triggers;
+   - all 33 application tables and 16 enum types;
+   - 50 non-internal triggers;
    - constraint and index counts and definitions.
 
 4. Start the current backend against the disposable restore. Require
