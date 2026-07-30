@@ -3,13 +3,13 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PrismaClient } from "@prisma/client";
 import type {
   Framework,
   FrameworkRule,
   OrgDepartment,
   Policy,
   PolicyVersion,
-  PrismaClient,
   Tenant,
   User,
 } from "@prisma/client";
@@ -1071,6 +1071,446 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     });
   });
 
+  it("enforces reciprocal Control and Checkpoint lifecycle with parent-row locking", async () => {
+    const createControl = (label: string) =>
+      prisma.control.create({
+        data: {
+          tenantId: tenantA.id,
+          code: code(`CTL-REC-${label}`),
+          title: `Synthetic Reciprocal Control ${label}`,
+          objective: "Verify reciprocal archive and activation invariants.",
+          ownerId: ownerA.id,
+          departmentId: departmentA.id,
+          implementationStatus: "IMPLEMENTED",
+          controlType: "PREVENTIVE",
+          frequency: "MONTHLY",
+          verificationMethod: "Synthetic verification.",
+          createdById: ownerA.id,
+          updatedById: ownerA.id,
+        },
+      });
+    const checkpointData = (
+      label: string,
+      controlId: string,
+      lifecycleStatus: "ACTIVE" | "INACTIVE" = "ACTIVE",
+    ) => ({
+      tenantId: tenantA.id,
+      controlId,
+      code: code(`CHK-REC-${label}`),
+      title: `Synthetic Reciprocal Checkpoint ${label}`,
+      verificationFrequency: "MONTHLY" as const,
+      ownerId: ownerA.id,
+      departmentId: departmentA.id,
+      expectedResult: "The synthetic reciprocal condition passes.",
+      lifecycleStatus,
+      createdById: ownerA.id,
+      updatedById: ownerA.id,
+    });
+
+    const archivedParent = await createControl("ARCHIVED-PARENT");
+    await prisma.control.update({
+      where: { id: archivedParent.id },
+      data: {
+        lifecycleStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        updatedById: ownerA.id,
+      },
+    });
+    const archivedParentBefore = await prisma.control.findUniqueOrThrow({
+      where: { id: archivedParent.id },
+    });
+    await expect(
+      prisma.checkpoint.create({
+        data: checkpointData("ACTIVE-UNDER-ARCHIVED", archivedParent.id),
+      }),
+    ).rejects.toThrow(/ACTIVE Checkpoint cannot reference an ARCHIVED Control/);
+    expect(
+      await prisma.control.findUniqueOrThrow({
+        where: { id: archivedParent.id },
+      }),
+    ).toMatchObject({
+      title: archivedParentBefore.title,
+      lifecycleStatus: "ARCHIVED",
+      archivedAt: archivedParentBefore.archivedAt,
+    });
+    expect(
+      await prisma.checkpoint.count({
+        where: { controlId: archivedParent.id },
+      }),
+    ).toBe(0);
+
+    const inactiveUnderArchived = await prisma.checkpoint.create({
+      data: checkpointData(
+        "INACTIVE-UNDER-ARCHIVED",
+        archivedParent.id,
+        "INACTIVE",
+      ),
+    });
+    expect(inactiveUnderArchived).toMatchObject({
+      controlId: archivedParent.id,
+      lifecycleStatus: "INACTIVE",
+      archivedAt: null,
+    });
+
+    await expect(
+      prisma.checkpoint.update({
+        where: { id: inactiveUnderArchived.id },
+        data: { lifecycleStatus: "ACTIVE", updatedById: ownerA.id },
+      }),
+    ).rejects.toThrow(/ACTIVE Checkpoint cannot reference an ARCHIVED Control/);
+    expect(
+      await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: inactiveUnderArchived.id },
+      }),
+    ).toMatchObject({ lifecycleStatus: "INACTIVE", archivedAt: null });
+    expect(
+      await prisma.control.findUniqueOrThrow({
+        where: { id: archivedParent.id },
+      }),
+    ).toMatchObject({ lifecycleStatus: "ARCHIVED" });
+
+    const archiveBlocked = await createControl("ARCHIVE-BLOCKED");
+    const blockingActive = await prisma.checkpoint.create({
+      data: checkpointData("BLOCKING-ACTIVE", archiveBlocked.id),
+    });
+    const archiveBlockedTitle = archiveBlocked.title;
+    await expect(
+      prisma.control.update({
+        where: { id: archiveBlocked.id },
+        data: {
+          lifecycleStatus: "ARCHIVED",
+          archivedAt: new Date(),
+          updatedById: ownerA.id,
+        },
+      }),
+    ).rejects.toThrow(
+      /Control cannot be archived while active Checkpoints exist/,
+    );
+    expect(
+      await prisma.control.findUniqueOrThrow({
+        where: { id: archiveBlocked.id },
+      }),
+    ).toMatchObject({
+      title: archiveBlockedTitle,
+      lifecycleStatus: "ACTIVE",
+      archivedAt: null,
+    });
+    expect(
+      await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: blockingActive.id },
+      }),
+    ).toMatchObject({ lifecycleStatus: "ACTIVE", archivedAt: null });
+
+    const otherTenantControl = await prisma.control.create({
+      data: {
+        tenantId: tenantB.id,
+        code: code("CTL-REC-TENANT-B"),
+        title: "Synthetic Reciprocal Control TENANT-B",
+        objective: "Cross-tenant reciprocal isolation.",
+        ownerId: ownerB.id,
+        departmentId: departmentB.id,
+        implementationStatus: "IMPLEMENTED",
+        controlType: "DETECTIVE",
+        frequency: "MONTHLY",
+        verificationMethod: "Synthetic verification.",
+        createdById: ownerB.id,
+        updatedById: ownerB.id,
+      },
+    });
+    const otherTenantActive = await prisma.checkpoint.create({
+      data: {
+        tenantId: tenantB.id,
+        controlId: otherTenantControl.id,
+        code: code("CHK-REC-TENANT-B"),
+        title: "Synthetic Reciprocal Checkpoint TENANT-B",
+        verificationFrequency: "MONTHLY",
+        ownerId: ownerB.id,
+        departmentId: departmentB.id,
+        expectedResult: "Other-tenant active child.",
+        createdById: ownerB.id,
+        updatedById: ownerB.id,
+      },
+    });
+    const isolatable = await createControl("TENANT-ISOLATION");
+    await prisma.control.update({
+      where: { id: isolatable.id },
+      data: {
+        lifecycleStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        updatedById: ownerA.id,
+      },
+    });
+    expect(
+      await prisma.checkpoint.findUniqueOrThrow({
+        where: { id: otherTenantActive.id },
+      }),
+    ).toMatchObject({
+      tenantId: tenantB.id,
+      controlId: otherTenantControl.id,
+      lifecycleStatus: "ACTIVE",
+    });
+    await expect(
+      prisma.checkpoint.create({
+        data: checkpointData("STILL-REJECTED", isolatable.id),
+      }),
+    ).rejects.toThrow(/ACTIVE Checkpoint cannot reference an ARCHIVED Control/);
+
+    const createRaceClients = () => {
+      const url = process.env.DATABASE_URL_TEST!;
+      return {
+        archiveClient: new PrismaClient({
+          datasources: { db: { url } },
+        }),
+        activateClient: new PrismaClient({
+          datasources: { db: { url } },
+        }),
+      };
+    };
+    const expectNeverArchivedWithActive = async (controlId: string) => {
+      const control = await prisma.control.findUniqueOrThrow({
+        where: { id: controlId },
+      });
+      const activeChildren = await prisma.checkpoint.count({
+        where: { controlId, lifecycleStatus: "ACTIVE" },
+      });
+      expect(
+        !(control.lifecycleStatus === "ARCHIVED" && activeChildren > 0),
+      ).toBe(true);
+      return { control, activeChildren };
+    };
+    const waitForLockWait = async () => {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const waiting = await prisma.$queryRaw<{ count: number }[]>`
+          SELECT COUNT(*)::int AS count
+          FROM pg_stat_activity
+          WHERE wait_event_type = 'Lock'
+            AND datname = current_database()
+            AND pid <> pg_backend_pid()
+        `;
+        if ((waiting[0]?.count ?? 0) > 0) {
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      throw new Error("Timed out waiting for Control row lock contention");
+    };
+
+    const raceArchiveThenActivate = await createControl("RACE-A-FIRST");
+    {
+      const { archiveClient, activateClient } = createRaceClients();
+      await archiveClient.$connect();
+      await activateClient.$connect();
+      try {
+        let releaseActivate!: () => void;
+        const activateMayStart = new Promise<void>((resolve) => {
+          releaseActivate = resolve;
+        });
+        let releaseArchiveContinue!: () => void;
+        const archiveMayFinish = new Promise<void>((resolve) => {
+          releaseArchiveContinue = resolve;
+        });
+
+        const archiveTxn = archiveClient.$transaction(
+          async (transaction) => {
+            await transaction.$queryRaw`
+              SELECT "id"
+              FROM "controls"
+              WHERE "id" = ${raceArchiveThenActivate.id}::uuid
+              FOR UPDATE
+            `;
+            releaseActivate();
+            await archiveMayFinish;
+            return transaction.control.update({
+              where: { id: raceArchiveThenActivate.id },
+              data: {
+                lifecycleStatus: "ARCHIVED",
+                archivedAt: new Date(),
+                updatedById: ownerA.id,
+              },
+            });
+          },
+          { maxWait: 20_000, timeout: 20_000 },
+        );
+
+        const activateTxn = (async () => {
+          await activateMayStart;
+          const pending = activateClient.$transaction(
+            async (transaction) =>
+              transaction.checkpoint.create({
+                data: checkpointData(
+                  "RACE-A-ACTIVATE",
+                  raceArchiveThenActivate.id,
+                ),
+              }),
+            { maxWait: 20_000, timeout: 20_000 },
+          );
+          await waitForLockWait();
+          releaseArchiveContinue();
+          return pending;
+        })();
+
+        const settled = await Promise.allSettled([archiveTxn, activateTxn]);
+        const fulfilled = settled.filter(
+          (result) => result.status === "fulfilled",
+        );
+        const rejected = settled.filter(
+          (result) => result.status === "rejected",
+        );
+        expect(fulfilled).toHaveLength(1);
+        expect(rejected).toHaveLength(1);
+        const finalState = await expectNeverArchivedWithActive(
+          raceArchiveThenActivate.id,
+        );
+        expect(
+          finalState.control.lifecycleStatus === "ARCHIVED" ||
+            finalState.activeChildren === 1,
+        ).toBe(true);
+      } finally {
+        await Promise.all([
+          archiveClient.$disconnect(),
+          activateClient.$disconnect(),
+        ]);
+      }
+    }
+
+    const raceActivateThenArchive = await createControl("RACE-B-FIRST");
+    {
+      const { archiveClient, activateClient } = createRaceClients();
+      await archiveClient.$connect();
+      await activateClient.$connect();
+      try {
+        let releaseArchive!: () => void;
+        const archiveMayStart = new Promise<void>((resolve) => {
+          releaseArchive = resolve;
+        });
+        let releaseActivateContinue!: () => void;
+        const activateMayFinish = new Promise<void>((resolve) => {
+          releaseActivateContinue = resolve;
+        });
+
+        const activateTxn = activateClient.$transaction(
+          async (transaction) => {
+            await transaction.$queryRaw`
+              SELECT "id"
+              FROM "controls"
+              WHERE "id" = ${raceActivateThenArchive.id}::uuid
+              FOR UPDATE
+            `;
+            releaseArchive();
+            await activateMayFinish;
+            return transaction.checkpoint.create({
+              data: checkpointData(
+                "RACE-B-ACTIVATE",
+                raceActivateThenArchive.id,
+              ),
+            });
+          },
+          { maxWait: 20_000, timeout: 20_000 },
+        );
+
+        const archiveTxn = (async () => {
+          await archiveMayStart;
+          const pending = archiveClient.$transaction(
+            async (transaction) =>
+              transaction.control.update({
+                where: { id: raceActivateThenArchive.id },
+                data: {
+                  lifecycleStatus: "ARCHIVED",
+                  archivedAt: new Date(),
+                  updatedById: ownerA.id,
+                },
+              }),
+            { maxWait: 20_000, timeout: 20_000 },
+          );
+          await waitForLockWait();
+          releaseActivateContinue();
+          return pending;
+        })();
+
+        const settled = await Promise.allSettled([activateTxn, archiveTxn]);
+        const fulfilled = settled.filter(
+          (result) => result.status === "fulfilled",
+        );
+        const rejected = settled.filter(
+          (result) => result.status === "rejected",
+        );
+        expect(fulfilled).toHaveLength(1);
+        expect(rejected).toHaveLength(1);
+        const finalState = await expectNeverArchivedWithActive(
+          raceActivateThenArchive.id,
+        );
+        expect(
+          finalState.control.lifecycleStatus === "ARCHIVED" ||
+            finalState.activeChildren === 1,
+        ).toBe(true);
+      } finally {
+        await Promise.all([
+          archiveClient.$disconnect(),
+          activateClient.$disconnect(),
+        ]);
+      }
+    }
+
+    const deadlockControl = await createControl("DEADLOCK");
+    {
+      const { archiveClient, activateClient } = createRaceClients();
+      await archiveClient.$connect();
+      await activateClient.$connect();
+      try {
+        const settled = await Promise.allSettled([
+          archiveClient.$transaction(
+            async (transaction) => {
+              await transaction.$queryRaw`
+                SELECT "id"
+                FROM "controls"
+                WHERE "id" = ${deadlockControl.id}::uuid
+                FOR UPDATE
+              `;
+              await transaction.$executeRaw`SELECT pg_sleep(0.05)`;
+              return transaction.control.update({
+                where: { id: deadlockControl.id },
+                data: {
+                  lifecycleStatus: "ARCHIVED",
+                  archivedAt: new Date(),
+                  updatedById: ownerA.id,
+                },
+              });
+            },
+            { maxWait: 20_000, timeout: 20_000 },
+          ),
+          activateClient.$transaction(
+            async (transaction) => {
+              await transaction.$executeRaw`SELECT pg_sleep(0.01)`;
+              return transaction.checkpoint.create({
+                data: checkpointData("DEADLOCK-ACTIVATE", deadlockControl.id),
+              });
+            },
+            { maxWait: 20_000, timeout: 20_000 },
+          ),
+        ]);
+        for (const result of settled) {
+          if (result.status === "rejected") {
+            expect(String(result.reason)).not.toMatch(/deadlock detected/i);
+          }
+        }
+        const fulfilled = settled.filter(
+          (result) => result.status === "fulfilled",
+        );
+        const rejected = settled.filter(
+          (result) => result.status === "rejected",
+        );
+        expect(fulfilled).toHaveLength(1);
+        expect(rejected).toHaveLength(1);
+        await expectNeverArchivedWithActive(deadlockControl.id);
+      } finally {
+        await Promise.all([
+          archiveClient.$disconnect(),
+          activateClient.$disconnect(),
+        ]);
+      }
+    }
+  });
+
   it("enforces Checkpoint review periods, uniqueness, append-only history and terminal archive", async () => {
     const control = await prisma.control.create({
       data: {
@@ -1139,6 +1579,36 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
         },
       }),
     ).rejects.toBeTruthy();
+    const partialReview = await prisma.checkpointReview.create({
+      data: {
+        tenantId: tenantA.id,
+        checkpointId: checkpoint.id,
+        reviewPeriod: "2026-05",
+        reviewDate: new Date("2026-05-31T00:00:00.000Z"),
+        reviewerId: approverA.id,
+        outcome: "PARTIAL",
+        observation: "Partial synthetic observation.",
+      },
+    });
+    expect(partialReview).toMatchObject({
+      outcome: "PARTIAL",
+      observation: "Partial synthetic observation.",
+    });
+    const failReview = await prisma.checkpointReview.create({
+      data: {
+        tenantId: tenantA.id,
+        checkpointId: checkpoint.id,
+        reviewPeriod: "2026-06",
+        reviewDate: new Date("2026-06-30T00:00:00.000Z"),
+        reviewerId: approverA.id,
+        outcome: "FAIL",
+        observation: "Failed synthetic observation.",
+      },
+    });
+    expect(failReview).toMatchObject({
+      outcome: "FAIL",
+      observation: "Failed synthetic observation.",
+    });
     const review = await prisma.checkpointReview.create({
       data: {
         tenantId: tenantA.id,
@@ -1680,6 +2150,20 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     expect(archiveFunction).toContain('"tenant_id" = OLD."tenant_id"');
     expect(archiveFunction).toContain('"control_id" = OLD."id"');
     expect(archiveFunction).toContain("\"lifecycle_status\" = 'ACTIVE'");
+    expect(archiveFunction).toContain("FOR UPDATE");
+    const parentLifecycleFunction = functionRows.find(
+      ({ name }) => name === "enforce_checkpoint_parent_control_lifecycle",
+    )?.definition;
+    expect(parentLifecycleFunction).toContain("FOR UPDATE");
+    expect(parentLifecycleFunction).toContain(
+      "ACTIVE Checkpoint cannot reference an ARCHIVED Control",
+    );
+    expect(parentLifecycleFunction).toContain(
+      "\"lifecycle_status\" = 'ACTIVE'",
+    );
+    expect(parentLifecycleFunction).toContain(
+      "parent_lifecycle = 'ARCHIVED'",
+    );
     const latestReviewFunction = functionRows.find(
       ({ name }) => name === "sync_checkpoint_latest_review",
     )?.definition;
