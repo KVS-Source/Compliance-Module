@@ -1287,5 +1287,80 @@ export const openApiDocument = {
         responses: { "200": { description: "Paginated safe audit events" } },
       },
     },
+    "/evidence": {
+      get: {
+        summary: "List Evidence",
+        description:
+          "Paginated tenant-scoped Evidence metadata. Filters: q, lifecycleStatus, " +
+          "ownerId, departmentId, expiresBefore, expiresAfter. File upload is not " +
+          "implemented; hasFile is always false for normal Slice 5.1 rows.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Paginated Evidence list" } },
+      },
+      post: {
+        summary: "Create DRAFT Evidence metadata",
+        description:
+          "Server allocates EVD-###. Optional supersedesEvidenceId for replacement " +
+          "of REJECTED or ARCHIVED Evidence. File fields are rejected.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Created DRAFT Evidence" },
+          "400": { description: "Validation or related-record error" },
+          "409": { description: "Invalid supersede target" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}": {
+      get: {
+        summary: "Get Evidence detail",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Evidence detail (no storageKey)" },
+          "404": { description: "Evidence not found" },
+        },
+      },
+      patch: {
+        summary: "Update eligible Evidence metadata",
+        description: "Allowed only for DRAFT or REJECTED. No lifecycle mutation.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Updated Evidence" },
+          "409": { description: "Invalid state or archived" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/submit": {
+      post: {
+        summary: "Submit Evidence for review",
+        description:
+          "Requires a file (storageKey, contentSha256, byteSize > 0). Slice 5.1 " +
+          "returns 409 EVIDENCE_FILE_REQUIRED for fileless Evidence.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "409": { description: "EVIDENCE_FILE_REQUIRED or invalid state" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/archive": {
+      post: {
+        summary: "Archive Evidence",
+        description:
+          "Allowed from DRAFT, REJECTED or APPROVED. Archived Evidence remains readable.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Archived Evidence" },
+          "409": { description: "Invalid state" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/audit-events": {
+      get: {
+        summary: "Evidence-scoped audit events",
+        description:
+          "Filters by entityType EVIDENCE and entityId evidenceId. Safe metadata only.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Paginated safe audit events" } },
+      },
+    },
   },
 } as const;

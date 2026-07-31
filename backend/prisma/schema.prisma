@@ -126,6 +126,19 @@ enum CheckpointOutcome {
   NOT_APPLICABLE
 }
 
+enum EvidenceLifecycleStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum EvidenceDecisionOutcome {
+  APPROVED
+  REJECTED
+}
+
 model Tenant {
   id                       String                 @id @default(uuid()) @db.Uuid
   code                     String                 @unique
@@ -140,6 +153,7 @@ model Tenant {
   nextPolicyNumber         Int                    @default(1) @map("next_policy_number")
   nextControlNumber        Int                    @default(1) @map("next_control_number")
   nextCheckpointNumber     Int                    @default(1) @map("next_checkpoint_number")
+  nextEvidenceNumber       Int                    @default(1) @map("next_evidence_number")
   createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships              UserCompany[]
@@ -167,6 +181,10 @@ model Tenant {
   ruleControls             RuleControl[]
   checkpoints              Checkpoint[]
   checkpointReviews        CheckpointReview[]
+  evidence                 Evidence[]
+  evidenceControlLinks     EvidenceControlLink[]
+  evidenceCheckpointLinks  EvidenceCheckpointLink[]
+  evidenceReviewDecisions  EvidenceReviewDecision[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
 
@@ -236,6 +254,17 @@ model User {
   createdCheckpoints        Checkpoint[]           @relation("CheckpointCreatedBy")
   updatedCheckpoints        Checkpoint[]           @relation("CheckpointUpdatedBy")
   checkpointReviews         CheckpointReview[]     @relation("CheckpointReviewReviewer")
+  ownedEvidence             Evidence[]             @relation("EvidenceOwner")
+  createdEvidence           Evidence[]             @relation("EvidenceCreatedBy")
+  updatedEvidence           Evidence[]             @relation("EvidenceUpdatedBy")
+  submittedEvidence         Evidence[]             @relation("EvidenceSubmittedBy")
+  reviewedEvidence          Evidence[]             @relation("EvidenceReviewedBy")
+  uploadedEvidence          Evidence[]             @relation("EvidenceUploadedBy")
+  evidenceReviewActions     EvidenceReviewDecision[] @relation("EvidenceReviewActor")
+  createdEvidenceControlLinks EvidenceControlLink[] @relation("EvidenceControlLinkCreatedBy")
+  updatedEvidenceControlLinks EvidenceControlLink[] @relation("EvidenceControlLinkUpdatedBy")
+  createdEvidenceCheckpointLinks EvidenceCheckpointLink[] @relation("EvidenceCheckpointLinkCreatedBy")
+  updatedEvidenceCheckpointLinks EvidenceCheckpointLink[] @relation("EvidenceCheckpointLinkUpdatedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -327,6 +356,7 @@ model OrgDepartment {
   policies          Policy[]
   controls          Control[]
   checkpoints       Checkpoint[]
+  evidence          Evidence[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, id])
@@ -561,6 +591,7 @@ model Control {
   policyVersionMappings ControlPolicyVersion[]
   frameworkMappings     ControlFramework[]
   checkpoints           Checkpoint[]
+  evidenceLinks         EvidenceControlLink[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -672,6 +703,7 @@ model Checkpoint {
   reviews               CheckpointReview[]     @relation("CheckpointReviews")
   createdBy             User                   @relation("CheckpointCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy             User                   @relation("CheckpointUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  evidenceLinks         EvidenceCheckpointLink[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, latestReviewId])
@@ -707,6 +739,126 @@ model CheckpointReview {
   @@index([tenantId, checkpointId, reviewDate])
   @@index([tenantId, reviewerId, submittedAt])
   @@map("checkpoint_reviews")
+}
+
+model Evidence {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  tenantId             String                  @map("tenant_id") @db.Uuid
+  code                 String
+  title                String
+  description          String?                 @db.Text
+  lifecycleStatus      EvidenceLifecycleStatus @default(DRAFT) @map("lifecycle_status")
+  ownerId              String?                 @map("owner_id") @db.Uuid
+  departmentId         String?                 @map("department_id") @db.Uuid
+  issueDate            DateTime?               @map("issue_date") @db.Date
+  expiresAt            DateTime?               @map("expires_at") @db.Date
+  supersedesEvidenceId String?                 @map("supersedes_evidence_id") @db.Uuid
+  submittedById        String?                 @map("submitted_by_id") @db.Uuid
+  submittedAt          DateTime?               @map("submitted_at") @db.Timestamptz(6)
+  reviewedById         String?                 @map("reviewed_by_id") @db.Uuid
+  reviewedAt           DateTime?               @map("reviewed_at") @db.Timestamptz(6)
+  archivedAt           DateTime?               @map("archived_at") @db.Timestamptz(6)
+  originalFileName     String?                 @map("original_file_name")
+  storageKey           String?                 @map("storage_key")
+  mimeType             String?                 @map("mime_type")
+  detectedMimeType     String?                 @map("detected_mime_type")
+  byteSize             Int?                    @map("byte_size")
+  contentSha256        String?                 @map("content_sha256")
+  uploadedById         String?                 @map("uploaded_by_id") @db.Uuid
+  uploadedAt           DateTime?               @map("uploaded_at") @db.Timestamptz(6)
+  createdById          String                  @map("created_by_id") @db.Uuid
+  updatedById          String                  @map("updated_by_id") @db.Uuid
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant               Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  owner                User?                   @relation("EvidenceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department           OrgDepartment?          @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  supersedes           Evidence?               @relation("EvidenceSupersession", fields: [tenantId, supersedesEvidenceId], references: [tenantId, id], onDelete: Restrict)
+  supersededBy         Evidence[]              @relation("EvidenceSupersession")
+  submittedBy          User?                   @relation("EvidenceSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy           User?                   @relation("EvidenceReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  uploadedBy           User?                   @relation("EvidenceUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdBy            User                    @relation("EvidenceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User                    @relation("EvidenceUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  controlLinks         EvidenceControlLink[]
+  checkpointLinks      EvidenceCheckpointLink[]
+  reviewDecisions      EvidenceReviewDecision[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId, lifecycleStatus, createdAt])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([tenantId, expiresAt])
+  @@index([tenantId, supersedesEvidenceId])
+  @@index([tenantId, contentSha256])
+  @@map("evidence")
+}
+
+model EvidenceControlLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  evidenceId  String   @map("evidence_id") @db.Uuid
+  controlId   String   @map("control_id") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  linkReason  String?  @map("link_reason") @db.Text
+  createdById String   @map("created_by_id") @db.Uuid
+  updatedById String   @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  evidence    Evidence @relation(fields: [tenantId, evidenceId], references: [tenantId, id], onDelete: Restrict)
+  control     Control  @relation(fields: [tenantId, controlId], references: [tenantId, id], onDelete: Restrict)
+  createdBy   User     @relation("EvidenceControlLinkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User     @relation("EvidenceControlLinkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, evidenceId, controlId])
+  @@index([tenantId, controlId, isActive])
+  @@index([tenantId, evidenceId, isActive])
+  @@map("evidence_control_links")
+}
+
+model EvidenceCheckpointLink {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  evidenceId   String     @map("evidence_id") @db.Uuid
+  checkpointId String     @map("checkpoint_id") @db.Uuid
+  isActive     Boolean    @default(true) @map("is_active")
+  linkReason   String?    @map("link_reason") @db.Text
+  createdById  String     @map("created_by_id") @db.Uuid
+  updatedById  String     @map("updated_by_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  evidence     Evidence   @relation(fields: [tenantId, evidenceId], references: [tenantId, id], onDelete: Restrict)
+  checkpoint   Checkpoint @relation(fields: [tenantId, checkpointId], references: [tenantId, id], onDelete: Restrict)
+  createdBy    User       @relation("EvidenceCheckpointLinkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User       @relation("EvidenceCheckpointLinkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, evidenceId, checkpointId])
+  @@index([tenantId, checkpointId, isActive])
+  @@index([tenantId, evidenceId, isActive])
+  @@map("evidence_checkpoint_links")
+}
+
+model EvidenceReviewDecision {
+  id         String                  @id @default(uuid()) @db.Uuid
+  tenantId   String                  @map("tenant_id") @db.Uuid
+  evidenceId String                  @map("evidence_id") @db.Uuid
+  actedById  String                  @map("acted_by_id") @db.Uuid
+  decision   EvidenceDecisionOutcome
+  reason     String?                 @db.Text
+  decidedAt  DateTime                @default(now()) @map("decided_at") @db.Timestamptz(6)
+  tenant     Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  evidence   Evidence                @relation(fields: [tenantId, evidenceId], references: [tenantId, id], onDelete: Restrict)
+  actedBy    User                    @relation("EvidenceReviewActor", fields: [actedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, evidenceId, decidedAt])
+  @@index([tenantId, actedById, decidedAt])
+  @@map("evidence_review_decisions")
 }
 
 model KpiDefinition {

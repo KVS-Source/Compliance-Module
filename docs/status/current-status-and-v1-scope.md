@@ -69,16 +69,19 @@ operational after Milestone 4 Slice 4, with a dedicated Postman collection and
 pgAdmin guide. React Checkpoint Register and detail pages are operational after
 Milestone 4 Slice 7. The standalone Policy Versions navigation page remains
 `IN_DEVELOPMENT` (Version management lives inside Policy detail for Slice 5).
-Milestone 4 frontend is not fully complete while Evidence, Gap and CAPA remain
-outstanding. Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports, global
-audit search/export, settings and most broader operations modules are also not
-operational. Their visible routes are status pages, not simulated business
+Milestone 5 Slice 1 delivers Evidence **metadata** backend foundation (create,
+list, detail, patch, fail-closed submit, archive, audit). Evidence React routes
+remain `IN_DEVELOPMENT`. Gap, CAPA, Import, Tasks, Notifications, Reports,
+global audit search/export, settings and most broader operations modules are
+not operational. Their visible routes are status pages, not simulated business
 screens.
 
 Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
 Evidence-dependent KPI and Policy approval behaviour remains fail-closed where
-`requiresEvidence=true`. No fake Evidence record, upload path or approval
-override exists. Policy content is rendered as plain text only.
+`requiresEvidence=true`. Evidence file upload, download, malware scanning and
+approve/reject HTTP are not implemented; submit returns `EVIDENCE_FILE_REQUIRED`.
+Control/Checkpoint Evidence link mutation APIs are not implemented. Policy
+content is rendered as plain text only.
 
 This release is not a production deployment.
 

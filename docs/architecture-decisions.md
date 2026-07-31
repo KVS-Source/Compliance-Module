@@ -51,6 +51,17 @@ unimplemented S3 fails configuration closed. No bucket, SDK client or cloud
 credential is configured. Malware scanning, signed URLs, encryption/key
 policy, retention and object-level Company isolation remain future work.
 
+## AD-013 Evidence metadata foundation (Milestone 5 Slice 1)
+
+Evidence is tenant-owned metadata with lifecycle
+`DRAFT | SUBMITTED | APPROVED | REJECTED | ARCHIVED`. Typed join tables link
+Evidence to Control and Checkpoint (many-to-many); polymorphic entity-type
+strings are rejected. Replacement creates a new Evidence row with
+`supersedesEvidenceId` rather than a mutable file-version table. Review
+decisions are append-only at the database. File columns are reserved but
+unused; submit fails closed with `EVIDENCE_FILE_REQUIRED` until upload lands.
+KPI/Policy Evidence gates remain unchanged fail-closed stubs in this slice.
+
 ## AD-009 Errors, logging and environment
 
 Zod validates environment and request inputs. Safe response envelopes hide stack traces and Prisma details. Pino emits structured logs with auth/cookie/password redaction. Helmet includes a React-compatible Content Security Policy: scripts and API connections are same-origin; Google font styles/fonts are explicitly allowed; objects and external framing are blocked. The legacy prototype is reference-only and receives an isolated compatibility CSP so its approved inline behavior remains available for visual comparison; it does not define the production CSP architecture.

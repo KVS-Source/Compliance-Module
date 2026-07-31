@@ -2,7 +2,10 @@ import type { Prisma } from "@prisma/client";
 
 const MINIMUM_CODE_DIGITS = 3;
 
-const formatCode = (prefix: "POL" | "CTL" | "CHK", value: number) => {
+const formatCode = (
+  prefix: "POL" | "CTL" | "CHK" | "EVD",
+  value: number,
+) => {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new RangeError("Code sequence must be a positive safe integer");
   }
@@ -12,6 +15,7 @@ const formatCode = (prefix: "POL" | "CTL" | "CHK", value: number) => {
 export const formatPolicyCode = (value: number) => formatCode("POL", value);
 export const formatControlCode = (value: number) => formatCode("CTL", value);
 export const formatCheckpointCode = (value: number) => formatCode("CHK", value);
+export const formatEvidenceCode = (value: number) => formatCode("EVD", value);
 
 /**
  * Uses the same tenant-row UPDATE/increment transaction pattern as KPI Actual
@@ -46,5 +50,14 @@ export class GovernanceCodeRepository {
       select: { nextCheckpointNumber: true },
     });
     return formatCheckpointCode(tenant.nextCheckpointNumber - 1);
+  }
+
+  async allocateEvidenceCode(tenantId: string) {
+    const tenant = await this.transaction.tenant.update({
+      where: { id: tenantId },
+      data: { nextEvidenceNumber: { increment: 1 } },
+      select: { nextEvidenceNumber: true },
+    });
+    return formatEvidenceCode(tenant.nextEvidenceNumber - 1);
   }
 }

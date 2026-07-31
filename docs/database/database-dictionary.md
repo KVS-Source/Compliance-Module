@@ -1,13 +1,13 @@
 # Database dictionary
 
-Status: Milestone 4 Slice 1 database foundation
-Authority: `backend/prisma/schema.prisma` plus the ten ordered directories in
+Status: Milestone 5 Slice 1 Evidence metadata foundation
+Authority: `backend/prisma/schema.prisma` plus the eleven ordered directories in
 `backend/prisma/migrations/`
 
 This dictionary describes the PostgreSQL schema used by the active backend. It
 was reconciled with the Prisma schema, migration SQL, active repositories and
-services, and a fresh disposable PostgreSQL catalogue. Prisma relation fields
-are not physical columns and therefore do not appear below.
+services. Prisma relation fields are not physical columns and therefore do not
+appear below.
 
 Conventions:
 
@@ -26,10 +26,10 @@ Conventions:
 
 | Item | Documented | Authoritative source |
 | --- | ---: | --- |
-| Prisma models | 33/33 | `schema.prisma` |
-| Prisma enums | 16/16 | `schema.prisma` |
-| Migrations | 10/10 | `backend/prisma/migrations/` |
-| Application triggers | 51/51 | migration SQL and PostgreSQL catalogue |
+| Prisma models | 37/37 | `schema.prisma` |
+| Prisma enums | 18/18 | `schema.prisma` |
+| Migrations | 11/11 | `backend/prisma/migrations/` |
+| Application triggers | 52+ | migration SQL (includes Evidence review append-only) |
 
 Fresh-catalogue evidence from disposable database
 `genbioca_m4_empty_test_20260730a`:
@@ -62,6 +62,8 @@ Fresh-catalogue evidence from disposable database
 | `ControlImplementationStatus` | `NOT_STARTED`, `IN_PROGRESS`, `PARTIALLY_IMPLEMENTED`, `IMPLEMENTED`, `NOT_APPLICABLE` | Control implementation state, separate from lifecycle |
 | `ControlType` | `PREVENTIVE`, `DETECTIVE`, `CORRECTIVE`, `DIRECTIVE` | Control classification |
 | `CheckpointOutcome` | `PASS`, `PARTIAL`, `FAIL`, `NOT_APPLICABLE` | append-only Checkpoint review outcomes |
+| `EvidenceLifecycleStatus` | `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`, `ARCHIVED` | Evidence workflow lifecycle |
+| `EvidenceDecisionOutcome` | `APPROVED`, `REJECTED` | append-only Evidence review decisions |
 
 ## Physical model dictionary
 
@@ -74,7 +76,7 @@ trigger semantics are expanded in
 
 | Model / table | Scope; authority; lifecycle | Physical columns (PostgreSQL type, nullability, default) | Foreign keys | Unique constraints and indexes |
 | --- | --- | --- | --- | --- |
-| `Tenant` / `tenants` | global registry; authoritative; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `industry text NULL`; `country text NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `default_amber_threshold_pct numeric(6,2) NN DEFAULT 0.00`; `default_red_threshold_pct numeric(6,2) NN DEFAULT 10.00`; positive atomic counters `next_risk_number`, `next_kpi_actual_number`, `next_policy_number`, `next_control_number`, `next_checkpoint_number` integer NN DEFAULT 1; `created_at timestamptz(6) NN DEFAULT now`; `updated_at timestamptz(6) NN` | none | UQ `tenants_code_key(code)` |
+| `Tenant` / `tenants` | global registry; authoritative; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `industry text NULL`; `country text NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `default_amber_threshold_pct numeric(6,2) NN DEFAULT 0.00`; `default_red_threshold_pct numeric(6,2) NN DEFAULT 10.00`; positive atomic counters `next_risk_number`, `next_kpi_actual_number`, `next_policy_number`, `next_control_number`, `next_checkpoint_number`, `next_evidence_number` integer NN DEFAULT 1; `created_at timestamptz(6) NN DEFAULT now`; `updated_at timestamptz(6) NN` | none | UQ `tenants_code_key(code)` |
 | `User` / `users` | global identity with tenant memberships; authoritative; `RecordStatus` plus lock fields | `id uuid NN PK`; `code text NN`; `email text NN`; `full_name text NN`; `phone text NULL`; `password_hash text NN`; `status RecordStatus NN DEFAULT ACTIVE`; `default_tenant_id uuid NULL`; `failed_login_count integer NN DEFAULT 0`; `locked_until timestamptz(6) NULL`; `last_login_at timestamptz(6) NULL`; `created_at timestamptz(6) NN DEFAULT now`; `updated_at timestamptz(6) NN` | `default_tenant_id → tenants.id` (`SET NULL`) | UQ `users_code_key`, `users_email_key`; index `users_status_created_at_idx` |
 | `UserCompany` / `user_companies` | tenant membership; authoritative; `RecordStatus` | `id uuid NN PK`; `user_id uuid NN`; `tenant_id uuid NN`; `department_id uuid NULL`; `status RecordStatus NN DEFAULT ACTIVE`; `created_at timestamptz(6) NN DEFAULT now` | `user_id → users.id`, `tenant_id → tenants.id` (`CASCADE`); `department_id → org_departments.id` (`SET NULL`) | UQ `(user_id,tenant_id)`; indexes `(tenant_id,status)`, `department_id` |
 | `Role` / `roles` | tenant; authoritative RBAC; `RecordStatus` | `id uuid NN PK`; `code text NN`; `name text NN`; `description text NULL`; `tenant_id uuid NN`; `status RecordStatus NN DEFAULT ACTIVE` | `tenant_id → tenants.id` (`CASCADE`) | UQ `(tenant_id,code)`; index `(tenant_id,status)` |
@@ -116,6 +118,15 @@ backend routes or live frontend pages yet; the corresponding routes remain
 | `RuleControl` / `rule_controls` | tenant; Framework Rule-to-Control lineage; no hard delete | IDs for tenant, Control, Framework and Framework Rule; `is_active`; creator/updater UUIDs and timestamps | tenant; composite active Control Framework; composite Framework/Framework Rule; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,control_id,framework_rule_id)`; Control/Framework and Framework/Rule lifecycle indexes |
 | `Checkpoint` / `checkpoints` | tenant; belongs to one Control; `GovernanceRecordStatus`; archive terminal; INSERT/activation locks the parent Control and rejects `ACTIVE` under `ARCHIVED` Control; `INACTIVE` under `ARCHIVED` remains allowed; latest review is selected by later `submitted_at`, then lexicographically greater review UUID on ties | IDs for tenant and Control; `code`, `title`; optional `description`; `verification_frequency KpiFrequency`; optional owner/department; `expected_result text`; `evidence_required`; lifecycle, initial/next review dates; optional latest-review pointer and last-reviewed timestamp; actor UUIDs/timestamps; `archived_at` | tenant; composite tenant/Control and tenant/department; optional owner; deferred composite pointer to one of its own reviews; creator/updater | UQ `(tenant_id,id)`, `(tenant_id,id,latest_review_id)`, `(tenant_id,code)`; lifecycle, owner, department, dates and latest-review indexes |
 | `CheckpointReview` / `checkpoint_reviews` | tenant; authoritative append-only operational review ledger; one row per Checkpoint/review period | IDs for tenant, Checkpoint and reviewer; canonical `review_period text NN`; `review_date date NN`; `outcome CheckpointOutcome NN`; optional `observation`, `recommendation`; optional `next_review_date`; `submitted_at timestamptz NN DEFAULT now` | tenant; composite tenant/Checkpoint; reviewer | UQ `(tenant_id,id)`, `(tenant_id,checkpoint_id,id)`, `(tenant_id,checkpoint_id,review_period)`; review-date and reviewer/submission indexes. Rows cannot be edited or deleted, and a mistaken same-period review cannot currently be replaced; correction/supersession is deferred. |
+
+### Evidence workflow (Milestone 5 Slice 1)
+
+| Model / table | Scope; authority; lifecycle | Physical columns | Foreign keys | Unique constraints and indexes |
+| --- | --- | --- | --- | --- |
+| `Evidence` / `evidence` | tenant; metadata authority; lifecycle `EvidenceLifecycleStatus`; archive terminal; file columns reserved nullable for Slice 5.2 | `id`, `tenant_id`, server `code`, `title`, optional `description`; `lifecycle_status`; optional owner/department; optional `issue_date`/`expires_at`; optional `supersedes_evidence_id`; submission/review/archive actor timestamps; reserved file fields (`original_file_name`, `storage_key`, `mime_type`, `detected_mime_type`, `byte_size`, `content_sha256`, `uploaded_by_id`, `uploaded_at`); creator/updater timestamps | tenant; optional owner; composite tenant/department; same-tenant supersession; user actors RESTRICT | UQ `(tenant_id,id)`, `(tenant_id,code)`; lifecycle/owner/department/expires/supersedes/sha indexes; checks on positive `byte_size`, expiry ≥ issue, sha256 hex format |
+| `EvidenceControlLink` / `evidence_control_links` | tenant; typed Evidence↔Control many-to-many; schema only in Slice 5.1 (no mutation API) | IDs for tenant, Evidence, Control; `is_active`; optional `link_reason`; creator/updater | composite tenant/Evidence; composite tenant/Control; creator/updater RESTRICT | UQ `(tenant_id,id)`, `(tenant_id,evidence_id,control_id)`; active indexes |
+| `EvidenceCheckpointLink` / `evidence_checkpoint_links` | tenant; typed Evidence↔Checkpoint many-to-many; schema only in Slice 5.1 | same shape with `checkpoint_id` | composite tenant/Evidence; composite tenant/Checkpoint | UQ `(tenant_id,id)`, `(tenant_id,evidence_id,checkpoint_id)` |
+| `EvidenceReviewDecision` / `evidence_review_decisions` | tenant; append-only review ledger; no HTTP in Slice 5.1 | IDs for tenant, Evidence, actor; `decision EvidenceDecisionOutcome`; optional `reason`; `decided_at` | composite tenant/Evidence; actor RESTRICT | UQ `(tenant_id,id)`; evidence/actor time indexes; UPDATE/DELETE trigger rejects mutation |
 
 The database prohibits future-effective Policy approval, raw dangerous HTML
 elements, Policy self-approval, `RESUBMITTED` approval rows, mutable approval
@@ -208,7 +219,10 @@ indexes created explicitly by the ten migrations are:
 No private workbook row is reproduced here. The following requested domains do
 not have PostgreSQL models in the current schema:
 
-- Evidence — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
+- Evidence — **Milestone 5 Slice 1 metadata foundation implemented**
+  (`evidence`, `evidence_control_links`, `evidence_checkpoint_links`,
+  `evidence_review_decisions`; file upload/download and link/review HTTP
+  deferred)
 - Gap — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
 - CAPA — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
 - Import — **NOT IMPLEMENTED — FUTURE DOMAIN MILESTONE**
