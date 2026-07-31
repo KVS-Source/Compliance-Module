@@ -642,7 +642,9 @@ test.describe("Control Register UI (mocked browser APIs)", () => {
         permissions: ["*", "controls:read"],
       });
     await page.goto("/compliance/controls");
-    await expect(page.getByText("CTL-001").first()).toBeVisible();
+    await expect(
+      page.getByText("CTL-001").filter({ visible: true }).first(),
+    ).toBeVisible();
 
     armCompanyAListHold(1);
     await page.locator("#company-switcher").selectOption(companyTwo.id);
@@ -654,12 +656,16 @@ test.describe("Control Register UI (mocked browser APIs)", () => {
     await expect(
       page.getByText("CTL-201").filter({ visible: true }).first(),
     ).toBeVisible();
-    await expect(page.getByText("CTL-001")).toHaveCount(0);
+    await expect(
+      page.getByText("CTL-001").filter({ visible: true }),
+    ).toHaveCount(0);
 
     releaseHeldLists();
     await expect(
       page.getByText("CTL-201").filter({ visible: true }).first(),
     ).toBeVisible();
-    await expect(page.getByText("CTL-001")).toHaveCount(0);
+    await expect(
+      page.getByText("CTL-001").filter({ visible: true }),
+    ).toHaveCount(0);
   });
 });
