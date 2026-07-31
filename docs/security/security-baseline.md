@@ -36,7 +36,8 @@ complete.
 Backend `permit()` is authoritative; frontend permission boundaries are user
 experience only. Named permissions protect active reads, writes, approvals and
 risk actions, including `policies:read`, `policies:write`, `policies:submit`,
-`policies:approve`, `controls:read` and `controls:write`.
+`policies:approve`, `controls:read`, `controls:write`, `checkpoints:read`,
+`checkpoints:write` and `checkpoints:review`.
 
 `COMPANY_ADMIN` accepts wildcard `"*"`. This is UAT-only technical debt and a
 production blocker. New roles must not copy the wildcard.
@@ -44,7 +45,10 @@ production blocker. New roles must not copy the wildcard.
 ## Database integrity and audit
 
 - `audit_events` rejects UPDATE and DELETE.
-- `kpi_approvals`, `risk_reviews` and `risk_treatments` are append-only.
+- `kpi_approvals`, `risk_reviews`, `risk_treatments` and `checkpoint_reviews`
+  are append-only.
+- Checkpoint Review observation/recommendation are never written to audit
+  metadata or application logs.
 - approved KPI targets reject deletion and prohibited mutation;
 - self-approval constraints exist for KPI targets and actuals;
 - active actor-membership triggers protect KPI and risk writes;

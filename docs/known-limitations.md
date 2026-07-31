@@ -1,6 +1,6 @@
 # Known limitations
 
-These limitations remain through Milestone 4 Slice 2. They must not be hidden
+These limitations remain through Milestone 4 Slice 4. They must not be hidden
 by UAT language or status-page presentation.
 
 ## Production blockers
@@ -23,9 +23,10 @@ by UAT language or status-page presentation.
 
 ## Product limitations
 
-- Policy and Control REST APIs are operational. React Policy/Control pages,
-  Checkpoint APIs, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports,
-  global audit query/export and settings domains are not operational.
+- Policy, Control and Checkpoint REST APIs are operational. React
+  Policy/Control/Checkpoint pages, Evidence, Gap, CAPA, Import, Tasks,
+  Notifications, Reports, global audit query/export and settings domains are
+  not operational. Same-period Checkpoint Review correction remains unsupported.
 - Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
 - Evidence-required KPI approval deliberately fails closed where already
   defined because the Evidence domain is not implemented. Policy approval also

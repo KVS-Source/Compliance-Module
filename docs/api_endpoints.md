@@ -22,6 +22,7 @@ routes require bearer authentication and active Company membership.
 | Risks | `GET /risks`; `GET /risks/:id`; `POST /risks/:id/reviews`; `/treatments`; `/treatments/:treatmentId/complete`; `PATCH /risks/:id/owner`; `POST /risks/:id/close`; `/reopen` |
 | Policies | `GET/POST /policies`; `GET/PATCH /policies/:policyId`; `POST /policies/:policyId/archive`; `GET/POST /policies/:policyId/versions`; `GET /policies/:policyId/versions/:versionId`; `GET /policies/:policyId/traceability`; `GET /policies/:policyId/audit-events`; `PATCH /policy-versions/:versionId`; `PUT /policy-versions/:versionId/frameworks`; `POST /policy-versions/:versionId/submit`; `/approve`; `/reject` |
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
+| Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews`; `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,
 `meta.pageSize`, `meta.total` and `meta.totalPages`.
@@ -33,12 +34,21 @@ Control list filters: `policyId` / `policyVersionId` / `frameworkId` /
 `frameworkRuleId` match active mappings only; `reviewDueFrom` / `reviewDueTo`
 use `Control.nextReviewDate`.
 
+Checkpoint list filters: `controlId` matches the direct parent;
+`controlLifecycleStatus`, `frameworkId` and `policyId` follow the parent Control
+(active mappings only for framework/policy); `latestOutcome` uses the
+database-authoritative latest Review; `dueFrom` / `dueTo` use
+`Checkpoint.nextReviewDate`. Default list includes all lifecycle states.
+
 ## Explicitly absent
 
-No active API implements Checkpoint, Evidence, Gap, CAPA, Import, Tasks,
-Notifications, Reports, global audit search/export, settings or GenRAC connectivity.
+No active API implements Evidence, Gap, CAPA, Import, Tasks, Notifications,
+Reports, global audit search/export, settings or GenRAC connectivity.
 Policy Version obsoletion and Policy INACTIVE transitions are deferred.
-No Control DELETE route exists. No active endpoint writes to `kpi_goals`.
+No Control or Checkpoint DELETE route exists. No Review PATCH/DELETE or same-period
+Review correction route exists. No nested `GET /controls/:controlId/checkpoints`
+route exists — use `GET /checkpoints?controlId=`. No active endpoint writes to
+`kpi_goals`.
 
 The backend route mount in `backend/src/routes/index.ts` and the individual
 domain route modules are the code authority. Proposed endpoints in historical
