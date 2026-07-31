@@ -54,9 +54,19 @@ Policy approval remains fail-closed with `EVIDENCE_GATE_NOT_IMPLEMENTED`.
 
 React Control pages render description, objective, implementation notes and
 verification method as plain text only. Audit history shows safe metadata keys
-and never surfaces free-text Control body fields. Checkpoint information is
-count-only; Checkpoint mutation and navigation remain unavailable while that UI
-is `IN_DEVELOPMENT`. Frontend `controls:read` / `controls:write` checks are UX
+and never surfaces free-text Control body fields. Checkpoint summary keeps
+counts and may expose a permission-aware Open Checkpoints navigation link;
+individual count values are not Checkpoint links and Control detail performs no
+Checkpoint mutations. Frontend `controls:read` / `controls:write` checks are UX
+gates only — Express `permit` remains authoritative.
+
+## Checkpoint UI rendering
+
+React Checkpoint pages render description, expected result, observation and
+recommendation as plain text only. Observation and recommendation are visible on
+latest Review and Review history for `checkpoints:read`, and never appear on
+Register rows, audit metadata displays, toasts, URLs or console logs. Frontend
+`checkpoints:read` / `checkpoints:write` / `checkpoints:review` checks are UX
 gates only — Express `permit` remains authoritative.
 
 ## Database integrity and audit

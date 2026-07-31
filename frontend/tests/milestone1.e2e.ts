@@ -110,10 +110,10 @@ async function installMockApi(
                         : path === "/api/v1/kpi-goals" ? []
                           : path === "/api/v1/kpi-configurations" ? []
                             : path === "/api/v1/kpi-targets" ? []
-                              : path === "/api/v1/policies" || path === "/api/v1/controls" ? []
+                              : path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints" ? []
                                 : null;
     if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
-    if (path === "/api/v1/policies" || path === "/api/v1/controls") {
+    if (path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints") {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -265,6 +265,7 @@ const livePaths = [
   ["/compliance/risks", "Risk Register"],
   ["/compliance/policy-register", "Policy Register"],
   ["/compliance/controls", "Control Register"],
+  ["/compliance/checkpoints", "Checkpoint Register"],
 ] as const;
 
 test("sidebar exposes the complete approved structure and truthful badges", async ({
@@ -284,7 +285,7 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
       links.map((link) => link.getAttribute("href")).filter(Boolean),
     );
   expect(hrefs).toEqual(approvedPaths);
-  await expect(page.locator(".nav-status-badge")).toHaveCount(28);
+  await expect(page.locator(".nav-status-badge")).toHaveCount(27);
   await expect(
     page.getByTestId("nav-status-/data/genrac-integration"),
   ).toHaveText("Awaiting Access");

@@ -25,6 +25,8 @@ import { OrganisationPage } from "../features/organisation/OrganisationPage";
 import { ModuleStatusPage } from "../features/migration/ModuleStatusPage";
 import { ControlDetailPage } from "../features/controls/ControlDetailPage";
 import { ControlRegisterPage } from "../features/controls/ControlRegisterPage";
+import { CheckpointDetailPage } from "../features/checkpoints/CheckpointDetailPage";
+import { CheckpointRegisterPage } from "../features/checkpoints/CheckpointRegisterPage";
 import { PolicyDetailPage } from "../features/policies/PolicyDetailPage";
 import { PolicyRegisterPage } from "../features/policies/PolicyRegisterPage";
 import { RiskDetailPage } from "../features/risks/RiskDetailPage";
@@ -227,6 +229,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="controls:read">
         <ControlDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/checkpoints",
+    element: (
+      <PermissionBoundary permission="checkpoints:read">
+        <CheckpointRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/checkpoints/:checkpointId",
+    element: (
+      <PermissionBoundary permission="checkpoints:read">
+        <CheckpointDetailPage />
       </PermissionBoundary>
     ),
   },

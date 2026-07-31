@@ -32,6 +32,12 @@ Notes:
 
 Out of scope in this slice:
 
-- React Checkpoint / Control UI (routes remain `IN_DEVELOPMENT`)
 - Evidence, Gap, CAPA
 - Same-period Review correction
+
+## Frontend status (Milestone 4 Slice 7)
+
+React Checkpoint Register and detail routes are LIVE at
+`/compliance/checkpoints` and `/compliance/checkpoints/:checkpointId` with
+permissions `checkpoints:read|write|review`. See
+`frontend/src/features/checkpoints/README.md`.

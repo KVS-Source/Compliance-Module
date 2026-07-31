@@ -540,6 +540,191 @@ export function controlLifecycleError(
   );
 }
 
+const CHECKPOINT_GENERIC_FALLBACK =
+  "The request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Checkpoint write, lifecycle and Review errors onto form fields or a banner.
+ * Domain codes from the Checkpoint module are preferred over raw status.
+ * Never echo observation or recommendation text into toasts or field errors.
+ */
+export function checkpointWriteError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  if (error.code === "CHECKPOINT_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Checkpoint is not available in the active Company.",
+    };
+  }
+  if (error.code === "CHECKPOINT_PARENT_CONTROL_ARCHIVED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The parent Control is archived. Create, activate and Review actions are blocked until a non-archived Control is used.",
+    };
+  }
+  if (error.code === "CHECKPOINT_REVIEW_DUPLICATE") {
+    return {
+      fieldErrors: {
+        reviewPeriod:
+          "A Review already exists for this period. Choose a different review period.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "CHECKPOINT_REVIEW_CONFLICT") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The latest Review could not be synchronised. Refresh and try again.",
+    };
+  }
+  if (error.code === "CHECKPOINT_INVALID_STATE") {
+    const message = error.message.toLowerCase();
+    if (message.includes("verificationfrequency")) {
+      return {
+        fieldErrors: {
+          verificationFrequency:
+            "verificationFrequency cannot change after the first Review.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("initialreviewdate")) {
+      return {
+        fieldErrors: {
+          initialReviewDate:
+            "initialReviewDate cannot change after the first Review.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("active checkpoint")) {
+      return {
+        fieldErrors: {},
+        formError:
+          "Checkpoint Reviews require an ACTIVE Checkpoint. Activate the Checkpoint before submitting a Review.",
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+    };
+  }
+  if (
+    error.code === "CHECKPOINT_REVIEW_INVALID" ||
+    (error.code === "VALIDATION_ERROR" &&
+      /observation|reviewperiod|review.?date|nextreviewdate/i.test(
+        error.message,
+      ))
+  ) {
+    const message = error.message.toLowerCase();
+    if (message.includes("observation")) {
+      return {
+        fieldErrors: {
+          observation:
+            "PARTIAL and FAIL Reviews require an observation of at least 2 characters.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("reviewperiod") || message.includes("review period")) {
+      return {
+        fieldErrors: {
+          reviewPeriod:
+            "reviewPeriod does not match the Checkpoint verification frequency.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("nextreviewdate") || message.includes("next review")) {
+      return {
+        fieldErrors: {
+          nextReviewDate:
+            "nextReviewDate must be a real date after reviewDate.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("reviewdate") || message.includes("review date")) {
+      return {
+        fieldErrors: {
+          reviewDate: "reviewDate must be a real ISO calendar date.",
+        },
+        formError: null,
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const message = error.message.toLowerCase();
+    const field =
+      message.includes("owner") || message.includes("user")
+        ? "ownerId"
+        : message.includes("department")
+          ? "departmentId"
+          : message.includes("control")
+            ? "controlId"
+            : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (error.status === 403) {
+    if (error.message === "Permission denied") {
+      return {
+        fieldErrors: {},
+        formError: `Your active Company role does not include ${permission}.`,
+      };
+    }
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+  };
+}
+
+/** Lifecycle-banner mapper for activate / deactivate / archive. */
+export function checkpointLifecycleError(
+  error: unknown,
+  permission: string,
+): string {
+  return (
+    checkpointWriteError(error, permission).formError ??
+    (error instanceof Error ? error.message : CHECKPOINT_GENERIC_FALLBACK)
+  );
+}
+
+/** Review-banner mapper for submit Review. */
+export function checkpointReviewError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  return checkpointWriteError(error, permission);
+}
+
 /** Map known KPI actual submission errors onto form fields or a form banner. */
 export function kpiActualSubmissionError(error: unknown): {
   fieldErrors: FieldErrors;
