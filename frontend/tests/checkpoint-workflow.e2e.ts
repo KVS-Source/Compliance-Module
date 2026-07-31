@@ -714,7 +714,11 @@ test.describe("Checkpoint detail and Review workflows", () => {
     await page.getByTestId("checkpoint-review-date").fill("2026-07-31");
     await page.getByTestId("checkpoint-review-outcome").selectOption("FAIL");
     await page.getByTestId("checkpoint-review-save").click();
-    await expect(page.getByTestId("checkpoint-review-error")).toBeVisible();
+    await expect(
+      page.getByText(
+        "PARTIAL and FAIL Reviews require an observation of at least 2 characters.",
+      ),
+    ).toBeVisible();
     await expect(page.getByTestId("checkpoint-review-period")).toHaveValue(
       "2026-07",
     );

@@ -620,7 +620,9 @@ test.describe("Checkpoint Register UI (mocked browser APIs)", () => {
     });
     await page.goto("/compliance/checkpoints");
     await expect(page.getByTestId("checkpoint-create-open")).toHaveCount(0);
-    await expect(page.getByTestId("checkpoint-register-table")).toBeVisible();
+    await expect(
+      page.getByText("CHK-001").filter({ visible: true }).first(),
+    ).toBeVisible();
   });
 
   test("shows empty and filtered-empty states", async ({ page }) => {
@@ -681,9 +683,10 @@ test.describe("Checkpoint Register UI (mocked browser APIs)", () => {
     });
     await page.goto("/compliance/checkpoints");
     await page.getByTestId("checkpoint-create-open").click();
-    const options = page.getByTestId("checkpoint-form-control").locator("option");
-    await expect(options).toContainText([/CTL-001/, /CTL-002/]);
-    await expect(options).not.toContainText(/CTL-003/);
+    const select = page.getByTestId("checkpoint-form-control");
+    await expect(select).toContainText("CTL-001");
+    await expect(select).toContainText("CTL-002");
+    await expect(select).not.toContainText("CTL-003");
   });
 
   test("ignores stale list responses after company switch", async ({
