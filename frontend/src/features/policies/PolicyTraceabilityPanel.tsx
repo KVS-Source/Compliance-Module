@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
+import { useAuth } from "../../context/AuthContext";
 import type { PolicyTraceability } from "../../types/api";
 import {
   display,
@@ -22,6 +24,9 @@ export function PolicyTraceabilityPanel({
   error,
   onRetry,
 }: PolicyTraceabilityPanelProps) {
+  const { hasPermission } = useAuth();
+  const canReadControls = hasPermission("controls:read");
+
   return (
     <section className="card" data-testid="policy-traceability">
       <header className="card-head">
@@ -29,7 +34,7 @@ export function PolicyTraceabilityPanel({
           <h2>Traceability</h2>
           <p>
             Focus Version, Framework mappings and linked Controls returned by
-            the Policy API. Control UI routes remain In Development.
+            the Policy API.
           </p>
         </div>
         <button
@@ -119,9 +124,20 @@ export function PolicyTraceabilityPanel({
                       {data.controlMappings.map((mapping) => (
                         <tr key={mapping.id}>
                           <td>
-                            <strong className="mono">
-                              {mapping.control.code}
-                            </strong>
+                            {canReadControls && mapping.control.id ? (
+                              <Link
+                                to={`/compliance/controls/${mapping.control.id}`}
+                                data-testid={`policy-control-link-${mapping.control.id}`}
+                              >
+                                <strong className="mono">
+                                  {mapping.control.code}
+                                </strong>
+                              </Link>
+                            ) : (
+                              <strong className="mono">
+                                {mapping.control.code}
+                              </strong>
+                            )}
                             <div>{mapping.control.title}</div>
                           </td>
                           <td>
@@ -139,9 +155,8 @@ export function PolicyTraceabilityPanel({
                 </div>
               )}
               <p className="muted">
-                Control codes are plain labels until the Control UI is
-                promoted. Evidence, Gap, CAPA, KPI and Risk links are not
-                fabricated here.
+                Control detail opens when controls:read is present. Evidence,
+                Gap, CAPA, KPI and Risk links are not fabricated here.
               </p>
             </div>
 

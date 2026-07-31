@@ -4,8 +4,8 @@ import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { useAuth } from "../../context/AuthContext";
 import type { ControlTraceability } from "../../types/api";
-import { statusLabel, versionStatusTone } from "../policies/policyFormatting";
-import { named, statusLabel as controlStatusLabel } from "./controlFormatting";
+import { versionStatusTone } from "../policies/policyFormatting";
+import { named, statusLabel } from "./controlFormatting";
 
 interface ControlTraceabilityPanelProps {
   data: ControlTraceability | null;
@@ -66,7 +66,7 @@ export function ControlTraceabilityPanel({
               <h3>Control</h3>
               <p>
                 <span className="mono">{data.control.code}</span>{" "}
-                <Badge>{controlStatusLabel(data.control.lifecycleStatus)}</Badge>
+                <Badge>{statusLabel(data.control.lifecycleStatus)}</Badge>
                 {" · "}
                 Owner {named(data.control.owner)}
               </p>

@@ -239,19 +239,16 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       ],
     },
   ),
-  development(
+  live(
     "/compliance/controls",
     "#compliance/controls",
     "Controls",
     "Policies & Controls",
-    "Control ownership, evidence requirements and compliance state.",
+    "Control ownership, evidence requirements, mappings and compliance state.",
     Shield,
     {
-      plannedCapabilities: [
-        "Maintain control ownership",
-        "Link controls to frameworks and policies",
-        "Track control effectiveness",
-      ],
+      permission: "controls:read",
+      api: "GET/POST /controls · GET/PATCH /controls/:id · lifecycle and mappings",
     },
   ),
   development(
@@ -882,6 +879,7 @@ export const migratedPaths = new Set([
   "/kpi/approval",
   "/compliance/risks",
   "/compliance/policy-register",
+  "/compliance/controls",
 ]);
 
 export const routeByPath = new Map(

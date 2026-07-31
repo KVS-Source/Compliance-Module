@@ -264,6 +264,7 @@ const livePaths = [
   ["/kpi/approval", "KPI Approval"],
   ["/compliance/risks", "Risk Register"],
   ["/compliance/policy-register", "Policy Register"],
+  ["/compliance/controls", "Control Register"],
 ] as const;
 
 test("sidebar exposes the complete approved structure and truthful badges", async ({
@@ -283,7 +284,7 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
       links.map((link) => link.getAttribute("href")).filter(Boolean),
     );
   expect(hrefs).toEqual(approvedPaths);
-  await expect(page.locator(".nav-status-badge")).toHaveCount(29);
+  await expect(page.locator(".nav-status-badge")).toHaveCount(28);
   await expect(
     page.getByTestId("nav-status-/data/genrac-integration"),
   ).toHaveText("Awaiting Access");
