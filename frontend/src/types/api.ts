@@ -1027,3 +1027,220 @@ export interface ControlAuditListResult {
   data: ControlAuditEvent[];
   meta: PageMeta;
 }
+
+/** Checkpoint lifecycle uses the same governance statuses as Control. */
+export type CheckpointLifecycleStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
+
+export type CheckpointVerificationFrequency = ControlFrequency;
+
+export type CheckpointOutcome =
+  | "PASS"
+  | "PARTIAL"
+  | "FAIL"
+  | "NOT_APPLICABLE";
+
+export type CheckpointPerson = PolicyPerson;
+export type CheckpointDepartmentRef = PolicyDepartmentRef;
+
+export interface CheckpointControlRef {
+  id: string;
+  code: string;
+  title: string;
+  lifecycleStatus: ControlLifecycleStatus;
+}
+
+/** Checkpoint register list row from GET /checkpoints. */
+export interface Checkpoint {
+  id: string;
+  code: string;
+  title: string;
+  verificationFrequency: CheckpointVerificationFrequency;
+  owner: CheckpointPerson | null;
+  department: CheckpointDepartmentRef | null;
+  evidenceRequired: boolean;
+  lifecycleStatus: CheckpointLifecycleStatus;
+  initialReviewDate: string | null;
+  nextReviewDate: string | null;
+  lastReviewedAt: string | null;
+  control: CheckpointControlRef | null;
+  latestOutcome: CheckpointOutcome | null;
+  totalReviewCount: number;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Latest-review summary embedded on Checkpoint detail (no observation text). */
+export interface CheckpointLatestReviewSummary {
+  id: string;
+  reviewPeriod: string;
+  reviewDate: string;
+  outcome: CheckpointOutcome;
+  nextReviewDate: string | null;
+  submittedAt: string;
+  reviewer: CheckpointPerson | null;
+}
+
+/** Checkpoint detail from GET /checkpoints/:id. */
+export interface CheckpointDetail extends Checkpoint {
+  description: string | null;
+  expectedResult: string;
+  latestReview: CheckpointLatestReviewSummary | null;
+  activePolicyVersionMappingCount: number;
+  activeFrameworkMappingCount: number;
+  activeFrameworkRuleMappingCount: number;
+}
+
+/** Full Review DTO from review history / latest-review / create review. */
+export interface CheckpointReview {
+  id: string;
+  checkpointId: string;
+  reviewPeriod: string;
+  reviewDate: string;
+  outcome: CheckpointOutcome;
+  observation: string | null;
+  recommendation: string | null;
+  nextReviewDate: string | null;
+  submittedAt: string;
+  reviewer: CheckpointPerson | null;
+}
+
+export interface CheckpointListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  code?: string;
+  title?: string;
+  lifecycleStatus?: CheckpointLifecycleStatus | "";
+  controlId?: string;
+  controlLifecycleStatus?: ControlLifecycleStatus | "";
+  ownerId?: string;
+  departmentId?: string;
+  verificationFrequency?: CheckpointVerificationFrequency | "";
+  latestOutcome?: CheckpointOutcome | "";
+  hasReviews?: boolean;
+  evidenceRequired?: boolean;
+  dueFrom?: string;
+  dueTo?: string;
+  reviewPeriod?: string;
+  frameworkId?: string;
+  policyId?: string;
+}
+
+export interface CheckpointListResult {
+  data: Checkpoint[];
+  meta: PageMeta;
+}
+
+export interface CreateCheckpointInput {
+  controlId: string;
+  title: string;
+  description?: string | null;
+  verificationFrequency: CheckpointVerificationFrequency;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  expectedResult: string;
+  evidenceRequired?: boolean;
+  initialReviewDate?: string | null;
+}
+
+export interface UpdateCheckpointInput {
+  title?: string;
+  description?: string | null;
+  verificationFrequency?: CheckpointVerificationFrequency;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  expectedResult?: string;
+  evidenceRequired?: boolean;
+  initialReviewDate?: string | null;
+  nextReviewDate?: string | null;
+}
+
+export interface CreateCheckpointReviewInput {
+  reviewPeriod: string;
+  reviewDate: string;
+  outcome: CheckpointOutcome;
+  observation?: string | null;
+  recommendation?: string | null;
+  nextReviewDate?: string | null;
+}
+
+export interface CheckpointReviewListResult {
+  data: CheckpointReview[];
+  meta: PageMeta;
+}
+
+export interface CheckpointTraceabilityMappingGroup<T> {
+  active: T[];
+  historical: T[];
+}
+
+export interface CheckpointTraceabilityPolicyMapping {
+  id: string;
+  isActive: boolean;
+  policyId: string;
+  policyVersionId: string;
+  policy: {
+    id: string;
+    code: string;
+    title: string;
+  };
+  policyVersion: {
+    id: string;
+    version: string;
+    versionMajor: number;
+    versionMinor: number;
+    status: PolicyVersionStatus;
+  };
+}
+
+export interface CheckpointTraceabilityFrameworkMapping {
+  id: string;
+  isActive: boolean;
+  frameworkId: string;
+  framework: PolicyFrameworkRef | null;
+}
+
+export interface CheckpointTraceabilityFrameworkRuleMapping {
+  id: string;
+  isActive: boolean;
+  frameworkId: string;
+  frameworkRuleId: string;
+  frameworkRule: {
+    id: string;
+    frameworkId: string;
+    code: string;
+    title: string;
+  };
+}
+
+export interface CheckpointTraceability {
+  checkpoint: {
+    id: string;
+    code: string;
+    title: string;
+    lifecycleStatus: CheckpointLifecycleStatus;
+    verificationFrequency: CheckpointVerificationFrequency;
+  };
+  control: CheckpointControlRef | null;
+  latestReview: CheckpointLatestReviewSummary | null;
+  totalReviewCount: number;
+  policyVersionMappings: CheckpointTraceabilityMappingGroup<CheckpointTraceabilityPolicyMapping>;
+  frameworkMappings: CheckpointTraceabilityMappingGroup<CheckpointTraceabilityFrameworkMapping>;
+  frameworkRuleMappings: CheckpointTraceabilityMappingGroup<CheckpointTraceabilityFrameworkRuleMapping>;
+}
+
+export interface CheckpointAuditEvent {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  userId: string | null;
+}
+
+export interface CheckpointAuditListResult {
+  data: CheckpointAuditEvent[];
+  meta: PageMeta;
+}
