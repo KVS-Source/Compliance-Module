@@ -251,7 +251,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       api: "GET/POST /controls · GET/PATCH /controls/:id · lifecycle and mappings",
     },
   ),
-  development(
+  live(
     "/compliance/checkpoints",
     "#compliance/checkpoints",
     "Checkpoints",
@@ -259,11 +259,8 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "Recurring control and framework verification checkpoints.",
     ClipboardCheck,
     {
-      plannedCapabilities: [
-        "Schedule verification checkpoints",
-        "Record reviewed outcomes",
-        "Escalate overdue checks",
-      ],
+      permission: "checkpoints:read",
+      api: "GET/POST /checkpoints · GET/PATCH /checkpoints/:id · Reviews, lifecycle, traceability and audit",
     },
   ),
 
@@ -880,6 +877,7 @@ export const migratedPaths = new Set([
   "/compliance/risks",
   "/compliance/policy-register",
   "/compliance/controls",
+  "/compliance/checkpoints",
 ]);
 
 export const routeByPath = new Map(

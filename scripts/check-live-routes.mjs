@@ -39,6 +39,7 @@ const requiredLiveRoutes = [
   { path: "/compliance/risks", component: "RiskRegisterPage" },
   { path: "/compliance/policy-register", component: "PolicyRegisterPage" },
   { path: "/compliance/controls", component: "ControlRegisterPage" },
+  { path: "/compliance/checkpoints", component: "CheckpointRegisterPage" },
 ];
 
 /**
@@ -58,6 +59,10 @@ const requiredLiveChildRoutes = [
   {
     path: "compliance/controls/:controlId",
     component: "ControlDetailPage",
+  },
+  {
+    path: "compliance/checkpoints/:checkpointId",
+    component: "CheckpointDetailPage",
   },
   { path: "master/frameworks/:frameworkId/rules", component: "FrameworkRulesPage" },
 ];
@@ -192,14 +197,14 @@ const statusCounts = {
 const protectedLivePatterns =
   statusCounts.LIVE + requiredLiveChildRoutes.length;
 if (
-  protectedLivePatterns !== 20 ||
-  statusCounts.IN_DEVELOPMENT !== 27 ||
+  protectedLivePatterns !== 22 ||
+  statusCounts.IN_DEVELOPMENT !== 26 ||
   statusCounts.AWAITING_INTEGRATION !== 1 ||
   statusCounts.COMPATIBILITY !== 22 ||
   visiblePaths.length !== 43
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 20 protected LIVE route patterns, 27 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 43 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 22 protected LIVE route patterns, 26 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 43 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 
@@ -293,5 +298,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: 1 public login, 20 protected LIVE patterns, 27 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, and 22 hidden COMPATIBILITY routes.`,
+  `Live-route guard passed: 1 public login, 22 protected LIVE patterns, 26 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, and 22 hidden COMPATIBILITY routes.`,
 );
