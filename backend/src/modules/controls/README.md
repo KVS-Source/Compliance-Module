@@ -24,5 +24,9 @@ Notes:
 Out of scope in this slice:
 
 - Checkpoint APIs
-- React Control / Checkpoint UI (routes remain `IN_DEVELOPMENT`)
 - Evidence, Gap, CAPA
+
+Frontend status (Milestone 4 Slice 6): React Control Register
+(`/compliance/controls`) and Control detail (`/compliance/controls/:controlId`)
+are `LIVE` behind `controls:read`. React Checkpoint UI remains
+`IN_DEVELOPMENT`.

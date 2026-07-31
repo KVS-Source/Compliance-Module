@@ -24,21 +24,23 @@ by UAT language or status-page presentation.
 ## Product limitations
 
 - Policy, Control and Checkpoint REST APIs are operational. React Policy
-  Register and Policy detail are operational after Slice 5 verification. The
-  standalone Policy Versions navigation page, React Control UI, React Checkpoint
+  Register/detail (Slice 5) and React Control Register/detail (Slice 6) are
+  operational. The standalone Policy Versions navigation page, React Checkpoint
   UI, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports, global audit
   query/export and settings domains are not operational. Same-period Checkpoint
-  Review correction remains unsupported.
+  Review correction remains unsupported. Milestone 4 frontend is not fully
+  complete while Checkpoint UI remains outstanding.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
-  deferred. Policy register filters are React state only (no URL query sync).
-  Control codes in Policy traceability are plain labels until Control UI ships.
+  deferred. Policy and Control register filters are React state only (no URL
+  query sync). Control Checkpoint panels show counts only and do not link to
+  Checkpoint UI.
 - Evidence-required KPI approval deliberately fails closed where already
   defined because the Evidence domain is not implemented. Policy approval also
   fails closed when `requiresEvidence=true` (`EVIDENCE_GATE_NOT_IMPLEMENTED`).
   There is no fake Evidence record, upload path or approval override. Policy
   content/purpose/scope render as plain text only (no HTML/Markdown).
-- Playwright Policy suites use mocked HTTP only. Backend Policy PostgreSQL
-  integration tests remain the database authority.
+- Playwright Policy and Control suites use mocked HTTP only. Backend Policy and
+  Control PostgreSQL integration tests remain the database authority.
 - Checkpoint reviews are append-only and unique per Checkpoint/review period. A
   mistaken review cannot currently be edited, deleted or replaced for that
   period; a formal correction/supersession mechanism is deferred.

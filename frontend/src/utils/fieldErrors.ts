@@ -391,6 +391,155 @@ export function policyDecisionError(
   );
 }
 
+const CONTROL_GENERIC_FALLBACK =
+  "The request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Control write, lifecycle and mapping errors onto form fields or a banner.
+ * Domain codes from the Control module are preferred over raw status.
+ */
+export function controlWriteError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  if (error.code === "CONTROL_HAS_ACTIVE_CHECKPOINTS") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Control still has active Checkpoints. Deactivate or archive those Checkpoints before archiving the Control.",
+    };
+  }
+  if (error.code === "CONTROL_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Control is not available in the active Company.",
+    };
+  }
+  if (error.code === "CONTROL_INVALID_STATE") {
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("framework") &&
+      (message.includes("rule") || message.includes("depend"))
+    ) {
+      return {
+        fieldErrors: {},
+        formError:
+          "This Framework cannot be removed while active Framework Rule mappings still depend on it.",
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CONTROL_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "CONTROL_MAPPING_INVALID") {
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("framework rule") &&
+      message.includes("framework mapping")
+    ) {
+      return {
+        fieldErrors: {
+          frameworkRuleIds:
+            "Map the Rule’s Framework to this Control before selecting the Rule.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("approved")) {
+      return {
+        fieldErrors: {
+          policyVersionIds:
+            "Only APPROVED Policy Versions may be actively mapped.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("same policy") || message.includes("two versions")) {
+      return {
+        fieldErrors: {
+          policyVersionIds:
+            "A Control cannot map two Versions of the same Policy at once.",
+        },
+        formError: null,
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CONTROL_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const message = error.message.toLowerCase();
+    const field = message.includes("owner") || message.includes("user")
+      ? "ownerId"
+      : message.includes("department")
+        ? "departmentId"
+        : message.includes("framework rule") || message.includes("rule")
+          ? "frameworkRuleIds"
+          : message.includes("framework")
+            ? "frameworkIds"
+            : message.includes("policy version") || message.includes("policy")
+              ? "policyVersionIds"
+              : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (
+    error.code === "VALIDATION_ERROR" &&
+    /not_applicable|implementation notes/i.test(error.message)
+  ) {
+    return {
+      fieldErrors: {
+        implementationNotes:
+          "NOT_APPLICABLE Controls require implementation notes.",
+      },
+      formError: null,
+    };
+  }
+  if (error.status === 403) {
+    if (error.message === "Permission denied") {
+      return {
+        fieldErrors: {},
+        formError: `Your active Company role does not include ${permission}.`,
+      };
+    }
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CONTROL_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || CONTROL_GENERIC_FALLBACK,
+  };
+}
+
+/** Lifecycle-banner mapper for activate / deactivate / archive. */
+export function controlLifecycleError(
+  error: unknown,
+  permission: string,
+): string {
+  return (
+    controlWriteError(error, permission).formError ??
+    (error instanceof Error ? error.message : CONTROL_GENERIC_FALLBACK)
+  );
+}
+
 /** Map known KPI actual submission errors onto form fields or a form banner. */
 export function kpiActualSubmissionError(error: unknown): {
   fieldErrors: FieldErrors;

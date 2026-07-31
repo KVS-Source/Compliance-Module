@@ -23,6 +23,8 @@ import { KpiConfigurationPage } from "../features/kpis/KpiConfigurationPage";
 import { KpiTargetsPage } from "../features/kpis/KpiTargetsPage";
 import { OrganisationPage } from "../features/organisation/OrganisationPage";
 import { ModuleStatusPage } from "../features/migration/ModuleStatusPage";
+import { ControlDetailPage } from "../features/controls/ControlDetailPage";
+import { ControlRegisterPage } from "../features/controls/ControlRegisterPage";
 import { PolicyDetailPage } from "../features/policies/PolicyDetailPage";
 import { PolicyRegisterPage } from "../features/policies/PolicyRegisterPage";
 import { RiskDetailPage } from "../features/risks/RiskDetailPage";
@@ -209,6 +211,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="policies:read">
         <PolicyDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/controls",
+    element: (
+      <PermissionBoundary permission="controls:read">
+        <ControlRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/controls/:controlId",
+    element: (
+      <PermissionBoundary permission="controls:read">
+        <ControlDetailPage />
       </PermissionBoundary>
     ),
   },

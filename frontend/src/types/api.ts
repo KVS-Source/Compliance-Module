@@ -825,3 +825,205 @@ export interface PolicyAuditListResult {
   data: PolicyAuditEvent[];
   meta: PageMeta;
 }
+
+/** Control lifecycle uses the same governance statuses as Policy. */
+export type ControlLifecycleStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
+
+export type ControlImplementationStatus =
+  | "NOT_STARTED"
+  | "IN_PROGRESS"
+  | "PARTIALLY_IMPLEMENTED"
+  | "IMPLEMENTED"
+  | "NOT_APPLICABLE";
+
+export type ControlType =
+  | "PREVENTIVE"
+  | "DETECTIVE"
+  | "CORRECTIVE"
+  | "DIRECTIVE";
+
+export type ControlFrequency =
+  | "DAILY"
+  | "WEEKLY"
+  | "MONTHLY"
+  | "QUARTERLY"
+  | "HALF_YEARLY"
+  | "ANNUAL"
+  | "CONTINUOUS"
+  | "PER_EVENT"
+  | "ONE_TIME";
+
+export type ControlPerson = PolicyPerson;
+export type ControlDepartmentRef = PolicyDepartmentRef;
+
+/** Control register list row from GET /controls. */
+export interface Control {
+  id: string;
+  code: string;
+  title: string;
+  owner: ControlPerson | null;
+  department: ControlDepartmentRef | null;
+  implementationStatus: ControlImplementationStatus;
+  controlType: ControlType;
+  frequency: ControlFrequency;
+  requiresEvidence: boolean;
+  lifecycleStatus: ControlLifecycleStatus;
+  lastReviewDate: string | null;
+  nextReviewDate: string | null;
+  activePolicyVersionMappingCount: number;
+  activeFrameworkMappingCount: number;
+  activeFrameworkRuleMappingCount: number;
+  activeCheckpointCount: number;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Control detail from GET /controls/:id (and create/update/lifecycle responses). */
+export interface ControlDetail extends Control {
+  description: string | null;
+  objective: string;
+  implementationNotes: string | null;
+  verificationMethod: string;
+  inactiveCheckpointCount: number;
+  archivedCheckpointCount: number;
+}
+
+export interface ControlListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  code?: string;
+  title?: string;
+  implementationStatus?: ControlImplementationStatus | "";
+  lifecycleStatus?: ControlLifecycleStatus | "";
+  ownerId?: string;
+  departmentId?: string;
+  controlType?: ControlType | "";
+  frequency?: ControlFrequency | "";
+  policyId?: string;
+  policyVersionId?: string;
+  frameworkId?: string;
+  frameworkRuleId?: string;
+  requiresEvidence?: boolean;
+  reviewDueFrom?: string;
+  reviewDueTo?: string;
+}
+
+export interface ControlListResult {
+  data: Control[];
+  meta: PageMeta;
+}
+
+export interface CreateControlInput {
+  title: string;
+  description?: string | null;
+  objective: string;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  implementationStatus: ControlImplementationStatus;
+  implementationNotes?: string | null;
+  controlType: ControlType;
+  frequency: ControlFrequency;
+  verificationMethod: string;
+  requiresEvidence?: boolean;
+  lastReviewDate?: string | null;
+  nextReviewDate?: string | null;
+  policyVersionIds?: string[];
+  frameworkIds?: string[];
+  frameworkRuleIds?: string[];
+}
+
+export interface UpdateControlInput {
+  title?: string;
+  description?: string | null;
+  objective?: string;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  implementationStatus?: ControlImplementationStatus;
+  implementationNotes?: string | null;
+  controlType?: ControlType;
+  frequency?: ControlFrequency;
+  verificationMethod?: string;
+  requiresEvidence?: boolean;
+  lastReviewDate?: string | null;
+  nextReviewDate?: string | null;
+}
+
+export interface ReplaceControlPolicyVersionsInput {
+  policyVersionIds: string[];
+}
+
+export interface ReplaceControlFrameworksInput {
+  frameworkIds: string[];
+}
+
+export interface ReplaceControlFrameworkRulesInput {
+  frameworkRuleIds: string[];
+}
+
+export interface ControlPolicyVersionMapping {
+  id: string;
+  isActive: boolean;
+  policyId: string;
+  policyVersionId: string;
+  policy: {
+    id: string;
+    code: string;
+    title: string;
+  };
+  policyVersion: {
+    id: string;
+    version: string;
+    versionMajor: number;
+    versionMinor: number;
+    status: PolicyVersionStatus;
+  };
+}
+
+export interface ControlFrameworkMapping {
+  id: string;
+  isActive: boolean;
+  frameworkId: string;
+  framework: PolicyFrameworkRef | null;
+}
+
+export interface ControlFrameworkRuleMapping {
+  id: string;
+  isActive: boolean;
+  frameworkId: string;
+  frameworkRuleId: string;
+  frameworkRule: {
+    id: string;
+    frameworkId: string;
+    code: string;
+    title: string;
+  };
+}
+
+export interface ControlTraceability {
+  control: ControlDetail;
+  policyVersionMappings: ControlPolicyVersionMapping[];
+  frameworkMappings: ControlFrameworkMapping[];
+  frameworkRuleMappings: ControlFrameworkRuleMapping[];
+  checkpointCounts: {
+    active: number;
+    inactive: number;
+    archived: number;
+  };
+}
+
+export interface ControlAuditEvent {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  userId: string | null;
+}
+
+export interface ControlAuditListResult {
+  data: ControlAuditEvent[];
+  meta: PageMeta;
+}
