@@ -7,8 +7,8 @@ The route guard enforces unique paths and route IDs, navigation resolution,
 status/page consistency and these counts:
 
 - one public login;
-- 18 protected `LIVE` route patterns;
-- 28 visible `IN_DEVELOPMENT` routes;
+- 20 protected `LIVE` route patterns;
+- 27 visible `IN_DEVELOPMENT` routes;
 - one visible `AWAITING_INTEGRATION` route;
 - 22 hidden `COMPATIBILITY` routes.
 
@@ -18,7 +18,7 @@ status/page consistency and these counts:
 | --- | --- | --- |
 | `/login` | `LoginPage` | real auth API; public |
 
-## Protected LIVE routes: 18
+## Protected LIVE routes: 20
 
 These render dedicated business pages and call real Express/PostgreSQL APIs.
 They must never render `ModuleStatusPage`.
@@ -43,11 +43,13 @@ They must never render `ModuleStatusPage`.
 | `/compliance/risks/:riskId` | `RiskDetailPage` | risk review/treatment/owner/close/reopen |
 | `/compliance/policy-register` | `PolicyRegisterPage` | Policy list/create |
 | `/compliance/policies/:policyId` | `PolicyDetailPage` | Policy detail, Versions, decisions |
+| `/compliance/controls` | `ControlRegisterPage` | Control list/create |
+| `/compliance/controls/:controlId` | `ControlDetailPage` | Control detail, lifecycle, mappings |
 
-The 14 top-level paths are in `migratedPaths`; four child/detail patterns are
+The 15 top-level paths are in `migratedPaths`; five child/detail patterns are
 declared directly in the router and separately asserted by the guard.
 
-## Visible IN DEVELOPMENT routes: 28
+## Visible IN DEVELOPMENT routes: 27
 
 Each path resolves to `ModuleStatusPage` and explicitly states that the module
 is not operational:
@@ -55,7 +57,7 @@ is not operational:
 | Area | Paths |
 | --- | --- |
 | Administration | `/admin/roles` |
-| Policies & Controls | `/compliance/policy-versions`, `/compliance/controls`, `/compliance/checkpoints` |
+| Policies & Controls | `/compliance/policy-versions`, `/compliance/checkpoints` |
 | KPI | `/master/kpis`, `/kpi/dashboard`, `/kpi/mapping` |
 | Evidence | `/evidence/register`, `/evidence/upload`, `/evidence/review`, `/evidence/approved`, `/evidence/rejected` |
 | Gap & CAPA | `/compliance/gaps`, `/compliance/gaps/review`, `/compliance/capa`, `/compliance/capa/review` |
