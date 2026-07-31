@@ -11,6 +11,7 @@ import type {
   FrameworkRule,
 } from "../../types/api";
 import { controlWriteError, type FieldErrors } from "../../utils/fieldErrors";
+import { computeFrameworkRuleSaveSet } from "./frameworkRuleSaveSet";
 
 interface ControlFrameworkRuleMappingProps {
   control: ControlDetail;
@@ -21,6 +22,11 @@ interface ControlFrameworkRuleMappingProps {
 }
 
 const sortedIds = (ids: string[]) => [...new Set(ids)].sort();
+
+const boundLabel = (code: string, title: string) => {
+  const combined = `${code} · ${title}`;
+  return combined.length > 80 ? `${combined.slice(0, 77)}…` : combined;
+};
 
 export function ControlFrameworkRuleMapping({
   control,
@@ -59,7 +65,6 @@ export function ControlFrameworkRuleMapping({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [invalidated, setInvalidated] = useState<Mapping[]>([]);
   const [confirmDiscardInvalidated, setConfirmDiscardInvalidated] =
     useState(false);
 
@@ -67,21 +72,8 @@ export function ControlFrameworkRuleMapping({
     setSelected(activeIds);
     setFormError(null);
     setFieldErrors({});
-    setInvalidated([]);
     setConfirmDiscardInvalidated(false);
   }, [activeIds, control.id]);
-
-  useEffect(() => {
-    const stillInvalid = mappings.filter(
-      (mapping) =>
-        mapping.isActive &&
-        !activeFrameworkIds.includes(mapping.frameworkId),
-    );
-    setInvalidated(stillInvalid);
-    if (stillInvalid.length === 0) {
-      setConfirmDiscardInvalidated(false);
-    }
-  }, [mappings, activeFrameworkIds]);
 
   const activeFrameworkKey = activeFrameworkIds.join(",");
 
@@ -126,7 +118,51 @@ export function ControlFrameworkRuleMapping({
     };
   }, [editable, activeFrameworkKey, activeFrameworkIds.length, control.id]);
 
-  const dirty = sortedIds(selected).join(",") !== activeIds.join(",");
+  const ruleFrameworkById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const mapping of mappings) {
+      map.set(mapping.frameworkRuleId, mapping.frameworkId);
+    }
+    for (const rule of rules) {
+      map.set(rule.id, rule.frameworkId);
+    }
+    return map;
+  }, [mappings, rules]);
+
+  const saveSet = useMemo(
+    () =>
+      computeFrameworkRuleSaveSet({
+        selectedIds: selected,
+        activeIds,
+        activeFrameworkIds,
+        ruleFrameworkById,
+        confirmDiscardInvalidated,
+      }),
+    [
+      selected,
+      activeIds,
+      activeFrameworkIds,
+      ruleFrameworkById,
+      confirmDiscardInvalidated,
+    ],
+  );
+
+  const invalidatedMappings = useMemo(
+    () =>
+      mappings.filter(
+        (mapping) =>
+          mapping.isActive &&
+          saveSet.invalidatedSelectedIds.includes(mapping.frameworkRuleId),
+      ),
+    [mappings, saveSet.invalidatedSelectedIds],
+  );
+
+  // Framework re-added: no invalidated selection → clear stale confirmation.
+  useEffect(() => {
+    if (saveSet.invalidatedSelectedIds.length === 0 && confirmDiscardInvalidated) {
+      setConfirmDiscardInvalidated(false);
+    }
+  }, [saveSet.invalidatedSelectedIds, confirmDiscardInvalidated]);
 
   const filtered = rules.filter((rule) => {
     const needle = filter.trim().toLowerCase();
@@ -160,6 +196,7 @@ export function ControlFrameworkRuleMapping({
         ? current.filter((id) => id !== rule.id)
         : [...current, rule.id],
     );
+    setConfirmDiscardInvalidated(false);
     setFieldErrors((current) => {
       if (!current.frameworkRuleIds) return current;
       const next = { ...current };
@@ -169,11 +206,8 @@ export function ControlFrameworkRuleMapping({
   };
 
   const removeInvalidated = () => {
-    const invalidIds = new Set(
-      invalidated.map((mapping) => mapping.frameworkRuleId),
-    );
+    const invalidIds = new Set(saveSet.invalidatedSelectedIds);
     setSelected((current) => current.filter((id) => !invalidIds.has(id)));
-    setInvalidated([]);
     setConfirmDiscardInvalidated(false);
     setFormError(
       "Invalidated Framework Rule selections were removed from the editor. Save to apply.",
@@ -181,19 +215,16 @@ export function ControlFrameworkRuleMapping({
   };
 
   const save = async () => {
-    if (!editable || !dirty || saving) return;
-    if (invalidated.length > 0 && !confirmDiscardInvalidated) {
+    if (!editable || saving) return;
+    if (saveSet.needsInvalidationConfirmation) {
       setFormError(
-        "Some active Rules belong to Frameworks that are no longer mapped. Remove them or confirm before saving.",
+        "Some selected Rules belong to Frameworks that are no longer mapped. Remove them or confirm that save will drop them.",
       );
       return;
     }
-    const invalidIds = new Set(
-      invalidated.map((mapping) => mapping.frameworkRuleId),
-    );
-    const nextIds = sortedIds(
-      selected.filter((id) => !invalidIds.has(id)),
-    );
+    if (!saveSet.hasEffectiveChanges) return;
+
+    const nextIds = saveSet.effectiveSaveIds;
     setSaving(true);
     setFormError(null);
     setFieldErrors({});
@@ -213,6 +244,12 @@ export function ControlFrameworkRuleMapping({
   };
 
   const activeMappings = mappings.filter((mapping) => mapping.isActive);
+  const saveDisabled = !editable || saving || !saveSet.canSave;
+  const saveHint = saveSet.needsInvalidationConfirmation
+    ? "Remove invalidated Rules or confirm that save will drop them before updating."
+    : !saveSet.hasEffectiveChanges
+      ? "No Framework Rule mapping changes to save."
+      : undefined;
 
   return (
     <section className="card" data-testid="control-framework-rule-mapping">
@@ -239,35 +276,51 @@ export function ControlFrameworkRuleMapping({
           ) : (
             activeMappings.map((mapping) => (
               <li key={mapping.id}>
-                {mapping.frameworkRule.code} · {mapping.frameworkRule.title}
+                {boundLabel(
+                  mapping.frameworkRule.code,
+                  mapping.frameworkRule.title,
+                )}
               </li>
             ))
           )}
         </ul>
 
-        {invalidated.length > 0 ? (
+        {invalidatedMappings.length > 0 ? (
           <div
             className="banner warning"
             role="status"
+            aria-live="polite"
             data-testid="control-framework-rule-invalidated"
           >
             <p>
-              {invalidated.length} active Rule
-              {invalidated.length === 1 ? "" : "s"} no longer have an active
-              Framework mapping:
+              {invalidatedMappings.length} selected Rule
+              {invalidatedMappings.length === 1 ? "" : "s"}{" "}
+              {invalidatedMappings.length === 1 ? "is" : "are"} no longer valid
+              because {invalidatedMappings.length === 1 ? "its" : "their"}{" "}
+              Framework {invalidatedMappings.length === 1 ? "is" : "are"} not
+              mapped to this Control:
             </p>
             <ul>
-              {invalidated.map((mapping) => (
+              {invalidatedMappings.map((mapping) => (
                 <li key={mapping.id}>
-                  {mapping.frameworkRule.code} · {mapping.frameworkRule.title}
+                  {boundLabel(
+                    mapping.frameworkRule.code,
+                    mapping.frameworkRule.title,
+                  )}
                 </li>
               ))}
             </ul>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Remove invalid Rules clears them from the editor selection. Confirm
+              drop keeps them selected until Save, then submits only Rules whose
+              Framework is still mapped.
+            </p>
             <div className="row-actions">
               <button
                 className="btn btn-secondary"
                 type="button"
                 onClick={removeInvalidated}
+                aria-label="Remove invalidated Framework Rules from selection"
                 data-testid="control-framework-rule-remove-invalidated"
               >
                 Remove invalidated Rules
@@ -275,12 +328,22 @@ export function ControlFrameworkRuleMapping({
               <button
                 className="btn btn-secondary"
                 type="button"
-                onClick={() => setConfirmDiscardInvalidated(true)}
+                onClick={() => {
+                  setConfirmDiscardInvalidated(true);
+                  setFormError(null);
+                }}
+                aria-label="Confirm that saving will drop invalidated Framework Rules"
                 data-testid="control-framework-rule-confirm-invalidated"
               >
                 Confirm save will drop them
               </button>
             </div>
+            {confirmDiscardInvalidated && !saveSet.hasEffectiveChanges ? (
+              <p className="muted" data-testid="control-framework-rule-noop-hint">
+                Dropping invalidated Rules would not change the active mapping
+                set. No update is required.
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -289,55 +352,67 @@ export function ControlFrameworkRuleMapping({
             Framework Rule mappings can be updated only for non-archived
             Controls when you hold controls:write.
           </p>
-        ) : activeFrameworkIds.length === 0 ? (
+        ) : activeFrameworkIds.length === 0 &&
+          saveSet.invalidatedSelectedIds.length === 0 ? (
           <p className="muted">
             Map at least one Framework before selecting Framework Rules.
           </p>
-        ) : loadingRules ? (
-          <LoadingState label="Loading Framework Rule options…" />
-        ) : rulesError ? (
-          <p className="muted">{rulesError}</p>
         ) : (
           <>
-            <label className="field">
-              <span className="sr-only">Filter Framework Rules</span>
-              <input
-                className="control"
-                type="search"
-                placeholder="Filter Framework Rules…"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-              />
-            </label>
-            <div
-              className="stack"
-              style={{ maxHeight: 220, overflow: "auto" }}
-              data-testid="control-framework-rule-editor"
-            >
-              {[...rulesByFramework.entries()].map(([frameworkId, group]) => {
-                const frameworkLabel =
-                  frameworkMappings.find(
-                    (mapping) => mapping.frameworkId === frameworkId,
-                  )?.framework?.code ?? frameworkId;
-                return (
-                  <div key={frameworkId} className="stack">
-                    <strong>{frameworkLabel}</strong>
-                    {group.map((rule) => (
-                      <label key={rule.id} className="checkbox-row">
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(rule.id)}
-                          onChange={() => toggle(rule)}
-                        />
-                        <span>
-                          {rule.code} · {rule.title}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
+            {activeFrameworkIds.length === 0 ? (
+              <p className="muted">
+                No Frameworks are mapped. Save after removing or confirming drop
+                of invalidated Rules, or map a Framework to continue editing.
+              </p>
+            ) : loadingRules ? (
+              <LoadingState label="Loading Framework Rule options…" />
+            ) : rulesError ? (
+              <p className="muted">{rulesError}</p>
+            ) : (
+              <>
+                <label className="field">
+                  <span className="sr-only">Filter Framework Rules</span>
+                  <input
+                    className="control"
+                    type="search"
+                    placeholder="Filter Framework Rules…"
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                  />
+                </label>
+                <div
+                  className="stack"
+                  style={{ maxHeight: 220, overflow: "auto" }}
+                  data-testid="control-framework-rule-editor"
+                >
+                  {[...rulesByFramework.entries()].map(
+                    ([frameworkId, group]) => {
+                      const frameworkLabel =
+                        frameworkMappings.find(
+                          (mapping) => mapping.frameworkId === frameworkId,
+                        )?.framework?.code ?? frameworkId;
+                      return (
+                        <div key={frameworkId} className="stack">
+                          <strong>{frameworkLabel}</strong>
+                          {group.map((rule) => (
+                            <label key={rule.id} className="checkbox-row">
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(rule.id)}
+                                onChange={() => toggle(rule)}
+                              />
+                              <span>
+                                {rule.code} · {rule.title}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              </>
+            )}
             {fieldErrors.frameworkRuleIds ? (
               <div
                 className="error"
@@ -347,14 +422,17 @@ export function ControlFrameworkRuleMapping({
                 {fieldErrors.frameworkRuleIds}
               </div>
             ) : null}
+            {saveHint ? (
+              <p className="muted" data-testid="control-framework-rule-save-hint">
+                {saveHint}
+              </p>
+            ) : null}
             <button
               className="btn btn-primary"
               type="button"
-              disabled={
-                (!dirty && invalidated.length === 0) ||
-                saving ||
-                (invalidated.length > 0 && !confirmDiscardInvalidated)
-              }
+              disabled={saveDisabled}
+              aria-disabled={saveDisabled}
+              title={saveHint}
               onClick={() => void save()}
               data-testid="control-framework-rule-save"
             >

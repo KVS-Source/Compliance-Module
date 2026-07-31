@@ -274,8 +274,9 @@ export function ControlFrameworkMapping({
                       className="btn btn-secondary"
                       type="button"
                       onClick={forceRemovePending}
+                      data-testid="control-framework-force-remove"
                     >
-                      Keep editor selection unchanged
+                      Remove selected Frameworks
                     </button>
                   ) : null}
                 </div>
