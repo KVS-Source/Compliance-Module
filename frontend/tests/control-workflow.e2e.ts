@@ -57,6 +57,30 @@ const ruleOne = {
   status: "ACTIVE",
 };
 
+const ruleTwo = {
+  id: "70000000-0000-4000-8000-000000000002",
+  frameworkId: frameworkTwo.id,
+  code: "RUL-002",
+  title: "Access review evidence",
+  description: "Review access evidence periodically.",
+  status: "ACTIVE",
+};
+
+const rulesById: Record<
+  string,
+  {
+    id: string;
+    frameworkId: string;
+    code: string;
+    title: string;
+    description: string;
+    status: string;
+  }
+> = {
+  [ruleOne.id]: ruleOne,
+  [ruleTwo.id]: ruleTwo,
+};
+
 const approvedVersion = {
   id: "a1000000-0000-4000-8000-000000000001",
   policyId: "a0000000-0000-4000-8000-000000000001",
@@ -185,8 +209,14 @@ const failure = (status: number, code: string, message: string) => ({
   body: { success: false, error: { code, message } },
 });
 
-async function installControlWorkflowMock(page: Page) {
+async function installControlWorkflowMock(
+  page: Page,
+  options: { orphanRulesOnFrameworkRemoval?: boolean } = {},
+) {
   const putBodies: Array<{ path: string; body: unknown }> = [];
+  let failNextFrameworkRulesPut:
+    | { status: number; code: string; message: string }
+    | null = null;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -246,6 +276,14 @@ async function installControlWorkflowMock(page: Page) {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(success([ruleOne])),
+      });
+    }
+
+    if (path === `/api/v1/frameworks/${frameworkTwo.id}/rules`) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(success([ruleTwo])),
       });
     }
 
@@ -456,7 +494,7 @@ async function installControlWorkflowMock(page: Page) {
           (mapping) => mapping.isActive && mapping.frameworkId === frameworkId,
         ),
       );
-      if (dependent) {
+      if (dependent && !options.orphanRulesOnFrameworkRemoval) {
         const blocked = failure(
           409,
           "CONTROL_INVALID_STATE",
@@ -500,38 +538,64 @@ async function installControlWorkflowMock(page: Page) {
     ) {
       const body = request.postDataJSON() as { frameworkRuleIds: string[] };
       putBodies.push({ path, body });
+      if (failNextFrameworkRulesPut) {
+        const err = failNextFrameworkRulesPut;
+        failNextFrameworkRulesPut = null;
+        return route.fulfill({
+          status: err.status,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: false,
+            error: { code: err.code, message: err.message },
+          }),
+        });
+      }
       for (const ruleId of body.frameworkRuleIds) {
-        if (ruleId === ruleOne.id) {
-          const hasFramework = frameworkMappings.some(
-            (mapping) =>
-              mapping.isActive && mapping.frameworkId === ruleOne.frameworkId,
+        const rule = rulesById[ruleId];
+        if (!rule) {
+          const invalid = failure(
+            400,
+            "CONTROL_MAPPING_INVALID",
+            "Unknown Framework Rule",
           );
-          if (!hasFramework) {
-            const invalid = failure(
-              400,
-              "CONTROL_MAPPING_INVALID",
-              "Framework Rule requires an active Control Framework mapping",
-            );
-            return route.fulfill({
-              status: invalid.status,
-              contentType: "application/json",
-              body: JSON.stringify(invalid.body),
-            });
-          }
+          return route.fulfill({
+            status: invalid.status,
+            contentType: "application/json",
+            body: JSON.stringify(invalid.body),
+          });
+        }
+        const hasFramework = frameworkMappings.some(
+          (mapping) =>
+            mapping.isActive && mapping.frameworkId === rule.frameworkId,
+        );
+        if (!hasFramework) {
+          const invalid = failure(
+            400,
+            "CONTROL_MAPPING_INVALID",
+            "Framework Rule requires an active Control Framework mapping",
+          );
+          return route.fulfill({
+            status: invalid.status,
+            contentType: "application/json",
+            body: JSON.stringify(invalid.body),
+          });
         }
       }
-      ruleMappings = body.frameworkRuleIds.map((ruleId, index) => ({
-        id: `crm-${index}`,
-        isActive: true,
-        frameworkId: ruleOne.frameworkId,
-        frameworkRuleId: ruleId,
-        frameworkRule: {
-          id: ruleOne.id,
-          frameworkId: ruleOne.frameworkId,
-          code: ruleOne.code,
-          title: ruleOne.title,
-        },
-      }));
+      ruleMappings = body.frameworkRuleIds.map((ruleId, index) => {
+        const rule = rulesById[ruleId]!;
+        return {
+          id: `crm-${index}`,
+          isActive: true,
+          frameworkId: rule.frameworkId,
+          frameworkRuleId: rule.id,
+          frameworkRule: {
+            id: rule.id,
+            frameworkId: rule.frameworkId,
+            code: rule.code,
+            title: rule.title,
+          },
+        };
+      });
       control = {
         ...control,
         activeFrameworkRuleMappingCount: ruleMappings.length,
@@ -596,7 +660,91 @@ async function installControlWorkflowMock(page: Page) {
     });
   });
 
-  return { putBodies };
+  return {
+    putBodies,
+    failNextFrameworkRulesPut: (error: {
+      status: number;
+      code: string;
+      message: string;
+    }) => {
+      failNextFrameworkRulesPut = error;
+    },
+  };
+}
+
+function seedDualFrameworkRuleMappings() {
+  frameworkMappings = [
+    {
+      id: "cf000000-0000-4000-8000-000000000001",
+      isActive: true,
+      frameworkId: framework.id,
+      framework: {
+        id: framework.id,
+        code: framework.code,
+        name: framework.name,
+        version: framework.version,
+      },
+    },
+    {
+      id: "cf000000-0000-4000-8000-000000000002",
+      isActive: true,
+      frameworkId: frameworkTwo.id,
+      framework: {
+        id: frameworkTwo.id,
+        code: frameworkTwo.code,
+        name: frameworkTwo.name,
+        version: frameworkTwo.version,
+      },
+    },
+  ];
+  ruleMappings = [
+    {
+      id: "cr000000-0000-4000-8000-000000000001",
+      isActive: true,
+      frameworkId: framework.id,
+      frameworkRuleId: ruleOne.id,
+      frameworkRule: {
+        id: ruleOne.id,
+        frameworkId: ruleOne.frameworkId,
+        code: ruleOne.code,
+        title: ruleOne.title,
+      },
+    },
+    {
+      id: "cr000000-0000-4000-8000-000000000002",
+      isActive: true,
+      frameworkId: frameworkTwo.id,
+      frameworkRuleId: ruleTwo.id,
+      frameworkRule: {
+        id: ruleTwo.id,
+        frameworkId: ruleTwo.frameworkId,
+        code: ruleTwo.code,
+        title: ruleTwo.title,
+      },
+    },
+  ];
+  control = {
+    ...control,
+    activeFrameworkMappingCount: 2,
+    activeFrameworkRuleMappingCount: 2,
+  };
+}
+
+async function removeFrameworkTwoLeavingOrphanRule(page: Page) {
+  const editor = page.getByTestId("control-framework-editor");
+  await editor.getByText("FRM-002 · ISO 27001").click();
+  await page.getByTestId("control-framework-confirm-invalidation").click();
+  await expect(page.getByTestId("control-framework-force-remove")).toHaveText(
+    "Remove selected Frameworks",
+  );
+  await page.getByTestId("control-framework-force-remove").click();
+  await page.getByTestId("control-framework-save").click();
+  await expect(
+    page.getByTestId("control-framework-rule-invalidated"),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("control-framework-rule-invalidated"),
+  ).toContainText("RUL-002");
 }
 
 test.describe("Control workflow UI (mocked browser APIs)", () => {
@@ -791,5 +939,192 @@ test.describe("Control workflow UI (mocked browser APIs)", () => {
       .getByRole("link", { name: "POL-001" })
       .click();
     await expect(page).toHaveURL(`/compliance/policies/${policy.id}`);
+  });
+
+  test("confirms drop of invalidated Rules and PUTs valid-only body", async ({
+    page,
+  }) => {
+    seedDualFrameworkRuleMappings();
+    const { putBodies } = await installControlWorkflowMock(page, {
+      orphanRulesOnFrameworkRemoval: true,
+    });
+    await page.goto(`/compliance/controls/${control.id}`);
+    await removeFrameworkTwoLeavingOrphanRule(page);
+
+    const ruleSave = page.getByTestId("control-framework-rule-save");
+    await expect(ruleSave).toBeDisabled();
+    const beforeConfirm = putBodies.filter((entry) =>
+      entry.path.endsWith("/framework-rules"),
+    ).length;
+    await ruleSave.click({ force: true });
+    await expect
+      .poll(
+        () =>
+          putBodies.filter((entry) => entry.path.endsWith("/framework-rules"))
+            .length,
+      )
+      .toBe(beforeConfirm);
+
+    await page.getByTestId("control-framework-rule-confirm-invalidated").click();
+    await expect(ruleSave).toBeEnabled();
+    await ruleSave.click();
+
+    await expect
+      .poll(() =>
+        putBodies.filter((entry) => entry.path.endsWith("/framework-rules")),
+      )
+      .toHaveLength(1);
+    const rulePuts = putBodies.filter((entry) =>
+      entry.path.endsWith("/framework-rules"),
+    );
+    expect(rulePuts).toHaveLength(1);
+    expect(rulePuts[0]?.path).toBe(
+      `/api/v1/controls/${control.id}/framework-rules`,
+    );
+    expect(rulePuts[0]?.body).toEqual({ frameworkRuleIds: [ruleOne.id] });
+
+    await expect(
+      page.getByTestId("control-framework-rule-invalidated"),
+    ).toHaveCount(0);
+    await expect(
+      page.getByTestId("control-active-framework-rules"),
+    ).toContainText("RUL-001");
+    await expect(
+      page.getByTestId("control-active-framework-rules"),
+    ).not.toContainText("RUL-002");
+    await expect(
+      page.getByTestId("control-traceability"),
+    ).toContainText("RUL-001");
+  });
+
+  test("explicitly removes invalidated Rules before save", async ({ page }) => {
+    seedDualFrameworkRuleMappings();
+    const { putBodies } = await installControlWorkflowMock(page, {
+      orphanRulesOnFrameworkRemoval: true,
+    });
+    await page.goto(`/compliance/controls/${control.id}`);
+    await removeFrameworkTwoLeavingOrphanRule(page);
+
+    await page.getByTestId("control-framework-rule-remove-invalidated").click();
+    await expect(
+      page.getByTestId("control-framework-rule-invalidated"),
+    ).toHaveCount(0);
+    await expect(page.getByTestId("control-framework-rule-save")).toBeEnabled();
+    await page.getByTestId("control-framework-rule-save").click();
+
+    await expect
+      .poll(() =>
+        putBodies.filter((entry) => entry.path.endsWith("/framework-rules")),
+      )
+      .toHaveLength(1);
+    expect(
+      putBodies.filter((entry) => entry.path.endsWith("/framework-rules"))[0]
+        ?.body,
+    ).toEqual({ frameworkRuleIds: [ruleOne.id] });
+  });
+
+  test("does not PUT when Framework Rule mappings are unchanged", async ({
+    page,
+  }) => {
+    const { putBodies } = await installControlWorkflowMock(page);
+    await page.goto(`/compliance/controls/${control.id}`);
+    await expect(page.getByTestId("control-framework-rule-save")).toBeDisabled();
+    await page.getByTestId("control-framework-rule-save").click({ force: true });
+    await expect
+      .poll(() =>
+        putBodies.filter((entry) => entry.path.endsWith("/framework-rules"))
+          .length,
+      )
+      .toBe(0);
+  });
+
+  test("preserves Rule selection after backend mapping error", async ({
+    page,
+  }) => {
+    seedDualFrameworkRuleMappings();
+    const mock = await installControlWorkflowMock(page, {
+      orphanRulesOnFrameworkRemoval: true,
+    });
+    await page.goto(`/compliance/controls/${control.id}`);
+    await removeFrameworkTwoLeavingOrphanRule(page);
+    await page.getByTestId("control-framework-rule-confirm-invalidated").click();
+    mock.failNextFrameworkRulesPut({
+      status: 409,
+      code: "CONTROL_MAPPING_INVALID",
+      message: "Framework Rule mapping conflict",
+    });
+    await page.getByTestId("control-framework-rule-save").click();
+    await expect(page.getByRole("alert")).toContainText(
+      "Framework Rule mapping conflict",
+    );
+    await expect(
+      page.getByTestId("control-framework-rule-invalidated"),
+    ).toBeVisible();
+    await expect(page.getByTestId("control-framework-rule-save")).toBeEnabled();
+    await expect
+      .poll(() =>
+        mock.putBodies.filter((entry) => entry.path.endsWith("/framework-rules"))
+          .length,
+      )
+      .toBe(1);
+  });
+
+  test("clears drop confirmation when Rule selection changes", async ({
+    page,
+  }) => {
+    seedDualFrameworkRuleMappings();
+    await installControlWorkflowMock(page, {
+      orphanRulesOnFrameworkRemoval: true,
+    });
+    await page.goto(`/compliance/controls/${control.id}`);
+    await removeFrameworkTwoLeavingOrphanRule(page);
+    await page.getByTestId("control-framework-rule-confirm-invalidated").click();
+    await expect(page.getByTestId("control-framework-rule-save")).toBeEnabled();
+
+    await page
+      .getByTestId("control-framework-rule-editor")
+      .getByText("RUL-001 · Documented information control")
+      .click();
+    await expect(page.getByTestId("control-framework-rule-save")).toBeDisabled();
+    await expect(
+      page.getByTestId("control-framework-rule-save-hint"),
+    ).toContainText("Remove invalidated Rules or confirm");
+  });
+
+  test("re-adding a Framework clears Rule invalidation", async ({ page }) => {
+    seedDualFrameworkRuleMappings();
+    await installControlWorkflowMock(page, {
+      orphanRulesOnFrameworkRemoval: true,
+    });
+    await page.goto(`/compliance/controls/${control.id}`);
+    await removeFrameworkTwoLeavingOrphanRule(page);
+
+    await page
+      .getByTestId("control-framework-editor")
+      .getByText("FRM-002 · ISO 27001")
+      .click();
+    await page.getByTestId("control-framework-save").click();
+    await expect(
+      page.getByTestId("control-framework-rule-invalidated"),
+    ).toHaveCount(0);
+    await expect(page.getByTestId("control-framework-rule-save")).toBeDisabled();
+  });
+
+  test("Framework force-remove button label matches action", async ({
+    page,
+  }) => {
+    seedDualFrameworkRuleMappings();
+    await installControlWorkflowMock(page, {
+      orphanRulesOnFrameworkRemoval: true,
+    });
+    await page.goto(`/compliance/controls/${control.id}`);
+    await page
+      .getByTestId("control-framework-editor")
+      .getByText("FRM-002 · ISO 27001")
+      .click();
+    await page.getByTestId("control-framework-confirm-invalidation").click();
+    await expect(page.getByTestId("control-framework-force-remove")).toHaveText(
+      "Remove selected Frameworks",
+    );
   });
 });
