@@ -773,6 +773,22 @@
   gap: 12px;
 }
 
+.control-register-mobile {
+  display: none;
+  gap: 12px;
+}
+
+.control-register-card h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.control-register-card .card-pad {
+  display: grid;
+  gap: 8px;
+}
+
 .policy-register-card h2 {
   margin: 0;
   font-size: 14px;
@@ -799,6 +815,12 @@
     display: none;
   }
   .policy-register-mobile {
+    display: grid;
+  }
+  .control-register-desktop {
+    display: none;
+  }
+  .control-register-mobile {
     display: grid;
   }
 }
