@@ -100,9 +100,17 @@ type VersionState = {
 
 async function installPolicyWorkflowMock(
   page: Page,
-  options: { actor: "submitter" | "approver"; forceImmutable?: boolean },
+  options: {
+    actor: "submitter" | "approver";
+    forceImmutable?: boolean;
+    /** First Framework mapping PUT returns VALIDATION_ERROR on frameworkIds. */
+    failFrameworkMappingOnce?: boolean;
+  },
 ) {
   const actor = options.actor === "approver" ? approver : submitter;
+  let frameworkMappingFailuresRemaining = options.failFrameworkMappingOnce
+    ? 1
+    : 0;
   let lifecycleStatus = "ACTIVE";
   let title = "Information Security Policy";
   let description: string | null = "Baseline security policy";
@@ -435,6 +443,26 @@ async function installPolicyWorkflowMock(
     if (frameworksPut && method === "PUT") {
       const versionId = frameworksPut[1]!;
       const body = request.postDataJSON() as { frameworkIds: string[] };
+      if (frameworkMappingFailuresRemaining > 0) {
+        frameworkMappingFailuresRemaining -= 1;
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Request validation failed",
+              details: [
+                {
+                  path: "frameworkIds",
+                  message: "One or more Frameworks are invalid for mapping",
+                },
+              ],
+            },
+          }),
+        });
+      }
       versions = versions.map((entry) => {
         if (entry.id !== versionId) return entry;
         return {
@@ -1361,6 +1389,40 @@ test.describe("Policy workflow decisions (single mocked session)", () => {
     await page.getByTestId("policy-version-form-save").click();
     await expect(page.getByTestId("policy-version-form-error")).toContainText(
       "can no longer be edited",
+    );
+  });
+
+  test("shows Framework mapping field errors and preserves selection", async ({
+    page,
+  }) => {
+    await installPolicyWorkflowMock(page, {
+      actor: "submitter",
+      failFrameworkMappingOnce: true,
+    });
+    await page.goto(policyUrl);
+
+    const editor = page.getByTestId("policy-framework-editor");
+    await expect(editor).toBeVisible();
+    const iso27001 = editor.getByText("ISO 27001");
+    await iso27001.click();
+    await expect(editor.locator('input[type="checkbox"]').nth(1)).toBeChecked();
+
+    await page.getByTestId("policy-framework-save").click();
+    await expect(page.getByTestId("policy-framework-field-error")).toContainText(
+      "One or more Frameworks are invalid for mapping",
+    );
+    await expect(page.getByTestId("policy-framework-mapping")).toBeVisible();
+    await expect(editor.locator('input[type="checkbox"]').nth(1)).toBeChecked();
+    await expect(page.getByTestId("policy-framework-editor")).toBeVisible();
+
+    // Changing selection clears the field error; retry then succeeds.
+    await iso27001.click();
+    await expect(page.getByTestId("policy-framework-field-error")).toHaveCount(0);
+    await iso27001.click();
+    await page.getByTestId("policy-framework-save").click();
+    await expect(page.getByTestId("policy-framework-field-error")).toHaveCount(0);
+    await expect(page.getByTestId("policy-active-frameworks")).toContainText(
+      "ISO 27001",
     );
   });
 });

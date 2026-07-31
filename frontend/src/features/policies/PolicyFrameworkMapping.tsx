@@ -6,7 +6,10 @@ import { ApiError } from "../../services/apiClient";
 import { frameworkApi } from "../../services/frameworkApi";
 import { policyApi } from "../../services/policyApi";
 import type { Framework, PolicyVersion } from "../../types/api";
-import { policyWriteError } from "../../utils/fieldErrors";
+import {
+  policyWriteError,
+  type FieldErrors,
+} from "../../utils/fieldErrors";
 import { isEditableVersionStatus } from "./policyFormatting";
 
 interface PolicyFrameworkMappingProps {
@@ -34,6 +37,7 @@ export function PolicyFrameworkMapping({
   const [filter, setFilter] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const editable =
     Boolean(version) &&
@@ -54,6 +58,7 @@ export function PolicyFrameworkMapping({
   useEffect(() => {
     setSelected(activeIds);
     setFormError(null);
+    setFieldErrors({});
   }, [activeIds, version?.id]);
 
   useEffect(() => {
@@ -102,18 +107,37 @@ export function PolicyFrameworkMapping({
         })
       : [];
 
+  const toggleSelected = (frameworkId: string) => {
+    setSelected((current) =>
+      current.includes(frameworkId)
+        ? current.filter((id) => id !== frameworkId)
+        : [...current, frameworkId],
+    );
+    setFieldErrors((current) => {
+      if (!current.frameworkIds) return current;
+      const next = { ...current };
+      delete next.frameworkIds;
+      return next;
+    });
+  };
+
   const save = async () => {
     if (!version || !editable || !dirty || saving) return;
     setSaving(true);
     setFormError(null);
+    setFieldErrors({});
     try {
       const updated = await policyApi.replacePolicyVersionFrameworks(
         version.id,
         { frameworkIds: sortedIds(selected) },
       );
+      setFormError(null);
+      setFieldErrors({});
       onUpdated(updated);
     } catch (error) {
-      setFormError(policyWriteError(error, "policies:write").formError);
+      const mapped = policyWriteError(error, "policies:write");
+      setFieldErrors(mapped.fieldErrors);
+      setFormError(mapped.formError);
     } finally {
       setSaving(false);
     }
@@ -202,19 +226,14 @@ export function PolicyFrameworkMapping({
               className="stack"
               style={{ maxHeight: 200, overflow: "auto" }}
               data-testid="policy-framework-editor"
+              aria-invalid={Boolean(fieldErrors.frameworkIds)}
             >
               {filtered.map((framework) => (
                 <label key={framework.id} className="checkbox-row">
                   <input
                     type="checkbox"
                     checked={selected.includes(framework.id)}
-                    onChange={() => {
-                      setSelected((current) =>
-                        current.includes(framework.id)
-                          ? current.filter((id) => id !== framework.id)
-                          : [...current, framework.id],
-                      );
-                    }}
+                    onChange={() => toggleSelected(framework.id)}
                   />
                   <span>
                     {framework.code} · {framework.name}
@@ -222,6 +241,15 @@ export function PolicyFrameworkMapping({
                 </label>
               ))}
             </div>
+            {fieldErrors.frameworkIds ? (
+              <div
+                className="error"
+                role="alert"
+                data-testid="policy-framework-field-error"
+              >
+                {fieldErrors.frameworkIds}
+              </div>
+            ) : null}
             <p className="muted">
               Unchecking a Framework removes it from this Version’s active
               mappings. It does not delete Framework master data.
