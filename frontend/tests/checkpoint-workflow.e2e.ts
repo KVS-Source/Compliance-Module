@@ -113,7 +113,7 @@ let checkpoint = {
 
 let reviews: Array<Record<string, unknown>> = [];
 let latestReview: Record<string, unknown> | null = null;
-let auditEvents: Array<Record<string, unknown>> = [
+const auditEvents: Array<Record<string, unknown>> = [
   {
     id: "a0000000-0000-4000-8000-000000000001",
     action: "CHECKPOINT_CREATED",
