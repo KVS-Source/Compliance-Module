@@ -33,6 +33,9 @@ visibility only; the backend remains authoritative.
   is present, links to `/compliance/checkpoints` without controlId query or
   `location.state`.
 - Filters stay in React state (no URL query sync in this slice).
+- Traceability renders active and historical Framework / Framework Rule
+  mappings when the backend traceability API supplies them (same active vs
+  historical treatment as Policy Version mappings).
 - Playwright suites under `frontend/tests/checkpoint-*.e2e.ts` use mocked HTTP
   only. Backend PostgreSQL integration tests remain the database authority.
 

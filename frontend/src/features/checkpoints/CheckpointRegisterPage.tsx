@@ -11,7 +11,13 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -80,6 +86,17 @@ export function CheckpointRegisterPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const canWrite = hasPermission("checkpoints:write");
+  const activeCompanyId = user?.activeCompany.id;
+  // Keep latest tenant identity for async openEdit completion checks.
+  // Closure values alone cannot detect a company switch after await.
+  const tenantGuardRef = useRef({
+    companyId: activeCompanyId,
+    contextVersion,
+  });
+  tenantGuardRef.current = {
+    companyId: activeCompanyId,
+    contextVersion,
+  };
 
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -131,7 +148,7 @@ export function CheckpointRegisterPage() {
     setCreating(false);
     setEditing(null);
     setLifecycle(null);
-  }, [contextVersion, user?.activeCompany.id]);
+  }, [contextVersion, activeCompanyId]);
 
   useEffect(() => {
     let active = true;
@@ -146,7 +163,7 @@ export function CheckpointRegisterPage() {
     return () => {
       active = false;
     };
-  }, [contextVersion, user?.activeCompany.id]);
+  }, [contextVersion, activeCompanyId]);
 
   const resource = useApiResource(
     () =>
@@ -168,7 +185,7 @@ export function CheckpointRegisterPage() {
       }),
     [
       contextVersion,
-      user?.activeCompany.id,
+      activeCompanyId,
       page,
       appliedSearch,
       lifecycleStatus,
@@ -215,10 +232,26 @@ export function CheckpointRegisterPage() {
   };
 
   const openEdit = async (checkpoint: Checkpoint) => {
+    const requestCompanyId = tenantGuardRef.current.companyId;
+    const requestContextVersion = tenantGuardRef.current.contextVersion;
     try {
       const detail = await checkpointApi.getCheckpoint(checkpoint.id);
+      if (
+        tenantGuardRef.current.companyId !== requestCompanyId ||
+        tenantGuardRef.current.contextVersion !== requestContextVersion
+      ) {
+        // Company switched while detail was in flight — do not open/populate.
+        return;
+      }
       setEditing(detail);
     } catch (error) {
+      if (
+        tenantGuardRef.current.companyId !== requestCompanyId ||
+        tenantGuardRef.current.contextVersion !== requestContextVersion
+      ) {
+        // Stale failure after tenant switch must not toast for the new Company.
+        return;
+      }
       showToast(
         "error",
         "Unable to open Checkpoint",

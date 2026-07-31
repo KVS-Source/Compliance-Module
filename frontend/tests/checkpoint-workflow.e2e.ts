@@ -166,7 +166,19 @@ async function installCheckpointWorkflowMock(
   const canReview =
     permissions.includes("*") || permissions.includes("checkpoints:review");
   let activeCompany = company;
-  const reviewBodies: unknown[] = [];
+  const REVIEW_BODY_ALLOWLIST = [
+    "reviewPeriod",
+    "reviewDate",
+    "outcome",
+    "observation",
+    "recommendation",
+    "nextReviewDate",
+  ] as const;
+  const reviewPosts: Array<{
+    url: string;
+    method: string;
+    body: Record<string, unknown>;
+  }> = [];
 
   const identity = () => ({
     id: userOne.id,
@@ -357,16 +369,59 @@ async function installCheckpointWorkflowMock(
             body: JSON.stringify(blocked.body),
           });
         }
-        const body = request.postDataJSON() as {
-          reviewPeriod: string;
-          reviewDate: string;
-          outcome: string;
-          observation?: string | null;
-          recommendation?: string | null;
-          nextReviewDate?: string | null;
-        };
-        reviewBodies.push(body);
-        if (reviews.some((entry) => entry.reviewPeriod === body.reviewPeriod)) {
+        const body = request.postDataJSON() as Record<string, unknown>;
+        const keys = Object.keys(body);
+        const unexpected = keys.filter(
+          (key) =>
+            !(REVIEW_BODY_ALLOWLIST as readonly string[]).includes(key),
+        );
+        if (unexpected.length > 0) {
+          const invalid = failure(
+            400,
+            "CHECKPOINT_REVIEW_INVALID",
+            `Unexpected Review fields: ${unexpected.join(", ")}`,
+          );
+          return route.fulfill({
+            status: invalid.status,
+            contentType: "application/json",
+            body: JSON.stringify(invalid.body),
+          });
+        }
+        for (const required of ["reviewPeriod", "reviewDate", "outcome"] as const) {
+          if (typeof body[required] !== "string" || !body[required]) {
+            const invalid = failure(
+              400,
+              "CHECKPOINT_REVIEW_INVALID",
+              `${required} is required`,
+            );
+            return route.fulfill({
+              status: invalid.status,
+              contentType: "application/json",
+              body: JSON.stringify(invalid.body),
+            });
+          }
+        }
+        reviewPosts.push({
+          url: request.url(),
+          method,
+          body,
+        });
+        const reviewPeriod = body.reviewPeriod as string;
+        const reviewDate = body.reviewDate as string;
+        const outcome = body.outcome as string;
+        const observation =
+          body.observation === undefined
+            ? null
+            : (body.observation as string | null);
+        const recommendation =
+          body.recommendation === undefined
+            ? null
+            : (body.recommendation as string | null);
+        const nextReviewDate =
+          body.nextReviewDate === undefined
+            ? null
+            : (body.nextReviewDate as string | null);
+        if (reviews.some((entry) => entry.reviewPeriod === reviewPeriod)) {
           const dup = failure(
             409,
             "CHECKPOINT_REVIEW_DUPLICATE",
@@ -379,8 +434,8 @@ async function installCheckpointWorkflowMock(
           });
         }
         if (
-          (body.outcome === "PARTIAL" || body.outcome === "FAIL") &&
-          (body.observation?.trim().length ?? 0) < 2
+          (outcome === "PARTIAL" || outcome === "FAIL") &&
+          (observation?.trim().length ?? 0) < 2
         ) {
           const invalid = failure(
             400,
@@ -396,12 +451,12 @@ async function installCheckpointWorkflowMock(
         const created = {
           id: `r0000000-0000-4000-8000-00000000000${reviews.length + 1}`,
           checkpointId: checkpoint.id,
-          reviewPeriod: body.reviewPeriod,
-          reviewDate: body.reviewDate,
-          outcome: body.outcome,
-          observation: body.observation ?? null,
-          recommendation: body.recommendation ?? null,
-          nextReviewDate: body.nextReviewDate ?? null,
+          reviewPeriod,
+          reviewDate,
+          outcome,
+          observation,
+          recommendation,
+          nextReviewDate,
           submittedAt: "2026-07-31T12:00:00.000Z",
           reviewer: {
             id: userOne.id,
@@ -414,9 +469,9 @@ async function installCheckpointWorkflowMock(
         checkpoint = {
           ...checkpoint,
           totalReviewCount: reviews.length,
-          latestOutcome: body.outcome,
+          latestOutcome: outcome,
           lastReviewedAt: created.submittedAt,
-          nextReviewDate: body.nextReviewDate ?? checkpoint.nextReviewDate,
+          nextReviewDate: nextReviewDate ?? checkpoint.nextReviewDate,
           latestReview: {
             id: created.id,
             reviewPeriod: created.reviewPeriod,
@@ -473,8 +528,64 @@ async function installCheckpointWorkflowMock(
                 ],
                 historical: [],
               },
-              frameworkMappings: { active: [], historical: [] },
-              frameworkRuleMappings: { active: [], historical: [] },
+              frameworkMappings: {
+                active: [
+                  {
+                    id: "cfm-active",
+                    isActive: true,
+                    frameworkId: "f0000000-0000-4000-8000-000000000001",
+                    framework: {
+                      id: "f0000000-0000-4000-8000-000000000001",
+                      code: "ISO-27001",
+                      name: "ISO 27001",
+                      version: "2022",
+                    },
+                  },
+                ],
+                historical: [
+                  {
+                    id: "cfm-hist",
+                    isActive: false,
+                    frameworkId: "f0000000-0000-4000-8000-000000000002",
+                    framework: {
+                      id: "f0000000-0000-4000-8000-000000000002",
+                      code: "SOC2",
+                      name: "SOC 2",
+                      version: "2017",
+                    },
+                  },
+                ],
+              },
+              frameworkRuleMappings: {
+                active: [
+                  {
+                    id: "cfr-active",
+                    isActive: true,
+                    frameworkId: "f0000000-0000-4000-8000-000000000001",
+                    frameworkRuleId: "fr000000-0000-4000-8000-000000000001",
+                    frameworkRule: {
+                      id: "fr000000-0000-4000-8000-000000000001",
+                      frameworkId: "f0000000-0000-4000-8000-000000000001",
+                      code: "A.9.2.1",
+                      title: "User registration",
+                    },
+                  },
+                ],
+                historical: [
+                  {
+                    id: "cfr-hist",
+                    isActive: false,
+                    frameworkId: "f0000000-0000-4000-8000-000000000002",
+                    frameworkRuleId: "fr000000-0000-4000-8000-000000000002",
+                    frameworkRule: {
+                      id: "fr000000-0000-4000-8000-000000000002",
+                      frameworkId: "f0000000-0000-4000-8000-000000000002",
+                      code: "CC6.1",
+                      title: "Logical access",
+                    },
+                  },
+                ],
+              },
             }),
           ),
         });
@@ -645,7 +756,7 @@ async function installCheckpointWorkflowMock(
     });
   });
 
-  return { reviewBodies };
+  return { reviewPosts };
 }
 
 test.describe("Checkpoint detail and Review workflows", () => {
@@ -674,6 +785,33 @@ test.describe("Checkpoint detail and Review workflows", () => {
     parentControl.lifecycleStatus = "ACTIVE";
     parentControl.activeCheckpointCount = 1;
   });
+
+  const assertReviewAllowlist = (body: Record<string, unknown>) => {
+    const allowed = new Set([
+      "reviewPeriod",
+      "reviewDate",
+      "outcome",
+      "observation",
+      "recommendation",
+      "nextReviewDate",
+    ]);
+    expect(Object.keys(body).every((key) => allowed.has(key))).toBe(true);
+    for (const forbidden of [
+      "tenantId",
+      "reviewerId",
+      "actorId",
+      "comments",
+      "submittedAt",
+      "reviewId",
+      "checkpointId",
+      "code",
+      "lifecycleStatus",
+      "createdAt",
+      "updatedAt",
+    ]) {
+      expect(body).not.toHaveProperty(forbidden);
+    }
+  };
 
   test("edits Checkpoint scalars and freezes schedule after first Review", async ({
     page,
@@ -704,10 +842,84 @@ test.describe("Checkpoint detail and Review workflows", () => {
     ).toBeVisible();
   });
 
+  test("posts exact Review allowlist body for PASS and FAIL", async ({
+    page,
+  }) => {
+    const { reviewPosts } = await installCheckpointWorkflowMock(page);
+    await page.goto(`/compliance/checkpoints/${checkpoint.id}`);
+
+    await page.getByTestId("checkpoint-review-open").click();
+    await page.getByTestId("checkpoint-review-period").fill("2026-07");
+    await page.getByTestId("checkpoint-review-date").fill("2026-07-31");
+    await page.getByTestId("checkpoint-review-outcome").selectOption("PASS");
+    await page.getByTestId("checkpoint-review-save").click();
+    await expect(page.getByTestId("checkpoint-latest-review-body")).toContainText(
+      "PASS",
+    );
+    await expect(page.getByTestId("checkpoint-review-history")).toContainText(
+      "2026-07",
+    );
+
+    expect(reviewPosts).toHaveLength(1);
+    expect(reviewPosts[0]!.method).toBe("POST");
+    expect(new URL(reviewPosts[0]!.url).pathname).toBe(
+      `/api/v1/checkpoints/${checkpoint.id}/reviews`,
+    );
+    assertReviewAllowlist(reviewPosts[0]!.body);
+    expect(reviewPosts[0]!.body).toEqual({
+      reviewPeriod: "2026-07",
+      reviewDate: "2026-07-31",
+      outcome: "PASS",
+      observation: null,
+      recommendation: null,
+      nextReviewDate: null,
+    });
+
+    await page.getByTestId("checkpoint-review-open").click();
+    await page.getByTestId("checkpoint-review-period").fill("2026-08");
+    await page.getByTestId("checkpoint-review-date").fill("2026-08-15");
+    await page.getByTestId("checkpoint-review-outcome").selectOption("FAIL");
+    await page
+      .getByTestId("checkpoint-review-observation")
+      .fill("Needs follow-up");
+    await page
+      .getByTestId("checkpoint-review-recommendation")
+      .fill("Retest access paths");
+    await page.getByTestId("checkpoint-review-next").fill("2026-09-01");
+    await page.getByTestId("checkpoint-review-save").click();
+    await expect(page.getByTestId("checkpoint-latest-review-body")).toContainText(
+      "Needs follow-up",
+    );
+    await expect(page.getByTestId("checkpoint-latest-review-body")).toContainText(
+      "Retest access paths",
+    );
+    await expect(page.getByTestId("checkpoint-review-history")).toContainText(
+      "2026-08",
+    );
+    await expect(page.getByTestId("checkpoint-review-history")).toContainText(
+      "Needs follow-up",
+    );
+
+    expect(reviewPosts).toHaveLength(2);
+    expect(reviewPosts[1]!.method).toBe("POST");
+    expect(new URL(reviewPosts[1]!.url).pathname).toBe(
+      `/api/v1/checkpoints/${checkpoint.id}/reviews`,
+    );
+    assertReviewAllowlist(reviewPosts[1]!.body);
+    expect(reviewPosts[1]!.body).toEqual({
+      reviewPeriod: "2026-08",
+      reviewDate: "2026-08-15",
+      outcome: "FAIL",
+      observation: "Needs follow-up",
+      recommendation: "Retest access paths",
+      nextReviewDate: "2026-09-01",
+    });
+  });
+
   test("submits Review with observation for FAIL and shows history", async ({
     page,
   }) => {
-    await installCheckpointWorkflowMock(page);
+    const { reviewPosts } = await installCheckpointWorkflowMock(page);
     await page.goto(`/compliance/checkpoints/${checkpoint.id}`);
     await page.getByTestId("checkpoint-review-open").click();
     await page.getByTestId("checkpoint-review-period").fill("2026-07");
@@ -722,6 +934,7 @@ test.describe("Checkpoint detail and Review workflows", () => {
     await expect(page.getByTestId("checkpoint-review-period")).toHaveValue(
       "2026-07",
     );
+    expect(reviewPosts).toHaveLength(0);
 
     await page
       .getByTestId("checkpoint-review-observation")
@@ -739,6 +952,16 @@ test.describe("Checkpoint detail and Review workflows", () => {
     await expect(page.getByTestId("checkpoint-review-history")).toContainText(
       "Retest access paths",
     );
+    expect(reviewPosts).toHaveLength(1);
+    assertReviewAllowlist(reviewPosts[0]!.body);
+    expect(reviewPosts[0]!.body).toEqual({
+      reviewPeriod: "2026-07",
+      reviewDate: "2026-07-31",
+      outcome: "FAIL",
+      observation: "Needs follow-up",
+      recommendation: "Retest access paths",
+      nextReviewDate: null,
+    });
   });
 
   test("preserves form on duplicate review period", async ({ page }) => {
@@ -827,6 +1050,26 @@ test.describe("Checkpoint detail and Review workflows", () => {
       .getByRole("link", { name: "POL-001" })
       .click();
     await expect(page).toHaveURL(`/compliance/policies/${policy.id}`);
+  });
+
+  test("renders active and historical Framework mappings from traceability", async ({
+    page,
+  }) => {
+    await installCheckpointWorkflowMock(page);
+    await page.goto(`/compliance/checkpoints/${checkpoint.id}`);
+    const frameworks = page.getByTestId("checkpoint-traceability-frameworks");
+    await expect(frameworks).toContainText("ISO-27001");
+    await expect(frameworks).toContainText("(Active)");
+    await expect(frameworks).toContainText("SOC2");
+    await expect(frameworks).toContainText("(Historical)");
+
+    const rules = page.getByTestId("checkpoint-traceability-rules");
+    await expect(rules).toContainText("A.9.2.1");
+    await expect(rules).toContainText("User registration");
+    await expect(rules).toContainText("(Active)");
+    await expect(rules).toContainText("CC6.1");
+    await expect(rules).toContainText("Logical access");
+    await expect(rules).toContainText("(Historical)");
   });
 
   test("Control detail Open Checkpoints navigates without controlId state", async ({

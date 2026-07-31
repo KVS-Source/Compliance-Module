@@ -196,6 +196,18 @@ async function installCheckpointRegisterMock(
       holdGate.shift()?.();
     }
   };
+  let detailHoldRemaining = 0;
+  const detailHoldGate: Array<() => void> = [];
+  let detailHoldFail = false;
+  const armCompanyADetailHold = (count = 1, options?: { fail?: boolean }) => {
+    detailHoldRemaining = count;
+    detailHoldFail = Boolean(options?.fail);
+  };
+  const releaseHeldDetails = () => {
+    while (detailHoldGate.length > 0) {
+      detailHoldGate.shift()?.();
+    }
+  };
 
   const identity = () => ({
     id: userOne.id,
@@ -517,6 +529,20 @@ async function installCheckpointRegisterMock(
           body: JSON.stringify(missing.body),
         });
       }
+      if (found.id === activeCheckpoint.id && detailHoldRemaining > 0) {
+        detailHoldRemaining -= 1;
+        await new Promise<void>((resolve) => {
+          detailHoldGate.push(resolve);
+        });
+        if (detailHoldFail) {
+          const boom = failure(500, "INTERNAL", "Synthetic detail failure");
+          return route.fulfill({
+            status: boom.status,
+            contentType: "application/json",
+            body: JSON.stringify(boom.body),
+          });
+        }
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -534,7 +560,13 @@ async function installCheckpointRegisterMock(
     });
   });
 
-  return { listUrls, armCompanyAListHold, releaseHeldLists };
+  return {
+    listUrls,
+    armCompanyAListHold,
+    releaseHeldLists,
+    armCompanyADetailHold,
+    releaseHeldDetails,
+  };
 }
 
 test.describe("Checkpoint Register UI (mocked browser APIs)", () => {
@@ -712,5 +744,119 @@ test.describe("Checkpoint Register UI (mocked browser APIs)", () => {
       page.getByText("CHK-201").filter({ visible: true }).first(),
     ).toBeVisible();
     await expect(page.getByText("CHK-001")).toHaveCount(0);
+  });
+
+  test("ignores stale edit detail after company switch", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Register Edit actions are desktop-table only",
+    );
+    const { armCompanyADetailHold, releaseHeldDetails } =
+      await installCheckpointRegisterMock(page, {
+        permissions: [
+          "*",
+          "checkpoints:read",
+          "checkpoints:write",
+          "users:read",
+          "organisation:read",
+          "controls:read",
+        ],
+      });
+    await page.goto("/compliance/checkpoints");
+    await expect(
+      page.getByText("CHK-001").filter({ visible: true }).first(),
+    ).toBeVisible();
+
+    armCompanyADetailHold(1);
+    const delayedDetail = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/v1/checkpoints/${activeCheckpoint.id}`) &&
+        !response.url().includes("/reviews") &&
+        !response.url().includes("/traceability") &&
+        !response.url().includes("/audit-events") &&
+        !response.url().includes("/latest-review") &&
+        response.request().method() === "GET",
+    );
+    await page.getByLabel("Edit CHK-001").click();
+    await page.locator("#company-switcher").selectOption(companyTwo.id);
+    await expect(
+      page.getByText("CHK-201").filter({ visible: true }).first(),
+    ).toBeVisible();
+    await expect(page.getByText("CHK-001")).toHaveCount(0);
+
+    releaseHeldDetails();
+    await delayedDetail;
+
+    await expect(
+      page.getByRole("heading", { name: "Edit Checkpoint" }),
+    ).toHaveCount(0);
+    await expect(page.locator("#checkpoint-title")).toHaveCount(0);
+    await expect(page.locator("#checkpoint-expected-result")).toHaveCount(0);
+    await expect(page.getByText("Monthly access verification")).toHaveCount(0);
+    await expect(page.getByText("Checkpoint description")).toHaveCount(0);
+    await expect(
+      page.getByText("Access review completed with evidence"),
+    ).toHaveCount(0);
+    await expect(page.getByText(activeCheckpoint.id)).toHaveCount(0);
+    await expect(page.getByText("Unable to open Checkpoint")).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Checkpoint Register" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("CHK-201").filter({ visible: true }).first(),
+    ).toBeVisible();
+  });
+
+  test("ignores stale edit detail failure after company switch", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Register Edit actions are desktop-table only",
+    );
+    const { armCompanyADetailHold, releaseHeldDetails } =
+      await installCheckpointRegisterMock(page, {
+        permissions: [
+          "*",
+          "checkpoints:read",
+          "checkpoints:write",
+          "users:read",
+          "organisation:read",
+          "controls:read",
+        ],
+      });
+    await page.goto("/compliance/checkpoints");
+    await expect(
+      page.getByText("CHK-001").filter({ visible: true }).first(),
+    ).toBeVisible();
+
+    armCompanyADetailHold(1, { fail: true });
+    const delayedDetail = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/v1/checkpoints/${activeCheckpoint.id}`) &&
+        !response.url().includes("/reviews") &&
+        !response.url().includes("/traceability") &&
+        !response.url().includes("/audit-events") &&
+        !response.url().includes("/latest-review") &&
+        response.request().method() === "GET",
+    );
+    await page.getByLabel("Edit CHK-001").click();
+    await page.locator("#company-switcher").selectOption(companyTwo.id);
+    await expect(
+      page.getByText("CHK-201").filter({ visible: true }).first(),
+    ).toBeVisible();
+
+    releaseHeldDetails();
+    await delayedDetail;
+
+    await expect(page.getByText("Unable to open Checkpoint")).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Edit Checkpoint" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("CHK-201").filter({ visible: true }).first(),
+    ).toBeVisible();
   });
 });

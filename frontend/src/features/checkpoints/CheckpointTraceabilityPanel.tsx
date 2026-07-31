@@ -168,15 +168,20 @@ export function CheckpointTraceabilityPanel({
 
             <div>
               <h3>Framework mappings</h3>
-              {data.frameworkMappings.active.length === 0 ? (
-                <p className="muted">No active Framework mappings.</p>
+              {data.frameworkMappings.active.length === 0 &&
+              data.frameworkMappings.historical.length === 0 ? (
+                <p className="muted">No Framework mappings.</p>
               ) : (
-                <ul>
-                  {data.frameworkMappings.active.map((mapping) => (
+                <ul data-testid="checkpoint-traceability-frameworks">
+                  {[
+                    ...data.frameworkMappings.active,
+                    ...data.frameworkMappings.historical,
+                  ].map((mapping) => (
                     <li key={mapping.id}>
                       {mapping.framework
                         ? `${mapping.framework.code} · ${mapping.framework.name}`
-                        : mapping.frameworkId}
+                        : mapping.frameworkId}{" "}
+                      ({mapping.isActive ? "Active" : "Historical"})
                     </li>
                   ))}
                 </ul>
@@ -185,14 +190,19 @@ export function CheckpointTraceabilityPanel({
 
             <div>
               <h3>Framework Rule mappings</h3>
-              {data.frameworkRuleMappings.active.length === 0 ? (
-                <p className="muted">No active Framework Rule mappings.</p>
+              {data.frameworkRuleMappings.active.length === 0 &&
+              data.frameworkRuleMappings.historical.length === 0 ? (
+                <p className="muted">No Framework Rule mappings.</p>
               ) : (
-                <ul>
-                  {data.frameworkRuleMappings.active.map((mapping) => (
+                <ul data-testid="checkpoint-traceability-rules">
+                  {[
+                    ...data.frameworkRuleMappings.active,
+                    ...data.frameworkRuleMappings.historical,
+                  ].map((mapping) => (
                     <li key={mapping.id}>
                       {mapping.frameworkRule.code} ·{" "}
-                      {mapping.frameworkRule.title}
+                      {mapping.frameworkRule.title}{" "}
+                      ({mapping.isActive ? "Active" : "Historical"})
                     </li>
                   ))}
                 </ul>
