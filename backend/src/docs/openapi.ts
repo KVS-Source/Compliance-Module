@@ -1129,5 +1129,163 @@ export const openApiDocument = {
         responses: { "200": { description: "Paginated safe audit events" } },
       },
     },
+    "/checkpoints": {
+      get: {
+        summary: "List Checkpoints",
+        description:
+          "Default includes ACTIVE, INACTIVE and ARCHIVED. Filters: q, code, title, " +
+          "lifecycleStatus, controlId, controlLifecycleStatus, ownerId, departmentId, " +
+          "verificationFrequency, latestOutcome, hasReviews, evidenceRequired, " +
+          "dueFrom/dueTo (nextReviewDate), reviewPeriod, frameworkId, policyId. " +
+          "List rows omit description, expectedResult, observation and recommendation.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated Checkpoint list" },
+          "403": { description: "Missing checkpoints:read" },
+        },
+      },
+      post: {
+        summary: "Create Checkpoint",
+        description:
+          "Server allocates CHK-### codes and sets lifecycle ACTIVE. Parent Control " +
+          "must not be ARCHIVED; INACTIVE parents are allowed. Body fields: controlId, " +
+          "title, expectedResult, verificationFrequency; optional description, ownerId, " +
+          "departmentId, evidenceRequired, initialReviewDate.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Checkpoint created" },
+          "400": { description: "Validation or related-record failure" },
+          "403": { description: "Missing checkpoints:write" },
+          "409": { description: "CHECKPOINT_PARENT_CONTROL_ARCHIVED" },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}": {
+      get: {
+        summary: "Get Checkpoint detail",
+        description:
+          "Scalar summary, parent Control, latestReview summary, totalReviewCount and " +
+          "active mapping counts. Archived Checkpoints remain readable.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Checkpoint detail" },
+          "404": { description: "Checkpoint not found in active Company" },
+        },
+      },
+      patch: {
+        summary: "Update Checkpoint register fields",
+        description:
+          "Does not accept controlId, code, lifecycle or latest-review fields. " +
+          "verificationFrequency and initialReviewDate freeze after the first Review " +
+          "(409 CHECKPOINT_INVALID_STATE). Archived Checkpoints are immutable.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Checkpoint updated" },
+          "409": { description: "CHECKPOINT_INVALID_STATE" },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}/activate": {
+      post: {
+        summary: "Activate Checkpoint",
+        description:
+          "INACTIVE → ACTIVE. Empty body {}. Rejects ARCHIVED parent Control. " +
+          "Same-state and archived Checkpoint return 409.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Checkpoint activated" },
+          "409": {
+            description:
+              "CHECKPOINT_INVALID_STATE or CHECKPOINT_PARENT_CONTROL_ARCHIVED",
+          },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}/deactivate": {
+      post: {
+        summary: "Deactivate Checkpoint",
+        description: "ACTIVE → INACTIVE. Empty body {}. Does not alter parent Control.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Checkpoint deactivated" },
+          "409": { description: "CHECKPOINT_INVALID_STATE" },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}/archive": {
+      post: {
+        summary: "Archive Checkpoint",
+        description:
+          "ACTIVE/INACTIVE → ARCHIVED. Empty body {}. Preserves Reviews and Control linkage.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Checkpoint archived" },
+          "409": { description: "CHECKPOINT_INVALID_STATE" },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}/reviews": {
+      get: {
+        summary: "List Checkpoint Reviews",
+        description:
+          "Append-only history ordered by submittedAt then id. Includes observation " +
+          "and recommendation for checkpoints:read.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Paginated Review history" } },
+      },
+      post: {
+        summary: "Create Checkpoint Review",
+        description:
+          "Requires ACTIVE Checkpoint and non-ARCHIVED parent Control. Reviewer is the " +
+          "authenticated actor. reviewPeriod must match verificationFrequency " +
+          "(DAILY YYYY-MM-DD; WEEKLY YYYY-Www; MONTHLY YYYY-MM; QUARTERLY YYYY-Qn; " +
+          "HALF_YEARLY YYYY-Hn; ANNUAL YYYY; CONTINUOUS/PER_EVENT YYYY-MM-DD#TOKEN; " +
+          "ONE_TIME ONE-TIME). Duplicate period → 409 CHECKPOINT_REVIEW_DUPLICATE. " +
+          "Latest review is synced by the database trigger.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Review created" },
+          "400": { description: "CHECKPOINT_REVIEW_INVALID" },
+          "403": { description: "Missing checkpoints:review" },
+          "409": {
+            description:
+              "CHECKPOINT_INVALID_STATE, CHECKPOINT_PARENT_CONTROL_ARCHIVED, " +
+              "CHECKPOINT_REVIEW_DUPLICATE or CHECKPOINT_REVIEW_CONFLICT",
+          },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}/latest-review": {
+      get: {
+        summary: "Get latest Checkpoint Review",
+        description:
+          "Returns the database-authoritative latest Review (submitted_at, then UUID " +
+          "text tie-break) or null when none exist.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Latest Review or null" },
+          "404": { description: "Checkpoint not found" },
+        },
+      },
+    },
+    "/checkpoints/{checkpointId}/traceability": {
+      get: {
+        summary: "Checkpoint Control mapping traceability",
+        description:
+          "Parent Control plus active/historical Policy Version, Framework and Rule " +
+          "mappings, latest Review summary and total Review count.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Bounded read-only traceability" } },
+      },
+    },
+    "/checkpoints/{checkpointId}/audit-events": {
+      get: {
+        summary: "Checkpoint-scoped audit events",
+        description:
+          "Filters by entityType CHECKPOINT and entityId checkpointId. Safe metadata only.",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Paginated safe audit events" } },
+      },
+    },
   },
 } as const;

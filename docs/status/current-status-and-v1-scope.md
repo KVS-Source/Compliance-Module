@@ -51,13 +51,13 @@ path for it.
 
 ## Not operational
 
-Control REST APIs are operational after Milestone 4 Slice 3. Checkpoint
-PostgreSQL persistence exists as the Milestone 4 Slice 1 foundation, but
-Checkpoint APIs and React Policy/Control/Checkpoint pages remain
-`IN_DEVELOPMENT`. Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports,
-global audit search/export, settings and most broader operations modules are
-also not operational. Their visible routes are status pages, not simulated
-business screens.
+Control REST APIs are operational after Milestone 4 Slice 3. Checkpoint register,
+lifecycle, Review, latest-review, traceability and audit APIs are operational
+after Milestone 4 Slice 4, with a dedicated Postman collection and pgAdmin
+guide. React Policy/Control/Checkpoint pages remain `IN_DEVELOPMENT`. Evidence,
+Gap, CAPA, Import, Tasks, Notifications, Reports, global audit search/export,
+settings and most broader operations modules are also not operational. Their
+visible routes are status pages, not simulated business screens.
 
 Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
 Evidence-dependent KPI and Policy approval behaviour remains fail-closed where

@@ -40,6 +40,9 @@ import {
 import { ControlRepository } from "../modules/controls/repository.js";
 import { ControlService } from "../modules/controls/service.js";
 import { controlRoutes } from "../modules/controls/routes.js";
+import { CheckpointRepository } from "../modules/checkpoints/repository.js";
+import { CheckpointService } from "../modules/checkpoints/service.js";
+import { checkpointRoutes } from "../modules/checkpoints/routes.js";
 import {
   authenticate,
   authorizeTenantContext,
@@ -55,6 +58,7 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   const dashboard = new DashboardService(new DashboardRepository(db));
   const policies = new PolicyService(new PolicyRepository(db));
   const controls = new ControlService(new ControlRepository(db));
+  const checkpoints = new CheckpointService(new CheckpointRepository(db));
   const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
@@ -106,5 +110,6 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   router.use("/policies", policyRoutes(policies));
   router.use("/policy-versions", policyVersionRoutes(policies));
   router.use("/controls", controlRoutes(controls));
+  router.use("/checkpoints", checkpointRoutes(checkpoints));
   return router;
 };
