@@ -599,8 +599,15 @@ describe("Checkpoint API Slice 4", () => {
       where: { code: "COM-001" },
     });
     const sharedSubmittedAt = new Date("2026-07-20T12:00:00.000Z");
-    const lowId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-    const highId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    // Run-unique ordered UUIDs (same pattern as governance-foundation): textual
+    // order still determines the winner under equal submitted_at, without
+    // colliding on append-only checkpoint_reviews across integration reruns.
+    const reviewIdPrefix = randomUUID().slice(0, 24);
+    const reviewId = (ordinal: number) =>
+      `${reviewIdPrefix}${String(ordinal).padStart(12, "0")}`;
+    const lowId = reviewId(10);
+    const highId = reviewId(20);
+    expect(lowId < highId).toBe(true);
 
     // Insert lower UUID first, then higher UUID with identical submitted_at.
     // Trigger advances latest when latest_review_id::text < NEW.id::text.
@@ -633,10 +640,29 @@ describe("Checkpoint API Slice 4", () => {
       },
     });
 
+    const reviews = await prisma.checkpointReview.findMany({
+      where: { checkpointId, id: { in: [lowId, highId] } },
+      orderBy: { id: "asc" },
+    });
+    expect(reviews).toHaveLength(2);
+    expect(reviews[0]!.submittedAt.toISOString()).toBe(
+      sharedSubmittedAt.toISOString(),
+    );
+    expect(reviews[1]!.submittedAt.toISOString()).toBe(
+      sharedSubmittedAt.toISOString(),
+    );
+    expect(reviews[0]!.id < reviews[1]!.id).toBe(true);
+
     const stored = await prisma.checkpoint.findFirstOrThrow({
       where: { id: checkpointId },
+      include: { latestReview: true },
     });
     expect(stored.latestReviewId).toBe(highId);
+    expect(stored.latestReview?.id).toBe(highId);
+    expect(stored.latestReview?.outcome).toBe("PASS");
+    expect(stored.lastReviewedAt?.toISOString()).toBe(
+      sharedSubmittedAt.toISOString(),
+    );
 
     const latest = await request(app)
       .get(`/api/v1/checkpoints/${checkpointId}/latest-review`)
@@ -644,6 +670,7 @@ describe("Checkpoint API Slice 4", () => {
       .expect(200);
     expect(latest.body.data.id).toBe(highId);
     expect(latest.body.data.outcome).toBe("PASS");
+    expect(latest.body.data.id).toBe(stored.latestReviewId);
   });
 
   it("rolls back Review creation when audit write fails mid-transaction", async () => {
@@ -805,8 +832,7 @@ describe("Checkpoint API Slice 4", () => {
     expect(responses.every(Boolean)).toBe(true);
     const statuses = responses.map((item) => item!.status).sort();
     // One wins; the other conflicts. Never leave ACTIVE Checkpoint under ARCHIVED Control.
-    expect(statuses[0]).toBeGreaterThanOrEqual(200);
-    expect(statuses[1]).toBeGreaterThanOrEqual(200);
+    expect(statuses).toEqual([200, 409]);
 
     const finalControl = await prisma.control.findFirstOrThrow({
       where: { id: control.id },
