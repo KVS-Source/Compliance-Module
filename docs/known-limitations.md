@@ -1,6 +1,6 @@
 # Known limitations
 
-These limitations remain through Milestone 4 Slice 5. They must not be hidden
+These limitations remain through Milestone 4 Slice 7. They must not be hidden
 by UAT language or status-page presentation.
 
 ## Production blockers
@@ -24,23 +24,25 @@ by UAT language or status-page presentation.
 ## Product limitations
 
 - Policy, Control and Checkpoint REST APIs are operational. React Policy
-  Register/detail (Slice 5) and React Control Register/detail (Slice 6) are
-  operational. The standalone Policy Versions navigation page, React Checkpoint
-  UI, Evidence, Gap, CAPA, Import, Tasks, Notifications, Reports, global audit
-  query/export and settings domains are not operational. Same-period Checkpoint
-  Review correction remains unsupported. Milestone 4 frontend is not fully
-  complete while Checkpoint UI remains outstanding.
+  Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
+  Checkpoint Register/detail (Slice 7) are operational. The standalone Policy
+  Versions navigation page, Evidence, Gap, CAPA, Import, Tasks, Notifications,
+  Reports, global audit query/export and settings domains are not operational.
+  Same-period Checkpoint Review correction remains unsupported. Milestone 4
+  frontend is not fully complete while Evidence, Gap and CAPA remain outstanding.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
-  deferred. Policy and Control register filters are React state only (no URL
-  query sync). Control Checkpoint panels show counts only and do not link to
-  Checkpoint UI.
+  deferred. Policy, Control and Checkpoint register filters are React state only
+  (no URL query sync). Control Checkpoint panels keep counts and, when
+  `checkpoints:read` is present, an Open Checkpoints link to
+  `/compliance/checkpoints` without controlId query or `location.state`.
 - Evidence-required KPI approval deliberately fails closed where already
   defined because the Evidence domain is not implemented. Policy approval also
   fails closed when `requiresEvidence=true` (`EVIDENCE_GATE_NOT_IMPLEMENTED`).
   There is no fake Evidence record, upload path or approval override. Policy
   content/purpose/scope render as plain text only (no HTML/Markdown).
-- Playwright Policy and Control suites use mocked HTTP only. Backend Policy and
-  Control PostgreSQL integration tests remain the database authority.
+- Playwright Policy, Control and Checkpoint suites use mocked HTTP only. Backend
+  Policy, Control and Checkpoint PostgreSQL integration tests remain the
+  database authority.
 - Checkpoint reviews are append-only and unique per Checkpoint/review period. A
   mistaken review cannot currently be edited, deleted or replaced for that
   period; a formal correction/supersession mechanism is deferred.
