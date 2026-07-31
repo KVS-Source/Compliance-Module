@@ -37,7 +37,10 @@ Backend `permit()` is authoritative; frontend permission boundaries are user
 experience only. Named permissions protect active reads, writes, approvals and
 risk actions, including `policies:read`, `policies:write`, `policies:submit`,
 `policies:approve`, `controls:read`, `controls:write`, `checkpoints:read`,
-`checkpoints:write` and `checkpoints:review`.
+`checkpoints:write`, `checkpoints:review`, `evidence:read`, `evidence:write`,
+`evidence:review` and `evidence:download`. Evidence review and download
+permissions are catalogue-ready; their HTTP routes are not implemented in
+Milestone 5 Slice 1.
 
 `COMPANY_ADMIN` accepts wildcard `"*"`. This is UAT-only technical debt and a
 production blocker. New roles must not copy the wildcard.

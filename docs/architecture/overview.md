@@ -24,12 +24,22 @@ what counts as production-target code, read
 | **Risk** | Automatic create on KPI miss; owner assignment, review, treatment, residual scoring, closure and reopening | Live Risk Register and workflow-enabled detail |
 | **Governance foundation** | Policy, Policy Version, Control, mapping, Checkpoint and Checkpoint Review persistence plus pure domain rules; no API routes | Policy, Control and Checkpoint routes remain truthful `IN_DEVELOPMENT` status pages |
 
+### Evidence (Milestone 5 Slice 1 partial)
+
+| Layer | Status |
+| --- | --- |
+| Schema | Evidence, typed Control/Checkpoint links, append-only review decisions |
+| Metadata APIs | LIVE under `/api/v1/evidence` (create/list/detail/patch/submit/archive/audit) |
+| File upload/download | Not implemented; submit fails with `EVIDENCE_FILE_REQUIRED` |
+| Approve/reject HTTP | Not implemented (domain + DB ready) |
+| Link mutation APIs | Not implemented |
+| React routes | `IN_DEVELOPMENT` status pages |
+
 ### Non-operational seams
 
 These folders exist under `backend/src/modules/` with a short `README.md` only —
 no routes, services, or schema:
 
-- Evidence — `backend/src/modules/evidence/`
 - Gaps — `backend/src/modules/gaps/`
 - CAPA — `backend/src/modules/capa/`
 - Reports — `backend/src/modules/reports/`
@@ -40,25 +50,17 @@ no routes, services, or schema:
 
 **Notifications** has no module folder yet.
 
-### Highest-value next domain: Evidence
+### Evidence gates remain fail-closed
 
-Approved-evidence gates are intended to block:
+Approved-evidence gates are still intended to block:
 
 - KPI actual approval (when `requiresEvidence` is true)
 - Policy approval (when `requiresEvidence` is true)
-- Gap closure
-- CAPA closure
-- Configured risk-treatment completion (future)
+- Gap closure / CAPA closure / risk-treatment completion (future)
 
-Today, `EvidenceGateService`
-(`backend/src/modules/kpis/evidence-gate-service.ts`) is the intentional
-**fail-closed** seam: if a configuration requires evidence, approval paths
-return `501 EVIDENCE_GATE_NOT_IMPLEMENTED` and write nothing. The Policy domain
-rule in `backend/src/modules/policies/domain.ts` likewise rejects approval when
-`requiresEvidence=true`. No fake Evidence record, upload path or approval
-override exists. Building a real Evidence domain means replacing the KPI stub
-and Policy fail-closed rule with tenant-scoped evidence verification at the
-same gate points, not inventing a parallel approval path that skips evidence.
+`EvidenceGateService` and Policy domain rules still return
+`EVIDENCE_GATE_NOT_IMPLEMENTED` / fail-closed behaviour. Slice 5.1 does **not**
+replace those gates. Later slices wire real approved-Evidence verification.
 
 ---
 

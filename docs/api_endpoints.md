@@ -23,6 +23,7 @@ routes require bearer authentication and active Company membership.
 | Policies | `GET/POST /policies`; `GET/PATCH /policies/:policyId`; `POST /policies/:policyId/archive`; `GET/POST /policies/:policyId/versions`; `GET /policies/:policyId/versions/:versionId`; `GET /policies/:policyId/traceability`; `GET /policies/:policyId/audit-events`; `PATCH /policy-versions/:versionId`; `PUT /policy-versions/:versionId/frameworks`; `POST /policy-versions/:versionId/submit`; `/approve`; `/reject` |
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
 | Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews`; `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
+| Evidence | `GET/POST /evidence`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/submit`; `/archive`; `GET /evidence/:evidenceId/audit-events` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,
 `meta.pageSize`, `meta.total` and `meta.totalPages`.
@@ -40,15 +41,21 @@ Checkpoint list filters: `controlId` matches the direct parent;
 database-authoritative latest Review; `dueFrom` / `dueTo` use
 `Checkpoint.nextReviewDate`. Default list includes all lifecycle states.
 
+Evidence list filters: `q` (code/title), `lifecycleStatus`, `ownerId`,
+`departmentId`, `expiresBefore` / `expiresAfter`. Submit returns
+`409 EVIDENCE_FILE_REQUIRED` until file upload (Slice 5.2). Approve/reject,
+upload, download and Control/Checkpoint link mutation routes are not present.
+
 ## Explicitly absent
 
-No active API implements Evidence, Gap, CAPA, Import, Tasks, Notifications,
-Reports, global audit search/export, settings or GenRAC connectivity.
+No active API implements Evidence file upload/download, Evidence approve/reject,
+Evidence link mutations, Gap, CAPA, Import, Tasks, Notifications, Reports,
+global audit search/export, settings or GenRAC connectivity.
 Policy Version obsoletion and Policy INACTIVE transitions are deferred.
 No Control or Checkpoint DELETE route exists. No Review PATCH/DELETE or same-period
 Review correction route exists. No nested `GET /controls/:controlId/checkpoints`
 route exists — use `GET /checkpoints?controlId=`. No active endpoint writes to
-`kpi_goals`.
+`kpi_goals`. No Evidence hard-delete route exists.
 
 The backend route mount in `backend/src/routes/index.ts` and the individual
 domain route modules are the code authority. Proposed endpoints in historical
