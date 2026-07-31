@@ -145,7 +145,7 @@ async function installControlRegisterMock(
   let activeCompany = company;
   let companyAControls =
     mode === "populated" ? [activeControl, inactiveControl] : [];
-  let companyBControls = mode === "populated" ? [companyTwoControl] : [];
+  const companyBControls = mode === "populated" ? [companyTwoControl] : [];
   let holdRemaining = 0;
   const holdGate: Array<() => void> = [];
   const armCompanyAListHold = (count = 1) => {

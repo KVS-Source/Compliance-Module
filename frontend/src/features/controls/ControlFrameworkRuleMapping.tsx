@@ -83,6 +83,8 @@ export function ControlFrameworkRuleMapping({
     }
   }, [mappings, activeFrameworkIds]);
 
+  const activeFrameworkKey = activeFrameworkIds.join(",");
+
   useEffect(() => {
     if (!editable || activeFrameworkIds.length === 0) {
       setRules([]);
@@ -92,8 +94,11 @@ export function ControlFrameworkRuleMapping({
     let active = true;
     setLoadingRules(true);
     setRulesError(null);
+    const frameworkIds = activeFrameworkKey
+      ? activeFrameworkKey.split(",")
+      : [];
     void Promise.all(
-      activeFrameworkIds.map(async (frameworkId) => {
+      frameworkIds.map(async (frameworkId) => {
         try {
           return await frameworkApi.listRules(frameworkId);
         } catch {
@@ -119,7 +124,7 @@ export function ControlFrameworkRuleMapping({
     return () => {
       active = false;
     };
-  }, [editable, activeFrameworkIds.join(","), control.id]);
+  }, [editable, activeFrameworkKey, activeFrameworkIds.length, control.id]);
 
   const dirty = sortedIds(selected).join(",") !== activeIds.join(",");
 
