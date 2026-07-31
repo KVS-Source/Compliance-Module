@@ -14,7 +14,6 @@ for visibility only; the backend remains authoritative.
 
 ## Still IN_DEVELOPMENT
 
-- `/compliance/checkpoints` (Checkpoint Register / Review UI)
 - `/compliance/policy-versions` (standalone navigation page)
 
 ## Behaviour notes
@@ -27,8 +26,9 @@ for visibility only; the backend remains authoritative.
   silently retargeted.
 - Framework Rule options are limited to Rules whose Framework is actively mapped
   to the Control. Frameworks are never auto-added from Rule selection.
-- Checkpoint information is counts only; Checkpoint routes stay In Development
-  and are not linked from Control UI.
+- Checkpoint summary keeps counts and, when `checkpoints:read` is present, an
+  Open Checkpoints link to `/compliance/checkpoints` (no controlId query or
+  location.state). Count values are not individual Checkpoint links.
 - Filters stay in React state (no URL query sync in this slice).
 - Playwright suites under `frontend/tests/control-*.e2e.ts` use mocked HTTP only.
   Backend PostgreSQL integration tests remain the database authority.
