@@ -65,9 +65,9 @@ Frontend gates are UX only. Backend `permit(...)` remains authoritative.
 
 | Layer | Authority |
 | --- | --- |
-| Playwright (`frontend/tests/*`, including `milestone4-integration.e2e.ts`) | Mocked browser HTTP only |
+| Playwright (`frontend/tests/*`, including `milestone4-integration.e2e.ts`) | Deterministic mocked `/api/v1/**` only; in-memory actor/permission switch simulates UI flows, not JWT/auth or PostgreSQL authority |
 | Backend unit tests | Domain/validator behaviour without full stack |
-| Backend PostgreSQL integration | Database and API authority |
+| Backend PostgreSQL integration | Database, permissions, and API authority |
 | Postman `Milestone-4-E2E` | Real local API demonstration |
 | pgAdmin SQL (`docs/milestone-4-pgadmin-demo.sql`) | Stored-row confirmation |
 
@@ -103,7 +103,10 @@ Frontend gates are UX only. Backend `permit(...)` remains authoritative.
 
 ## Known limitations
 
-- Playwright is mocked; human real-stack walkthrough remains required.
+- Playwright uses deterministic mocked APIs. In-memory actor/permission switching
+  is UI-flow simulation only; backend PostgreSQL integration tests remain the
+  authority for permissions, auth and database behaviour. Human real-stack
+  walkthrough remains required.
 - PostgreSQL RLS is not implemented.
 - Evidence, Gap, CAPA, GenRAC, imports, notifications, reports, dashboard
   redesign, AWS and production deployment are out of scope for Milestone 4.

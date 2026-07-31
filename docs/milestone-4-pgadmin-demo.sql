@@ -181,11 +181,9 @@ FROM audit_events AS ae
 WHERE ae.tenant_id = :tenant_id
   AND ae.entity_type IN (
     'POLICY',
-    'Policy',
+    'POLICY_VERSION',
     'CONTROL',
-    'Control',
-    'CHECKPOINT',
-    'Checkpoint'
+    'CHECKPOINT'
   )
 ORDER BY ae.created_at DESC
 LIMIT 50;

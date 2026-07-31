@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import {
+  companyUserHasPermission,
+  grantRolePermissionIfAbsent,
+} from "./owned-role-permission-grant.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -46,34 +50,12 @@ describe("Milestone 4 cross-module workflow", () => {
     };
   };
 
-  const grantUserApprove = async () => {
-    const company = await prisma.tenant.findUniqueOrThrow({
-      where: { code: "COM-001" },
+  const grantUserApprove = () =>
+    grantRolePermissionIfAbsent(prisma, {
+      tenantCode: "COM-001",
+      roleCode: "COMPANY_USER",
+      permissionCode: "policies:approve",
     });
-    const role = await prisma.role.findUniqueOrThrow({
-      where: {
-        tenantId_code: { tenantId: company.id, code: "COMPANY_USER" },
-      },
-    });
-    const permission = await prisma.permission.findUniqueOrThrow({
-      where: { code: "policies:approve" },
-    });
-    const existing = await prisma.rolePermission.findUnique({
-      where: {
-        roleId_permissionId: {
-          roleId: role.id,
-          permissionId: permission.id,
-        },
-      },
-    });
-    if (existing) return async () => {};
-    const assignment = await prisma.rolePermission.create({
-      data: { roleId: role.id, permissionId: permission.id },
-    });
-    return async () => {
-      await prisma.rolePermission.delete({ where: { id: assignment.id } });
-    };
-  };
 
   const ensureFramework = async () => {
     return prisma.framework.upsert({
@@ -90,8 +72,109 @@ describe("Milestone 4 cross-module workflow", () => {
     });
   };
 
+  describe("owned policies:approve grant cleanup", () => {
+    it("removes policies:approve when this call added it", async () => {
+      const hadBefore = await companyUserHasPermission(prisma, {
+        tenantCode: "COM-001",
+        permissionCode: "policies:approve",
+      });
+      // Ensure absent so this case can prove ownership-based removal.
+      if (hadBefore) {
+        const company = await prisma.tenant.findUniqueOrThrow({
+          where: { code: "COM-001" },
+        });
+        const role = await prisma.role.findUniqueOrThrow({
+          where: {
+            tenantId_code: { tenantId: company.id, code: "COMPANY_USER" },
+          },
+        });
+        const permission = await prisma.permission.findUniqueOrThrow({
+          where: { code: "policies:approve" },
+        });
+        await prisma.rolePermission.delete({
+          where: {
+            roleId_permissionId: {
+              roleId: role.id,
+              permissionId: permission.id,
+            },
+          },
+        });
+      }
+
+      const grant = await grantUserApprove();
+      try {
+        expect(grant.addedByCaller).toBe(true);
+        expect(grant.assignmentId).toBeTruthy();
+        expect(
+          await companyUserHasPermission(prisma, {
+            tenantCode: "COM-001",
+            permissionCode: "policies:approve",
+          }),
+        ).toBe(true);
+      } finally {
+        await grant.revoke();
+      }
+
+      expect(
+        await companyUserHasPermission(prisma, {
+          tenantCode: "COM-001",
+          permissionCode: "policies:approve",
+        }),
+      ).toBe(false);
+    });
+
+    it("preserves policies:approve when it already existed", async () => {
+      const company = await prisma.tenant.findUniqueOrThrow({
+        where: { code: "COM-001" },
+      });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: {
+          tenantId_code: { tenantId: company.id, code: "COMPANY_USER" },
+        },
+      });
+      const permission = await prisma.permission.findUniqueOrThrow({
+        where: { code: "policies:approve" },
+      });
+      const preExisting = await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: role.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: { roleId: role.id, permissionId: permission.id },
+      });
+
+      const grant = await grantUserApprove();
+      try {
+        expect(grant.addedByCaller).toBe(false);
+        expect(grant.assignmentId).toBe(preExisting.id);
+        await grant.revoke();
+        expect(
+          await companyUserHasPermission(prisma, {
+            tenantCode: "COM-001",
+            permissionCode: "policies:approve",
+          }),
+        ).toBe(true);
+      } finally {
+        // Restore fixture: COMPANY_USER must not keep policies:approve.
+        await prisma.rolePermission.deleteMany({
+          where: { id: preExisting.id },
+        });
+      }
+
+      expect(
+        await companyUserHasPermission(prisma, {
+          tenantCode: "COM-001",
+          permissionCode: "policies:approve",
+        }),
+      ).toBe(false);
+    });
+  });
+
   it("chains Policy approval through Control, Checkpoint, Review, traceability and audit", async () => {
-    const revoke = await grantUserApprove();
+    const grant = await grantUserApprove();
     try {
       const admin = await loginAs("admin001@example.test", "Admin001!Secure");
       const approver = await loginAs("user001@example.test", "User001!Secure");
@@ -275,7 +358,17 @@ describe("Milestone 4 cross-module workflow", () => {
         .set("Authorization", `Bearer ${switched.body.data.accessToken}`)
         .expect(404);
     } finally {
-      await revoke();
+      await grant.revoke();
+    }
+
+    // When this suite owns the grant, cleanup must leave COMPANY_USER without it.
+    if (grant.addedByCaller) {
+      expect(
+        await companyUserHasPermission(prisma, {
+          tenantCode: "COM-001",
+          permissionCode: "policies:approve",
+        }),
+      ).toBe(false);
     }
   });
 });

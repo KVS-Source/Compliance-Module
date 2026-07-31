@@ -7,9 +7,13 @@ on screen. Hide Postman environment secrets while presenting.
 
 1. Local stack running (`docker compose` / backend on port `8000`).
 2. Database migrated and seeded.
-3. Postman collection `Milestone-4-E2E` imported with local passwords set.
+3. Postman collection `Milestone-4-E2E` imported with local passwords set
+   (uncommitted; never paste passwords/tokens into shared notes or screen
+   recordings).
 4. Approver (`user001@example.test`) temporarily granted `policies:approve` in
-   the active Company (see `postman/README.md`).
+   the active Company (see `postman/README.md`). The Postman collection does
+   **not** grant this automatically. A `403` on Approve usually means the
+   permission is missing; re-login after granting.
 5. Optional: pgAdmin connected to the same local database.
 
 ## Sequence
@@ -41,8 +45,9 @@ on screen. Hide Postman environment secrets while presenting.
 - Company switch must clear prior-Company records from the UI.
 - Evidence-required Policy approval is intentionally fail-closed until Evidence
   exists.
-- Playwright demos are mocked; this walkthrough and PostgreSQL integration tests
-  are the real-stack proof.
+- Playwright uses deterministic mocked APIs; in-memory actor/permission switches
+  are UI-flow simulation only, not auth or PostgreSQL authority. This walkthrough
+  and backend PostgreSQL integration tests are the real-stack proof.
 - Evidence, Gap, CAPA, GenRAC, RLS and production hosting are not in this demo.
 
 ## After the demo

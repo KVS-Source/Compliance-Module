@@ -33,11 +33,22 @@ Set locally only (never commit):
 - `approverPassword` — seed password for `user001@example.test`
 
 Password and token variables are marked `secret` in the environment file.
+Credentials stay in your local Postman environment; do not commit filled values
+and do not expose passwords or tokens while screen-sharing.
 
-Before **Approve Version**, grant `policies:approve` to the Company User role for
-`user001@example.test` in the active Company. Integration tests grant this
-temporarily; local demos need the same grant. Do not change seed defaults in a
-shared commit for a one-off demo.
+### Approver permission prerequisite
+
+`user001@example.test` (Company User) must have `policies:approve` in the active
+Company before **Approve Version** succeeds.
+
+- This collection does **not** grant permissions automatically.
+- Seed defaults do **not** give Company User `policies:approve`.
+- A `403` on Approve usually means the approver is missing `policies:approve`
+  (after login), not a broken request body.
+- Grant the permission locally for the demo (same temporary approach backend
+  integration tests use). Do not change seed defaults in a shared commit for a
+  one-off demo.
+- Re-login the approver after granting so the JWT includes the permission.
 
 After Docker rebuild or token expiry, re-run **Admin login** and **Approver
 login**. Clear captured ID variables if you restart from folder 02.
@@ -92,8 +103,10 @@ in the same database.
 - **Postman** exercises the real local HTTP API and response envelopes.
 - **pgAdmin** confirms stored rows with read-only SQL
   (`docs/milestone-4-pgadmin-demo.sql`).
-- **Playwright** uses mocked browser APIs and is not database authority.
-- Backend PostgreSQL integration tests remain the automated database authority.
+- **Playwright** uses deterministic mocked browser APIs; in-memory actor
+  switches simulate UI flows only and are not auth/PostgreSQL authority.
+- Backend PostgreSQL integration tests remain the automated permissions, auth
+  and database authority.
 
 ## Short client demo flow
 

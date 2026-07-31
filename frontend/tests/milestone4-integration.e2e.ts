@@ -3,8 +3,9 @@
  *
  * Browser-level API mocks via Playwright `page.route` against `/api/v1/**`.
  * These tests are NOT browser-to-database end-to-end and do not exercise
- * Express/PostgreSQL. Backend PostgreSQL integration tests remain the
- * database authority.
+ * Express/PostgreSQL. In-memory `setActor` / `setPermissions` switches simulate
+ * UI permission flows only; they are not JWT/auth or PostgreSQL authority.
+ * Backend PostgreSQL integration tests remain the permissions/auth/DB authority.
  */
 import { expect, test, type Page, type Route } from "@playwright/test";
 
