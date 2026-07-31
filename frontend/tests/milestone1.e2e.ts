@@ -110,10 +110,10 @@ async function installMockApi(
                         : path === "/api/v1/kpi-goals" ? []
                           : path === "/api/v1/kpi-configurations" ? []
                             : path === "/api/v1/kpi-targets" ? []
-                              : path === "/api/v1/policies" ? []
+                              : path === "/api/v1/policies" || path === "/api/v1/controls" ? []
                                 : null;
     if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
-    if (path === "/api/v1/policies") {
+    if (path === "/api/v1/policies" || path === "/api/v1/controls") {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
