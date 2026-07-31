@@ -34,5 +34,5 @@ Milestone 5 Slice 1 delivers the **Evidence metadata and backend foundation**.
 
 ## Reserved file columns
 
-Nullable columns exist for Slice 5.2 (`storageKey`, `contentSha256`, `byteSize`, …).  
+Nullable columns exist for Slice 5.2 (`storageKey`, `contentSha256`, `byteSize`, …).
 Slice 5.1 APIs never accept or populate them and never return `storageKey`.
