@@ -18,10 +18,16 @@ Notes:
 - Concurrent version allocation locks the Policy row (`FOR UPDATE`) and reads
   the created Version through the same transaction client.
 
-Out of scope in this slice:
+Out of scope / deferred:
 
 - Policy Version obsoletion endpoint
 - Policy INACTIVE transitions
-- Control and Checkpoint APIs
-- React Policy UI (routes remain `IN_DEVELOPMENT`)
 - Evidence fulfilment (approval fails closed with `EVIDENCE_GATE_NOT_IMPLEMENTED`)
+
+Frontend status (Milestone 4 Slice 5):
+
+- React Policy Register (`/compliance/policy-register`) and Policy detail
+  (`/compliance/policies/:policyId`) are LIVE after verification
+- Standalone Policy Versions navigation (`/compliance/policy-versions`) remains
+  `IN_DEVELOPMENT`
+- React Control and Checkpoint UI remain `IN_DEVELOPMENT`

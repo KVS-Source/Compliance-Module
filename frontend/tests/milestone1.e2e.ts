@@ -110,8 +110,20 @@ async function installMockApi(
                         : path === "/api/v1/kpi-goals" ? []
                           : path === "/api/v1/kpi-configurations" ? []
                             : path === "/api/v1/kpi-targets" ? []
-                              : null;
+                              : path === "/api/v1/policies" ? []
+                                : null;
     if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
+    if (path === "/api/v1/policies") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: [],
+          meta: { page: 1, pageSize: 20, total: 0, totalPages: 1 },
+        }),
+      });
+    }
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(data)) });
   });
 }
@@ -251,6 +263,7 @@ const livePaths = [
   ["/kpi/actual-entry", "KPI Actual Entry"],
   ["/kpi/approval", "KPI Approval"],
   ["/compliance/risks", "Risk Register"],
+  ["/compliance/policy-register", "Policy Register"],
 ] as const;
 
 test("sidebar exposes the complete approved structure and truthful badges", async ({
@@ -270,7 +283,7 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
       links.map((link) => link.getAttribute("href")).filter(Boolean),
     );
   expect(hrefs).toEqual(approvedPaths);
-  await expect(page.locator(".nav-status-badge")).toHaveCount(30);
+  await expect(page.locator(".nav-status-badge")).toHaveCount(29);
   await expect(
     page.getByTestId("nav-status-/data/genrac-integration"),
   ).toHaveText("Awaiting Access");
@@ -317,7 +330,7 @@ test("unfinished and compatibility routes use truthful non-operational status pa
 
   for (const [path, expectedStatus] of [
     ["/admin/roles", "development"],
-    ["/compliance/policy-register", "development"],
+    ["/compliance/policy-versions", "development"],
     ["/kpi/dashboard", "development"],
     ["/kpi/mapping", "development"],
     ["/evidence/register", "development"],
@@ -435,7 +448,7 @@ test("every approved direct route remains reachable without horizontal overflow"
   await page.goto("/dashboard");
   for (const path of approvedPaths) {
     await navigateInApp(page, path);
-    await expect(page.locator("#page-content")).toBeVisible();
+    await expect(page.locator("main#page-content")).toBeVisible();
     await expect(page.getByText("Page not found")).toHaveCount(0);
     const horizontalOverflow = await page.evaluate(
       () =>
@@ -594,9 +607,12 @@ test("desktop header controls are truthful, close correctly and do not write", a
   const routeSearch = page.getByPlaceholder("Search pages and modules");
   await routeSearch.fill("Policy Register");
   const policyResult = page.getByRole("option", { name: /Policy Register/ });
-  await expect(policyResult).toContainText("In Development");
+  await expect(policyResult).toContainText("Live");
+  await expect(policyResult).not.toContainText("In Development");
   await policyResult.click();
   await expect(page).toHaveURL(/\/compliance\/policy-register$/);
+  await expect(page.getByRole("heading", { name: "Policy Register" })).toBeVisible();
+  await expect(page.getByTestId("module-status-page")).toHaveCount(0);
 
   await page.goto("/dashboard");
   await routeSearch.fill("User Master");

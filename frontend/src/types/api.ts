@@ -611,3 +611,217 @@ export interface RiskListResult {
   data: Risk[];
   meta: PageMeta;
 }
+
+export type PolicyLifecycleStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
+
+export type PolicyVersionStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "SUPERSEDED"
+  | "OBSOLETE";
+
+export type PolicyVersionBump = "MAJOR" | "MINOR";
+
+/** Person reference returned on Policy / Policy Version DTOs. */
+export interface PolicyPerson {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface PolicyDepartmentRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface PolicyFrameworkRef {
+  id: string;
+  code: string;
+  name: string;
+  version: string;
+}
+
+/** Active Framework mapping attached to a Policy Version. */
+export interface PolicyFrameworkMapping {
+  id: string;
+  frameworkId: string;
+  isActive: boolean;
+  framework: PolicyFrameworkRef | null;
+}
+
+/**
+ * Version fields returned on Policy list rows. Body text (content, purpose,
+ * scope, changeSummary) is omitted to keep the register payload small.
+ */
+export interface PolicyVersionSummary {
+  id: string;
+  policyId: string;
+  sequence: number;
+  version: string;
+  versionMajor: number;
+  versionMinor: number;
+  status: PolicyVersionStatus;
+  effectiveDate: string | null;
+  reviewDate: string | null;
+  requiresEvidence: boolean;
+  requestedApprover: PolicyPerson | null;
+  submittedBy: PolicyPerson | null;
+  submittedAt: string | null;
+  approvedBy: PolicyPerson | null;
+  approvedAt: string | null;
+  supersededById: string | null;
+  frameworks: PolicyFrameworkMapping[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full Version DTO from detail, Version list and decision endpoints. */
+export interface PolicyVersion extends PolicyVersionSummary {
+  content: string;
+  purpose: string | null;
+  scope: string | null;
+  changeSummary: string | null;
+}
+
+/**
+ * Policy register row. `latestVersion` is the highest-sequence Version and is
+ * not necessarily approved. `currentApprovedVersion` is the Version currently
+ * pointed at by the Policy when one exists.
+ */
+export interface Policy {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  lifecycleStatus: PolicyLifecycleStatus;
+  owner: PolicyPerson | null;
+  department: PolicyDepartmentRef | null;
+  currentApprovedVersion: PolicyVersionSummary | null;
+  latestVersion: PolicyVersionSummary | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Policy detail with full nested Version bodies. */
+export interface PolicyDetail
+  extends Omit<Policy, "currentApprovedVersion" | "latestVersion"> {
+  currentApprovedVersion: PolicyVersion | null;
+  latestVersion: PolicyVersion | null;
+}
+
+export interface PolicyListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  code?: string;
+  title?: string;
+  lifecycleStatus?: PolicyLifecycleStatus | "";
+  versionStatus?: PolicyVersionStatus | "";
+  ownerId?: string;
+  departmentId?: string;
+  frameworkId?: string;
+  reviewDueFrom?: string;
+  reviewDueTo?: string;
+}
+
+export interface PolicyListResult {
+  data: Policy[];
+  meta: PageMeta;
+}
+
+export interface CreatePolicyInput {
+  title: string;
+  description?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  content: string;
+  purpose?: string | null;
+  scope?: string | null;
+  changeSummary?: string | null;
+  effectiveDate?: string | null;
+  reviewDate?: string | null;
+  requiresEvidence?: boolean;
+  requestedApproverId?: string | null;
+  frameworkIds?: string[];
+}
+
+export interface UpdatePolicyInput {
+  title?: string;
+  description?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+}
+
+export interface CreatePolicyVersionInput {
+  bump: PolicyVersionBump;
+  content: string;
+  purpose?: string | null;
+  scope?: string | null;
+  changeSummary?: string | null;
+  effectiveDate?: string | null;
+  reviewDate?: string | null;
+  requiresEvidence?: boolean;
+  requestedApproverId?: string | null;
+  frameworkIds?: string[];
+}
+
+export interface UpdatePolicyVersionInput {
+  content?: string;
+  purpose?: string | null;
+  scope?: string | null;
+  changeSummary?: string | null;
+  effectiveDate?: string | null;
+  reviewDate?: string | null;
+  requiresEvidence?: boolean;
+  requestedApproverId?: string | null;
+}
+
+export interface ReplacePolicyFrameworksInput {
+  frameworkIds: string[];
+}
+
+export interface ApprovePolicyVersionInput {
+  comments?: string;
+}
+
+export interface RejectPolicyVersionInput {
+  comments: string;
+}
+
+export interface PolicyControlRef {
+  id: string;
+  code: string;
+  title: string;
+  lifecycleStatus: string;
+}
+
+export interface PolicyControlMapping {
+  id: string;
+  isActive: boolean;
+  control: PolicyControlRef;
+}
+
+export interface PolicyTraceability {
+  policy: PolicyDetail;
+  focusVersion: PolicyVersion | null;
+  controlMappings: PolicyControlMapping[];
+}
+
+export interface PolicyAuditEvent {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  userId: string | null;
+}
+
+export interface PolicyAuditListResult {
+  data: PolicyAuditEvent[];
+  meta: PageMeta;
+}

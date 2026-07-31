@@ -42,6 +42,14 @@ risk actions, including `policies:read`, `policies:write`, `policies:submit`,
 `COMPANY_ADMIN` accepts wildcard `"*"`. This is UAT-only technical debt and a
 production blocker. New roles must not copy the wildcard.
 
+## Policy UI rendering
+
+React Policy pages render content, purpose, scope and change summary as plain
+text (`white-space: pre-wrap`) only. They must not use `dangerouslySetInnerHTML`,
+unsanitized Markdown or HTML parsing. Approval and rejection comments are not
+echoed into toasts, audit metadata displays or console logs. Evidence-required
+Policy approval remains fail-closed with `EVIDENCE_GATE_NOT_IMPLEMENTED`.
+
 ## Database integrity and audit
 
 - `audit_events` rejects UPDATE and DELETE.

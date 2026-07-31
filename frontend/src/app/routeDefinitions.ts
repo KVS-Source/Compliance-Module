@@ -212,19 +212,16 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     },
   ),
 
-  development(
+  live(
     "/compliance/policy-register",
     "#compliance/policy-register",
     "Policy Register",
     "Policies & Controls",
-    "Governed policy records and lifecycle status.",
+    "Governed policy records, Version status and review dates.",
     NotebookTabs,
     {
-      plannedCapabilities: [
-        "Register governed policies",
-        "Assign owners and review dates",
-        "Link policies to controls and frameworks",
-      ],
+      permission: "policies:read",
+      api: "GET/POST /policies · GET/PATCH /policies/:id · Version lifecycle",
     },
   ),
   development(
@@ -884,6 +881,7 @@ export const migratedPaths = new Set([
   "/kpi/actual-entry",
   "/kpi/approval",
   "/compliance/risks",
+  "/compliance/policy-register",
 ]);
 
 export const routeByPath = new Map(
