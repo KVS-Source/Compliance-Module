@@ -902,6 +902,7 @@ test.describe("Control workflow UI (mocked browser APIs)", () => {
     await installControlWorkflowMock(page);
     await page.goto(`/compliance/controls/${control.id}`);
     await expect(page.getByTestId("control-checkpoint-active")).toHaveText("1");
+    await expect(page.getByTestId("control-open-checkpoints")).toBeVisible();
     await expect(page.getByTestId("control-traceability")).toBeVisible();
     await expect(page.getByTestId("control-audit-history")).toContainText(
       "CONTROL CREATED",
