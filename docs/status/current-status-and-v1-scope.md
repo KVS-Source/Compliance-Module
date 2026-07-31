@@ -26,7 +26,7 @@ evidence status is
 | `COMPATIBILITY` | A previously published URL is retained but hidden and is not an operational authority. |
 | `DORMANT` | Source/reference material is not imported or routed by the active runtime. |
 
-Current route totals are one public login, 16 protected `LIVE` patterns, 29
+Current route totals are one public login, 18 protected `LIVE` patterns, 28
 visible `IN_DEVELOPMENT` routes, one visible `AWAITING_INTEGRATION` route and 22
 hidden `COMPATIBILITY` routes.
 
@@ -43,7 +43,10 @@ hidden `COMPATIBILITY` routes.
 - tenant-scoped database-backed dashboard;
 - append-only audit-event writes for active workflows;
 - Policy register, Policy Version, Framework mapping, submit/approve/reject,
-  Policy-scoped audit read and traceability APIs (Milestone 4 Slice 2).
+  Policy-scoped audit read and traceability APIs (Milestone 4 Slice 2);
+- React Policy Register and Policy detail workflows (Milestone 4 Slice 5),
+  including Version create/edit, Framework mapping, submit/approve/reject,
+  archive, traceability and Policy-scoped audit history.
 
 `KpiTarget`/`kpi_targets` is the active target authority. `KpiGoal`/
 `kpi_goals` is read-only compatibility data; the active backend has no mutation
@@ -54,15 +57,19 @@ path for it.
 Control REST APIs are operational after Milestone 4 Slice 3. Checkpoint register,
 lifecycle, Review, latest-review, traceability and audit APIs are operational
 after Milestone 4 Slice 4, with a dedicated Postman collection and pgAdmin
-guide. React Policy/Control/Checkpoint pages remain `IN_DEVELOPMENT`. Evidence,
-Gap, CAPA, Import, Tasks, Notifications, Reports, global audit search/export,
-settings and most broader operations modules are also not operational. Their
-visible routes are status pages, not simulated business screens.
+guide. React Control and Checkpoint pages remain `IN_DEVELOPMENT`. The standalone
+Policy Versions navigation page also remains `IN_DEVELOPMENT` (Version
+management lives inside Policy detail for Slice 5). Evidence, Gap, CAPA, Import,
+Tasks, Notifications, Reports, global audit search/export, settings and most
+broader operations modules are also not operational. Their visible routes are
+status pages, not simulated business screens.
 
 Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
 Evidence-dependent KPI and Policy approval behaviour remains fail-closed where
 `requiresEvidence=true`. No fake Evidence record, upload path or approval
-override exists.
+override exists. Policy content is rendered as plain text only.
+
+This release is not a production deployment.
 
 GenRAC is `AWAITING_INTEGRATION`. No connector, live sync, credentials or
 network access exists. Client access and reviewed interface documentation are
