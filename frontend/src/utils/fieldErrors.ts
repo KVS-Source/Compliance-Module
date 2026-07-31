@@ -250,6 +250,147 @@ export function riskWorkflowError(
   return { fieldErrors: {}, formError: error.message };
 }
 
+const POLICY_GENERIC_FALLBACK =
+  "The request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Policy write, Version, Framework and archive errors onto form fields or a
+ * banner. Domain codes from the Policy module are preferred over raw status.
+ */
+export function policyWriteError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy requires Evidence. Evidence Management is not available yet, so this Version cannot be approved.",
+    };
+  }
+  if (error.code === "POLICY_SELF_APPROVAL_FORBIDDEN") {
+    return {
+      fieldErrors: {},
+      formError:
+        "You cannot approve a Policy Version that you submitted.",
+    };
+  }
+  if (error.code === "POLICY_APPROVER_INVALID") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy Version is assigned to another approver or your approval access is no longer valid.",
+    };
+  }
+  if (error.code === "POLICY_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Policy is not available in the active Company.",
+    };
+  }
+  if (error.code === "POLICY_VERSION_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Policy Version is not available in the active Company.",
+    };
+  }
+  if (error.code === "POLICY_ARCHIVED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy is archived and can no longer be changed.",
+    };
+  }
+  if (
+    error.code === "POLICY_VERSION_IMMUTABLE" ||
+    error.code === "POLICY_VERSION_CONFLICT"
+  ) {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy Version can no longer be edited. Refresh to see its current state.",
+    };
+  }
+  if (
+    error.code === "POLICY_VERSION_INVALID_STATE" ||
+    error.code === "POLICY_CURRENT_VERSION_CONFLICT"
+  ) {
+    return {
+      fieldErrors: {},
+      formError: error.message || POLICY_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "POLICY_CONTENT_HTML_FORBIDDEN") {
+    return {
+      fieldErrors: {
+        content: "Raw HTML is not permitted in Policy content.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "POLICY_CONTENT_INVALID") {
+    return {
+      fieldErrors: { content: error.message },
+      formError: null,
+    };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const message = error.message.toLowerCase();
+    const field = message.includes("owner")
+      ? "ownerId"
+      : message.includes("department")
+        ? "departmentId"
+        : message.includes("approver")
+          ? "requestedApproverId"
+          : message.includes("framework")
+            ? "frameworkIds"
+            : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (error.status === 403) {
+    if (error.message === "Permission denied") {
+      return {
+        fieldErrors: {},
+        formError: `Your active Company role does not include ${permission}.`,
+      };
+    }
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || POLICY_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || POLICY_GENERIC_FALLBACK,
+  };
+}
+
+/** Decision-banner mapper for submit / approve / reject. */
+export function policyDecisionError(
+  error: unknown,
+  permission: string,
+): string {
+  return (
+    policyWriteError(error, permission).formError ??
+    (error instanceof Error ? error.message : POLICY_GENERIC_FALLBACK)
+  );
+}
+
 /** Map known KPI actual submission errors onto form fields or a form banner. */
 export function kpiActualSubmissionError(error: unknown): {
   fieldErrors: FieldErrors;
