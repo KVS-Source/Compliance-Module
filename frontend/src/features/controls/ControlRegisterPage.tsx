@@ -1,10 +1,13 @@
 import {
+  Archive,
   ChevronLeft,
   ChevronRight,
   Eye,
   Inbox,
   Pencil,
   Plus,
+  Power,
+  PowerOff,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -33,6 +36,10 @@ import type {
   Framework,
 } from "../../types/api";
 import { ControlFormModal } from "./ControlFormModal";
+import {
+  ControlLifecycleDialog,
+  type ControlLifecycleKind,
+} from "./ControlLifecycleDialog";
 import {
   CONTROL_TYPE_OPTIONS,
   FREQUENCY_OPTIONS,
@@ -111,6 +118,10 @@ export function ControlRegisterPage() {
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ControlDetail | null>(null);
+  const [lifecycle, setLifecycle] = useState<{
+    kind: ControlLifecycleKind;
+    control: Control;
+  } | null>(null);
 
   useEffect(() => {
     setDraftSearch("");
@@ -128,6 +139,7 @@ export function ControlRegisterPage() {
     setPage(1);
     setCreating(false);
     setEditing(null);
+    setLifecycle(null);
   }, [contextVersion, user?.activeCompany.id]);
 
   useEffect(() => {
@@ -587,6 +599,7 @@ export function ControlRegisterPage() {
                         navigate(`/compliance/controls/${control.id}`)
                       }
                       onEdit={() => void openEdit(control)}
+                      onLifecycle={(kind) => setLifecycle({ kind, control })}
                     />
                   ))}
                 </tbody>
@@ -680,6 +693,30 @@ export function ControlRegisterPage() {
           }}
         />
       ) : null}
+
+      {lifecycle ? (
+        <ControlLifecycleDialog
+          kind={lifecycle.kind}
+          control={lifecycle.control}
+          onClose={() => setLifecycle(null)}
+          onCompleted={() => {
+            const kind = lifecycle.kind;
+            setLifecycle(null);
+            setListVersion((value) => value + 1);
+            showToast(
+              "success",
+              kind === "activate"
+                ? "Control activated"
+                : kind === "deactivate"
+                  ? "Control deactivated"
+                  : "Control archived",
+              kind === "archive"
+                ? "The Control is now read-only."
+                : "Lifecycle status was updated.",
+            );
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -735,11 +772,13 @@ function ControlRow({
   canWrite,
   onView,
   onEdit,
+  onLifecycle,
 }: {
   control: Control;
   canWrite: boolean;
   onView: () => void;
   onEdit: () => void;
+  onLifecycle: (kind: ControlLifecycleKind) => void;
 }) {
   const archived = control.lifecycleStatus === "ARCHIVED";
 
@@ -782,14 +821,44 @@ function ControlRow({
             <Eye size={15} />
           </button>
           {canWrite && !archived ? (
-            <button
-              className="tiny-btn"
-              type="button"
-              aria-label={`Edit ${control.code}`}
-              onClick={onEdit}
-            >
-              <Pencil size={15} />
-            </button>
+            <>
+              <button
+                className="tiny-btn"
+                type="button"
+                aria-label={`Edit ${control.code}`}
+                onClick={onEdit}
+              >
+                <Pencil size={15} />
+              </button>
+              {control.lifecycleStatus === "INACTIVE" ? (
+                <button
+                  className="tiny-btn"
+                  type="button"
+                  aria-label={`Activate ${control.code}`}
+                  onClick={() => onLifecycle("activate")}
+                >
+                  <Power size={15} />
+                </button>
+              ) : null}
+              {control.lifecycleStatus === "ACTIVE" ? (
+                <button
+                  className="tiny-btn"
+                  type="button"
+                  aria-label={`Deactivate ${control.code}`}
+                  onClick={() => onLifecycle("deactivate")}
+                >
+                  <PowerOff size={15} />
+                </button>
+              ) : null}
+              <button
+                className="tiny-btn"
+                type="button"
+                aria-label={`Archive ${control.code}`}
+                onClick={() => onLifecycle("archive")}
+              >
+                <Archive size={15} />
+              </button>
+            </>
           ) : null}
         </div>
       </td>
