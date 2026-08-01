@@ -97,9 +97,30 @@ const refineConfigurationDates = <
   }
 };
 
+/** Evidence-required configurations must require human approval (Slice 5D). */
+export const refineEvidenceRequiresApproval = <
+  T extends {
+    requiresEvidence?: boolean | undefined;
+    requiresApproval?: boolean | undefined;
+  },
+>(
+  value: T,
+  context: z.RefinementCtx,
+) => {
+  if (value.requiresEvidence === true && value.requiresApproval === false) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["requiresApproval"],
+      message:
+        "Evidence-required KPI configurations must require approval",
+    });
+  }
+};
+
 export const createKpiConfigurationSchema = z
   .object(configurationFields)
-  .superRefine(refineConfigurationDates);
+  .superRefine(refineConfigurationDates)
+  .superRefine(refineEvidenceRequiresApproval);
 
 export const updateKpiConfigurationSchema = z
   .object({

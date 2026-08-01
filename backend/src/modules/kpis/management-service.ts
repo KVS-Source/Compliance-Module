@@ -30,6 +30,20 @@ const dateOnly = (value: Date | null) =>
 
 const inputDate = (value: string) => new Date(`${value}T00:00:00.000Z`);
 
+/** Slice 5D: evidence-required configs must require human approval. */
+export const assertEvidenceApprovalInvariant = (
+  requiresEvidence: boolean,
+  requiresApproval: boolean,
+) => {
+  if (requiresEvidence && !requiresApproval) {
+    throw new AppError(
+      400,
+      "KPI_CONFIGURATION_INVALID",
+      "Evidence-required KPI configurations must require approval",
+    );
+  }
+};
+
 const personDto = (
   person: { id: string; code: string; fullName: string } | null,
 ) =>
@@ -270,6 +284,10 @@ export class KpiManagementService {
         body.effectiveTo == null ? null : inputDate(body.effectiveTo),
       status: body.status,
     };
+    assertEvidenceApprovalInvariant(
+      data.requiresEvidence,
+      data.requiresApproval,
+    );
     await this.assertThresholds(
       tenantId,
       data.amberThresholdPct ?? null,
@@ -376,6 +394,14 @@ export class KpiManagementService {
         "Effective-to date must not precede effective-from date",
       );
     }
+    const effectiveRequiresEvidence =
+      data.requiresEvidence ?? existing.requiresEvidence;
+    const effectiveRequiresApproval =
+      data.requiresApproval ?? existing.requiresApproval;
+    assertEvidenceApprovalInvariant(
+      effectiveRequiresEvidence,
+      effectiveRequiresApproval,
+    );
     await this.assertThresholds(
       tenantId,
       data.amberThresholdPct === undefined
