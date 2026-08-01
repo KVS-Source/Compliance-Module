@@ -53,8 +53,10 @@ targets. Soft unlink uses `POST …/unlink`. Approve/reject require
 creator/uploader/submitter cannot decide). Review queue requires
 `evidence:review`. Reverse Control/Checkpoint Evidence lists are not present.
 Checkpoint reviews with `evidenceRequired=true` require qualifying linked
-APPROVED Evidence (`409 EVIDENCE_REQUIRED` otherwise). Policy/KPI Evidence
-gates remain fail-closed `501` until later slices.
+APPROVED Evidence (`409 EVIDENCE_REQUIRED` otherwise). Policy Version approval
+with `requiresEvidence=true` requires exact-version Control/Checkpoint
+coverage (`409 EVIDENCE_REQUIRED` with configured reasons). KPI Evidence gates
+remain fail-closed `501`.
 
 ## Explicitly absent
 

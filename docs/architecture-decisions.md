@@ -130,8 +130,45 @@ default Prisma/PostgreSQL transaction level (not SERIALIZABLE).
 The gate writes no audit; parent `CHECKPOINT_REVIEWED` audit occurs only after
 success. Failure is HTTP 409 `EVIDENCE_REQUIRED` with safe reason
 `EVIDENCE_COVERAGE_INCOMPLETE`. No extra permission beyond `checkpoints:review`.
-Policy and KPI gates remain fail-closed `501 EVIDENCE_GATE_NOT_IMPLEMENTED`
-until dedicated relationship models and (for Policy) CHECK migration land.
+KPI gates remain fail-closed `501 EVIDENCE_GATE_NOT_IMPLEMENTED` until a typed
+KPI–Evidence relationship lands.
+
+## AD-018 Policy Version Evidence gate (Milestone 5 Slice 5.5C)
+
+Policy approval uses **`PolicyVersion.requiresEvidence`** only. When false,
+approval is unchanged. When true, `EvidenceGateService.assertPolicyVersionApprovalSatisfied`
+runs inside the existing approve transaction after Policy and Version locks and
+before supersession/APPROVED writes.
+
+**Mappings (M1):** Active `ControlPolicyVersion` rows may target **SUBMITTED**
+or **APPROVED** versions only. Evaluation uses active mappings for the **exact**
+version under approval (no previous-version, parent-Policy, or tenant-wide
+fallback). Mapping mutations lock Policy → Policy Version before changing
+active rows so the required set cannot change mid-approval.
+
+**Independent obligations (Decision D):**
+
+- Each actively mapped non-ARCHIVED Control with `requiresEvidence=true` needs
+  qualifying Control-linked Evidence.
+- Each ACTIVE Checkpoint under those Controls with `evidenceRequired=true`
+  needs qualifying Checkpoint-linked Evidence.
+- Control-linked and Checkpoint-linked Evidence never substitute for each other.
+
+**Empty configuration:** zero required Controls and zero required Checkpoints
+with the flag true → HTTP 409 `EVIDENCE_REQUIRED` /
+`EVIDENCE_GATE_NOT_CONFIGURED`. Incomplete coverage uses
+`EVIDENCE_CONTROL_COVERAGE_INCOMPLETE`,
+`EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE`, or `EVIDENCE_COVERAGE_INCOMPLETE`.
+
+Eligibility reuses Slice 5.5A rules (APPROVED, file metadata, UTC dates,
+supersession, active exact-target links). Selected Evidence rows are locked
+with `FOR SHARE` until parent commit. No object-storage I/O; no separate gate
+audit; no new permission beyond `policies:approve`.
+
+**CHECK migration (Option A):**
+`policy_versions_submission_fields_consistent` no longer requires
+`AND NOT requires_evidence` for APPROVED/SUPERSEDED/OBSOLETE. Other lifecycle
+and self-approval invariants remain.
 
 ## AD-009 Errors, logging and environment
 
