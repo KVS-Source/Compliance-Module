@@ -17,6 +17,11 @@ Notes:
   SUBMITTED → APPROVED. Future-effective approval is still rejected at approve.
 - Concurrent version allocation locks the Policy row (`FOR UPDATE`) and reads
   the created Version through the same transaction client.
+- Lifecycle operations that touch both Policy and Policy Version use
+  **Policy → Policy Version** lock order (submit, reject, updateVersion,
+  replaceFrameworks, approve). This matches Control Policy mapping replacement
+  (**Policy → Version → Control → CPV**) and removes Version→Policy AB–BA
+  deadlocks with concurrent mapping.
 
 Evidence gate (Milestone 5 Slice 5.5C):
 

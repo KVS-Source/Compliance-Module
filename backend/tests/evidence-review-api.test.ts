@@ -318,25 +318,33 @@ describe("Evidence approve/reject review Slice 5.4", () => {
         "User001!Secure",
       );
 
-      const queue = await request(app)
-        .get("/api/v1/evidence/review-queue")
-        .query({ page: 1, pageSize: 100 })
-        .set(auth(reviewer.accessToken))
-        .expect(200);
+      const ids: string[] = [];
+      let firstPage: { body: { data: Array<Record<string, unknown>> } } | null =
+        null;
+      for (let page = 1; page <= 20; page += 1) {
+        const queue = await request(app)
+          .get("/api/v1/evidence/review-queue")
+          .query({ page, pageSize: 100 })
+          .set(auth(reviewer.accessToken))
+          .expect(200);
+        if (!firstPage) firstPage = queue;
+        const pageIds = queue.body.data.map((row: { id: string }) => row.id);
+        ids.push(...pageIds);
+        expect(
+          queue.body.data.every(
+            (row: { lifecycleStatus: string }) =>
+              row.lifecycleStatus === "SUBMITTED",
+          ),
+        ).toBe(true);
+        if (pageIds.length < 100) break;
+      }
 
-      const ids = queue.body.data.map((row: { id: string }) => row.id);
       expect(ids).toContain(first.id);
       expect(ids).toContain(second.id);
       expect(ids).not.toContain(draft.body.data.id);
-      expect(
-        queue.body.data.every(
-          (row: { lifecycleStatus: string }) =>
-            row.lifecycleStatus === "SUBMITTED",
-        ),
-      ).toBe(true);
-      expect(queue.body.data[0]).not.toHaveProperty("storageKey");
-      expect(queue.body.data[0]).toHaveProperty("hasFile");
-      expect(queue.body.data[0]).toHaveProperty("activeControlLinkCount");
+      expect(firstPage!.body.data[0]).not.toHaveProperty("storageKey");
+      expect(firstPage!.body.data[0]).toHaveProperty("hasFile");
+      expect(firstPage!.body.data[0]).toHaveProperty("activeControlLinkCount");
 
       const page1 = await request(app)
         .get("/api/v1/evidence/review-queue")

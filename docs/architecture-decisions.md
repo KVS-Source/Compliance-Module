@@ -146,9 +146,10 @@ version under approval (no previous-version, parent-Policy, or tenant-wide
 fallback). Mapping **replacement** uses global lock order
 **Policy → Policy Version → Control → CPV mutation** (deterministic Policy and
 Version ID order). Policy **approval** uses
-**Policy → Version → CPV/targets → Evidence**. Both serialize on Policy/Version
-locks without a Control-before-Policy AB–BA cycle. Pre-existing Policy
-submit/reject paths may still lock Version then Policy (unrelated limitation).
+**Policy → Version → CPV/targets → Evidence**. Submit, reject, version edit and
+framework replacement also use **Policy → Version** (join-lock parent Policy by
+`versionId`, then lock Version). Lifecycle and mapping paths therefore serialize
+on Policy without Version↔Policy AB–BA.
 
 **Independent obligations (Decision D):**
 
