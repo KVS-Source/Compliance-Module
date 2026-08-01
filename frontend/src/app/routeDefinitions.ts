@@ -371,80 +371,40 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     { permission: "risk:read", api: "GET /risks · GET /risks/:id" },
   ),
 
-  development(
-    "/evidence/register",
-    "#evidence/register",
-    "Evidence Register",
+  live(
+    "/evidence",
+    "#evidence",
+    "Evidence Library",
     "Evidence Management",
-    "The governed inventory of compliance evidence.",
+    "The governed inventory of Company-scoped compliance Evidence.",
     Archive,
     {
-      plannedCapabilities: [
-        "Register tenant-owned evidence",
-        "Link evidence to compliance records",
-        "Track integrity and retention metadata",
-      ],
+      permission: "evidence:read",
+      api: "GET /evidence · GET /evidence/:id · PATCH /evidence/:id · Lifecycle, file, review and audit",
     },
   ),
-  development(
-    "/evidence/upload",
-    "#evidence/upload",
-    "Evidence Upload",
+  live(
+    "/evidence/new",
+    "#evidence/new",
+    "Create Evidence",
     "Evidence Management",
-    "Validated evidence upload and linkage.",
+    "Register Evidence metadata and upload its validated file.",
     UploadCloud,
     {
-      plannedCapabilities: [
-        "Upload approved file types",
-        "Capture integrity metadata",
-        "Link evidence to governed records",
-      ],
-      dependency: "Reviewed evidence storage, malware scanning and retention design.",
+      permission: "evidence:write",
+      api: "POST /evidence · POST /evidence/:id/file",
     },
   ),
-  development(
+  live(
     "/evidence/review",
     "#evidence/review",
     "Evidence Review",
     "Evidence Management",
-    "Human review of submitted evidence.",
+    "Human review of Evidence awaiting a decision.",
     ScanSearch,
     {
-      plannedCapabilities: [
-        "Review submitted evidence",
-        "Record append-only decisions",
-        "Return evidence for correction",
-      ],
-    },
-  ),
-  development(
-    "/evidence/approved",
-    "#evidence/approved",
-    "Approved Evidence",
-    "Evidence Management",
-    "Approved evidence and its governed linkages.",
-    BadgeCheck,
-    {
-      plannedCapabilities: [
-        "Browse approved evidence",
-        "Review approval history",
-        "Inspect linked compliance records",
-      ],
-    },
-  ),
-  development(
-    "/evidence/rejected",
-    "#evidence/rejected",
-    "Rejected Evidence",
-    "Evidence Management",
-    "Rejected evidence, reasons and replacement state.",
-    FileSearch,
-    {
-      plannedCapabilities: [
-        "Browse rejected evidence",
-        "Review rejection reasons",
-        "Track replacement submissions",
-      ],
+      permission: "evidence:review",
+      api: "GET /evidence/review-queue · POST /evidence/:id/approve|reject",
     },
   ),
 
@@ -822,11 +782,9 @@ export const clientNavigationPaths = new Set([
   "/kpi/dashboard",
   "/kpi/mapping",
   "/compliance/risks",
-  "/evidence/register",
-  "/evidence/upload",
+  "/evidence",
+  "/evidence/new",
   "/evidence/review",
-  "/evidence/approved",
-  "/evidence/rejected",
   "/compliance/gaps",
   "/compliance/gaps/review",
   "/compliance/capa",
@@ -878,6 +836,9 @@ export const migratedPaths = new Set([
   "/compliance/policy-register",
   "/compliance/controls",
   "/compliance/checkpoints",
+  "/evidence",
+  "/evidence/new",
+  "/evidence/review",
 ]);
 
 export const routeByPath = new Map(
