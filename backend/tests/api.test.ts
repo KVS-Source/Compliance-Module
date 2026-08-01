@@ -290,6 +290,7 @@ describe("Milestone 1 API", () => {
     const token = switched.body.data.accessToken as string;
     const users = await request(app)
       .get("/api/v1/users")
+      .query({ pageSize: 100 })
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
     const company2Emails = users.body.data.map(

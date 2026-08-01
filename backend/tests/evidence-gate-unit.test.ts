@@ -187,4 +187,50 @@ describe("Evidence gate eligibility", () => {
     });
     expect(result).toEqual({ satisfied: true, qualifyingCount: 0 });
   });
+
+  it("policy gate short-circuits when requiresEvidence is false", async () => {
+    const gate = new EvidenceGateService();
+    const result = await gate.assertPolicyVersionApprovalSatisfied({
+      tenantId: "00000000-0000-4000-8000-000000000001",
+      policyVersionId: "00000000-0000-4000-8000-000000000003",
+      requiresEvidence: false,
+    });
+    expect(result).toEqual({
+      satisfied: true,
+      requiredControlCount: 0,
+      requiredCheckpointCount: 0,
+      coveredControlCount: 0,
+      coveredCheckpointCount: 0,
+    });
+  });
+
+  it("maps Policy coverage incomplete reasons", async () => {
+    const { policyCoverageReason } = await import(
+      "../src/modules/evidence/eligibility.js"
+    );
+    expect(
+      policyCoverageReason({
+        requiredControls: 1,
+        coveredControls: 0,
+        requiredCheckpoints: 0,
+        coveredCheckpoints: 0,
+      }),
+    ).toBe("EVIDENCE_CONTROL_COVERAGE_INCOMPLETE");
+    expect(
+      policyCoverageReason({
+        requiredControls: 0,
+        coveredControls: 0,
+        requiredCheckpoints: 1,
+        coveredCheckpoints: 0,
+      }),
+    ).toBe("EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE");
+    expect(
+      policyCoverageReason({
+        requiredControls: 1,
+        coveredControls: 0,
+        requiredCheckpoints: 1,
+        coveredCheckpoints: 0,
+      }),
+    ).toBe("EVIDENCE_COVERAGE_INCOMPLETE");
+  });
 });

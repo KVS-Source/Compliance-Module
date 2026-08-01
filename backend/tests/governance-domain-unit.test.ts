@@ -70,7 +70,7 @@ describe("Policy lifecycle and semantic versions", () => {
     });
   });
 
-  it("prohibits self-approval and fails closed when Evidence is required", () => {
+  it("prohibits self-approval; Policy Evidence is gate-service owned", () => {
     expect(() =>
       assertPolicyApprovalAllowed({
         status: "SUBMITTED",
@@ -79,6 +79,7 @@ describe("Policy lifecycle and semantic versions", () => {
         requiresEvidence: false,
       }),
     ).toThrowError(/self-approval/);
+    // Slice 5.5C: domain no longer 501s on requiresEvidence (EvidenceGateService).
     expect(() =>
       assertPolicyApprovalAllowed({
         status: "SUBMITTED",
@@ -86,7 +87,7 @@ describe("Policy lifecycle and semantic versions", () => {
         actorId: "user-2",
         requiresEvidence: true,
       }),
-    ).toThrowError(/Evidence milestone/);
+    ).not.toThrow();
   });
 
   it("accepts bounded Markdown and prohibits raw HTML", () => {
