@@ -51,8 +51,20 @@ import {
   authorizeTenantContext,
 } from "../common/middleware/http.js";
 import { apiRateLimiter } from "../common/middleware/rate-limit.js";
+import type { FileStorageProvider } from "../providers/file-storage/file-storage.js";
+import {
+  createFileStorageProvider,
+} from "../providers/file-storage/file-storage.js";
+import { env } from "../config/env.js";
 
-export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
+export const apiRoutes = (
+  db: PrismaClient,
+  provider: SharedMasterProvider,
+  fileStorage: FileStorageProvider = createFileStorageProvider({
+    driver: env.FILE_STORAGE_DRIVER,
+    localRoot: env.LOCAL_UPLOAD_DIR,
+  }),
+) => {
   const router = Router();
   const kpiManagement = new KpiManagementService(
     new KpiManagementRepository(db),
@@ -62,8 +74,10 @@ export const apiRoutes = (db: PrismaClient, provider: SharedMasterProvider) => {
   const policies = new PolicyService(new PolicyRepository(db));
   const controls = new ControlService(new ControlRepository(db));
   const checkpoints = new CheckpointService(new CheckpointRepository(db));
-  const evidence = new EvidenceService(new EvidenceRepository(db));
-  const kpiActuals = new KpiActualService(
+  const evidence = new EvidenceService(
+    new EvidenceRepository(db),
+    fileStorage,
+  );  const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
     risks,

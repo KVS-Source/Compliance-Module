@@ -2192,6 +2192,6 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
       WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
     `;
     expect(migrationRows).toHaveLength(1);
-    expect(Number(migrationRows[0]?.count)).toBe(11);
+    expect(Number(migrationRows[0]?.count)).toBe(12);
   });
 });

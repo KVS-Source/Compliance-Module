@@ -13,10 +13,16 @@ import { errorHandler, notFoundHandler } from "./common/middleware/http.js";
 import { openApiDocument } from "./docs/openapi.js";
 import { LocalPostgresSharedMasterProvider } from "./providers/shared-master/local-postgres.js";
 import { apiRoutes } from "./routes/index.js";
+import type { FileStorageProvider } from "./providers/file-storage/file-storage.js";
+import { createFileStorageProvider } from "./providers/file-storage/file-storage.js";
 
 export const createApp = (
   db: PrismaClient = prisma,
   httpLogger: Logger = logger,
+  fileStorage: FileStorageProvider = createFileStorageProvider({
+    driver: env.FILE_STORAGE_DRIVER,
+    localRoot: env.LOCAL_UPLOAD_DIR,
+  }),
 ) => {
   const app = express();
   app.disable("x-powered-by");
@@ -48,7 +54,7 @@ export const createApp = (
 
   const provider = new LocalPostgresSharedMasterProvider(db);
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
-  app.use("/api/v1", apiRoutes(db, provider));
+  app.use("/api/v1", apiRoutes(db, provider, fileStorage));
   const frontendDist = resolve(process.cwd(), env.FRONTEND_DIST);
   const prototypeDir = resolve(process.cwd(), env.PROTOTYPE_DIR);
   app.use("/prototype", (_req, res, next) => {

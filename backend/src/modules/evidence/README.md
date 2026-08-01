@@ -1,38 +1,44 @@
 # Evidence
 
-Milestone 5 Slice 1 delivers the **Evidence metadata and backend foundation**.
+Milestone 5 Slice 2 adds secure local file upload, SHA-256 duplicate protection,
+authorized attachment download, and successful submission after upload.
 
 ## Implemented
 
 - Tenant-owned `evidence` rows with server-allocated `EVD-###` codes
 - Lifecycle: `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`, `ARCHIVED`
-- Typed join tables for Control and Checkpoint links (schema only)
-- Append-only `evidence_review_decisions` (schema + DB trigger; no HTTP)
-- Permissions: `evidence:read`, `evidence:write`, `evidence:review`, `evidence:download`
-- Metadata APIs under `/api/v1/evidence`
-- Fail-closed submit: `EVIDENCE_FILE_REQUIRED` until a file is uploaded (Slice 5.2)
+- Multipart upload: `POST /api/v1/evidence/:evidenceId/file` (`evidence:write`)
+- Attachment download: `GET /api/v1/evidence/:evidenceId/file` (`evidence:read` + `evidence:download`)
+- Streaming local storage under `LOCAL_UPLOAD_DIR` (dev/UAT; Docker volume)
+- SHA-256 from actual bytes; tenant partial unique index on `content_sha256`
+- Submit succeeds only when a file is present
 - Archive-only terminal path (no hard delete)
-- Immutable replacement via `supersedesEvidenceId` on create
+- Typed Control/Checkpoint link tables (schema only; no mutation APIs)
 
-## Not implemented in Slice 5.1
+## Limits (Slice 5.2)
 
-- Multipart file upload / secure download
-- MIME sniffing, malware scanning, signed URLs, preview
+- Max size: 10 MiB (`EVIDENCE_MAX_UPLOAD_BYTES`)
+- Field name: `file`
+- Allowlist: pdf, png, jpg/jpeg, docx, xlsx, csv, txt
+- Duplicate hash within a tenant: `EVIDENCE_FILE_DUPLICATE` (no other record id)
+
+## Not implemented
+
+- S3 / production object storage
+- Malware scanning, signed URLs, inline preview
 - Approve / reject HTTP routes
 - Control / Checkpoint link mutation APIs
-- Frontend LIVE Evidence routes (remain `IN_DEVELOPMENT`)
-- KPI, Policy or Checkpoint Evidence gate replacement (still fail-closed stubs)
+- Frontend LIVE Evidence routes (`IN_DEVELOPMENT`)
+- KPI / Policy / Checkpoint Evidence gate replacement
+- Periodic orphan temp cleanup (abrupt process crash may leave `.tmp` files)
 
 ## Permissions
 
-| Code | Use in this slice |
+| Code | Use |
 | --- | --- |
 | `evidence:read` | List, detail, audit history |
-| `evidence:write` | Create, patch eligible metadata, submit, archive |
+| `evidence:write` | Create, patch, upload, submit, archive |
 | `evidence:review` | Catalogue only (routes deferred) |
-| `evidence:download` | Catalogue only (routes deferred) |
+| `evidence:download` | File download (required with read) |
 
-## Reserved file columns
-
-Nullable columns exist for Slice 5.2 (`storageKey`, `contentSha256`, `byteSize`, …).
-Slice 5.1 APIs never accept or populate them and never return `storageKey`.
+`storageKey` is never returned in API responses.

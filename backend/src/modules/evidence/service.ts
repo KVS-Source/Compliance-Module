@@ -1,15 +1,30 @@
+import { randomUUID } from "node:crypto";
+import { unlink } from "node:fs/promises";
 import type { EvidenceLifecycleStatus } from "@prisma/client";
+import type { Request, Response } from "express";
+import { pipeline } from "node:stream/promises";
 import { AppError } from "../../common/errors/app-error.js";
 import { pageMeta } from "../../common/responses/envelope.js";
+import { env } from "../../config/env.js";
+import {
+  buildEvidenceStorageKey,
+  type FileStorageProvider,
+} from "../../providers/file-storage/file-storage.js";
 import { GovernanceRuleError } from "../governance/domain-error.js";
 import {
   assertEvidenceArchiveAllowed,
   assertEvidenceMetadataMutable,
-  assertEvidenceSubmitAllowed,
   assertEvidenceSupersedeTargetAllowed,
   hasEvidenceFile,
   safeEvidenceAuditMetadata,
 } from "./domain.js";
+import {
+  buildContentDisposition,
+  validateEvidenceUploadFile,
+} from "./file-types.js";
+import {
+  parseEvidenceMultipartUpload,
+} from "./multipart.js";
 import type {
   AuditContext,
   EvidenceRecord,
@@ -107,6 +122,27 @@ const supersedeInvalid = () =>
     "Replacement target is invalid for this Company",
   );
 
+const fileSummary = (evidence: EvidenceRecord) => {
+  const hasFile = hasEvidenceFile({
+    storageKey: evidence.storageKey,
+    contentSha256: evidence.contentSha256,
+    byteSize: evidence.byteSize,
+  });
+  if (!hasFile) return { hasFile: false, file: null as null };
+  return {
+    hasFile: true,
+    file: {
+      originalFileName: evidence.originalFileName,
+      mimeType: evidence.mimeType,
+      detectedMimeType: evidence.detectedMimeType,
+      byteSize: evidence.byteSize,
+      contentSha256: evidence.contentSha256,
+      uploadedAt: evidence.uploadedAt,
+      uploadedBy: personDto(evidence.uploadedBy),
+    },
+  };
+};
+
 export const evidenceDto = (evidence: EvidenceRecord) => ({
   id: evidence.id,
   code: evidence.code,
@@ -119,11 +155,7 @@ export const evidenceDto = (evidence: EvidenceRecord) => ({
   expiresAt: dateOnly(evidence.expiresAt),
   supersedesEvidenceId: evidence.supersedesEvidenceId,
   supersedes: supersedesDto(evidence.supersedes),
-  hasFile: hasEvidenceFile({
-    storageKey: evidence.storageKey,
-    contentSha256: evidence.contentSha256,
-    byteSize: evidence.byteSize,
-  }),
+  ...fileSummary(evidence),
   submittedById: evidence.submittedById,
   submittedAt: evidence.submittedAt,
   reviewedById: evidence.reviewedById,
@@ -136,7 +168,10 @@ export const evidenceDto = (evidence: EvidenceRecord) => ({
 });
 
 export class EvidenceService {
-  constructor(private readonly repository: EvidenceRepository) {}
+  constructor(
+    private readonly repository: EvidenceRepository,
+    private readonly storage: FileStorageProvider,
+  ) {}
 
   private async assertActiveMember(tenantId: string, userId: string | null) {
     if (!userId) return;
@@ -351,32 +386,246 @@ export class EvidenceService {
     actorUserId: string,
     context: AuditContext,
   ) {
-    void actorUserId;
-    void context;
-    const locked = await this.repository.findEvidenceForUpdate(
+    const result = await this.repository.submitWithFile({
       tenantId,
       evidenceId,
-    );
-    if (locked.length === 0) throw evidenceNotFound();
-    const current = locked[0]!;
+      actorUserId,
+      context,
+    });
+    if (result.kind === "not_found") throw evidenceNotFound();
+    if (result.kind === "archived") {
+      throw new AppError(
+        409,
+        "EVIDENCE_ARCHIVED",
+        "Archived Evidence cannot be submitted",
+      );
+    }
+    if (result.kind === "invalid_state") {
+      throw new AppError(
+        409,
+        "EVIDENCE_INVALID_STATE",
+        "Only DRAFT Evidence can be submitted",
+      );
+    }
+    if (result.kind === "file_required") {
+      throw new AppError(
+        409,
+        "EVIDENCE_FILE_REQUIRED",
+        "Evidence cannot be submitted until a file has been uploaded",
+      );
+    }
+    return evidenceDto(result.evidence);
+  }
+
+  async uploadFile(
+    tenantId: string,
+    evidenceId: string,
+    actorUserId: string,
+    req: Request,
+    context: AuditContext,
+  ) {
+    const existing = await this.repository.findEvidence(tenantId, evidenceId);
+    if (!existing) throw evidenceNotFound();
+    if (existing.lifecycleStatus !== "DRAFT") {
+      throw new AppError(
+        409,
+        "EVIDENCE_INVALID_STATE",
+        "Only DRAFT Evidence accepts file upload",
+      );
+    }
+    if (
+      hasEvidenceFile({
+        storageKey: existing.storageKey,
+        contentSha256: existing.contentSha256,
+        byteSize: existing.byteSize,
+      })
+    ) {
+      throw new AppError(
+        409,
+        "EVIDENCE_FILE_ALREADY_EXISTS",
+        "Evidence already has an uploaded file",
+      );
+    }
+
+    let parsed;
     try {
-      assertEvidenceSubmitAllowed({
-        lifecycleStatus: current.lifecycle_status,
-        file: {
-          storageKey: current.storage_key,
-          contentSha256: current.content_sha256,
-          byteSize: current.byte_size,
-        },
+      parsed = await parseEvidenceMultipartUpload(req, {
+        storageRoot: this.storage.getRoot(),
+        tenantId,
+        maxBytes: env.EVIDENCE_MAX_UPLOAD_BYTES,
       });
     } catch (error) {
-      mapGovernanceError(error);
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        "Invalid multipart upload request",
+      );
     }
-    // Successful submit is not reachable in Slice 5.1 without a file.
-    throw new AppError(
-      409,
-      "EVIDENCE_FILE_REQUIRED",
-      "Evidence cannot be submitted until a file has been uploaded",
-    );
+
+    let storageKey: string | null = null;
+    try {
+      if (parsed.byteSize > env.EVIDENCE_MAX_UPLOAD_BYTES) {
+        throw new AppError(
+          413,
+          "EVIDENCE_FILE_TOO_LARGE",
+          "Evidence file exceeds the maximum allowed size",
+        );
+      }
+      const validated = await validateEvidenceUploadFile({
+        absolutePath: parsed.tempPath,
+        clientFilename: parsed.clientFilename,
+        declaredMime: parsed.declaredMime,
+        byteSize: parsed.byteSize,
+      });
+      storageKey = buildEvidenceStorageKey({
+        tenantId,
+        evidenceId,
+        objectId: randomUUID(),
+      });
+      await this.storage.promoteTempFile(
+        parsed.tempPath,
+        storageKey,
+        validated.declaredMime,
+      );
+      // temp file moved; clear so catch doesn't double-delete wrong path
+      parsed.tempPath = "";
+
+      const finalized = await this.repository.finalizeFileUpload({
+        tenantId,
+        evidenceId,
+        actorUserId,
+        originalFileName: validated.originalFileName,
+        storageKey,
+        mimeType: validated.declaredMime,
+        detectedMimeType: validated.detectedMimeType,
+        byteSize: parsed.byteSize,
+        contentSha256: parsed.contentSha256,
+        context,
+      });
+
+      if (finalized.kind === "not_found") {
+        await this.storage.delete(storageKey).catch(() => undefined);
+        throw evidenceNotFound();
+      }
+      if (finalized.kind === "invalid_state") {
+        await this.storage.delete(storageKey).catch(() => undefined);
+        throw new AppError(
+          409,
+          "EVIDENCE_INVALID_STATE",
+          "Only DRAFT Evidence accepts file upload",
+        );
+      }
+      if (finalized.kind === "already_exists") {
+        await this.storage.delete(storageKey).catch(() => undefined);
+        throw new AppError(
+          409,
+          "EVIDENCE_FILE_ALREADY_EXISTS",
+          "Evidence already has an uploaded file",
+        );
+      }
+      if (finalized.kind === "duplicate") {
+        await this.storage.delete(storageKey).catch(() => undefined);
+        throw new AppError(
+          409,
+          "EVIDENCE_FILE_DUPLICATE",
+          "An identical evidence file already exists for this Company",
+        );
+      }
+      return evidenceDto(finalized.evidence);
+    } catch (error) {
+      if (parsed.tempPath) {
+        await unlink(parsed.tempPath).catch(() => undefined);
+      }
+      if (storageKey) {
+        await this.storage.delete(storageKey).catch(() => undefined);
+      }
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        500,
+        "EVIDENCE_STORAGE_FAILED",
+        "Evidence file could not be stored",
+      );
+    }
+  }
+
+  async downloadFile(
+    tenantId: string,
+    evidenceId: string,
+    actorUserId: string,
+    res: Response,
+    context: AuditContext,
+  ) {
+    const evidence = await this.repository.findEvidence(tenantId, evidenceId);
+    if (!evidence) throw evidenceNotFound();
+    if (
+      !hasEvidenceFile({
+        storageKey: evidence.storageKey,
+        contentSha256: evidence.contentSha256,
+        byteSize: evidence.byteSize,
+      }) ||
+      !evidence.storageKey
+    ) {
+      throw new AppError(
+        404,
+        "EVIDENCE_FILE_UNAVAILABLE",
+        "Evidence file is not available",
+      );
+    }
+
+    let stream;
+    try {
+      stream = await this.storage.getStream(evidence.storageKey);
+    } catch {
+      throw new AppError(
+        404,
+        "EVIDENCE_FILE_UNAVAILABLE",
+        "Evidence file is not available",
+      );
+    }
+
+    const contentType = evidence.detectedMimeType || evidence.mimeType || "application/octet-stream";
+    const filename =
+      evidence.originalFileName || "evidence-file.bin";
+    res.status(200);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", buildContentDisposition(filename));
+    if (evidence.byteSize != null) {
+      res.setHeader("Content-Length", String(evidence.byteSize));
+    }
+
+    let completed = false;
+    res.on("finish", () => {
+      if (completed) return;
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        completed = true;
+        void this.repository
+          .writeDownloadAudit({
+            tenantId,
+            actorUserId,
+            evidenceId,
+            code: evidence.code,
+            byteSize: evidence.byteSize,
+            detectedMimeType: evidence.detectedMimeType,
+            contentSha256: evidence.contentSha256,
+            context,
+          })
+          .catch(() => undefined);
+      }
+    });
+
+    try {
+      await pipeline(stream, res);
+    } catch {
+      if (!res.headersSent) {
+        throw new AppError(
+          500,
+          "EVIDENCE_STORAGE_FAILED",
+          "Evidence file could not be downloaded",
+        );
+      }
+    }
   }
 
   async archive(
