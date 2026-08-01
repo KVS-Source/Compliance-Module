@@ -678,11 +678,8 @@ test.describe("KPI configuration and target management", () => {
 
     const warning = page.getByTestId("requires-evidence-warning");
     await expect(warning).toBeVisible();
-    await expect(warning).toContainText("Evidence support is not implemented");
-    await expect(warning).toContainText("EVIDENCE_GATE_NOT_IMPLEMENTED");
-    await expect(warning).toContainText(
-      "KPI target submission and approval are not affected",
-    );
+    await expect(warning).toContainText("Evidence is required for approval");
+    await expect(warning).toContainText("qualifying approved Evidence");
   });
 
   test("creates a draft target and submits it for approval", async ({

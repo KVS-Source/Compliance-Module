@@ -12,6 +12,7 @@ import {
   checkpointReviewError,
   type FieldErrors,
 } from "../../utils/fieldErrors";
+import { CHECKPOINT_EVIDENCE_GATE_HINT } from "../../utils/evidenceGateMessages";
 import {
   OUTCOME_OPTIONS,
   reviewPeriodFormatHelp,
@@ -205,6 +206,16 @@ export function CheckpointReviewModal({
           Checkpoint <span className="mono">{checkpoint.code}</span> · Frequency{" "}
           {checkpoint.verificationFrequency}.
         </p>
+
+        {checkpoint.evidenceRequired ? (
+          <div
+            className="banner warning"
+            role="status"
+            data-testid="checkpoint-evidence-gate-hint"
+          >
+            <TriangleAlert size={15} aria-hidden /> {CHECKPOINT_EVIDENCE_GATE_HINT}
+          </div>
+        ) : null}
 
         <div className="field">
           <label htmlFor="checkpoint-review-period">Review period</label>

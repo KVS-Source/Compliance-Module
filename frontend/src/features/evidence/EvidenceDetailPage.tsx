@@ -43,6 +43,7 @@ import {
   EvidenceAuditHistory,
   EvidenceReviewDecisionHistory,
 } from "./EvidenceHistoryPanels";
+import { EvidenceLinkSections } from "./EvidenceLinkSections";
 import {
   EvidenceReviewModal,
   type EvidenceReviewKind,
@@ -936,6 +937,11 @@ export function EvidenceDetailPage() {
             </dl>
           </div>
         </section>
+
+        <EvidenceLinkSections
+          evidence={evidence}
+          onLinksChanged={() => setDetailVersion((value) => value + 1)}
+        />
 
         <EvidenceReviewDecisionHistory
           decisions={decisions.data?.data ?? null}

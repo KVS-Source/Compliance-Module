@@ -1305,12 +1305,72 @@ export interface Evidence {
   updatedById: string | null;
   createdAt: string;
   updatedAt: string;
+  activeControlLinkCount?: number;
+  activeCheckpointLinkCount?: number;
+}
+
+/** Active Evidence→Control link from GET /evidence/:id/controls. */
+export interface EvidenceControlLink {
+  id: string;
+  isActive: boolean;
+  control: {
+    id: string;
+    code: string;
+    title: string;
+    lifecycleStatus: ControlLifecycleStatus;
+  };
+  linkedAt: string;
+  linkedBy: EvidencePerson | null;
+  updatedAt: string;
+  updatedBy: EvidencePerson | null;
+}
+
+/** Active Evidence→Checkpoint link from GET /evidence/:id/checkpoints. */
+export interface EvidenceCheckpointLink {
+  id: string;
+  isActive: boolean;
+  checkpoint: {
+    id: string;
+    code: string;
+    title: string;
+    lifecycleStatus: CheckpointLifecycleStatus;
+    controlId: string;
+  };
+  linkedAt: string;
+  linkedBy: EvidencePerson | null;
+  updatedAt: string;
+  updatedBy: EvidencePerson | null;
+}
+
+/** Evidence↔KPI Actual link (direction depends on endpoint). */
+export interface EvidenceKpiActualLink {
+  id: string;
+  isActive: boolean;
+  evidence: {
+    id: string;
+    code: string;
+    title: string;
+    lifecycleStatus: EvidenceLifecycleStatus;
+  };
+  kpiActual: {
+    id: string;
+    code: string;
+    period: string;
+    approvalStatus: SubmissionStatus;
+  };
+  linkedAt: string;
+  linkedBy: EvidencePerson | null;
+  updatedAt: string;
+  updatedBy: EvidencePerson | null;
+}
+
+export interface EvidenceLinkListResult<T> {
+  data: T[];
+  meta: PageMeta;
 }
 
 /**
- * Evidence detail from GET /evidence/:id and every lifecycle mutation. The
- * detail envelope also carries active Control and Checkpoint link counts; those
- * are not modelled because Slice 5.6A ships no link-management interface.
+ * Evidence detail from GET /evidence/:id and every lifecycle mutation.
  */
 export interface EvidenceDetail extends Evidence {
   latestReviewDecision: EvidenceReviewDecision | null;

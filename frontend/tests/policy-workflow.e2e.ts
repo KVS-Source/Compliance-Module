@@ -552,9 +552,10 @@ async function installPolicyWorkflowMock(
       }
       if (version.requiresEvidence) {
         const blocked = failure(
-          501,
-          "EVIDENCE_GATE_NOT_IMPLEMENTED",
-          "Policy approval requiring Evidence is unavailable until the Evidence milestone",
+          409,
+          "EVIDENCE_REQUIRED",
+          "This Policy Version approval requires qualifying approved Evidence coverage",
+          { reason: "EVIDENCE_COVERAGE_INCOMPLETE" },
         );
         return route.fulfill({
           status: blocked.status,
@@ -753,7 +754,7 @@ test.describe("Policy workflow UI (mocked browser APIs)", () => {
     );
   });
 
-  test("blocks self-approval and maps Evidence 501", async ({ page }) => {
+  test("blocks self-approval and maps Evidence gate 409", async ({ page }) => {
     await installPolicyWorkflowMock(page, { actor: "submitter" });
     await page.goto(policyUrl);
     await page
@@ -1040,9 +1041,10 @@ test.describe("Policy workflow decisions (single mocked session)", () => {
         }
         if (version.requiresEvidence) {
           const blocked = failure(
-            501,
-            "EVIDENCE_GATE_NOT_IMPLEMENTED",
-            "Evidence unavailable",
+            409,
+            "EVIDENCE_REQUIRED",
+            "This Policy Version approval requires qualifying approved Evidence coverage",
+            { reason: "EVIDENCE_COVERAGE_INCOMPLETE" },
           );
           return route.fulfill({
             status: blocked.status,
@@ -1298,9 +1300,10 @@ test.describe("Policy workflow decisions (single mocked session)", () => {
       }
       if (path.endsWith("/approve") && method === "POST") {
         const blocked = failure(
-          501,
-          "EVIDENCE_GATE_NOT_IMPLEMENTED",
-          "Evidence unavailable",
+          409,
+          "EVIDENCE_REQUIRED",
+          "This Policy Version approval requires qualifying approved Evidence coverage",
+          { reason: "EVIDENCE_CONTROL_COVERAGE_INCOMPLETE" },
         );
         return route.fulfill({
           status: blocked.status,
@@ -1369,7 +1372,7 @@ test.describe("Policy workflow decisions (single mocked session)", () => {
     await expect(page.getByTestId("policy-evidence-gate-warning")).toBeVisible();
     await page.getByTestId("policy-decision-approve-confirm").click();
     await expect(page.getByTestId("policy-decision-error")).toContainText(
-      "Evidence Management is not available yet",
+      "qualifying approved Evidence",
     );
   });
 

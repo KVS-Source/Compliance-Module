@@ -14,8 +14,12 @@ import type {
   CreateEvidenceInput,
   Evidence,
   EvidenceAuditListResult,
+  EvidenceCheckpointLink,
+  EvidenceControlLink,
   EvidenceDetail,
   EvidenceDownloadResult,
+  EvidenceKpiActualLink,
+  EvidenceLinkListResult,
   EvidenceListQuery,
   EvidenceListResult,
   EvidenceReviewDecisionListResult,
@@ -440,5 +444,98 @@ export const evidenceApi = {
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
     }
     return { fileName: resolvedName, byteSize: blob.size };
+  },
+
+  async listControlLinks(
+    evidenceId: string,
+    query: { page?: number; pageSize?: number } = {},
+  ): Promise<EvidenceLinkListResult<EvidenceControlLink>> {
+    const response = await apiRequest<EvidenceControlLink[]>(
+      `${evidencePath(evidenceId)}/controls${pageParams(query.page, query.pageSize)}`,
+    );
+    return {
+      data: response.data,
+      meta: response.meta ?? fallbackMeta(query.page, query.pageSize, response.data.length),
+    };
+  },
+
+  async linkControl(evidenceId: string, controlId: string) {
+    return (
+      await apiRequest<EvidenceControlLink>(
+        `${evidencePath(evidenceId)}/controls/${encodeURIComponent(controlId)}`,
+        { method: "POST", body: JSON.stringify({}) },
+      )
+    ).data;
+  },
+
+  async unlinkControl(evidenceId: string, controlId: string) {
+    return (
+      await apiRequest<EvidenceControlLink>(
+        `${evidencePath(evidenceId)}/controls/${encodeURIComponent(controlId)}/unlink`,
+        { method: "POST", body: JSON.stringify({}) },
+      )
+    ).data;
+  },
+
+  async listCheckpointLinks(
+    evidenceId: string,
+    query: { page?: number; pageSize?: number } = {},
+  ): Promise<EvidenceLinkListResult<EvidenceCheckpointLink>> {
+    const response = await apiRequest<EvidenceCheckpointLink[]>(
+      `${evidencePath(evidenceId)}/checkpoints${pageParams(query.page, query.pageSize)}`,
+    );
+    return {
+      data: response.data,
+      meta: response.meta ?? fallbackMeta(query.page, query.pageSize, response.data.length),
+    };
+  },
+
+  async linkCheckpoint(evidenceId: string, checkpointId: string) {
+    return (
+      await apiRequest<EvidenceCheckpointLink>(
+        `${evidencePath(evidenceId)}/checkpoints/${encodeURIComponent(checkpointId)}`,
+        { method: "POST", body: JSON.stringify({}) },
+      )
+    ).data;
+  },
+
+  async unlinkCheckpoint(evidenceId: string, checkpointId: string) {
+    return (
+      await apiRequest<EvidenceCheckpointLink>(
+        `${evidencePath(evidenceId)}/checkpoints/${encodeURIComponent(checkpointId)}/unlink`,
+        { method: "POST", body: JSON.stringify({}) },
+      )
+    ).data;
+  },
+
+  async listKpiActualLinks(
+    evidenceId: string,
+    query: { page?: number; pageSize?: number } = {},
+  ): Promise<EvidenceLinkListResult<EvidenceKpiActualLink>> {
+    const response = await apiRequest<EvidenceKpiActualLink[]>(
+      `${evidencePath(evidenceId)}/kpi-actuals${pageParams(query.page, query.pageSize)}`,
+    );
+    return {
+      data: response.data,
+      meta: response.meta ?? fallbackMeta(query.page, query.pageSize, response.data.length),
+    };
+  },
+
+  async linkKpiActual(evidenceId: string, kpiActualId: string) {
+    return (
+      await apiRequest<EvidenceKpiActualLink>(
+        `${evidencePath(evidenceId)}/kpi-actuals/${encodeURIComponent(kpiActualId)}`,
+        { method: "POST", body: JSON.stringify({}) },
+      )
+    ).data;
+  },
+
+  async unlinkKpiActual(evidenceId: string, kpiActualId: string) {
+    return (
+      await apiRequest<EvidenceKpiActualLink>(
+        `${evidencePath(evidenceId)}/kpi-actuals/${encodeURIComponent(kpiActualId)}/unlink`,
+        { method: "POST", body: JSON.stringify({}) },
+      )
+    ).data;
   },
 };

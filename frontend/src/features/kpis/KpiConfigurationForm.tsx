@@ -644,18 +644,15 @@ export function KpiConfigurationForm({ configuration, onClose, onSaved }: Props)
                 data-testid="requires-evidence-warning"
               >
                 <TriangleAlert size={15} aria-hidden />{" "}
-                <strong>Evidence support is not implemented yet.</strong> With
-                this enabled, approving a KPI actual for this configuration
-                fails with <code>501 EVIDENCE_GATE_NOT_IMPLEMENTED</code> and
-                saves nothing. If “Requires approval” is off, actual submission
-                itself fails the same way, because submission approves
-                immediately. KPI target submission and approval are not
-                affected.
+                <strong>Evidence is required for approval.</strong> KPI actuals
+                for this configuration need linked, qualifying approved Evidence
+                before approval can succeed. Create and link Evidence from the
+                KPI approval workflow.
               </div>
             ) : (
               <p className="muted" id="config-evidence-warning">
-                Evidence is not implemented yet. Enabling this blocks KPI actual
-                approval until the Evidence domain ships.
+                When enabled, KPI actual approval requires linked qualifying
+                approved Evidence.
               </p>
             )}
           </fieldset>
