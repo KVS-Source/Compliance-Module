@@ -70,6 +70,13 @@ export const evidenceCheckpointLinkParamsSchema = z
   })
   .strict();
 
+export const evidenceKpiActualLinkParamsSchema = z
+  .object({
+    evidenceId: z.string().uuid(),
+    kpiActualId: z.string().uuid(),
+  })
+  .strict();
+
 export const evidenceLinkListSchema = paginationSchema.strict();
 
 export const evidenceListSchema = paginationSchema
