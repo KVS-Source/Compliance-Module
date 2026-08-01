@@ -1232,6 +1232,10 @@ export class EvidenceRepository {
     return { items, total };
   }
 
+  /**
+   * Lock order (compatible with KPI approval Actual → Evidence):
+   * KpiActual FOR UPDATE → Evidence FOR UPDATE → link mutation.
+   */
   linkKpiActual(input: {
     tenantId: string;
     evidenceId: string;
@@ -1240,7 +1244,34 @@ export class EvidenceRepository {
     context: AuditContext;
   }) {
     return this.db.$transaction(async (transaction) => {
-      const locked = await transaction.$queryRaw<
+      // 1) KpiActual first (never Evidence → Actual).
+      const lockedActual = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          approval_status: string;
+        }>
+      >`
+        SELECT id, code, approval_status
+        FROM kpi_actuals
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.kpiActualId}::uuid
+          AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (lockedActual.length === 0) {
+        return { kind: "kpi_actual_not_found" as const };
+      }
+      const actual = lockedActual[0]!;
+      if (actual.approval_status === "APPROVED") {
+        return {
+          kind: "kpi_actual_invalid_state" as const,
+          status: actual.approval_status,
+        };
+      }
+
+      // 2) Evidence second.
+      const lockedEvidence = await transaction.$queryRaw<
         Array<{
           id: string;
           code: string;
@@ -1253,34 +1284,14 @@ export class EvidenceRepository {
           AND id = ${input.evidenceId}::uuid
         FOR UPDATE
       `;
-      if (locked.length === 0) return { kind: "evidence_not_found" as const };
-      const evidence = locked[0]!;
+      if (lockedEvidence.length === 0) {
+        return { kind: "evidence_not_found" as const };
+      }
+      const evidence = lockedEvidence[0]!;
       if (evidence.lifecycle_status !== "DRAFT") {
         return {
           kind: "evidence_invalid_state" as const,
           status: evidence.lifecycle_status,
-        };
-      }
-
-      const actual = await transaction.kpiActual.findFirst({
-        where: {
-          tenantId: input.tenantId,
-          id: input.kpiActualId,
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          code: true,
-          period: true,
-          approvalStatus: true,
-          deletedAt: true,
-        },
-      });
-      if (!actual) return { kind: "kpi_actual_not_found" as const };
-      if (actual.approvalStatus === "APPROVED") {
-        return {
-          kind: "kpi_actual_invalid_state" as const,
-          status: actual.approvalStatus,
         };
       }
 
@@ -1364,7 +1375,34 @@ export class EvidenceRepository {
     context: AuditContext;
   }) {
     return this.db.$transaction(async (transaction) => {
-      const locked = await transaction.$queryRaw<
+      // 1) KpiActual first (never Evidence → Actual).
+      const lockedActual = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          approval_status: string;
+        }>
+      >`
+        SELECT id, code, approval_status
+        FROM kpi_actuals
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.kpiActualId}::uuid
+          AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (lockedActual.length === 0) {
+        return { kind: "kpi_actual_not_found" as const };
+      }
+      const actual = lockedActual[0]!;
+      if (actual.approval_status === "APPROVED") {
+        return {
+          kind: "kpi_actual_invalid_state" as const,
+          status: actual.approval_status,
+        };
+      }
+
+      // 2) Evidence second.
+      const lockedEvidence = await transaction.$queryRaw<
         Array<{
           id: string;
           code: string;
@@ -1377,34 +1415,14 @@ export class EvidenceRepository {
           AND id = ${input.evidenceId}::uuid
         FOR UPDATE
       `;
-      if (locked.length === 0) return { kind: "evidence_not_found" as const };
-      const evidence = locked[0]!;
+      if (lockedEvidence.length === 0) {
+        return { kind: "evidence_not_found" as const };
+      }
+      const evidence = lockedEvidence[0]!;
       if (evidence.lifecycle_status !== "DRAFT") {
         return {
           kind: "evidence_invalid_state" as const,
           status: evidence.lifecycle_status,
-        };
-      }
-
-      const actual = await transaction.kpiActual.findFirst({
-        where: {
-          tenantId: input.tenantId,
-          id: input.kpiActualId,
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          code: true,
-          period: true,
-          approvalStatus: true,
-          deletedAt: true,
-        },
-      });
-      if (!actual) return { kind: "kpi_actual_not_found" as const };
-      if (actual.approvalStatus === "APPROVED") {
-        return {
-          kind: "kpi_actual_invalid_state" as const,
-          status: actual.approvalStatus,
         };
       }
 
