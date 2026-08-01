@@ -1,6 +1,7 @@
 import type {
   ControlImplementationStatus,
   GovernanceRecordStatus,
+  Prisma,
 } from "@prisma/client";
 import { AppError } from "../../common/errors/app-error.js";
 import { pageMeta } from "../../common/responses/envelope.js";
@@ -218,7 +219,11 @@ export class ControlService {
     return unique;
   }
 
-  private async resolveApprovedPolicyVersions(
+  /**
+   * Active ControlPolicyVersion mappings may target SUBMITTED or APPROVED
+   * Policy Versions only (M1 / Slice 5.5C).
+   */
+  private async resolveMappablePolicyVersions(
     tenantId: string,
     policyVersionIds: string[],
   ) {
@@ -243,9 +248,9 @@ export class ControlService {
     }
     const byPolicy = new Map<string, string>();
     for (const version of found) {
-      if (version.status !== "APPROVED") {
+      if (version.status !== "APPROVED" && version.status !== "SUBMITTED") {
         throw mappingInvalid(
-          "Only APPROVED Policy Versions may be actively mapped",
+          "Only SUBMITTED or APPROVED Policy Versions may be actively mapped",
         );
       }
       if (byPolicy.has(version.policyId)) {
@@ -270,6 +275,56 @@ export class ControlService {
       policyId: version.policyId,
       policyVersionId: version.id,
     }));
+  }
+
+  /**
+   * Lock Policy then PolicyVersion rows (ID order) so mapping mutations cannot
+   * race Policy approval gate evaluation of the same version.
+   */
+  private async lockPoliciesAndVersionsForMapping(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    policyVersionIds: string[],
+  ) {
+    const unique = [...new Set(policyVersionIds)].sort();
+    if (unique.length === 0) return;
+    const versions = await tx.policyVersion.findMany({
+      where: { tenantId, id: { in: unique } },
+      select: { id: true, policyId: true },
+    });
+    if (versions.length !== unique.length) {
+      throw relatedInvalid(
+        "One or more Policy Versions were not found for this Company",
+      );
+    }
+    const policyIds = [...new Set(versions.map((v) => v.policyId))].sort();
+    for (const policyId of policyIds) {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id
+        FROM policies
+        WHERE tenant_id = ${tenantId}::uuid AND id = ${policyId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked[0]) {
+        throw relatedInvalid("Policy was not found for this Company");
+      }
+    }
+    const versionIdsOrdered = [...versions]
+      .map((v) => v.id)
+      .sort();
+    for (const versionId of versionIdsOrdered) {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id
+        FROM policy_versions
+        WHERE tenant_id = ${tenantId}::uuid AND id = ${versionId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked[0]) {
+        throw relatedInvalid(
+          "One or more Policy Versions were not found for this Company",
+        );
+      }
+    }
   }
 
   private async resolveFrameworkRules(
@@ -351,7 +406,7 @@ export class ControlService {
     await this.assertActiveMember(tenantId, body.ownerId ?? null);
     await this.assertDepartment(tenantId, body.departmentId ?? null);
 
-    const policyVersions = await this.resolveApprovedPolicyVersions(
+    const policyVersions = await this.resolveMappablePolicyVersions(
       tenantId,
       body.policyVersionIds ?? [],
     );
@@ -744,7 +799,7 @@ export class ControlService {
     body: ReplaceControlPolicyVersionsBody,
     context: AuditContext,
   ) {
-    const desired = await this.resolveApprovedPolicyVersions(
+    const desired = await this.resolveMappablePolicyVersions(
       tenantId,
       body.policyVersionIds,
     );
@@ -767,6 +822,12 @@ export class ControlService {
       if (mappingIdSetsEqual(currentActive, desiredVersionIds)) {
         return this.repository.findControl(tenantId, controlId, tx);
       }
+
+      // Policy → Version locks before mapping mutation (compatible with approve).
+      const versionsToLock = [
+        ...new Set([...desiredVersionIds, ...currentActive]),
+      ];
+      await this.lockPoliciesAndVersionsForMapping(tx, tenantId, versionsToLock);
 
       const addedIds: string[] = [];
       const removedIds: string[] = [];

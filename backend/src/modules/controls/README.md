@@ -14,8 +14,10 @@ Notes:
   before `GovernanceCodeRepository.allocateControlCode`.
 - Mutations lock the Control row (`FOR UPDATE`).
 - Mapping replacement is soft (`isActive`); hard deletes are never used.
-- Policy Version mappings require currently `APPROVED` Versions; one active
-  mapping per Control and stable Policy.
+- Policy Version mappings may target **SUBMITTED** or **APPROVED** Versions
+  (M1 / Slice 5.5C). DRAFT, REJECTED, SUPERSEDED, and OBSOLETE are rejected.
+  One active mapping per Control and stable Policy. Mapping mutations lock
+  Policy → Policy Version before changing active rows.
 - Framework removal is refused while active RuleControl rows depend on it.
 - Archive is refused while any Checkpoint on the Control is `ACTIVE`
   (`CONTROL_HAS_ACTIVE_CHECKPOINTS`).
