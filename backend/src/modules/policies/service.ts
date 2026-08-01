@@ -10,6 +10,8 @@ import {
   safePolicyAuditMetadata,
   type PolicyVersionBump,
 } from "./domain.js";
+import type { EvidenceGateService } from "../evidence/evidence-gate-service.js";
+import { utcDateString } from "../evidence/eligibility.js";
 import type {
   AuditContext,
   PolicyDetailRecord,
@@ -299,7 +301,10 @@ const assertDatesForApproval = (input: {
 };
 
 export class PolicyService {
-  constructor(private readonly repository: PolicyRepository) {}
+  constructor(
+    private readonly repository: PolicyRepository,
+    private readonly evidenceGate: EvidenceGateService,
+  ) {}
 
   private async assertActiveMember(tenantId: string, userId: string | null) {
     if (!userId) return;
@@ -1020,6 +1025,15 @@ export class PolicyService {
       assertDatesForApproval({
         effectiveDate: lockedVersion[0].effective_date,
         reviewDate: lockedVersion[0].review_date,
+      });
+
+      // Real Policy Evidence gate (Slice 5.5C) before any approval writes.
+      await this.evidenceGate.assertPolicyVersionApprovalSatisfied({
+        tenantId,
+        policyVersionId: versionId,
+        requiresEvidence: lockedVersion[0].requires_evidence,
+        asOfDate: utcDateString(),
+        tx,
       });
 
       const previousId = policy.current_approved_version_id;

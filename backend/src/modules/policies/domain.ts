@@ -98,7 +98,11 @@ export const assertPolicyApprovalAllowed = (input: {
   status: PolicyVersionStatus;
   submitterId: string | null;
   actorId: string;
-  requiresEvidence: boolean;
+  /**
+   * Evidence coverage is enforced by EvidenceGateService in the approve
+   * transaction (Slice 5.5C). Kept for call-site compatibility; not used for 501.
+   */
+  requiresEvidence?: boolean;
 }) => {
   if (input.status !== "SUBMITTED") {
     throw new GovernanceRuleError(
@@ -112,12 +116,9 @@ export const assertPolicyApprovalAllowed = (input: {
       "Policy Version self-approval is prohibited",
     );
   }
-  if (input.requiresEvidence) {
-    throw new GovernanceRuleError(
-      "EVIDENCE_GATE_NOT_IMPLEMENTED",
-      "Policy approval requiring Evidence is unavailable until the Evidence milestone",
-    );
-  }
+  // Policy Evidence gate (when requiresEvidence) is evaluated by
+  // EvidenceGateService.assertPolicyVersionApprovalSatisfied — not here.
+  void input.requiresEvidence;
 };
 
 const safePolicyAuditFields = new Set([
