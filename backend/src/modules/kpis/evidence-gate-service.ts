@@ -5,4 +5,5 @@
 export {
   EvidenceGateService,
   type CheckpointGateResult,
+  type PolicyGateResult,
 } from "../evidence/evidence-gate-service.js";

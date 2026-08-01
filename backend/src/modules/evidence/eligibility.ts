@@ -11,6 +11,13 @@ export type EvidenceGateFailureReason =
   | "EVIDENCE_SUPERSEDED"
   | "EVIDENCE_COVERAGE_INCOMPLETE";
 
+/** Safe Policy Version Evidence gate reasons (API details.reason). */
+export type PolicyEvidenceGateReason =
+  | "EVIDENCE_GATE_NOT_CONFIGURED"
+  | "EVIDENCE_CONTROL_COVERAGE_INCOMPLETE"
+  | "EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE"
+  | "EVIDENCE_COVERAGE_INCOMPLETE";
+
 /** UTC calendar date as `YYYY-MM-DD`. */
 export type UtcDateString = string;
 
@@ -95,3 +102,20 @@ export const evaluateEvidenceEligibility = (
 
 export const coverageIncompleteReason =
   (): EvidenceGateFailureReason => "EVIDENCE_COVERAGE_INCOMPLETE";
+
+export const policyCoverageReason = (input: {
+  requiredControls: number;
+  coveredControls: number;
+  requiredCheckpoints: number;
+  coveredCheckpoints: number;
+}): PolicyEvidenceGateReason => {
+  const controlIncomplete = input.coveredControls < input.requiredControls;
+  const checkpointIncomplete =
+    input.coveredCheckpoints < input.requiredCheckpoints;
+  if (controlIncomplete && checkpointIncomplete) {
+    return "EVIDENCE_COVERAGE_INCOMPLETE";
+  }
+  if (controlIncomplete) return "EVIDENCE_CONTROL_COVERAGE_INCOMPLETE";
+  if (checkpointIncomplete) return "EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE";
+  return "EVIDENCE_COVERAGE_INCOMPLETE";
+};

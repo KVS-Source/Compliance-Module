@@ -38,11 +38,20 @@ Evidence is `APPROVED`.
 
 Checkpoint review still uses `checkpoints:review` only (no extra `evidence:read`).
 
+## Policy Version gate (Slice 5.5C)
+
+`assertPolicyVersionApprovalSatisfied` evaluates exact-version active
+ControlPolicyVersion mappings when `requiresEvidence=true`:
+
+- Control.requiresEvidence → Control-linked qualifying Evidence
+- Checkpoint.evidenceRequired → Checkpoint-linked qualifying Evidence
+- Independent obligations; empty required set → `EVIDENCE_GATE_NOT_CONFIGURED`
+- Multi-target `FOR SHARE` locks; no public preview endpoint
+
 ## Explicitly deferred
 
-- Policy Evidence satisfaction (still `501 EVIDENCE_GATE_NOT_IMPLEMENTED`; DB CHECK blocks APPROVED+requires_evidence)
 - KPI Evidence satisfaction (still `501` via boolean `assertSatisfied(true)`)
-- Control-level gate enforcement
+- Control-level standalone gate API
 - Frontend LIVE Evidence UI
 - Reverse Evidence lookup APIs
 - S3 / malware / RLS / production deployment
