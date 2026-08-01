@@ -85,6 +85,11 @@ const linkedRiskMetadata = (risk: RiskRecord | null) =>
 export class KpiActualTransactionRepository {
   constructor(private readonly transaction: Prisma.TransactionClient) {}
 
+  /** Exposes the underlying Prisma transaction client for in-txn gates. */
+  get transactionClient(): Prisma.TransactionClient {
+    return this.transaction;
+  }
+
   findActiveMembership(tenantId: string, actorUserId: string) {
     return this.transaction.userCompany.findFirst({
       where: {
@@ -204,6 +209,28 @@ export class KpiActualTransactionRepository {
       where: { id, tenantId, deletedAt: null },
       include: kpiActualInclude,
     });
+  }
+
+  /**
+   * Lock exact KPI actual for workflow decisions (Policy-family compatible).
+   * Returns null when missing or soft-deleted.
+   */
+  lockActual(tenantId: string, id: string) {
+    return this.transaction.$queryRaw<
+      Array<{
+        id: string;
+        approval_status: string;
+        kpi_configuration_id: string;
+        submitted_by_id: string;
+      }>
+    >`
+      SELECT id, approval_status, kpi_configuration_id, submitted_by_id
+      FROM kpi_actuals
+      WHERE tenant_id = ${tenantId}::uuid
+        AND id = ${id}::uuid
+        AND deleted_at IS NULL
+      FOR UPDATE
+    `;
   }
 
   async decideActual(

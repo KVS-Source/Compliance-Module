@@ -19,10 +19,14 @@ import type {
   KpiPerformanceService,
   KpiPerformanceResult,
 } from "./performance-service.js";
-import { kpiConfigurationDto } from "./management-service.js";
+import {
+  assertEvidenceApprovalInvariant,
+  kpiConfigurationDto,
+} from "./management-service.js";
 import { riskSummaryDto, type RiskService } from "../risks/service.js";
 import type { RiskRecord } from "../risks/repository.js";
 import type { EvidenceGateService } from "./evidence-gate-service.js";
+import { utcDateString } from "../evidence/eligibility.js";
 
 const dateOnly = (value: Date) => value.toISOString().slice(0, 10);
 
@@ -267,12 +271,16 @@ export class KpiActualService {
             configuration.tenant.defaultRedThresholdPct,
         });
         const submittedAt = new Date();
+        // Defense-in-depth: historical invalid pairs never auto-approve.
+        assertEvidenceApprovalInvariant(
+          configuration.requiresEvidence,
+          configuration.requiresApproval,
+        );
         const finalStatus = configuration.requiresApproval
           ? "PENDING_APPROVAL"
           : "APPROVED";
-        if (finalStatus === "APPROVED") {
-          this.evidenceGate.assertSatisfied(configuration.requiresEvidence);
-        }
+        // Evidence-required configs always requireApproval (invariant).
+        // requiresEvidence=false auto-approve remains ungated.
         const code = formatKpiActualCode(
           await transaction.allocateNextActualNumber(tenantId),
         );
@@ -414,15 +422,29 @@ export class KpiActualService {
     context: AuditContext,
   ) {
     return this.repository.runWorkflowTransaction(async (transaction) => {
+      const locked = await transaction.lockActual(tenantId, id);
+      if (!locked[0]) throw actualNotFound();
+
       const existing = await transaction.findWorkflowActual(tenantId, id);
       if (!existing) throw actualNotFound();
       const configuredApproverFallback = this.assertDecisionActor(
         existing,
         actorUserId,
       );
-      this.evidenceGate.assertSatisfied(
+      assertEvidenceApprovalInvariant(
         existing.configuration.requiresEvidence,
+        existing.configuration.requiresApproval,
       );
+
+      // Gate before decision/approval audit; holds Evidence FOR SHARE until commit.
+      await this.evidenceGate.assertKpiActualApprovalSatisfied({
+        tenantId,
+        kpiActualId: id,
+        requiresEvidence: existing.configuration.requiresEvidence,
+        asOfDate: utcDateString(),
+        tx: transaction.transactionClient,
+      });
+
       const decidedAt = new Date();
       const actual = await transaction.decideActual(
         tenantId,
@@ -539,14 +561,14 @@ export class KpiActualService {
       if (existing.submittedById !== actorUserId) {
         throw forbidden("Only the original submitter may resubmit this actual");
       }
+      assertEvidenceApprovalInvariant(
+        existing.configuration.requiresEvidence,
+        existing.configuration.requiresApproval,
+      );
       const finalStatus = existing.configuration.requiresApproval
         ? "PENDING_APPROVAL"
         : "APPROVED";
-      if (finalStatus === "APPROVED") {
-        this.evidenceGate.assertSatisfied(
-          existing.configuration.requiresEvidence,
-        );
-      }
+      // Evidence-required configs never auto-approve (invariant).
       const submittedAt = new Date();
       const actual = await transaction.resubmitActual(
         tenantId,

@@ -5,6 +5,11 @@ import {
   validate,
 } from "../../common/middleware/http.js";
 import { created, ok } from "../../common/responses/envelope.js";
+import type { EvidenceService } from "../evidence/service.js";
+import {
+  evidenceLinkListSchema,
+  type EvidenceLinkListQuery,
+} from "../evidence/validators.js";
 import type { KpiActualService } from "./actual-service.js";
 import {
   approveKpiActualSchema,
@@ -24,7 +29,10 @@ const auditContext = (req: Request) => {
   };
 };
 
-export const kpiActualRoutes = (service: KpiActualService) => {
+export const kpiActualRoutes = (
+  service: KpiActualService,
+  evidenceService: EvidenceService,
+) => {
   const router = Router();
   // Reads use kpis:read, matching every other KPI read route. Seeing submitted
   // performance data and being allowed to decide on it are separate concerns:
@@ -39,6 +47,20 @@ export const kpiActualRoutes = (service: KpiActualService) => {
         req.auth!.tenantId,
         req.auth!.userId,
         req.query as unknown as KpiActualListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
+  );
+  router.get(
+    "/:id/evidence-links",
+    permit("evidence:read"),
+    validate(kpiActualIdParamsSchema, "params"),
+    validate(evidenceLinkListSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await evidenceService.listEvidenceLinksForKpiActual(
+        req.auth!.tenantId,
+        String(req.params.id),
+        req.query as unknown as EvidenceLinkListQuery,
       );
       return ok(res, result.data, result.meta);
     }),
