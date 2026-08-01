@@ -1,4 +1,9 @@
 import { ApiError } from "../services/apiClient";
+import {
+  checkpointEvidenceGateMessage,
+  kpiEvidenceGateMessage,
+  policyEvidenceGateMessage,
+} from "./evidenceGateMessages";
 
 export type FieldErrors = Record<string, string>;
 
@@ -185,23 +190,9 @@ export function kpiActualDecisionError(
   if (!(error instanceof ApiError)) {
     return error instanceof Error ? error.message : "Request failed";
   }
-  if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
-    return "This KPI configuration requires evidence, and the Evidence domain is not implemented yet. Approval is blocked and nothing was saved. Turn off “Requires evidence” on the configuration, or wait for Evidence to ship.";
-  }
   if (error.code === "EVIDENCE_REQUIRED") {
-    const reason =
-      error.details &&
-      typeof error.details === "object" &&
-      "reason" in error.details
-        ? String((error.details as { reason?: unknown }).reason)
-        : "";
-    if (reason === "EVIDENCE_KPI_LINK_REQUIRED") {
-      return "This KPI actual requires at least one linked Evidence record before approval. Link approved Evidence to this actual (backend API), then try again. Nothing was saved.";
-    }
-    if (reason === "EVIDENCE_KPI_COVERAGE_INCOMPLETE") {
-      return "This KPI actual has Evidence links, but none currently qualify (must be approved with a complete file and valid dates). Nothing was saved.";
-    }
-    return "This KPI actual requires qualifying Evidence before approval. Nothing was saved.";
+    const gateMessage = kpiEvidenceGateMessage(error);
+    if (gateMessage) return gateMessage;
   }
   if (error.status === 403) {
     if (error.message === "KPI actual self-approval is forbidden") {
@@ -278,12 +269,9 @@ export function policyWriteError(
 ): MappedApiError {
   if (!(error instanceof ApiError)) return nonApiError(error);
 
-  if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
-    return {
-      fieldErrors: {},
-      formError:
-        "This Policy requires Evidence. Evidence Management is not available yet, so this Version cannot be approved.",
-    };
+  const policyGate = policyEvidenceGateMessage(error);
+  if (policyGate) {
+    return { fieldErrors: {}, formError: policyGate };
   }
   if (error.code === "POLICY_SELF_APPROVAL_FORBIDDEN") {
     return {
@@ -569,6 +557,10 @@ export function checkpointWriteError(
 ): MappedApiError {
   if (!(error instanceof ApiError)) return nonApiError(error);
 
+  const checkpointGate = checkpointEvidenceGateMessage(error);
+  if (checkpointGate) {
+    return { fieldErrors: {}, formError: checkpointGate };
+  }
   if (error.code === "CHECKPOINT_NOT_FOUND") {
     return {
       fieldErrors: {},
@@ -776,12 +768,9 @@ export function kpiActualSubmissionError(error: unknown): {
         "The selected KPI configuration is no longer active for this Company.",
     };
   }
-  if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
-    return {
-      fieldErrors: {},
-      formError:
-        "This KPI requires evidence before approval, and evidence support is not implemented yet.",
-    };
+  const kpiGate = kpiEvidenceGateMessage(error);
+  if (kpiGate) {
+    return { fieldErrors: {}, formError: kpiGate };
   }
   const details = fieldErrorsFromApi(error);
   if (Object.keys(details).length > 0) {
@@ -918,6 +907,68 @@ export function evidenceWorkflowError(
     return {
       fieldErrors: {},
       formError: `${error.message}. The Evidence was reloaded so you can see its current state.`,
+    };
+  }
+  if (error.code === "EVIDENCE_CONTROL_LINK_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is already linked to the selected Control.",
+    };
+  }
+  if (error.code === "EVIDENCE_CONTROL_LINK_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "The active Control link could not be found. Refresh and try again.",
+    };
+  }
+  if (error.code === "EVIDENCE_CHECKPOINT_LINK_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is already linked to the selected Checkpoint.",
+    };
+  }
+  if (error.code === "EVIDENCE_CHECKPOINT_LINK_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The active Checkpoint link could not be found. Refresh and try again.",
+    };
+  }
+  if (error.code === "EVIDENCE_KPI_ACTUAL_LINK_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is already linked to the selected KPI actual.",
+    };
+  }
+  if (error.code === "EVIDENCE_KPI_ACTUAL_LINK_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The active KPI actual link could not be found. Refresh and try again.",
+    };
+  }
+  if (error.code === "CONTROL_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: "Only ACTIVE Controls can receive Evidence links.",
+    };
+  }
+  if (error.code === "CHECKPOINT_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: "Only ACTIVE Checkpoints can receive Evidence links.",
+    };
+  }
+  if (error.code === "KPI_ACTUAL_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: "Approved KPI actuals cannot change Evidence links.",
+    };
+  }
+  if (error.code === "KPI_ACTUAL_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "The selected KPI actual is not available in the active Company.",
     };
   }
   if (error.code === "EVIDENCE_SUPERSEDE_INVALID") {
