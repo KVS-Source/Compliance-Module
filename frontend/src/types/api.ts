@@ -1244,3 +1244,192 @@ export interface CheckpointAuditListResult {
   data: CheckpointAuditEvent[];
   meta: PageMeta;
 }
+
+export type EvidenceLifecycleStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "ARCHIVED";
+
+export type EvidenceDecisionOutcome = "APPROVED" | "REJECTED";
+
+export type EvidencePerson = PolicyPerson;
+export type EvidenceDepartmentRef = PolicyDepartmentRef;
+
+/** Prior Evidence replaced by this record (REJECTED or ARCHIVED only). */
+export interface EvidenceSupersedesRef {
+  id: string;
+  code: string;
+  lifecycleStatus: EvidenceLifecycleStatus;
+}
+
+/**
+ * Safe subset of the stored-file summary. `storageKey` and `contentSha256` are
+ * returned by the API but are deliberately not modelled so no view can render a
+ * storage location or a private content hash.
+ */
+export interface EvidenceFileSummary {
+  originalFileName: string | null;
+  mimeType: string | null;
+  detectedMimeType: string | null;
+  byteSize: number | null;
+  uploadedAt: string | null;
+  uploadedBy: EvidencePerson | null;
+}
+
+/** Evidence Library list row from GET /evidence. */
+export interface Evidence {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  lifecycleStatus: EvidenceLifecycleStatus;
+  owner: EvidencePerson | null;
+  department: EvidenceDepartmentRef | null;
+  issueDate: string | null;
+  expiresAt: string | null;
+  supersedesEvidenceId: string | null;
+  supersedes: EvidenceSupersedesRef | null;
+  hasFile: boolean;
+  file: EvidenceFileSummary | null;
+  submittedById: string | null;
+  submittedAt: string | null;
+  submittedBy: EvidencePerson | null;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  reviewedBy: EvidencePerson | null;
+  archivedAt: string | null;
+  createdById: string;
+  createdBy: EvidencePerson | null;
+  updatedById: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Evidence detail from GET /evidence/:id and every lifecycle mutation. The
+ * detail envelope also carries active Control and Checkpoint link counts; those
+ * are not modelled because Slice 5.6A ships no link-management interface.
+ */
+export interface EvidenceDetail extends Evidence {
+  latestReviewDecision: EvidenceReviewDecision | null;
+}
+
+/** Review queue row from GET /evidence/review-queue (SUBMITTED only). */
+export interface EvidenceReviewQueueItem {
+  id: string;
+  code: string;
+  title: string;
+  lifecycleStatus: EvidenceLifecycleStatus;
+  issueDate: string | null;
+  expiresAt: string | null;
+  submittedAt: string | null;
+  submittedBy: EvidencePerson | null;
+  createdBy: EvidencePerson | null;
+  hasFile: boolean;
+}
+
+/** Append-only review decision from GET /evidence/:id/review-decisions. */
+export interface EvidenceReviewDecision {
+  id: string;
+  decision: EvidenceDecisionOutcome;
+  reason: string | null;
+  decidedAt: string;
+  actedBy: EvidencePerson | null;
+}
+
+export interface EvidenceAuditEvent {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  userId: string | null;
+}
+
+export interface EvidenceListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  lifecycleStatus?: EvidenceLifecycleStatus | "";
+  ownerId?: string;
+  departmentId?: string;
+  expiresBefore?: string;
+  expiresAfter?: string;
+}
+
+export interface EvidenceListResult {
+  data: Evidence[];
+  meta: PageMeta;
+}
+
+/** The queue is inherently SUBMITTED-only, so it carries no lifecycle filter. */
+export interface EvidenceReviewQueueQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  expiresBefore?: string;
+  expiresAfter?: string;
+}
+
+export interface EvidenceReviewQueueResult {
+  data: EvidenceReviewQueueItem[];
+  meta: PageMeta;
+}
+
+export interface EvidenceReviewDecisionListResult {
+  data: EvidenceReviewDecision[];
+  meta: PageMeta;
+}
+
+export interface EvidenceAuditListResult {
+  data: EvidenceAuditEvent[];
+  meta: PageMeta;
+}
+
+export interface CreateEvidenceInput {
+  title: string;
+  description?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  issueDate?: string | null;
+  expiresAt?: string | null;
+  supersedesEvidenceId?: string | null;
+}
+
+/** PATCH accepts no `supersedesEvidenceId`; the link is fixed at creation. */
+export interface UpdateEvidenceInput {
+  title?: string;
+  description?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  issueDate?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface ApproveEvidenceInput {
+  comment?: string;
+}
+
+export interface RejectEvidenceInput {
+  reason: string;
+}
+
+/** `percent` stays null while the transport reports no computable total. */
+export interface EvidenceUploadProgress {
+  loaded: number;
+  total: number | null;
+  percent: number | null;
+}
+
+export interface EvidenceUploadOptions {
+  onProgress?: (progress: EvidenceUploadProgress) => void;
+  signal?: AbortSignal;
+}
+
+export interface EvidenceDownloadResult {
+  fileName: string;
+  byteSize: number;
+}

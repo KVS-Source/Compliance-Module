@@ -789,3 +789,196 @@ export function kpiActualSubmissionError(error: unknown): {
   }
   return { fieldErrors: {}, formError: error.message };
 }
+
+const EVIDENCE_GENERIC_FALLBACK =
+  "The Evidence request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Evidence metadata, file, lifecycle and review errors onto form fields or
+ * a banner. Domain codes from the Evidence module are preferred over raw
+ * status. Rejection reasons and approval comments are never echoed back into a
+ * toast, and no storage key, path or driver message can reach the UI because
+ * only the mapped wording or the server's own safe message is used.
+ */
+export function evidenceWorkflowError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  if (error.code === "EVIDENCE_UPLOAD_CANCELLED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The upload was cancelled. The DRAFT Evidence was kept, so you can retry the upload.",
+    };
+  }
+  if (error.code === "SERVICE_UNAVAILABLE" || error.status === 0) {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "SESSION_EXPIRED") {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "RATE_LIMITED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "Too many Evidence upload attempts were made. Wait a few minutes and retry the upload.",
+    };
+  }
+  if (error.code === "EVIDENCE_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is not available in the active Company.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_UNAVAILABLE") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The Evidence file is not available for download. It may not have been uploaded yet.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_REQUIRED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "A file must be uploaded before this Evidence can be submitted for review.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_ALREADY_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Evidence already has an uploaded file. A file cannot be replaced in this release.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_TOO_LARGE") {
+    return {
+      fieldErrors: {
+        file: "The file exceeds the maximum allowed upload size. Choose a smaller file.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_TYPE_NOT_ALLOWED") {
+    return {
+      fieldErrors: {
+        file: "This file type is not accepted. Allowed types: PDF, PNG, JPG, JPEG, DOCX, XLSX, CSV, TXT.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_SIGNATURE_INVALID") {
+    return {
+      fieldErrors: {
+        file: "The file contents do not match its extension. Re-export the document and try again.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_DUPLICATE") {
+    return {
+      fieldErrors: {
+        file: "An identical file is already stored as Evidence for this Company. Use the existing Evidence, or upload a different file.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_STORAGE_FAILED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The file could not be stored. Nothing was saved for this upload — retry the upload.",
+    };
+  }
+  if (error.code === "EVIDENCE_SELF_REVIEW_FORBIDDEN") {
+    return {
+      fieldErrors: {},
+      formError:
+        "You created, uploaded or submitted this Evidence, so you cannot review it. Another user holding evidence:review must decide.",
+    };
+  }
+  if (error.code === "EVIDENCE_REJECT_REASON_REQUIRED") {
+    return {
+      fieldErrors: {
+        reason: "A rejection reason of 2–2000 characters is required.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_ARCHIVED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Evidence is archived and read-only. The action was not applied.",
+    };
+  }
+  if (error.code === "EVIDENCE_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: `${error.message}. The Evidence was reloaded so you can see its current state.`,
+    };
+  }
+  if (error.code === "EVIDENCE_SUPERSEDE_INVALID") {
+    return {
+      fieldErrors: {
+        supersedesEvidenceId:
+          "Only REJECTED or ARCHIVED Evidence from this Company can be superseded.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_OWNER_INVALID") {
+    return {
+      fieldErrors: { ownerId: error.message },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_DEPARTMENT_INVALID") {
+    return {
+      fieldErrors: { departmentId: error.message },
+      formError: null,
+    };
+  }
+  if (error.status === 403) {
+    return {
+      fieldErrors: {},
+      formError:
+        error.message === "Permission denied"
+          ? `Your active Company role does not include ${permission}.`
+          : error.message,
+    };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || EVIDENCE_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || EVIDENCE_GENERIC_FALLBACK,
+  };
+}
+
+/** Banner-only mapper for Evidence lifecycle, upload and download actions. */
+export function evidenceActionError(
+  error: unknown,
+  permission: string,
+): string {
+  const mapped = evidenceWorkflowError(error, permission);
+  return (
+    mapped.formError ??
+    Object.values(mapped.fieldErrors)[0] ??
+    EVIDENCE_GENERIC_FALLBACK
+  );
+}
