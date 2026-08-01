@@ -3,6 +3,8 @@ import type {
   CreateKpiActualInput,
   CreateKpiConfigurationInput,
   CreateKpiTargetInput,
+  EvidenceKpiActualLink,
+  EvidenceLinkListResult,
   KpiActual,
   KpiActualListQuery,
   KpiActualListResult,
@@ -137,6 +139,27 @@ export const kpiApi = {
         },
       )
     ).data;
+  },
+
+  async listActualEvidenceLinks(
+    kpiActualId: string,
+    query: { page?: number; pageSize?: number } = {},
+  ): Promise<EvidenceLinkListResult<EvidenceKpiActualLink>> {
+    const params = new URLSearchParams();
+    params.set("page", String(query.page ?? 1));
+    params.set("pageSize", String(query.pageSize ?? DEFAULT_PAGE_SIZE));
+    const response = await apiRequest<EvidenceKpiActualLink[]>(
+      `/kpi-actuals/${encodeURIComponent(kpiActualId)}/evidence-links?${params.toString()}`,
+    );
+    return {
+      data: response.data,
+      meta: response.meta ?? {
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE,
+        total: response.data.length,
+        totalPages: 1,
+      },
+    };
   },
 
   /** Company defaults used when a configuration leaves its overrides null. */

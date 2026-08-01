@@ -28,6 +28,8 @@ import type {
   SubmissionStatus,
 } from "../../types/api";
 import { kpiActualDecisionError } from "../../utils/fieldErrors";
+import { KPI_EVIDENCE_GATE_HINT } from "../../utils/evidenceGateMessages";
+import { KpiActualEvidencePanel } from "../evidence/KpiActualEvidencePanel";
 import { KpiApprovalHistory } from "./KpiApprovalHistory";
 import { approvalStatusLabel, formatDateTime, named } from "./kpiFormatting";
 
@@ -655,12 +657,19 @@ export function KpiApprovalPage() {
               role="alert"
               data-testid="evidence-gate-warning"
             >
-              <TriangleAlert size={15} aria-hidden /> This KPI configuration
-              has <strong>Requires evidence</strong> switched on, and the
-              Evidence domain is not implemented yet. This decision will fail
-              with <code>501 EVIDENCE_GATE_NOT_IMPLEMENTED</code> and nothing
-              will be saved.
+              <TriangleAlert size={15} aria-hidden /> {KPI_EVIDENCE_GATE_HINT}
             </div>
+          ) : null}
+
+          {decision.kind !== "resubmit" ? (
+            <KpiActualEvidencePanel
+              kpiActualId={decision.actual.id}
+              kpiActualCode={decision.actual.code}
+              period={decision.actual.period}
+              approvalStatus={decision.actual.approvalStatus}
+              requiresEvidence={decision.actual.configuration.requiresEvidence}
+              returnTo="/kpis/approval"
+            />
           ) : null}
 
           {decision.actual.risk ? (
@@ -726,7 +735,7 @@ function RowActions({
     actual.approvalStatus === "PENDING_APPROVAL";
   const buttonClass = labelled ? "btn btn-secondary" : "tiny-btn";
   const evidenceHint = evidenceBlocked
-    ? " Evidence is required for this KPI and is not implemented yet, so the decision will fail."
+    ? " Qualifying approved Evidence is required before approval."
     : "";
 
   return (

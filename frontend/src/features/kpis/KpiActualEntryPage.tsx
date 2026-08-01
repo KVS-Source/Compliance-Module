@@ -17,6 +17,7 @@ import {
   kpiActualSubmissionError,
   type FieldErrors,
 } from "../../utils/fieldErrors";
+import { KpiActualEvidencePanel } from "../evidence/KpiActualEvidencePanel";
 
 const frequencyLabel = (value: string) =>
   value
@@ -528,6 +529,19 @@ export function KpiActualEntryPage() {
               )}
             </div>
           </section>
+
+          {result ? (
+            <KpiActualEvidencePanel
+              kpiActualId={result.id}
+              kpiActualCode={result.code}
+              period={result.period}
+              approvalStatus={result.approvalStatus}
+              requiresEvidence={
+                selectedConfiguration?.requiresEvidence ?? false
+              }
+              returnTo="/kpis/actuals/new"
+            />
+          ) : null}
         </div>
       </div>
     </div>
