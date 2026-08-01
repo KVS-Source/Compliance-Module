@@ -468,19 +468,20 @@ describe("Evidence API Slice 5.1", () => {
     }
   });
 
-  it("does not expose approve, reject, upload or delete routes", async () => {
+  it("does not expose legacy upload path or hard-delete Evidence", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const created = await createEvidence(admin.accessToken);
+    // Approve/reject exist (Slice 5.4) but reject DRAFT with invalid state.
     await request(app)
       .post(`/api/v1/evidence/${created.id}/approve`)
       .set(auth(admin.accessToken))
       .send({})
-      .expect(404);
+      .expect(409);
     await request(app)
       .post(`/api/v1/evidence/${created.id}/reject`)
       .set(auth(admin.accessToken))
-      .send({ reason: "nope" })
-      .expect(404);
+      .send({ reason: "not submitted yet" })
+      .expect(409);
     await request(app)
       .post(`/api/v1/evidence/${created.id}/upload`)
       .set(auth(admin.accessToken))
