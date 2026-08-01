@@ -100,8 +100,25 @@ characters); approval may include an optional comment stored on the decision
 row. Free-text reasons/comments are excluded from audit metadata. Concurrent
 reviews serialize on the Evidence row so exactly one terminal decision wins.
 Rejected Evidence is not re-opened: correction uses a superseding DRAFT.
-Approval does not satisfy Policy/KPI/Checkpoint Evidence gates (deferred).
-Frontend review UI and notifications remain unavailable.
+Approval does not satisfy Policy/KPI Evidence gates (deferred). Frontend review
+UI and notifications remain unavailable.
+
+## AD-017 Checkpoint Evidence gate (Milestone 5 Slice 5A+B)
+
+A shared eligibility engine evaluates whether Evidence may satisfy an Evidence
+gate. For Checkpoint reviews with `evidenceRequired=true`, evaluation runs
+inside the existing review transaction after Control and Checkpoint row locks
+and before the Review insert. Qualifying Evidence must be same-tenant,
+`APPROVED`, actively linked to that Checkpoint, file-metadata complete
+(`hasEvidenceFile`), with `issueDate` null or ≤ evaluation UTC date, `expiresAt`
+null or ≥ evaluation UTC date, and not superseded by a successor in
+`APPROVED` or `ARCHIVED`. DRAFT/SUBMITTED/REJECTED successors do not invalidate
+prior Evidence. Object-storage existence is not checked. The gate is read-only
+and writes no audit; parent `CHECKPOINT_REVIEWED` audit occurs only after
+success. Failure is HTTP 409 `EVIDENCE_REQUIRED` with safe reason
+`EVIDENCE_COVERAGE_INCOMPLETE`. No extra permission beyond `checkpoints:review`.
+Policy and KPI gates remain fail-closed `501 EVIDENCE_GATE_NOT_IMPLEMENTED`
+until dedicated relationship models and (for Policy) CHECK migration land.
 
 ## AD-009 Errors, logging and environment
 
