@@ -51,7 +51,18 @@ const serviceWithActual = (
         submitted_by_id: actual.submittedById,
       },
     ]),
-    findWorkflowActual: vi.fn().mockResolvedValue(actual),
+    lockConfigurationForApproval: vi.fn().mockResolvedValue([
+      {
+        id: "config",
+        requires_evidence: actual.configuration.requiresEvidence,
+        requires_approval: actual.configuration.requiresApproval,
+        approver_id: actual.configuration.approverId,
+      },
+    ]),
+    findWorkflowActual: vi.fn().mockResolvedValue({
+      ...actual,
+      kpiConfigurationId: "config",
+    }),
     decideActual: vi.fn(),
     resubmitActual: vi.fn(),
     get transactionClient() {

@@ -213,7 +213,7 @@ export class KpiActualTransactionRepository {
 
   /**
    * Lock exact KPI actual for workflow decisions (Policy-family compatible).
-   * Returns null when missing or soft-deleted.
+   * Returns empty when missing or soft-deleted.
    */
   lockActual(tenantId: string, id: string) {
     return this.transaction.$queryRaw<
@@ -230,6 +230,29 @@ export class KpiActualTransactionRepository {
         AND id = ${id}::uuid
         AND deleted_at IS NULL
       FOR UPDATE
+    `;
+  }
+
+  /**
+   * Share-lock governing configuration after Actual lock so concurrent
+   * configuration PATCHes cannot change gate authority mid-approval.
+   * Order: KpiActual → KpiConfiguration (never reverse on this path).
+   */
+  lockConfigurationForApproval(tenantId: string, configurationId: string) {
+    return this.transaction.$queryRaw<
+      Array<{
+        id: string;
+        requires_evidence: boolean;
+        requires_approval: boolean;
+        approver_id: string | null;
+      }>
+    >`
+      SELECT id, requires_evidence, requires_approval, approver_id
+      FROM kpi_configurations
+      WHERE tenant_id = ${tenantId}::uuid
+        AND id = ${configurationId}::uuid
+        AND deleted_at IS NULL
+      FOR SHARE
     `;
   }
 

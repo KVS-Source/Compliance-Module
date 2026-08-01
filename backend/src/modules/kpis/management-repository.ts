@@ -222,6 +222,48 @@ export class KpiManagementRepository {
     });
   }
 
+  /**
+   * Exclusive lock for configuration updates; conflicts with approval's FOR SHARE
+   * so gate authority cannot change mid-approval.
+   */
+  lockConfigurationForUpdate(
+    transaction: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ) {
+    return transaction.$queryRaw<
+      Array<{
+        id: string;
+        requires_evidence: boolean;
+        requires_approval: boolean;
+      }>
+    >`
+      SELECT id, requires_evidence, requires_approval
+      FROM kpi_configurations
+      WHERE tenant_id = ${tenantId}::uuid
+        AND id = ${id}::uuid
+        AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+  }
+
+  runConfigurationTransaction<T>(
+    operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+  ) {
+    return this.db.$transaction(operation);
+  }
+
+  findConfigurationInTransaction(
+    transaction: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ) {
+    return transaction.kpiConfiguration.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      include: kpiConfigurationInclude,
+    });
+  }
+
   updateConfiguration(
     tenantId: string,
     id: string,
@@ -230,11 +272,64 @@ export class KpiManagementRepository {
     context: AuditContext,
   ) {
     return this.db.$transaction(async (transaction) => {
-      const existing = await transaction.kpiConfiguration.findFirst({
-        where: { id, tenantId, deletedAt: null },
-        select: { id: true },
+      const locked = await this.lockConfigurationForUpdate(
+        transaction,
+        tenantId,
+        id,
+      );
+      if (!locked[0]) return null;
+
+      const configuration = await transaction.kpiConfiguration.update({
+        where: { id },
+        data: { ...data, updatedById: actorUserId },
+        include: kpiConfigurationInclude,
       });
-      if (!existing) return null;
+      await audit(transaction, {
+        tenantId,
+        actorUserId,
+        action: "KPI_CONFIGURATION_UPDATED",
+        entityType: "KPI_CONFIGURATION",
+        entityId: configuration.id,
+        metadata: {
+          updatedFields: Object.keys(data),
+          enabled: configuration.enabled,
+          status: configuration.status,
+        },
+        context,
+      });
+      return configuration;
+    });
+  }
+
+  /**
+   * Lock → re-read → apply patch under one transaction (authority-stable update).
+   */
+  async updateConfigurationLocked(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    buildPatch: (
+      locked: KpiConfigurationRecord,
+    ) => ConfigurationPatchData | Promise<ConfigurationPatchData>,
+    context: AuditContext,
+  ) {
+    return this.db.$transaction(async (transaction) => {
+      const lockedRows = await this.lockConfigurationForUpdate(
+        transaction,
+        tenantId,
+        id,
+      );
+      if (!lockedRows[0]) return null;
+
+      const locked = await this.findConfigurationInTransaction(
+        transaction,
+        tenantId,
+        id,
+      );
+      if (!locked) return null;
+
+      const data = await buildPatch(locked);
+      if (Object.keys(data).length === 0) return locked;
 
       const configuration = await transaction.kpiConfiguration.update({
         where: { id },

@@ -310,113 +310,121 @@ export class KpiManagementService {
     body: UpdateKpiConfigurationBody,
     context: AuditContext,
   ) {
-    const existing = await this.getConfiguration(tenantId, id);
+    // Pre-validate references that do not depend on the locked row values
+    // (owner/dept/etc.) using a best-effort read; final merge uses locked row.
+    const preview = await this.getConfiguration(tenantId, id);
     const references = {
-      kpiDefinitionId: body.kpiDefinitionId ?? existing.kpiDefinitionId,
-      ownerId: body.ownerId ?? existing.ownerId,
+      kpiDefinitionId: body.kpiDefinitionId ?? preview.kpiDefinitionId,
+      ownerId: body.ownerId ?? preview.ownerId,
       approverId:
-        body.approverId === undefined ? existing.approverId : body.approverId,
+        body.approverId === undefined ? preview.approverId : body.approverId,
       orgUnitId:
-        body.orgUnitId === undefined ? existing.orgUnitId : body.orgUnitId,
+        body.orgUnitId === undefined ? preview.orgUnitId : body.orgUnitId,
       orgLocationId:
         body.orgLocationId === undefined
-          ? existing.orgLocationId
+          ? preview.orgLocationId
           : body.orgLocationId,
       departmentId:
         body.departmentId === undefined
-          ? existing.departmentId
+          ? preview.departmentId
           : body.departmentId,
     };
     await this.assertConfigurationReferences(tenantId, references);
 
-    const data: ConfigurationPatchData = {
-      ...(body.kpiDefinitionId !== undefined
-        ? { kpiDefinitionId: body.kpiDefinitionId }
-        : {}),
-      ...(body.orgUnitId !== undefined ? { orgUnitId: body.orgUnitId } : {}),
-      ...(body.orgLocationId !== undefined
-        ? { orgLocationId: body.orgLocationId }
-        : {}),
-      ...(body.productService !== undefined
-        ? { productService: body.productService }
-        : {}),
-      ...(body.departmentId !== undefined
-        ? { departmentId: body.departmentId }
-        : {}),
-      ...(body.ownerId !== undefined ? { ownerId: body.ownerId } : {}),
-      ...(body.approverId !== undefined ? { approverId: body.approverId } : {}),
-      ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
-      ...(body.currency !== undefined ? { currency: body.currency } : {}),
-      ...(body.reviewFrequency !== undefined
-        ? { reviewFrequency: body.reviewFrequency }
-        : {}),
-      ...(body.amberThresholdPct !== undefined
-        ? {
-            amberThresholdPct:
-              body.amberThresholdPct === null
-                ? null
-                : new Prisma.Decimal(body.amberThresholdPct),
-          }
-        : {}),
-      ...(body.redThresholdPct !== undefined
-        ? {
-            redThresholdPct:
-              body.redThresholdPct === null
-                ? null
-                : new Prisma.Decimal(body.redThresholdPct),
-          }
-        : {}),
-      ...(body.requiresEvidence !== undefined
-        ? { requiresEvidence: body.requiresEvidence }
-        : {}),
-      ...(body.requiresApproval !== undefined
-        ? { requiresApproval: body.requiresApproval }
-        : {}),
-      ...(body.effectiveFrom !== undefined
-        ? { effectiveFrom: inputDate(body.effectiveFrom) }
-        : {}),
-      ...(body.effectiveTo !== undefined
-        ? {
-            effectiveTo:
-              body.effectiveTo === null ? null : inputDate(body.effectiveTo),
-          }
-        : {}),
-      ...(body.status !== undefined ? { status: body.status } : {}),
-    };
-
-    const effectiveFrom = data.effectiveFrom ?? existing.effectiveFrom;
-    const effectiveTo =
-      data.effectiveTo === undefined ? existing.effectiveTo : data.effectiveTo;
-    if (effectiveTo && effectiveTo < effectiveFrom) {
-      throw new AppError(
-        400,
-        "KPI_CONFIGURATION_DATES_INVALID",
-        "Effective-to date must not precede effective-from date",
-      );
-    }
-    const effectiveRequiresEvidence =
-      data.requiresEvidence ?? existing.requiresEvidence;
-    const effectiveRequiresApproval =
-      data.requiresApproval ?? existing.requiresApproval;
-    assertEvidenceApprovalInvariant(
-      effectiveRequiresEvidence,
-      effectiveRequiresApproval,
-    );
-    await this.assertThresholds(
-      tenantId,
-      data.amberThresholdPct === undefined
-        ? existing.amberThresholdPct
-        : data.amberThresholdPct,
-      data.redThresholdPct === undefined
-        ? existing.redThresholdPct
-        : data.redThresholdPct,
-    );
-
-    const updated = await this.repository.updateConfiguration(
+    const updated = await this.repository.updateConfigurationLocked(
       tenantId,
       id,
       actorUserId,
-      data,
+      async (locked) => {
+        const data: ConfigurationPatchData = {
+          ...(body.kpiDefinitionId !== undefined
+            ? { kpiDefinitionId: body.kpiDefinitionId }
+            : {}),
+          ...(body.orgUnitId !== undefined
+            ? { orgUnitId: body.orgUnitId }
+            : {}),
+          ...(body.orgLocationId !== undefined
+            ? { orgLocationId: body.orgLocationId }
+            : {}),
+          ...(body.productService !== undefined
+            ? { productService: body.productService }
+            : {}),
+          ...(body.departmentId !== undefined
+            ? { departmentId: body.departmentId }
+            : {}),
+          ...(body.ownerId !== undefined ? { ownerId: body.ownerId } : {}),
+          ...(body.approverId !== undefined
+            ? { approverId: body.approverId }
+            : {}),
+          ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+          ...(body.currency !== undefined ? { currency: body.currency } : {}),
+          ...(body.reviewFrequency !== undefined
+            ? { reviewFrequency: body.reviewFrequency }
+            : {}),
+          ...(body.amberThresholdPct !== undefined
+            ? {
+                amberThresholdPct:
+                  body.amberThresholdPct === null
+                    ? null
+                    : new Prisma.Decimal(body.amberThresholdPct),
+              }
+            : {}),
+          ...(body.redThresholdPct !== undefined
+            ? {
+                redThresholdPct:
+                  body.redThresholdPct === null
+                    ? null
+                    : new Prisma.Decimal(body.redThresholdPct),
+              }
+            : {}),
+          ...(body.requiresEvidence !== undefined
+            ? { requiresEvidence: body.requiresEvidence }
+            : {}),
+          ...(body.requiresApproval !== undefined
+            ? { requiresApproval: body.requiresApproval }
+            : {}),
+          ...(body.effectiveFrom !== undefined
+            ? { effectiveFrom: inputDate(body.effectiveFrom) }
+            : {}),
+          ...(body.effectiveTo !== undefined
+            ? {
+                effectiveTo:
+                  body.effectiveTo === null
+                    ? null
+                    : inputDate(body.effectiveTo),
+              }
+            : {}),
+          ...(body.status !== undefined ? { status: body.status } : {}),
+        };
+
+        const effectiveFrom = data.effectiveFrom ?? locked.effectiveFrom;
+        const effectiveTo =
+          data.effectiveTo === undefined
+            ? locked.effectiveTo
+            : data.effectiveTo;
+        if (effectiveTo && effectiveTo < effectiveFrom) {
+          throw new AppError(
+            400,
+            "KPI_CONFIGURATION_DATES_INVALID",
+            "Effective-to date must not precede effective-from date",
+          );
+        }
+        // Merge with locked authoritative flags (not a pre-lock snapshot alone).
+        assertEvidenceApprovalInvariant(
+          data.requiresEvidence ?? locked.requiresEvidence,
+          data.requiresApproval ?? locked.requiresApproval,
+        );
+        await this.assertThresholds(
+          tenantId,
+          data.amberThresholdPct === undefined
+            ? locked.amberThresholdPct
+            : data.amberThresholdPct,
+          data.redThresholdPct === undefined
+            ? locked.redThresholdPct
+            : data.redThresholdPct,
+        );
+        return data;
+      },
       context,
     );
     if (!updated) throw notFound("KPI configuration not found");

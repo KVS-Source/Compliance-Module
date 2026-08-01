@@ -422,25 +422,49 @@ export class KpiActualService {
     context: AuditContext,
   ) {
     return this.repository.runWorkflowTransaction(async (transaction) => {
+      // Order: KpiActual → KpiConfiguration → Evidence (gate) → writes.
       const locked = await transaction.lockActual(tenantId, id);
       if (!locked[0]) throw actualNotFound();
 
       const existing = await transaction.findWorkflowActual(tenantId, id);
       if (!existing) throw actualNotFound();
-      const configuredApproverFallback = this.assertDecisionActor(
-        existing,
-        actorUserId,
+
+      const lockedConfig = await transaction.lockConfigurationForApproval(
+        tenantId,
+        locked[0].kpi_configuration_id,
       );
-      assertEvidenceApprovalInvariant(
-        existing.configuration.requiresEvidence,
-        existing.configuration.requiresApproval,
+      if (!lockedConfig[0]) throw configurationNotFound();
+      if (existing.kpiConfigurationId !== lockedConfig[0].id) {
+        throw invalidActualState(
+          "KPI actual configuration changed while it was being approved",
+        );
+      }
+
+      // Authoritative flags from locked configuration (not stale include alone).
+      const requiresEvidence = lockedConfig[0].requires_evidence;
+      const requiresApproval = lockedConfig[0].requires_approval;
+      assertEvidenceApprovalInvariant(requiresEvidence, requiresApproval);
+
+      // Overlay locked configuration authority for actor checks.
+      const decisionActual = {
+        ...existing,
+        configuration: {
+          ...existing.configuration,
+          requiresEvidence,
+          requiresApproval,
+          approverId: lockedConfig[0].approver_id,
+        },
+      };
+      const configuredApproverFallback = this.assertDecisionActor(
+        decisionActual,
+        actorUserId,
       );
 
       // Gate before decision/approval audit; holds Evidence FOR SHARE until commit.
       await this.evidenceGate.assertKpiActualApprovalSatisfied({
         tenantId,
         kpiActualId: id,
-        requiresEvidence: existing.configuration.requiresEvidence,
+        requiresEvidence,
         asOfDate: utcDateString(),
         tx: transaction.transactionClient,
       });
