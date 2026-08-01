@@ -1329,14 +1329,42 @@ export const openApiDocument = {
         },
       },
     },
+    "/evidence/{evidenceId}/file": {
+      post: {
+        summary: "Upload Evidence file (multipart field file)",
+        description:
+          "DRAFT only, one file, max 10 MiB, allowlisted types. Server computes " +
+          "SHA-256 and storage key. Tenant-scoped hash uniqueness.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Evidence with hasFile true" },
+          "400": { description: "Type/signature/validation error" },
+          "409": { description: "Already exists or duplicate hash" },
+          "413": { description: "File too large" },
+        },
+      },
+      get: {
+        summary: "Download Evidence file as attachment",
+        description:
+          "Requires evidence:read and evidence:download. Streams attachment; " +
+          "never returns storageKey.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "File stream" },
+          "403": { description: "Missing permission" },
+          "404": { description: "Not found or file unavailable" },
+        },
+      },
+    },
     "/evidence/{evidenceId}/submit": {
       post: {
         summary: "Submit Evidence for review",
         description:
-          "Requires a file (storageKey, contentSha256, byteSize > 0). Slice 5.1 " +
-          "returns 409 EVIDENCE_FILE_REQUIRED for fileless Evidence.",
+          "Requires a stored file (hasFile). Returns 409 EVIDENCE_FILE_REQUIRED " +
+          "when no file is present.",
         security: [{ bearerAuth: [] }],
         responses: {
+          "200": { description: "SUBMITTED Evidence" },
           "409": { description: "EVIDENCE_FILE_REQUIRED or invalid state" },
         },
       },
