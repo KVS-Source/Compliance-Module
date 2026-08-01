@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertCheckpointLinkTargetActive,
+  assertControlLinkTargetActive,
   assertEvidenceArchiveAllowed,
+  assertEvidenceLinkMutable,
   assertEvidenceMetadataMutable,
   assertEvidenceReviewDecision,
   assertEvidenceSelfReviewAllowed,
@@ -9,13 +12,22 @@ import {
   assertEvidenceTransition,
   hasEvidenceFile,
   isEvidenceArchiveAllowed,
+  isEvidenceLinkMutable,
   isEvidenceMetadataMutable,
   isEvidenceTransitionAllowed,
+  isLinkTargetActive,
   safeEvidenceAuditMetadata,
 } from "../src/modules/evidence/domain.js";
 import {
+  checkpointLinkDto,
+  controlLinkDto,
+} from "../src/modules/evidence/service.js";
+import {
   createEvidenceSchema,
   emptyBodySchema,
+  evidenceCheckpointLinkParamsSchema,
+  evidenceControlLinkParamsSchema,
+  evidenceLinkListSchema,
   evidenceListSchema,
   updateEvidenceSchema,
 } from "../src/modules/evidence/validators.js";
@@ -186,14 +198,174 @@ describe("Evidence domain and validators", () => {
     ).toThrow(/SUBMITTED/);
   });
 
+  it("allows Control and Checkpoint link mutations only for DRAFT Evidence", () => {
+    expect(isEvidenceLinkMutable("DRAFT")).toBe(true);
+    expect(isEvidenceLinkMutable("SUBMITTED")).toBe(false);
+    expect(isEvidenceLinkMutable("APPROVED")).toBe(false);
+    expect(isEvidenceLinkMutable("REJECTED")).toBe(false);
+    expect(isEvidenceLinkMutable("ARCHIVED")).toBe(false);
+    expect(() => assertEvidenceLinkMutable("DRAFT")).not.toThrow();
+    expect(() => assertEvidenceLinkMutable("SUBMITTED")).toThrow(/Only DRAFT/);
+    expect(() => assertEvidenceLinkMutable("APPROVED")).toThrow(/Only DRAFT/);
+    expect(() => assertEvidenceLinkMutable("REJECTED")).toThrow(/Only DRAFT/);
+    expect(() => assertEvidenceLinkMutable("ARCHIVED")).toThrow(/Archived/);
+  });
+
+  it("accepts only ACTIVE Control and Checkpoint link targets", () => {
+    expect(isLinkTargetActive("ACTIVE")).toBe(true);
+    expect(isLinkTargetActive("INACTIVE")).toBe(false);
+    expect(isLinkTargetActive("ARCHIVED")).toBe(false);
+    expect(() => assertControlLinkTargetActive("ACTIVE")).not.toThrow();
+    expect(() => assertControlLinkTargetActive("INACTIVE")).toThrow(
+      /Only ACTIVE Controls/,
+    );
+    expect(() => assertControlLinkTargetActive("ARCHIVED")).toThrow(
+      /Only ACTIVE Controls/,
+    );
+    expect(() => assertCheckpointLinkTargetActive("ACTIVE")).not.toThrow();
+    expect(() => assertCheckpointLinkTargetActive("INACTIVE")).toThrow(
+      /Only ACTIVE Checkpoints/,
+    );
+    expect(() => assertCheckpointLinkTargetActive("ARCHIVED")).toThrow(
+      /Only ACTIVE Checkpoints/,
+    );
+  });
+
+  it("validates empty link bodies and UUID path params", () => {
+    expect(emptyBodySchema.parse({})).toEqual({});
+    expect(() => emptyBodySchema.parse({ reason: "no" })).toThrow();
+    expect(
+      evidenceControlLinkParamsSchema.parse({
+        evidenceId: "11111111-1111-4111-8111-111111111111",
+        controlId: "22222222-2222-4222-8222-222222222222",
+      }),
+    ).toEqual({
+      evidenceId: "11111111-1111-4111-8111-111111111111",
+      controlId: "22222222-2222-4222-8222-222222222222",
+    });
+    expect(() =>
+      evidenceControlLinkParamsSchema.parse({
+        evidenceId: "not-a-uuid",
+        controlId: "22222222-2222-4222-8222-222222222222",
+      }),
+    ).toThrow();
+    expect(
+      evidenceCheckpointLinkParamsSchema.parse({
+        evidenceId: "11111111-1111-4111-8111-111111111111",
+        checkpointId: "33333333-3333-4333-8333-333333333333",
+      }),
+    ).toMatchObject({
+      checkpointId: "33333333-3333-4333-8333-333333333333",
+    });
+    expect(evidenceLinkListSchema.parse({})).toEqual({
+      page: 1,
+      pageSize: 20,
+    });
+  });
+
+  it("maps link DTOs without storage or description leakage", () => {
+    const linkedAt = new Date("2026-08-01T12:00:00.000Z");
+    const updatedAt = new Date("2026-08-01T13:00:00.000Z");
+    const controlDto = controlLinkDto({
+      id: "link-1",
+      tenantId: "t1",
+      evidenceId: "e1",
+      controlId: "c1",
+      isActive: true,
+      linkReason: "must-not-appear",
+      createdById: "u1",
+      updatedById: "u1",
+      createdAt: linkedAt,
+      updatedAt,
+      control: {
+        id: "c1",
+        code: "CTL-001",
+        title: "Control title",
+        lifecycleStatus: "ACTIVE",
+      },
+      createdBy: { id: "u1", code: "USR-001", fullName: "Actor One" },
+      updatedBy: { id: "u1", code: "USR-001", fullName: "Actor One" },
+    } as never);
+    expect(controlDto).toEqual({
+      id: "link-1",
+      isActive: true,
+      control: {
+        id: "c1",
+        code: "CTL-001",
+        title: "Control title",
+        lifecycleStatus: "ACTIVE",
+      },
+      linkedAt,
+      linkedBy: { id: "u1", code: "USR-001", name: "Actor One" },
+      updatedAt,
+      updatedBy: { id: "u1", code: "USR-001", name: "Actor One" },
+    });
+    expect(controlDto).not.toHaveProperty("storageKey");
+    expect(controlDto).not.toHaveProperty("linkReason");
+    expect(controlDto).not.toHaveProperty("description");
+
+    const checkpointDto = checkpointLinkDto({
+      id: "link-2",
+      tenantId: "t1",
+      evidenceId: "e1",
+      checkpointId: "cp1",
+      isActive: true,
+      linkReason: null,
+      createdById: "u1",
+      updatedById: "u1",
+      createdAt: linkedAt,
+      updatedAt,
+      checkpoint: {
+        id: "cp1",
+        code: "CP-001",
+        title: "Checkpoint title",
+        lifecycleStatus: "ACTIVE",
+        controlId: "c1",
+      },
+      createdBy: { id: "u1", code: "USR-001", fullName: "Actor One" },
+      updatedBy: { id: "u1", code: "USR-001", fullName: "Actor One" },
+    } as never);
+    expect(checkpointDto.checkpoint).toMatchObject({
+      id: "cp1",
+      controlId: "c1",
+      lifecycleStatus: "ACTIVE",
+    });
+    expect(checkpointDto).not.toHaveProperty("storageKey");
+  });
+
   it("allowlists safe audit metadata fields", () => {
     const metadata = safeEvidenceAuditMetadata({
       code: "EVD-001",
       lifecycleStatus: "DRAFT",
       changedFields: ["title", "description", "ownerId", "storageKey"],
       hasFile: false,
+      linkId: "link-1",
+      controlId: "c1",
+      controlCode: "CTL-001",
+      isActive: true,
+      reactivated: true,
     });
     expect(metadata).toEqual({
+      code: "EVD-001",
+      lifecycleStatus: "DRAFT",
+      changedFields: ["ownerId", "title"],
+      hasFile: false,
+      linkId: "link-1",
+      controlId: "c1",
+      controlCode: "CTL-001",
+      isActive: true,
+      reactivated: true,
+    });
+    expect(metadata).not.toHaveProperty("description");
+    expect(metadata).not.toHaveProperty("storageKey");
+    expect(metadata).not.toHaveProperty("linkReason");
+    const base = safeEvidenceAuditMetadata({
+      code: "EVD-001",
+      lifecycleStatus: "DRAFT",
+      changedFields: ["title", "description", "ownerId", "storageKey"],
+      hasFile: false,
+    });
+    expect(base).toEqual({
       code: "EVD-001",
       lifecycleStatus: "DRAFT",
       changedFields: ["ownerId", "title"],

@@ -77,6 +77,7 @@ run(
     "tests/milestone4-workflow.test.ts",
     "tests/evidence-api.test.ts",
     "tests/evidence-file-api.test.ts",
+    "tests/evidence-link-api.test.ts",
   ],
   true,
 );
