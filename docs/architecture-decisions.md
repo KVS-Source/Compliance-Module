@@ -62,6 +62,16 @@ decisions are append-only at the database. File columns are reserved but
 unused; submit fails closed with `EVIDENCE_FILE_REQUIRED` until upload lands.
 KPI/Policy Evidence gates remain unchanged fail-closed stubs in this slice.
 
+## AD-014 Evidence local file storage (Milestone 5 Slice 2)
+
+Evidence files use the local `FileStorageProvider` for development/UAT only.
+Server-generated keys use `{tenantId}/evidence/{evidenceId}/{objectUuid}`.
+Upload streams through busboy with a 10 MiB cap and a code-controlled type
+allowlist; SHA-256 is computed from actual bytes and unique per tenant when
+non-null. Downloads require `evidence:read` and `evidence:download` and are
+attachment-only. S3, malware scanning, signed URLs and inline preview remain
+deferred. KPI/Policy Evidence gates remain fail-closed stubs.
+
 ## AD-009 Errors, logging and environment
 
 Zod validates environment and request inputs. Safe response envelopes hide stack traces and Prisma details. Pino emits structured logs with auth/cookie/password redaction. Helmet includes a React-compatible Content Security Policy: scripts and API connections are same-origin; Google font styles/fonts are explicitly allowed; objects and external framing are blocked. The legacy prototype is reference-only and receives an isolated compatibility CSP so its approved inline behavior remains available for visual comparison; it does not define the production CSP architecture.

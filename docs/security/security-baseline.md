@@ -38,9 +38,11 @@ experience only. Named permissions protect active reads, writes, approvals and
 risk actions, including `policies:read`, `policies:write`, `policies:submit`,
 `policies:approve`, `controls:read`, `controls:write`, `checkpoints:read`,
 `checkpoints:write`, `checkpoints:review`, `evidence:read`, `evidence:write`,
-`evidence:review` and `evidence:download`. Evidence review and download
-permissions are catalogue-ready; their HTTP routes are not implemented in
-Milestone 5 Slice 1.
+`evidence:review` and `evidence:download`. Evidence download requires both
+`evidence:read` and `evidence:download`. Evidence review HTTP remains deferred.
+Evidence file upload uses a dedicated rate limiter and a code-controlled type
+allowlist (max 10 MiB). Downloads are attachment-only streams; `storageKey` is
+never returned to clients.
 
 `COMPANY_ADMIN` accepts wildcard `"*"`. This is UAT-only technical debt and a
 production blocker. New roles must not copy the wildcard.

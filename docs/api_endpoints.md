@@ -23,7 +23,7 @@ routes require bearer authentication and active Company membership.
 | Policies | `GET/POST /policies`; `GET/PATCH /policies/:policyId`; `POST /policies/:policyId/archive`; `GET/POST /policies/:policyId/versions`; `GET /policies/:policyId/versions/:versionId`; `GET /policies/:policyId/traceability`; `GET /policies/:policyId/audit-events`; `PATCH /policy-versions/:versionId`; `PUT /policy-versions/:versionId/frameworks`; `POST /policy-versions/:versionId/submit`; `/approve`; `/reject` |
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
 | Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews`; `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
-| Evidence | `GET/POST /evidence`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/submit`; `/archive`; `GET /evidence/:evidenceId/audit-events` |
+| Evidence | `GET/POST /evidence`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/file`; `GET /evidence/:evidenceId/file`; `POST /evidence/:evidenceId/submit`; `/archive`; `GET /evidence/:evidenceId/audit-events` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,
 `meta.pageSize`, `meta.total` and `meta.totalPages`.
@@ -42,9 +42,11 @@ database-authoritative latest Review; `dueFrom` / `dueTo` use
 `Checkpoint.nextReviewDate`. Default list includes all lifecycle states.
 
 Evidence list filters: `q` (code/title), `lifecycleStatus`, `ownerId`,
-`departmentId`, `expiresBefore` / `expiresAfter`. Submit returns
-`409 EVIDENCE_FILE_REQUIRED` until file upload (Slice 5.2). Approve/reject,
-upload, download and Control/Checkpoint link mutation routes are not present.
+`departmentId`, `expiresBefore` / `expiresAfter`. File upload is
+`POST /evidence/:evidenceId/file` (multipart field `file`, max 10 MiB,
+allowlisted types). Download is `GET /evidence/:evidenceId/file` and requires
+`evidence:read` plus `evidence:download`. Submit requires a stored file.
+Approve/reject HTTP and Control/Checkpoint link mutation routes are not present.
 
 ## Explicitly absent
 

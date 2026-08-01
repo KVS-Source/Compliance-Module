@@ -4,8 +4,9 @@ The active schema is aligned across:
 
 - 37 models and 18 enums in `backend/prisma/schema.prisma` (Milestone 5 Slice 1
   Evidence foundation adds four models and two enums);
-- eleven immutable migration directories in `backend/prisma/migrations/`;
-- active Prisma repositories and services for Evidence metadata APIs.
+- twelve immutable migration directories in `backend/prisma/migrations/`
+  (Slice 5.2 adds partial unique `evidence_tenant_content_sha256_unique`);
+- active Prisma repositories and services for Evidence metadata and file APIs.
 
 The full field-level result is
 [database/database-dictionary.md](./database/database-dictionary.md).

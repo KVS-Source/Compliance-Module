@@ -58,10 +58,16 @@ by UAT language or status-page presentation.
 
 ## Storage and operations
 
-- `FILE_STORAGE_DRIVER=local` is development-only storage.
+- `FILE_STORAGE_DRIVER=local` is development/UAT storage. Docker Compose mounts
+  a named `genbioca_uploads` volume for container persistence; this is not
+  production object storage or a backup strategy.
 - S3 is recognised but unimplemented and is rejected during configuration.
-- Malware scanning, signed download URLs, retention enforcement, encryption
-  key policy and object-level tenant controls are not implemented.
+- Evidence upload max is 10 MiB with a code-controlled type allowlist. Abrupt
+  process termination may leave temporary files under `.tmp` (no periodic
+  orphan scrubber in Slice 5.2).
+- Malware scanning, signed download URLs, inline preview, retention enforcement,
+  encryption key policy and cloud object-level tenant controls are not
+  implemented.
 - pgAdmin is administrative tooling only; Prisma migrations remain the schema
   authority.
 - `prisma migrate diff` reports pre-existing name-only differences for several
