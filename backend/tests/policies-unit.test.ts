@@ -49,7 +49,7 @@ describe("Policy domain and validators", () => {
     ).toThrowError(GovernanceRuleError);
   });
 
-  it("rejects self-approval and Evidence-required approval", () => {
+  it("rejects self-approval; Evidence coverage is not domain 501", () => {
     expect(() =>
       assertPolicyApprovalAllowed({
         status: "SUBMITTED",
@@ -58,6 +58,7 @@ describe("Policy domain and validators", () => {
         requiresEvidence: false,
       }),
     ).toThrowError(/self-approval/i);
+    // Slice 5.5C: requiresEvidence is enforced by EvidenceGateService, not domain 501.
     expect(() =>
       assertPolicyApprovalAllowed({
         status: "SUBMITTED",
@@ -65,7 +66,7 @@ describe("Policy domain and validators", () => {
         actorId: "user-b",
         requiresEvidence: true,
       }),
-    ).toThrowError(/EVIDENCE_GATE_NOT_IMPLEMENTED|Evidence/i);
+    ).not.toThrow();
   });
 
   it("rejects blank content and raw HTML", () => {

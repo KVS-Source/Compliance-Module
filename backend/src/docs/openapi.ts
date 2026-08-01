@@ -960,13 +960,23 @@ export const openApiDocument = {
       post: {
         summary: "Approve submitted Policy Version",
         description:
-          "Fails with 501 EVIDENCE_GATE_NOT_IMPLEMENTED when requiresEvidence is true. " +
+          "When requiresEvidence is true, requires independent Control- and " +
+          "Checkpoint-linked qualifying APPROVED Evidence for the exact " +
+          "submitted Policy Version (active ControlPolicyVersion mappings). " +
+          "Empty required-target configuration → 409 EVIDENCE_REQUIRED " +
+          "(EVIDENCE_GATE_NOT_CONFIGURED). Incomplete coverage → 409 with " +
+          "EVIDENCE_CONTROL_COVERAGE_INCOMPLETE, " +
+          "EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE, or EVIDENCE_COVERAGE_INCOMPLETE. " +
           "Rejects future-effective dates and self-approval.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Approved with atomic supersession" },
           "403": { description: "Self-approval or requested-approver mismatch" },
-          "501": { description: "Evidence gate not implemented" },
+          "409": {
+            description:
+              "EVIDENCE_REQUIRED (coverage incomplete or not configured), " +
+              "invalid state, or archived Policy",
+          },
         },
       },
     },

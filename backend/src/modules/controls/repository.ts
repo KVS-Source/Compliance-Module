@@ -477,6 +477,30 @@ export class ControlRepository {
   }) {
     return this.db
       .$transaction(async (transaction) => {
+        // Policy → Version locks before creating active mappings (approve-compatible).
+        if (input.policyVersions.length > 0) {
+          const policyIds = [
+            ...new Set(input.policyVersions.map((m) => m.policyId)),
+          ].sort();
+          for (const policyId of policyIds) {
+            await transaction.$queryRaw`
+              SELECT id FROM policies
+              WHERE tenant_id = ${input.tenantId}::uuid AND id = ${policyId}::uuid
+              FOR UPDATE
+            `;
+          }
+          const versionIds = [
+            ...new Set(input.policyVersions.map((m) => m.policyVersionId)),
+          ].sort();
+          for (const versionId of versionIds) {
+            await transaction.$queryRaw`
+              SELECT id FROM policy_versions
+              WHERE tenant_id = ${input.tenantId}::uuid AND id = ${versionId}::uuid
+              FOR UPDATE
+            `;
+          }
+        }
+
         const codes = new GovernanceCodeRepository(transaction);
         const existingCodes = await transaction.control.findMany({
           where: { tenantId: input.tenantId },

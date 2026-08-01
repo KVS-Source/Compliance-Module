@@ -260,7 +260,7 @@ describe("Policy API Slice 2", () => {
     }
   });
 
-  it("rejects Evidence-required approval with 501 and leaves state unchanged", async () => {
+  it("rejects Evidence-required approval without configuration (409)", async () => {
     const revoke = await grantUserApprove();
     try {
       const admin = await loginAs("admin001@example.test", "Admin001!Secure");
@@ -284,9 +284,12 @@ describe("Policy API Slice 2", () => {
         .post(`/api/v1/policy-versions/${versionId}/approve`)
         .set("Authorization", `Bearer ${user.accessToken}`)
         .send({})
-        .expect(501)
+        .expect(409)
         .expect((res) => {
-          expect(res.body.error.code).toBe("EVIDENCE_GATE_NOT_IMPLEMENTED");
+          expect(res.body.error.code).toBe("EVIDENCE_REQUIRED");
+          expect(res.body.error.details?.reason).toBe(
+            "EVIDENCE_GATE_NOT_CONFIGURED",
+          );
         });
       const version = await prisma.policyVersion.findFirstOrThrow({
         where: { id: versionId },

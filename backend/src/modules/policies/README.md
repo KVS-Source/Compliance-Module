@@ -18,11 +18,24 @@ Notes:
 - Concurrent version allocation locks the Policy row (`FOR UPDATE`) and reads
   the created Version through the same transaction client.
 
+Evidence gate (Milestone 5 Slice 5.5C):
+
+- When `requiresEvidence=true`, approval evaluates exact-version active Control
+  mappings: Control.requiresEvidence and Checkpoint.evidenceRequired are
+  independent obligations (Control-linked vs Checkpoint-linked Evidence).
+- Empty required-target set → 409 `EVIDENCE_REQUIRED` /
+  `EVIDENCE_GATE_NOT_CONFIGURED`.
+- Incomplete coverage → 409 with
+  `EVIDENCE_CONTROL_COVERAGE_INCOMPLETE`,
+  `EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE`, or `EVIDENCE_COVERAGE_INCOMPLETE`.
+- Gate runs inside the approve transaction after Policy/Version locks and
+  before supersession/APPROVED writes; selected Evidence is `FOR SHARE` locked.
+
 Out of scope / deferred:
 
 - Policy Version obsoletion endpoint
 - Policy INACTIVE transitions
-- Evidence fulfilment (approval fails closed with `EVIDENCE_GATE_NOT_IMPLEMENTED`)
+- KPI Evidence satisfaction (still 501)
 
 Frontend status (Milestone 4 Slice 5):
 

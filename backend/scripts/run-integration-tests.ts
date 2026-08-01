@@ -80,6 +80,7 @@ run(
     "tests/evidence-link-api.test.ts",
     "tests/evidence-review-api.test.ts",
     "tests/checkpoint-evidence-gate-api.test.ts",
+    "tests/policy-evidence-gate-api.test.ts",
   ],
   true,
 );

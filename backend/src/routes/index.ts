@@ -71,9 +71,9 @@ export const apiRoutes = (
   );
   const risks = new RiskService(new RiskRepository(db));
   const dashboard = new DashboardService(new DashboardRepository(db));
-  const policies = new PolicyService(new PolicyRepository(db));
-  const controls = new ControlService(new ControlRepository(db));
   const evidenceGate = new EvidenceGateService(db);
+  const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
+  const controls = new ControlService(new ControlRepository(db));
   const checkpoints = new CheckpointService(
     new CheckpointRepository(db),
     evidenceGate,

@@ -704,6 +704,7 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
         code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
       }),
     );
+    // Policy domain no longer 501s; KPI remains fail-closed via assertSatisfied.
     const { assertPolicyApprovalAllowed } = await import(
       "../src/modules/policies/domain.js"
     );
@@ -714,7 +715,7 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
         actorId: "approver",
         requiresEvidence: true,
       }),
-    ).toThrow(/EVIDENCE_GATE_NOT_IMPLEMENTED|Evidence/i);
+    ).not.toThrow();
   });
 
   it("serializes gate-first: archive waits while FOR SHARE is held", async () => {

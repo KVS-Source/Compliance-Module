@@ -69,11 +69,12 @@ operational after Milestone 4 Slice 4, with a dedicated Postman collection and
 pgAdmin guide. React Checkpoint Register and detail pages are operational after
 Milestone 4 Slice 7. The standalone Policy Versions navigation page remains
 `IN_DEVELOPMENT` (Version management lives inside Policy detail for Slice 5).
-Milestone 5 Slices 1–5A/B deliver Evidence metadata, secure **local** file
-upload/download/submit, Control/Checkpoint linking, approve/reject review, and
-a **Checkpoint Evidence gate** (when `evidenceRequired=true`). Policy and KPI
-Evidence gates remain fail-closed `501` until later relationship work. Evidence
-React routes remain `IN_DEVELOPMENT`. Gap, CAPA, Import, Tasks, Notifications,
+Milestone 5 Slices 1–5A/B/C deliver Evidence metadata, secure **local** file
+upload/download/submit, Control/Checkpoint linking, approve/reject review, a
+**Checkpoint Evidence gate**, and a **Policy Version Evidence gate** (when
+`requiresEvidence=true`, exact-version Control/Checkpoint coverage). KPI
+Evidence gates remain fail-closed `501` until a typed relationship lands.
+Evidence React routes remain `IN_DEVELOPMENT`. Gap, CAPA, Import, Tasks, Notifications,
 Reports, global audit search/export, settings and most broader operations
 modules are not operational. Their visible routes are status pages, not
 simulated business screens.

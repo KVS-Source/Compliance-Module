@@ -43,7 +43,8 @@ risk actions, including `policies:read`, `policies:write`, `policies:submit`,
 queue require `evidence:review` with creator/uploader/submitter self-review
 blocked (including for administrators). Checkpoint Evidence gate evaluation is
 an internal integrity rule under `checkpoints:review` and does not require
-`evidence:read`.
+`evidence:read`. Policy Version Evidence gate evaluation is an internal
+integrity rule under `policies:approve` and does not require `evidence:read`.
 Evidence file upload uses a dedicated rate limiter and a code-controlled type
 allowlist (max 10 MiB). Downloads are attachment-only streams; `storageKey` is
 never returned to clients.
