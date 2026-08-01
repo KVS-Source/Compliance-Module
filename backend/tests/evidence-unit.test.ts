@@ -23,6 +23,10 @@ import {
   formatEvidenceCode,
   formatPolicyCode,
 } from "../src/modules/governance/code-generation.js";
+import {
+  buildContentDisposition,
+  sanitizeEvidenceFilename,
+} from "../src/modules/evidence/file-types.js";
 
 describe("Evidence domain and validators", () => {
   it("allows only approved lifecycle transitions", () => {
@@ -261,5 +265,17 @@ describe("Evidence domain and validators", () => {
         lifecycleStatus: "DRAFT",
       }),
     ).toMatchObject({ page: 1, pageSize: 10, lifecycleStatus: "DRAFT" });
+  });
+
+  it("sanitizes download filenames and Content-Disposition", () => {
+    expect(sanitizeEvidenceFilename("../../etc/passwd.pdf", ".pdf")).toBe(
+      "passwd.pdf",
+    );
+    expect(sanitizeEvidenceFilename('a"b\r\n;c.txt', ".txt")).toMatch(/\.txt$/);
+    const header = buildContentDisposition("report.pdf");
+    expect(header).toContain("attachment;");
+    expect(header).toContain('filename="report.pdf"');
+    expect(header).toContain("filename*=UTF-8''report.pdf");
+    expect(header).not.toMatch(/[\r\n]/);
   });
 });

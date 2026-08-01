@@ -76,6 +76,7 @@ run(
     "tests/checkpoints-api.test.ts",
     "tests/milestone4-workflow.test.ts",
     "tests/evidence-api.test.ts",
+    "tests/evidence-file-api.test.ts",
   ],
   true,
 );
