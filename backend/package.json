@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "vitest run tests/unit.test.ts tests/environment.test.ts tests/test-database.test.ts tests/auth-logout.test.ts tests/health.test.ts tests/frontend-serving.test.ts tests/hardening.test.ts tests/logger-redaction.test.ts tests/kpi-management-unit.test.ts tests/kpi-performance-unit.test.ts tests/kpi-approval-unit.test.ts tests/risk-service-unit.test.ts tests/governance-domain-unit.test.ts tests/policies-unit.test.ts tests/controls-unit.test.ts tests/checkpoints-unit.test.ts tests/evidence-unit.test.ts tests/file-storage-unit.test.ts",
+    "test:unit": "vitest run tests/unit.test.ts tests/environment.test.ts tests/test-database.test.ts tests/auth-logout.test.ts tests/health.test.ts tests/frontend-serving.test.ts tests/hardening.test.ts tests/logger-redaction.test.ts tests/kpi-management-unit.test.ts tests/kpi-performance-unit.test.ts tests/kpi-approval-unit.test.ts tests/risk-service-unit.test.ts tests/governance-domain-unit.test.ts tests/policies-unit.test.ts tests/controls-unit.test.ts tests/checkpoints-unit.test.ts tests/evidence-unit.test.ts tests/file-storage-unit.test.ts tests/evidence-gate-unit.test.ts",
     "test:integration": "tsx scripts/run-integration-tests.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:validate": "prisma validate",
