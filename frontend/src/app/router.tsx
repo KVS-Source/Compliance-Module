@@ -27,6 +27,10 @@ import { ControlDetailPage } from "../features/controls/ControlDetailPage";
 import { ControlRegisterPage } from "../features/controls/ControlRegisterPage";
 import { CheckpointDetailPage } from "../features/checkpoints/CheckpointDetailPage";
 import { CheckpointRegisterPage } from "../features/checkpoints/CheckpointRegisterPage";
+import { EvidenceCreatePage } from "../features/evidence/EvidenceCreatePage";
+import { EvidenceDetailPage } from "../features/evidence/EvidenceDetailPage";
+import { EvidenceLibraryPage } from "../features/evidence/EvidenceLibraryPage";
+import { EvidenceReviewQueuePage } from "../features/evidence/EvidenceReviewQueuePage";
 import { PolicyDetailPage } from "../features/policies/PolicyDetailPage";
 import { PolicyRegisterPage } from "../features/policies/PolicyRegisterPage";
 import { RiskDetailPage } from "../features/risks/RiskDetailPage";
@@ -245,6 +249,44 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="checkpoints:read">
         <CheckpointDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  // Previously published Evidence URLs. Declared ahead of the dynamic detail
+  // route so a reserved segment can never be read as an Evidence ID.
+  { path: "evidence/register", element: <Navigate to="/evidence/new" replace /> },
+  { path: "evidence/upload", element: <Navigate to="/evidence/new" replace /> },
+  { path: "evidence/approved", element: <Navigate to="/evidence?lifecycleStatus=APPROVED" replace /> },
+  { path: "evidence/rejected", element: <Navigate to="/evidence?lifecycleStatus=REJECTED" replace /> },
+  {
+    path: "evidence",
+    element: (
+      <PermissionBoundary permission="evidence:read">
+        <EvidenceLibraryPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "evidence/new",
+    element: (
+      <PermissionBoundary permission="evidence:write">
+        <EvidenceCreatePage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "evidence/review",
+    element: (
+      <PermissionBoundary permission="evidence:review">
+        <EvidenceReviewQueuePage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "evidence/:evidenceId",
+    element: (
+      <PermissionBoundary permission="evidence:read">
+        <EvidenceDetailPage />
       </PermissionBoundary>
     ),
   },

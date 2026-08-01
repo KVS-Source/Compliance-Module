@@ -31,6 +31,19 @@ export const onSessionExpired = (handler: (() => void) | null) => {
   sessionExpiredHandler = handler;
 };
 
+/**
+ * Read access for transports that cannot use `apiRequest`, such as the Evidence
+ * multipart upload and the authenticated Blob download. The token is never
+ * persisted and never placed in a URL.
+ */
+export const getAccessToken = () => accessToken;
+
+/** Terminal 401 handling shared with `apiRequest` for those transports. */
+export const expireSession = () => {
+  clearAccessToken();
+  sessionExpiredHandler?.();
+};
+
 const parseResponse = async <T>(response: Response): Promise<ApiSuccess<T>> => {
   let payload: ApiSuccess<T> | ApiFailure | null = null;
   try {

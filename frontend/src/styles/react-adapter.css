@@ -914,3 +914,72 @@
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+
+.evidence-library-mobile,
+.evidence-review-mobile {
+  display: none;
+  gap: 12px;
+}
+
+.evidence-library-card h2,
+.evidence-review-card h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.evidence-library-card .card-pad,
+.evidence-review-card .card-pad {
+  display: grid;
+  gap: 8px;
+}
+
+.evidence-progress {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--grey-200, #e5e7eb);
+}
+
+.evidence-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #2563eb);
+  transition: width 120ms linear;
+}
+
+.evidence-progress > span.indeterminate {
+  width: 40% !important;
+  animation: evidence-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes evidence-progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.evidence-upload-status {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .evidence-library-desktop {
+    display: none;
+  }
+  .evidence-library-mobile {
+    display: grid;
+  }
+  .evidence-review-desktop {
+    display: none;
+  }
+  .evidence-review-mobile {
+    display: grid;
+  }
+}

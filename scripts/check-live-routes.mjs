@@ -40,6 +40,9 @@ const requiredLiveRoutes = [
   { path: "/compliance/policy-register", component: "PolicyRegisterPage" },
   { path: "/compliance/controls", component: "ControlRegisterPage" },
   { path: "/compliance/checkpoints", component: "CheckpointRegisterPage" },
+  { path: "/evidence", component: "EvidenceLibraryPage" },
+  { path: "/evidence/new", component: "EvidenceCreatePage" },
+  { path: "/evidence/review", component: "EvidenceReviewQueuePage" },
 ];
 
 /**
@@ -65,6 +68,18 @@ const requiredLiveChildRoutes = [
     component: "CheckpointDetailPage",
   },
   { path: "master/frameworks/:frameworkId/rules", component: "FrameworkRulesPage" },
+  { path: "evidence/:evidenceId", component: "EvidenceDetailPage" },
+];
+
+/**
+ * Superseded Evidence URLs must keep resolving to a replace-navigation redirect
+ * rather than the detail route or a status page.
+ */
+const requiredCompatibilityRedirects = [
+  { path: "evidence/register", target: "/evidence/new" },
+  { path: "evidence/upload", target: "/evidence/new" },
+  { path: "evidence/approved", target: "/evidence?lifecycleStatus=APPROVED" },
+  { path: "evidence/rejected", target: "/evidence?lifecycleStatus=REJECTED" },
 ];
 
 const failures = [];
@@ -197,14 +212,14 @@ const statusCounts = {
 const protectedLivePatterns =
   statusCounts.LIVE + requiredLiveChildRoutes.length;
 if (
-  protectedLivePatterns !== 22 ||
-  statusCounts.IN_DEVELOPMENT !== 26 ||
+  protectedLivePatterns !== 26 ||
+  statusCounts.IN_DEVELOPMENT !== 21 ||
   statusCounts.AWAITING_INTEGRATION !== 1 ||
   statusCounts.COMPATIBILITY !== 22 ||
-  visiblePaths.length !== 43
+  visiblePaths.length !== 41
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 22 protected LIVE route patterns, 26 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 43 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 26 protected LIVE route patterns, 21 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 41 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 
@@ -291,6 +306,21 @@ for (const { path, component } of [
   }
 }
 
+for (const { path, target } of requiredCompatibilityRedirects) {
+  const element = elementForPath(path);
+  if (element === null) {
+    failures.push(
+      `${displayPath(routerPath)} — no compatibility redirect found for "${path}"`,
+    );
+    continue;
+  }
+  if (!element.includes(`to="${target}"`) || !element.includes("replace")) {
+    failures.push(
+      `${displayPath(routerPath)} — "${path}" must replace-navigate to "${target}"`,
+    );
+  }
+}
+
 if (failures.length > 0) {
   console.error("Live-route guard failed:");
   for (const failure of failures) console.error(`- ${failure}`);
@@ -298,5 +328,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: 1 public login, 22 protected LIVE patterns, 26 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, and 22 hidden COMPATIBILITY routes.`,
+  `Live-route guard passed: 1 public login, 26 protected LIVE patterns, 21 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
 );
