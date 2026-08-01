@@ -1,0 +1,1 @@
+Sample compliance evidence fixture for Playwright upload tests.
