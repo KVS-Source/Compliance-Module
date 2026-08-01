@@ -30,8 +30,10 @@ Notes:
 - Observation and recommendation are visible on Review history/detail for
   `checkpoints:read`, never in list rows, audit metadata, or logs.
 - When `evidenceRequired=true`, Review create requires qualifying APPROVED
-  Evidence actively linked to this Checkpoint (Milestone 5 Slice 5B). Failure
-  returns `409 EVIDENCE_REQUIRED` and does not write a Review or audit.
+  Evidence actively linked to this Checkpoint (Milestone 5 Slice 5B). The gate
+  runs in the review transaction and share-locks one qualifying Evidence row
+  until commit so concurrent archive cannot invalidate coverage mid-review.
+  Failure returns `409 EVIDENCE_REQUIRED` and does not write a Review or audit.
 
 Out of scope:
 

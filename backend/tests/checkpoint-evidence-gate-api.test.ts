@@ -3,6 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { AppError } from "../src/common/errors/app-error.js";
+import { EvidenceGateService } from "../src/modules/evidence/evidence-gate-service.js";
+import { utcDateString } from "../src/modules/evidence/eligibility.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -14,6 +17,29 @@ if (
     "Integration tests must run through the isolated test-database runner",
   );
 }
+
+const deferred = <T = void>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const expectEvidenceRequired = (response: {
+  status: number;
+  body: { error?: { code?: string; details?: { reason?: string } } };
+}) => {
+  expect(response.status).toBe(409);
+  expect(response.body.error?.code).toBe("EVIDENCE_REQUIRED");
+  expect(response.body.error?.details?.reason).toBe(
+    "EVIDENCE_COVERAGE_INCOMPLETE",
+  );
+};
 
 describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
   let app: Express;
@@ -88,7 +114,7 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
   };
 
   const createApprovedEvidenceLinkedToCheckpoint = async (
-    token: string,
+    _token: string,
     tenantId: string,
     actorId: string,
     checkpointId: string,
@@ -226,12 +252,8 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
     const failed = await request(app)
       .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
       .set(auth(admin.accessToken))
-      .send(reviewBody("2026-02"))
-      .expect(409);
-    expect(failed.body.error.code).toBe("EVIDENCE_REQUIRED");
-    expect(failed.body.error.details?.reason).toBe(
-      "EVIDENCE_COVERAGE_INCOMPLETE",
-    );
+      .send(reviewBody("2026-02"));
+    expectEvidenceRequired(failed);
 
     expect(
       await prisma.checkpointReview.count({
@@ -276,11 +298,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { lifecycleStatus: "DRAFT" },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-03"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-03")),
+    );
 
     // SUBMITTED — fail
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -293,11 +316,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { lifecycleStatus: "SUBMITTED" },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-04"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-04")),
+    );
 
     // REJECTED — fail
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -310,11 +334,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { lifecycleStatus: "REJECTED" },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-05"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-05")),
+    );
 
     // Inactive link — fail
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -327,11 +352,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { isActive: false },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-06"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-06")),
+    );
 
     // Linked to other checkpoint only — fail
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -343,11 +369,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       actorId,
       otherCheckpoint.id,
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-07"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-07")),
+    );
 
     // Incomplete file — fail (null storage/hash/size; DB forbids byteSize=0)
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -360,11 +387,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { storageKey: null, contentSha256: null, byteSize: null },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-08"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-08")),
+    );
 
     // Expired — fail
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -377,11 +405,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { issueDate: "2019-01-01", expiresAt: "2020-01-01" },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-09"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-09")),
+    );
 
     // Future issue — fail
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -394,11 +423,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       checkpoint.id,
       { issueDate: "2099-01-01" },
     );
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2026-10"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2026-10")),
+    );
 
     // Qualifying APPROVED — pass
     await prisma.evidenceCheckpointLink.deleteMany({
@@ -494,6 +524,64 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       .send(reviewBody("2025-02"))
       .expect(201);
 
+    // SUBMITTED successor does not invalidate
+    const checkpointSubmitted = await createCheckpoint(
+      admin.accessToken,
+      control.id,
+      true,
+    );
+    const priorSubmitted = await createApprovedEvidenceLinkedToCheckpoint(
+      admin.accessToken,
+      tenantId,
+      actorId,
+      checkpointSubmitted.id,
+    );
+    await prisma.evidence.create({
+      data: {
+        tenantId,
+        code: `EVD-SUB-${randomUUID().slice(0, 8)}`,
+        title: "Submitted successor",
+        lifecycleStatus: "SUBMITTED",
+        supersedesEvidenceId: priorSubmitted.id,
+        createdById: actorId,
+        updatedById: actorId,
+      },
+    });
+    await request(app)
+      .post(`/api/v1/checkpoints/${checkpointSubmitted.id}/reviews`)
+      .set(auth(admin.accessToken))
+      .send(reviewBody("2025-05"))
+      .expect(201);
+
+    // REJECTED successor does not invalidate
+    const checkpointRejected = await createCheckpoint(
+      admin.accessToken,
+      control.id,
+      true,
+    );
+    const priorRejected = await createApprovedEvidenceLinkedToCheckpoint(
+      admin.accessToken,
+      tenantId,
+      actorId,
+      checkpointRejected.id,
+    );
+    await prisma.evidence.create({
+      data: {
+        tenantId,
+        code: `EVD-REJ-${randomUUID().slice(0, 8)}`,
+        title: "Rejected successor",
+        lifecycleStatus: "REJECTED",
+        supersedesEvidenceId: priorRejected.id,
+        createdById: actorId,
+        updatedById: actorId,
+      },
+    });
+    await request(app)
+      .post(`/api/v1/checkpoints/${checkpointRejected.id}/reviews`)
+      .set(auth(admin.accessToken))
+      .send(reviewBody("2025-06"))
+      .expect(201);
+
     // APPROVED successor invalidates prior
     const checkpoint3 = await createCheckpoint(
       admin.accessToken,
@@ -522,11 +610,12 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
         updatedById: actorId,
       },
     });
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint3.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2025-03"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint3.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2025-03")),
+    );
 
     // ARCHIVED successor keeps old invalid
     const checkpoint4 = await createCheckpoint(
@@ -552,17 +641,20 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
         updatedById: actorId,
       },
     });
-    await request(app)
-      .post(`/api/v1/checkpoints/${checkpoint4.id}/reviews`)
-      .set(auth(admin.accessToken))
-      .send(reviewBody("2025-04"))
-      .expect(409);
+    expectEvidenceRequired(
+      await request(app)
+        .post(`/api/v1/checkpoints/${checkpoint4.id}/reviews`)
+        .set(auth(admin.accessToken))
+        .send(reviewBody("2025-04")),
+    );
 
     void oldEvidence;
   });
 
-  it("rejects cross-tenant checkpoint access and keeps Policy/KPI gates fail-closed", async () => {
+  it("rejects cross-tenant checkpoint access, cross-tenant links, and keeps Policy/KPI fail-closed", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const tenantId = admin.user.activeCompany.id;
+    const actorId = admin.user.id;
     const control = await createControl(admin.accessToken);
     const checkpoint = await createCheckpoint(
       admin.accessToken,
@@ -580,17 +672,40 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       .send(reviewBody())
       .expect(404);
 
-    const { EvidenceGateService } = await import(
-      "../src/modules/evidence/evidence-gate-service.js"
+    // Composite tenant FK: cannot link COM-001 Evidence to COM-002 Checkpoint.
+    const foreignControl = await createControl(tokenCom2);
+    const foreignCheckpoint = await createCheckpoint(
+      tokenCom2,
+      foreignControl.id,
+      true,
     );
-    const { assertPolicyApprovalAllowed } = await import(
-      "../src/modules/policies/domain.js"
+    const localEvidence = await createApprovedEvidenceLinkedToCheckpoint(
+      admin.accessToken,
+      tenantId,
+      actorId,
+      checkpoint.id,
     );
+    await expect(
+      prisma.evidenceCheckpointLink.create({
+        data: {
+          tenantId: foreign.id,
+          evidenceId: localEvidence.id,
+          checkpointId: foreignCheckpoint.id,
+          isActive: true,
+          createdById: actorId,
+          updatedById: actorId,
+        },
+      }),
+    ).rejects.toThrow();
+
     expect(() => new EvidenceGateService().assertSatisfied(true)).toThrowError(
       expect.objectContaining({
         status: 501,
         code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
       }),
+    );
+    const { assertPolicyApprovalAllowed } = await import(
+      "../src/modules/policies/domain.js"
     );
     expect(() =>
       assertPolicyApprovalAllowed({
@@ -600,5 +715,204 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
         requiresEvidence: true,
       }),
     ).toThrow(/EVIDENCE_GATE_NOT_IMPLEMENTED|Evidence/i);
+  });
+
+  it("serializes gate-first: archive waits while FOR SHARE is held", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const tenantId = admin.user.activeCompany.id;
+    const actorId = admin.user.id;
+    const control = await createControl(admin.accessToken);
+    const checkpoint = await createCheckpoint(
+      admin.accessToken,
+      control.id,
+      true,
+    );
+    const evidence = await createApprovedEvidenceLinkedToCheckpoint(
+      admin.accessToken,
+      tenantId,
+      actorId,
+      checkpoint.id,
+    );
+
+    const gate = new EvidenceGateService();
+    const hold = deferred();
+    const locked = deferred();
+    let archiveCompleted = false;
+
+    const gateTx = prisma.$transaction(
+      async (tx) => {
+        const result = await gate.assertCheckpointReviewSatisfied({
+          tenantId,
+          checkpointId: checkpoint.id,
+          evidenceRequired: true,
+          asOfDate: utcDateString(),
+          tx,
+        });
+        expect(result.satisfied).toBe(true);
+        expect(result.lockedEvidenceId).toBe(evidence.id);
+        locked.resolve();
+        await hold.promise;
+        // Hold lock through simulated parent review work; no review insert needed.
+      },
+      { maxWait: 15_000, timeout: 20_000 },
+    );
+
+    await locked.promise;
+
+    const archivePromise = (async () => {
+      // Mirror Evidence archive locking: FOR UPDATE then lifecycle UPDATE.
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`
+            SELECT id
+            FROM evidence
+            WHERE tenant_id = ${tenantId}::uuid
+              AND id = ${evidence.id}::uuid
+            FOR UPDATE
+          `;
+          await tx.evidence.update({
+            where: { id: evidence.id },
+            data: {
+              lifecycleStatus: "ARCHIVED",
+              archivedAt: new Date(),
+              updatedById: actorId,
+            },
+          });
+        },
+        { maxWait: 15_000, timeout: 20_000 },
+      );
+      archiveCompleted = true;
+    })();
+
+    await sleep(400);
+    expect(archiveCompleted).toBe(false);
+
+    hold.resolve();
+    await gateTx;
+    await archivePromise;
+    expect(archiveCompleted).toBe(true);
+
+    const after = await prisma.evidence.findFirstOrThrow({
+      where: { tenantId, id: evidence.id },
+      select: { lifecycleStatus: true },
+    });
+    expect(after.lifecycleStatus).toBe("ARCHIVED");
+  });
+
+  it("serializes archive-first: gate fails after archive commits; no review/audit", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const tenantId = admin.user.activeCompany.id;
+    const actorId = admin.user.id;
+    const control = await createControl(admin.accessToken);
+    const checkpoint = await createCheckpoint(
+      admin.accessToken,
+      control.id,
+      true,
+    );
+    const evidence = await createApprovedEvidenceLinkedToCheckpoint(
+      admin.accessToken,
+      tenantId,
+      actorId,
+      checkpoint.id,
+    );
+
+    const beforeReviews = await prisma.checkpointReview.count({
+      where: { tenantId, checkpointId: checkpoint.id },
+    });
+    const beforeAudits = await prisma.auditEvent.count({
+      where: {
+        tenantId,
+        entityId: checkpoint.id,
+        action: "CHECKPOINT_REVIEWED",
+      },
+    });
+
+    const gate = new EvidenceGateService();
+    const hold = deferred();
+    const archiveLocked = deferred();
+    let gateSettled = false;
+
+    const archiveTx = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM evidence
+          WHERE tenant_id = ${tenantId}::uuid
+            AND id = ${evidence.id}::uuid
+          FOR UPDATE
+        `;
+        archiveLocked.resolve();
+        await hold.promise;
+        await tx.evidence.update({
+          where: { id: evidence.id },
+          data: {
+            lifecycleStatus: "ARCHIVED",
+            archivedAt: new Date(),
+            updatedById: actorId,
+          },
+        });
+      },
+      { maxWait: 15_000, timeout: 20_000 },
+    );
+
+    await archiveLocked.promise;
+
+    const gateTx = prisma
+      .$transaction(
+        async (tx) => {
+          await gate.assertCheckpointReviewSatisfied({
+            tenantId,
+            checkpointId: checkpoint.id,
+            evidenceRequired: true,
+            asOfDate: utcDateString(),
+            tx,
+          });
+        },
+        { maxWait: 15_000, timeout: 20_000 },
+      )
+      .finally(() => {
+        gateSettled = true;
+      });
+
+    await sleep(400);
+    expect(gateSettled).toBe(false);
+
+    hold.resolve();
+    await archiveTx;
+
+    let gateError: unknown;
+    try {
+      await gateTx;
+    } catch (error) {
+      gateError = error;
+    }
+
+    expect(gateError).toBeInstanceOf(AppError);
+    expect(gateError).toMatchObject({
+      status: 409,
+      code: "EVIDENCE_REQUIRED",
+      details: { reason: "EVIDENCE_COVERAGE_INCOMPLETE" },
+    });
+
+    expect(
+      await prisma.checkpointReview.count({
+        where: { tenantId, checkpointId: checkpoint.id },
+      }),
+    ).toBe(beforeReviews);
+    expect(
+      await prisma.auditEvent.count({
+        where: {
+          tenantId,
+          entityId: checkpoint.id,
+          action: "CHECKPOINT_REVIEWED",
+        },
+      }),
+    ).toBe(beforeAudits);
+
+    const after = await prisma.evidence.findFirstOrThrow({
+      where: { tenantId, id: evidence.id },
+      select: { lifecycleStatus: true },
+    });
+    expect(after.lifecycleStatus).toBe("ARCHIVED");
   });
 });

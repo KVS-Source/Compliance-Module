@@ -113,8 +113,21 @@ and before the Review insert. Qualifying Evidence must be same-tenant,
 (`hasEvidenceFile`), with `issueDate` null or ≤ evaluation UTC date, `expiresAt`
 null or ≥ evaluation UTC date, and not superseded by a successor in
 `APPROVED` or `ARCHIVED`. DRAFT/SUBMITTED/REJECTED successors do not invalidate
-prior Evidence. Object-storage existence is not checked. The gate is read-only
-and writes no audit; parent `CHECKPOINT_REVIEWED` audit occurs only after
+prior Evidence. Object-storage existence is not checked.
+
+When coverage is required, the gate selects one qualifying Evidence id with
+deterministic ordering (`ORDER BY e.id`), `LIMIT 1`, and acquires
+`SELECT … FOR SHARE OF e` on that Evidence row in the same statement as
+eligibility evaluation. The share lock is held until the parent Checkpoint
+review transaction commits or rolls back, so concurrent Evidence archive
+(`FOR UPDATE` / lifecycle `UPDATE` on that row) waits and cannot invalidate the
+selected Evidence before the Review and parent audit commit. Only one
+Evidence row is locked; active links are not table-locked (and link mutation
+is already unavailable while Evidence is `APPROVED`). No broad Evidence or
+link-table locks and no object-storage I/O occur. Isolation remains the
+default Prisma/PostgreSQL transaction level (not SERIALIZABLE).
+
+The gate writes no audit; parent `CHECKPOINT_REVIEWED` audit occurs only after
 success. Failure is HTTP 409 `EVIDENCE_REQUIRED` with safe reason
 `EVIDENCE_COVERAGE_INCOMPLETE`. No extra permission beyond `checkpoints:review`.
 Policy and KPI gates remain fail-closed `501 EVIDENCE_GATE_NOT_IMPLEMENTED`

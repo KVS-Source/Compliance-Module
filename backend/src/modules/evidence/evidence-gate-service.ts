@@ -12,12 +12,17 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 export type CheckpointGateResult = {
   satisfied: true;
   qualifyingCount: number;
+  /** Locked qualifying Evidence id (present when evidenceRequired and satisfied). */
+  lockedEvidenceId?: string;
 };
 
 /**
  * Central Evidence gate evaluation.
  *
- * Checkpoint: real coverage against active APPROVED Evidence links.
+ * Checkpoint: real coverage against active APPROVED Evidence links, with a
+ * narrow `FOR SHARE` row lock on one qualifying Evidence row so concurrent
+ * archive cannot invalidate coverage before the parent review transaction
+ * commits.
  * KPI/Policy: preserve fail-closed 501 until later slices define relationships.
  */
 export class EvidenceGateService {
@@ -40,7 +45,8 @@ export class EvidenceGateService {
 
   /**
    * Checkpoint review gate. When evidenceRequired is false, passes immediately.
-   * When true, requires ≥1 qualifying Evidence actively linked to the checkpoint.
+   * When true, finds one qualifying Evidence, locks it (`FOR SHARE OF e`) for
+   * the remainder of the parent transaction, then returns success.
    */
   async assertCheckpointReviewSatisfied(input: {
     tenantId: string;
@@ -63,18 +69,22 @@ export class EvidenceGateService {
     }
 
     const asOfDate = input.asOfDate ?? utcDateString();
-    const qualifyingCount = await this.countQualifyingCheckpointEvidence(
+    const lockedEvidenceId = await this.lockOneQualifyingCheckpointEvidence(
       client,
       input.tenantId,
       input.checkpointId,
       asOfDate,
     );
 
-    if (qualifyingCount < 1) {
+    if (!lockedEvidenceId) {
       this.throwCoverageIncomplete(coverageIncompleteReason());
     }
 
-    return { satisfied: true, qualifyingCount };
+    return {
+      satisfied: true,
+      qualifyingCount: 1,
+      lockedEvidenceId,
+    };
   }
 
   private throwCoverageIncomplete(reason: EvidenceGateFailureReason): never {
@@ -87,17 +97,19 @@ export class EvidenceGateService {
   }
 
   /**
-   * Set-based count of Evidence that satisfies Checkpoint gate rules.
-   * See AD-017 / eligibility module for full rule list.
+   * Select and row-lock one Evidence row that satisfies Checkpoint gate rules.
+   * Uses `FOR SHARE OF e` so concurrent archive (`FOR UPDATE` / row UPDATE)
+   * waits until the parent Checkpoint review transaction finishes.
+   * Eligibility is evaluated in the same statement that acquires the lock.
    */
-  async countQualifyingCheckpointEvidence(
+  async lockOneQualifyingCheckpointEvidence(
     client: DbClient,
     tenantId: string,
     checkpointId: string,
     asOfDate: UtcDateString,
-  ): Promise<number> {
-    const rows = await client.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*)::bigint AS count
+  ): Promise<string | null> {
+    const rows = await client.$queryRaw<Array<{ id: string }>>`
+      SELECT e.id
       FROM evidence AS e
       INNER JOIN evidence_checkpoint_links AS l
         ON l.tenant_id = e.tenant_id
@@ -121,7 +133,10 @@ export class EvidenceGateService {
             AND successor.supersedes_evidence_id = e.id
             AND successor.lifecycle_status IN ('APPROVED', 'ARCHIVED')
         )
+      ORDER BY e.id ASC
+      LIMIT 1
+      FOR SHARE OF e
     `;
-    return Number(rows[0]?.count ?? 0n);
+    return rows[0]?.id ?? null;
   }
 }

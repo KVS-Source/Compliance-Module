@@ -12,6 +12,8 @@ Checkpoint Evidence gate. Policy and KPI gates remain fail-closed stubs.
   - requires ≥1 actively linked, APPROVED, file-backed, non-expired Evidence
   - not superseded by APPROVED/ARCHIVED successor
   - evaluated inside the review transaction after Control/Checkpoint locks
+  - locks **one** qualifying Evidence row with `FOR SHARE` until parent commit
+    so concurrent archive cannot race past the gate
   - HTTP **409** `EVIDENCE_REQUIRED` with safe reason `EVIDENCE_COVERAGE_INCOMPLETE`
 
 ## Qualifying Evidence (Checkpoint gate)
@@ -20,7 +22,10 @@ Same tenant · `lifecycleStatus=APPROVED` · active `EvidenceCheckpointLink` ·
 complete file metadata (`hasEvidenceFile`) · issueDate null or ≤ today (UTC) ·
 expiresAt null or ≥ today (UTC) · no APPROVED/ARCHIVED superseding successor.
 
-Object-storage existence is **not** checked during gate evaluation.
+Object-storage existence is **not** checked during gate evaluation. The gate
+locks a single qualifying Evidence row (`FOR SHARE`); it does not lock the full
+Evidence or link tables. Active Checkpoint links cannot be unlinked while
+Evidence is `APPROVED`.
 
 ## Permissions
 
