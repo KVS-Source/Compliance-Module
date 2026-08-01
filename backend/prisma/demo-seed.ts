@@ -4,7 +4,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
 import { KpiActualRepository } from "../src/modules/kpis/actual-repository.js";
 import { KpiActualService } from "../src/modules/kpis/actual-service.js";
-import { EvidenceGateService } from "../src/modules/kpis/evidence-gate-service.js";
+import { EvidenceGateService } from "../src/modules/evidence/evidence-gate-service.js";
 import { KpiManagementRepository } from "../src/modules/kpis/management-repository.js";
 import { KpiManagementService } from "../src/modules/kpis/management-service.js";
 import { KpiPerformanceService } from "../src/modules/kpis/performance-service.js";

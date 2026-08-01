@@ -1241,7 +1241,10 @@ export const openApiDocument = {
           "(DAILY YYYY-MM-DD; WEEKLY YYYY-Www; MONTHLY YYYY-MM; QUARTERLY YYYY-Qn; " +
           "HALF_YEARLY YYYY-Hn; ANNUAL YYYY; CONTINUOUS/PER_EVENT YYYY-MM-DD#TOKEN; " +
           "ONE_TIME ONE-TIME). Duplicate period → 409 CHECKPOINT_REVIEW_DUPLICATE. " +
-          "Latest review is synced by the database trigger.",
+          "Latest review is synced by the database trigger. " +
+          "When evidenceRequired is true, requires qualifying APPROVED Evidence " +
+          "actively linked to this Checkpoint (file-backed, not expired, not " +
+          "superseded by APPROVED/ARCHIVED successor); otherwise 409 EVIDENCE_REQUIRED.",
         security: [{ bearerAuth: [] }],
         responses: {
           "201": { description: "Review created" },
@@ -1250,7 +1253,8 @@ export const openApiDocument = {
           "409": {
             description:
               "CHECKPOINT_INVALID_STATE, CHECKPOINT_PARENT_CONTROL_ARCHIVED, " +
-              "CHECKPOINT_REVIEW_DUPLICATE or CHECKPOINT_REVIEW_CONFLICT",
+              "CHECKPOINT_REVIEW_DUPLICATE, CHECKPOINT_REVIEW_CONFLICT, " +
+              "or EVIDENCE_REQUIRED when evidenceRequired and coverage incomplete",
           },
         },
       },

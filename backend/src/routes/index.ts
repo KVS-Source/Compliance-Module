@@ -27,7 +27,7 @@ import { KpiPerformanceService } from "../modules/kpis/performance-service.js";
 import { RiskRepository } from "../modules/risks/repository.js";
 import { RiskService } from "../modules/risks/service.js";
 import { riskRoutes } from "../modules/risks/routes.js";
-import { EvidenceGateService } from "../modules/kpis/evidence-gate-service.js";
+import { EvidenceGateService } from "../modules/evidence/evidence-gate-service.js";
 import { DashboardRepository } from "../modules/dashboard/repository.js";
 import { DashboardService } from "../modules/dashboard/service.js";
 import { dashboardRoutes } from "../modules/dashboard/routes.js";
@@ -73,15 +73,20 @@ export const apiRoutes = (
   const dashboard = new DashboardService(new DashboardRepository(db));
   const policies = new PolicyService(new PolicyRepository(db));
   const controls = new ControlService(new ControlRepository(db));
-  const checkpoints = new CheckpointService(new CheckpointRepository(db));
+  const evidenceGate = new EvidenceGateService(db);
+  const checkpoints = new CheckpointService(
+    new CheckpointRepository(db),
+    evidenceGate,
+  );
   const evidence = new EvidenceService(
     new EvidenceRepository(db),
     fileStorage,
-  );  const kpiActuals = new KpiActualService(
+  );
+  const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
     risks,
-    new EvidenceGateService(),
+    evidenceGate,
   );
   router.get("/health", (_req, res) =>
     res.json({
