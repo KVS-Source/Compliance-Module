@@ -1,4 +1,4 @@
-import type { PolicyVersionStatus } from "@prisma/client";
+import type { PolicyVersionStatus, Prisma } from "@prisma/client";
 import { AppError } from "../../common/errors/app-error.js";
 import { pageMeta } from "../../common/responses/envelope.js";
 import { GovernanceRuleError } from "../governance/domain-error.js";
@@ -305,6 +305,50 @@ export class PolicyService {
     private readonly repository: PolicyRepository,
     private readonly evidenceGate: EvidenceGateService,
   ) {}
+
+  /**
+   * Lock parent Policy then Policy Version (global Policy-family order).
+   * Resolves Policy via tenant-safe join on versionId — never client Policy ID.
+   * Order: Policy FOR UPDATE → Version FOR UPDATE.
+   */
+  private async lockParentPolicyThenVersion(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    versionId: string,
+  ) {
+    const lockedPolicyRows = await tx.$queryRaw<
+      Array<{
+        id: string;
+        code: string;
+        lifecycle_status: string;
+        current_approved_version_id: string | null;
+        next_version_sequence: number;
+      }>
+    >`
+      SELECT p.id, p.code, p.lifecycle_status, p.current_approved_version_id,
+             p.next_version_sequence
+      FROM policy_versions AS v
+      INNER JOIN policies AS p
+        ON p.tenant_id = v.tenant_id AND p.id = v.policy_id
+      WHERE v.tenant_id = ${tenantId}::uuid AND v.id = ${versionId}::uuid
+      FOR UPDATE OF p
+    `;
+    if (!lockedPolicyRows[0]) throw versionNotFound();
+    const lockedPolicy = lockedPolicyRows[0];
+
+    const lockedVersion = await this.repository.lockVersion(
+      tx,
+      tenantId,
+      versionId,
+    );
+    if (!lockedVersion[0]) throw versionNotFound();
+    if (lockedVersion[0].policy_id !== lockedPolicy.id) throw versionNotFound();
+
+    return {
+      policy: lockedPolicy,
+      version: lockedVersion[0],
+    };
+  }
 
   private async assertActiveMember(tenantId: string, userId: string | null) {
     if (!userId) return;
@@ -644,29 +688,20 @@ export class PolicyService {
     }
 
     const updated = await this.repository.runInTransaction(async (tx) => {
-      const lockedVersion = await this.repository.lockVersion(
-        tx,
-        tenantId,
-        versionId,
-      );
-      if (!lockedVersion[0]) throw versionNotFound();
-      const lockedPolicy = await this.repository.lockPolicy(
-        tx,
-        tenantId,
-        lockedVersion[0].policy_id,
-      );
-      if (!lockedPolicy[0]) throw policyNotFound();
-      if (lockedPolicy[0].lifecycle_status === "ARCHIVED") throw policyArchived();
-      assertEditableVersion(lockedVersion[0].status);
+      // Policy → Version (never Version first).
+      const { policy: lockedPolicy, version: lockedVersion } =
+        await this.lockParentPolicyThenVersion(tx, tenantId, versionId);
+      if (lockedPolicy.lifecycle_status === "ARCHIVED") throw policyArchived();
+      assertEditableVersion(lockedVersion.status);
 
       const effectiveDate =
         body.effectiveDate !== undefined
           ? inputDate(body.effectiveDate)
-          : lockedVersion[0].effective_date;
+          : lockedVersion.effective_date;
       const reviewDate =
         body.reviewDate !== undefined
           ? inputDate(body.reviewDate)
-          : lockedVersion[0].review_date;
+          : lockedVersion.review_date;
       assertPolicyDatesPair(effectiveDate, reviewDate);
 
       await tx.policyVersion.update({
@@ -700,8 +735,8 @@ export class PolicyService {
         entityType: "POLICY_VERSION",
         entityId: versionId,
         metadata: safePolicyAuditMetadata({
-          code: lockedPolicy[0].code,
-          version: `${lockedVersion[0].version_major}.${lockedVersion[0].version_minor}`,
+          code: lockedPolicy.code,
+          version: `${lockedVersion.version_major}.${lockedVersion.version_minor}`,
           changedFields: Object.keys(body),
         }),
         context,
@@ -723,20 +758,11 @@ export class PolicyService {
     const unique = [...new Set(frameworkIds)];
 
     const updated = await this.repository.runInTransaction(async (tx) => {
-      const lockedVersion = await this.repository.lockVersion(
-        tx,
-        tenantId,
-        versionId,
-      );
-      if (!lockedVersion[0]) throw versionNotFound();
-      const lockedPolicy = await this.repository.lockPolicy(
-        tx,
-        tenantId,
-        lockedVersion[0].policy_id,
-      );
-      if (!lockedPolicy[0]) throw policyNotFound();
-      if (lockedPolicy[0].lifecycle_status === "ARCHIVED") throw policyArchived();
-      assertEditableVersion(lockedVersion[0].status);
+      // Policy → Version (never Version first).
+      const { policy: lockedPolicy, version: lockedVersion } =
+        await this.lockParentPolicyThenVersion(tx, tenantId, versionId);
+      if (lockedPolicy.lifecycle_status === "ARCHIVED") throw policyArchived();
+      assertEditableVersion(lockedVersion.status);
 
       const existing = await tx.policyFramework.findMany({
         where: {
@@ -759,7 +785,7 @@ export class PolicyService {
         await tx.policyFramework.create({
           data: {
             tenantId,
-            policyId: lockedVersion[0].policy_id,
+            policyId: lockedVersion.policy_id,
             policyVersionId: versionId,
             frameworkId,
             isActive: true,
@@ -775,8 +801,8 @@ export class PolicyService {
         entityType: "POLICY_VERSION",
         entityId: versionId,
         metadata: {
-          code: lockedPolicy[0].code,
-          version: `${lockedVersion[0].version_major}.${lockedVersion[0].version_minor}`,
+          code: lockedPolicy.code,
+          version: `${lockedVersion.version_major}.${lockedVersion.version_minor}`,
           frameworkCount: unique.length,
           frameworkIds: unique,
         },
@@ -795,31 +821,22 @@ export class PolicyService {
     context: AuditContext,
   ) {
     const updated = await this.repository.runInTransaction(async (tx) => {
-      const lockedVersion = await this.repository.lockVersion(
-        tx,
-        tenantId,
-        versionId,
-      );
-      if (!lockedVersion[0]) throw versionNotFound();
-      const lockedPolicy = await this.repository.lockPolicy(
-        tx,
-        tenantId,
-        lockedVersion[0].policy_id,
-      );
-      if (!lockedPolicy[0]) throw policyNotFound();
-      if (lockedPolicy[0].lifecycle_status === "ARCHIVED") throw policyArchived();
+      // Policy → Version (never Version first).
+      const { policy: lockedPolicy, version: lockedVersion } =
+        await this.lockParentPolicyThenVersion(tx, tenantId, versionId);
+      if (lockedPolicy.lifecycle_status === "ARCHIVED") throw policyArchived();
 
-      const fromStatus = lockedVersion[0].status;
+      const fromStatus = lockedVersion.status;
       try {
         assertPolicyVersionTransition(fromStatus, "SUBMITTED");
       } catch (error) {
         mapGovernanceError(error);
       }
-      if (lockedVersion[0].requested_approver_id) {
+      if (lockedVersion.requested_approver_id) {
         const member = await tx.userCompany.findFirst({
           where: {
             tenantId,
-            userId: lockedVersion[0].requested_approver_id,
+            userId: lockedVersion.requested_approver_id,
             status: "ACTIVE",
             user: { status: "ACTIVE" },
           },
@@ -835,8 +852,8 @@ export class PolicyService {
       // Lifecycle trigger forbids date changes on SUBMITTED→APPROVED, so fill
       // null effective/review dates here (DRAFT/REJECTED→SUBMITTED is mutable).
       const approvalDates = resolveApprovalDates({
-        effectiveDate: lockedVersion[0].effective_date,
-        reviewDate: lockedVersion[0].review_date,
+        effectiveDate: lockedVersion.effective_date,
+        reviewDate: lockedVersion.review_date,
         decisionAt: submittedAt,
       });
       await tx.policyVersion.update({
@@ -860,8 +877,8 @@ export class PolicyService {
         entityType: "POLICY_VERSION",
         entityId: versionId,
         metadata: safePolicyAuditMetadata({
-          code: lockedPolicy[0].code,
-          version: `${lockedVersion[0].version_major}.${lockedVersion[0].version_minor}`,
+          code: lockedPolicy.code,
+          version: `${lockedVersion.version_major}.${lockedVersion.version_minor}`,
           fromStatus,
           toStatus: "SUBMITTED",
         }),
@@ -907,22 +924,13 @@ export class PolicyService {
     context: AuditContext,
   ) {
     const updated = await this.repository.runInTransaction(async (tx) => {
-      const lockedVersion = await this.repository.lockVersion(
-        tx,
-        tenantId,
-        versionId,
-      );
-      if (!lockedVersion[0]) throw versionNotFound();
-      const lockedPolicy = await this.repository.lockPolicy(
-        tx,
-        tenantId,
-        lockedVersion[0].policy_id,
-      );
-      if (!lockedPolicy[0]) throw policyNotFound();
-      if (lockedPolicy[0].lifecycle_status === "ARCHIVED") throw policyArchived();
-      this.assertApproverActor(lockedVersion[0], actorUserId);
+      // Policy → Version (never Version first).
+      const { policy: lockedPolicy, version: lockedVersion } =
+        await this.lockParentPolicyThenVersion(tx, tenantId, versionId);
+      if (lockedPolicy.lifecycle_status === "ARCHIVED") throw policyArchived();
+      this.assertApproverActor(lockedVersion, actorUserId);
       try {
-        assertPolicyVersionTransition(lockedVersion[0].status, "REJECTED");
+        assertPolicyVersionTransition(lockedVersion.status, "REJECTED");
       } catch (error) {
         mapGovernanceError(error);
       }
@@ -934,7 +942,7 @@ export class PolicyService {
       await tx.policyApproval.create({
         data: {
           tenantId,
-          policyId: lockedVersion[0].policy_id,
+          policyId: lockedVersion.policy_id,
           policyVersionId: versionId,
           actedById: actorUserId,
           decision: "REJECTED",
@@ -948,8 +956,8 @@ export class PolicyService {
         entityType: "POLICY_VERSION",
         entityId: versionId,
         metadata: safePolicyAuditMetadata({
-          code: lockedPolicy[0].code,
-          version: `${lockedVersion[0].version_major}.${lockedVersion[0].version_minor}`,
+          code: lockedPolicy.code,
+          version: `${lockedVersion.version_major}.${lockedVersion.version_minor}`,
           fromStatus: "SUBMITTED",
           toStatus: "REJECTED",
         }),
