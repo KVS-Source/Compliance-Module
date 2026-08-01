@@ -1,10 +1,14 @@
 import {
   Prisma,
+  type EvidenceDecisionOutcome,
   type EvidenceLifecycleStatus,
   type PrismaClient,
 } from "@prisma/client";
 import { GovernanceCodeRepository } from "../governance/code-generation.js";
-import type { EvidenceListQuery } from "./validators.js";
+import type {
+  EvidenceListQuery,
+  EvidenceReviewQueueQuery,
+} from "./validators.js";
 
 export type AuditContext = { ip?: string; userAgent?: string };
 
@@ -22,11 +26,24 @@ export const evidenceDetailInclude =
     department: { select: departmentSelect },
     supersedes: { select: supersedesSelect },
     uploadedBy: { select: personSelect },
+    submittedBy: { select: personSelect },
+    reviewedBy: { select: personSelect },
+    createdBy: { select: personSelect },
   });
 
 export type EvidenceRecord = Prisma.EvidenceGetPayload<{
   include: typeof evidenceDetailInclude;
 }>;
+
+const reviewDecisionInclude =
+  Prisma.validator<Prisma.EvidenceReviewDecisionInclude>()({
+    actedBy: { select: personSelect },
+  });
+
+export type EvidenceReviewDecisionRecord =
+  Prisma.EvidenceReviewDecisionGetPayload<{
+    include: typeof reviewDecisionInclude;
+  }>;
 
 const controlLinkInclude = Prisma.validator<Prisma.EvidenceControlLinkInclude>()(
   {
@@ -611,6 +628,49 @@ export class EvidenceRepository {
     return { activeControlLinkCount, activeCheckpointLinkCount };
   }
 
+  async countActiveLinksForMany(
+    tenantId: string,
+    evidenceIds: readonly string[],
+  ): Promise<Map<string, ActiveLinkCounts>> {
+    const map = new Map<string, ActiveLinkCounts>();
+    for (const id of evidenceIds) {
+      map.set(id, {
+        activeControlLinkCount: 0,
+        activeCheckpointLinkCount: 0,
+      });
+    }
+    if (evidenceIds.length === 0) return map;
+
+    const [controlRows, checkpointRows] = await this.db.$transaction([
+      this.db.evidenceControlLink.findMany({
+        where: {
+          tenantId,
+          evidenceId: { in: [...evidenceIds] },
+          isActive: true,
+        },
+        select: { evidenceId: true },
+      }),
+      this.db.evidenceCheckpointLink.findMany({
+        where: {
+          tenantId,
+          evidenceId: { in: [...evidenceIds] },
+          isActive: true,
+        },
+        select: { evidenceId: true },
+      }),
+    ]);
+
+    for (const row of controlRows) {
+      const current = map.get(row.evidenceId)!;
+      current.activeControlLinkCount += 1;
+    }
+    for (const row of checkpointRows) {
+      const current = map.get(row.evidenceId)!;
+      current.activeCheckpointLinkCount += 1;
+    }
+    return map;
+  }
+
   findControlTarget(tenantId: string, controlId: string) {
     return this.db.control.findFirst({
       where: { tenantId, id: controlId },
@@ -1081,6 +1141,226 @@ export class EvidenceRepository {
       });
 
       return { kind: "ok" as const, link };
+    });
+  }
+
+  async listReviewQueue(tenantId: string, query: EvidenceReviewQueueQuery) {
+    const where: Prisma.EvidenceWhereInput = {
+      tenantId,
+      lifecycleStatus: "SUBMITTED",
+      ...(query.expiresBefore || query.expiresAfter
+        ? {
+            expiresAt: {
+              ...(query.expiresAfter
+                ? { gte: new Date(`${query.expiresAfter}T00:00:00.000Z`) }
+                : {}),
+              ...(query.expiresBefore
+                ? { lte: new Date(`${query.expiresBefore}T00:00:00.000Z`) }
+                : {}),
+            },
+          }
+        : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { code: { contains: query.q, mode: "insensitive" } },
+              { title: { contains: query.q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.db.$transaction([
+      this.db.evidence.findMany({
+        where,
+        include: evidenceDetailInclude,
+        orderBy: [
+          { submittedAt: "asc" },
+          { id: "asc" },
+        ],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.db.evidence.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async listReviewDecisions(
+    tenantId: string,
+    evidenceId: string,
+    page: number,
+    pageSize: number,
+  ) {
+    const where: Prisma.EvidenceReviewDecisionWhereInput = {
+      tenantId,
+      evidenceId,
+    };
+    const [items, total] = await this.db.$transaction([
+      this.db.evidenceReviewDecision.findMany({
+        where,
+        include: reviewDecisionInclude,
+        orderBy: [{ decidedAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.evidenceReviewDecision.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  findLatestReviewDecision(tenantId: string, evidenceId: string) {
+    return this.db.evidenceReviewDecision.findFirst({
+      where: { tenantId, evidenceId },
+      include: reviewDecisionInclude,
+      orderBy: [{ decidedAt: "desc" }, { id: "desc" }],
+    });
+  }
+
+  decideEvidence(input: {
+    tenantId: string;
+    evidenceId: string;
+    actorUserId: string;
+    decision: EvidenceDecisionOutcome;
+    reason: string | null;
+    context: AuditContext;
+  }) {
+    return this.db.$transaction(async (transaction) => {
+      const locked = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          lifecycle_status: EvidenceLifecycleStatus;
+          created_by_id: string;
+          uploaded_by_id: string | null;
+          submitted_by_id: string | null;
+          storage_key: string | null;
+          content_sha256: string | null;
+          byte_size: number | null;
+        }>
+      >`
+        SELECT
+          id,
+          code,
+          lifecycle_status,
+          created_by_id,
+          uploaded_by_id,
+          submitted_by_id,
+          storage_key,
+          content_sha256,
+          byte_size
+        FROM evidence
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.evidenceId}::uuid
+        FOR UPDATE
+      `;
+      if (locked.length === 0) return { kind: "not_found" as const };
+      const row = locked[0]!;
+
+      if (row.lifecycle_status !== "SUBMITTED") {
+        return {
+          kind: "invalid_state" as const,
+          status: row.lifecycle_status,
+        };
+      }
+
+      if (input.actorUserId === row.created_by_id) {
+        return { kind: "self_review" as const, role: "creator" as const };
+      }
+      if (
+        row.uploaded_by_id != null &&
+        row.uploaded_by_id.length > 0 &&
+        input.actorUserId === row.uploaded_by_id
+      ) {
+        return { kind: "self_review" as const, role: "uploader" as const };
+      }
+      if (
+        row.submitted_by_id != null &&
+        row.submitted_by_id.length > 0 &&
+        input.actorUserId === row.submitted_by_id
+      ) {
+        return { kind: "self_review" as const, role: "submitter" as const };
+      }
+
+      if (input.decision === "REJECTED") {
+        const reason = input.reason?.trim() ?? "";
+        if (reason.length < 2 || reason.length > 2000) {
+          return { kind: "reason_required" as const };
+        }
+      }
+
+      if (input.decision === "APPROVED") {
+        if (
+          !row.storage_key ||
+          !row.content_sha256 ||
+          row.byte_size == null ||
+          row.byte_size <= 0
+        ) {
+          return { kind: "file_required" as const };
+        }
+      }
+
+      const toStatus =
+        input.decision === "APPROVED" ? "APPROVED" : "REJECTED";
+      const decidedAt = new Date();
+      const storedReason =
+        input.reason != null && input.reason.trim().length > 0
+          ? input.reason.trim()
+          : null;
+
+      const decisionRow = await transaction.evidenceReviewDecision.create({
+        data: {
+          tenantId: input.tenantId,
+          evidenceId: input.evidenceId,
+          actedById: input.actorUserId,
+          decision: input.decision,
+          reason: storedReason,
+          decidedAt,
+        },
+        include: reviewDecisionInclude,
+      });
+
+      await transaction.evidence.update({
+        where: { id: input.evidenceId },
+        data: {
+          lifecycleStatus: toStatus,
+          reviewedById: input.actorUserId,
+          reviewedAt: decidedAt,
+          updatedById: input.actorUserId,
+        },
+      });
+
+      await writeAudit(transaction, {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        action:
+          input.decision === "APPROVED"
+            ? "EVIDENCE_APPROVED"
+            : "EVIDENCE_REJECTED",
+        entityType: "EVIDENCE",
+        entityId: input.evidenceId,
+        metadata: {
+          code: row.code,
+          reviewDecisionId: decisionRow.id,
+          decision: input.decision,
+          fromStatus: "SUBMITTED",
+          toStatus,
+          hasFile: true,
+          hasComment: storedReason != null,
+        },
+        context: input.context,
+      });
+
+      const detail = await transaction.evidence.findFirst({
+        where: { tenantId: input.tenantId, id: input.evidenceId },
+        include: evidenceDetailInclude,
+      });
+
+      return {
+        kind: "ok" as const,
+        evidence: detail!,
+        decision: decisionRow,
+      };
     });
   }
 
