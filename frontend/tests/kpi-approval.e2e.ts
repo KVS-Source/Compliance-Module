@@ -616,7 +616,7 @@ test.describe("KPI actual approval", () => {
     const error = page.getByTestId("decision-error");
     await expect(error).toBeVisible();
     await expect(error).toContainText("linked Evidence record");
-    await expect(error).toContainText("nothing was saved");
+    await expect(error).toContainText("Nothing was saved");
   });
 
   test("hides approval actions without kpi-actual:approve", async ({ page }) => {
