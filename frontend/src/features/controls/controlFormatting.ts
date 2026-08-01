@@ -96,7 +96,7 @@ export const FREQUENCY_OPTIONS = [
 ] as const;
 
 export const EVIDENCE_UNAVAILABLE_MESSAGE =
-  "Evidence Management is not available yet. Controls that require Evidence cannot complete Evidence-gated workflows until that domain ships.";
+  "Controls that require Evidence need qualifying approved Evidence linked before Evidence-gated workflows can succeed.";
 
 const UNSAFE_AUDIT_KEYS = new Set([
   "content",

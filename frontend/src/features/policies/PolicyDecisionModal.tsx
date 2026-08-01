@@ -6,10 +6,10 @@ import type { Policy, PolicyVersion } from "../../types/api";
 import { policyDecisionError } from "../../utils/fieldErrors";
 import {
   display,
-  EVIDENCE_UNAVAILABLE_MESSAGE,
   formatPolicyDate,
   named,
 } from "./policyFormatting";
+import { POLICY_EVIDENCE_GATE_HINT } from "../../utils/evidenceGateMessages";
 
 export type PolicyDecisionKind = "submit" | "approve" | "reject" | "archive";
 
@@ -211,8 +211,7 @@ export function PolicyDecisionModal({
                 role="alert"
                 data-testid="policy-evidence-gate-warning"
               >
-                <TriangleAlert size={15} aria-hidden />{" "}
-                {EVIDENCE_UNAVAILABLE_MESSAGE}
+                <TriangleAlert size={15} aria-hidden /> {POLICY_EVIDENCE_GATE_HINT}
               </div>
             ) : null}
             <div className="field">

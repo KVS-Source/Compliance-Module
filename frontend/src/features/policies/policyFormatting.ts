@@ -84,7 +84,7 @@ export const isEditableVersionStatus = (status: PolicyVersionStatus) =>
   status === "DRAFT" || status === "REJECTED";
 
 export const EVIDENCE_UNAVAILABLE_MESSAGE =
-  "Evidence Management is not available yet. Approving a Version that requires Evidence fails closed with 501 EVIDENCE_GATE_NOT_IMPLEMENTED and saves nothing.";
+  "This Policy Version requires qualifying approved Evidence for mapped Controls and Checkpoints before approval can succeed.";
 
 const UNSAFE_AUDIT_KEYS = new Set([
   "content",
