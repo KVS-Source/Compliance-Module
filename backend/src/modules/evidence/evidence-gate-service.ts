@@ -4,6 +4,7 @@ import {
   coverageIncompleteReason,
   policyCoverageReason,
   type EvidenceGateFailureReason,
+  type KpiEvidenceGateReason,
   type PolicyEvidenceGateReason,
   utcDateString,
   type UtcDateString,
@@ -37,14 +38,15 @@ export type PolicyGateResult = {
  * narrow `FOR SHARE` row lock on one qualifying Evidence row.
  * Policy Version approval: multi-target Control/Checkpoint coverage with
  * independent requirements and multi-row FOR SHARE locks.
- * KPI: preserve fail-closed 501 until a later relationship model.
+ * KPI Actual approval: exact-target EvidenceKpiActualLink coverage with
+ * FOR SHARE on one qualifying Evidence row.
  */
 export class EvidenceGateService {
   constructor(private readonly db?: PrismaClient) {}
 
   /**
-   * KPI compatibility: boolean-only stub.
-   * false → pass; true → fail-closed 501 (relationship model deferred).
+   * @deprecated KPI production paths use assertKpiActualApprovalSatisfied.
+   * Retained only for legacy unit tests that assert historical 501 behaviour.
    */
   assertSatisfied(requiresEvidence: boolean): true {
     if (requiresEvidence) {
@@ -55,6 +57,58 @@ export class EvidenceGateService {
       );
     }
     return true;
+  }
+
+  /**
+   * KPI Actual approval gate (Slice 5D).
+   * requiresEvidence=false short-circuits. When true, requires ≥1 active
+   * exact-target link to qualifying APPROVED Evidence and locks one row
+   * with FOR SHARE OF e until the parent transaction ends.
+   */
+  async assertKpiActualApprovalSatisfied(input: {
+    tenantId: string;
+    kpiActualId: string;
+    requiresEvidence: boolean;
+    asOfDate?: UtcDateString;
+    tx?: Prisma.TransactionClient;
+  }): Promise<{
+    satisfied: true;
+    qualifyingCount: number;
+    lockedEvidenceId?: string;
+  }> {
+    if (!input.requiresEvidence) {
+      return { satisfied: true, qualifyingCount: 0 };
+    }
+
+    const client = this.requireClient(input.tx);
+    const asOfDate = input.asOfDate ?? utcDateString();
+
+    const activeLinkCount = await client.evidenceKpiActualLink.count({
+      where: {
+        tenantId: input.tenantId,
+        kpiActualId: input.kpiActualId,
+        isActive: true,
+      },
+    });
+    if (activeLinkCount === 0) {
+      this.throwKpiEvidenceRequired("EVIDENCE_KPI_LINK_REQUIRED");
+    }
+
+    const lockedEvidenceId = await this.lockOneQualifyingKpiActualEvidence(
+      client,
+      input.tenantId,
+      input.kpiActualId,
+      asOfDate,
+    );
+    if (!lockedEvidenceId) {
+      this.throwKpiEvidenceRequired("EVIDENCE_KPI_COVERAGE_INCOMPLETE");
+    }
+
+    return {
+      satisfied: true,
+      qualifyingCount: 1,
+      lockedEvidenceId,
+    };
   }
 
   /**
@@ -240,6 +294,14 @@ export class EvidenceGateService {
       reason === "EVIDENCE_GATE_NOT_CONFIGURED"
         ? "This Policy Version requires Evidence configuration before approval"
         : "This Policy Version approval requires qualifying approved Evidence coverage";
+    throw new AppError(409, "EVIDENCE_REQUIRED", message, { reason });
+  }
+
+  private throwKpiEvidenceRequired(reason: KpiEvidenceGateReason): never {
+    const message =
+      reason === "EVIDENCE_KPI_LINK_REQUIRED"
+        ? "This KPI actual requires at least one active Evidence link before approval"
+        : "This KPI actual approval requires qualifying approved Evidence coverage";
     throw new AppError(409, "EVIDENCE_REQUIRED", message, { reason });
   }
 
@@ -459,6 +521,47 @@ export class EvidenceGateService {
        AND l.evidence_id = e.id
       WHERE e.tenant_id = ${tenantId}::uuid
         AND l.checkpoint_id = ${checkpointId}::uuid
+        AND l.is_active = true
+        AND e.lifecycle_status = 'APPROVED'
+        AND e.storage_key IS NOT NULL
+        AND length(e.storage_key) > 0
+        AND e.content_sha256 IS NOT NULL
+        AND length(e.content_sha256) > 0
+        AND e.byte_size IS NOT NULL
+        AND e.byte_size > 0
+        AND (e.issue_date IS NULL OR e.issue_date <= ${asOfDate}::date)
+        AND (e.expires_at IS NULL OR e.expires_at >= ${asOfDate}::date)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM evidence AS successor
+          WHERE successor.tenant_id = e.tenant_id
+            AND successor.supersedes_evidence_id = e.id
+            AND successor.lifecycle_status IN ('APPROVED', 'ARCHIVED')
+        )
+      ORDER BY e.id ASC
+      LIMIT 1
+      FOR SHARE OF e
+    `;
+    return rows[0]?.id ?? null;
+  }
+
+  /**
+   * Select and row-lock one Evidence row that satisfies KPI Actual gate rules.
+   */
+  async lockOneQualifyingKpiActualEvidence(
+    client: DbClient,
+    tenantId: string,
+    kpiActualId: string,
+    asOfDate: UtcDateString,
+  ): Promise<string | null> {
+    const rows = await client.$queryRaw<Array<{ id: string }>>`
+      SELECT e.id
+      FROM evidence AS e
+      INNER JOIN evidence_kpi_actual_links AS l
+        ON l.tenant_id = e.tenant_id
+       AND l.evidence_id = e.id
+      WHERE e.tenant_id = ${tenantId}::uuid
+        AND l.kpi_actual_id = ${kpiActualId}::uuid
         AND l.is_active = true
         AND e.lifecycle_status = 'APPROVED'
         AND e.storage_key IS NOT NULL
