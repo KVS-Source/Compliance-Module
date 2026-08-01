@@ -8,6 +8,7 @@ import { evidenceUploadRateLimiter } from "../../common/middleware/rate-limit.js
 import { created, ok } from "../../common/responses/envelope.js";
 import type { EvidenceService } from "./service.js";
 import {
+  approveEvidenceSchema,
   createEvidenceSchema,
   emptyBodySchema,
   evidenceAuditListSchema,
@@ -16,10 +17,15 @@ import {
   evidenceIdParamsSchema,
   evidenceLinkListSchema,
   evidenceListSchema,
+  evidenceReviewDecisionListSchema,
+  evidenceReviewQueueSchema,
+  rejectEvidenceSchema,
   updateEvidenceSchema,
   type EvidenceAuditListQuery,
   type EvidenceLinkListQuery,
   type EvidenceListQuery,
+  type EvidenceReviewDecisionListQuery,
+  type EvidenceReviewQueueQuery,
 } from "./validators.js";
 
 const auditContext = (req: Request) => {
@@ -41,6 +47,19 @@ export const evidenceRoutes = (service: EvidenceService) => {
       const result = await service.list(
         req.auth!.tenantId,
         req.query as unknown as EvidenceListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
+  );
+
+  router.get(
+    "/review-queue",
+    permit("evidence:review"),
+    validate(evidenceReviewQueueSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.listReviewQueue(
+        req.auth!.tenantId,
+        req.query as unknown as EvidenceReviewQueueQuery,
       );
       return ok(res, result.data, result.meta);
     }),
@@ -166,6 +185,59 @@ export const evidenceRoutes = (service: EvidenceService) => {
         ),
       ),
     ),
+  );
+
+  router.post(
+    "/:evidenceId/approve",
+    permit("evidence:review"),
+    validate(evidenceIdParamsSchema, "params"),
+    validate(approveEvidenceSchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.approve(
+          req.auth!.tenantId,
+          String(req.params.evidenceId),
+          req.auth!.userId,
+          req.body,
+          auditContext(req),
+        ),
+      ),
+    ),
+  );
+
+  router.post(
+    "/:evidenceId/reject",
+    permit("evidence:review"),
+    validate(evidenceIdParamsSchema, "params"),
+    validate(rejectEvidenceSchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.reject(
+          req.auth!.tenantId,
+          String(req.params.evidenceId),
+          req.auth!.userId,
+          req.body,
+          auditContext(req),
+        ),
+      ),
+    ),
+  );
+
+  router.get(
+    "/:evidenceId/review-decisions",
+    permit("evidence:read"),
+    validate(evidenceIdParamsSchema, "params"),
+    validate(evidenceReviewDecisionListSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.listReviewDecisions(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        req.query as unknown as EvidenceReviewDecisionListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
   );
 
   router.get(

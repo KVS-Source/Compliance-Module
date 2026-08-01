@@ -1292,8 +1292,7 @@ export const openApiDocument = {
         summary: "List Evidence",
         description:
           "Paginated tenant-scoped Evidence metadata. Filters: q, lifecycleStatus, " +
-          "ownerId, departmentId, expiresBefore, expiresAfter. File upload is not " +
-          "implemented; hasFile is always false for normal Slice 5.1 rows.",
+          "ownerId, departmentId, expiresBefore, expiresAfter.",
         security: [{ bearerAuth: [] }],
         responses: { "200": { description: "Paginated Evidence list" } },
       },
@@ -1301,7 +1300,7 @@ export const openApiDocument = {
         summary: "Create DRAFT Evidence metadata",
         description:
           "Server allocates EVD-###. Optional supersedesEvidenceId for replacement " +
-          "of REJECTED or ARCHIVED Evidence. File fields are rejected.",
+          "of REJECTED or ARCHIVED Evidence.",
         security: [{ bearerAuth: [] }],
         responses: {
           "201": { description: "Created DRAFT Evidence" },
@@ -1310,12 +1309,25 @@ export const openApiDocument = {
         },
       },
     },
+    "/evidence/review-queue": {
+      get: {
+        summary: "List Evidence awaiting review",
+        description:
+          "Requires evidence:review. Returns only SUBMITTED Evidence, FIFO by " +
+          "submittedAt then id. Optional q and expires filters. No storageKey.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated review queue" },
+          "403": { description: "Missing evidence:review" },
+        },
+      },
+    },
     "/evidence/{evidenceId}": {
       get: {
         summary: "Get Evidence detail",
         description:
-          "Includes activeControlLinkCount and activeCheckpointLinkCount. " +
-          "Does not embed full link arrays or storageKey.",
+          "Includes active link counts, reviewedBy, reviewedAt, and " +
+          "latestReviewDecision. Does not embed full link arrays or storageKey.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Evidence detail (no storageKey)" },
@@ -1477,6 +1489,53 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Archived Evidence" },
           "409": { description: "Invalid state" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/approve": {
+      post: {
+        summary: "Approve submitted Evidence",
+        description:
+          "Requires evidence:review. Only SUBMITTED Evidence. Optional comment " +
+          "(2–2000). Blocks creator, uploader and submitter self-review including " +
+          "COMPANY_ADMIN. Append-only decision + lifecycle in one transaction. " +
+          "Does not satisfy Policy/KPI Evidence gates.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "APPROVED Evidence with review summary" },
+          "403": { description: "Missing permission or self-review" },
+          "404": { description: "Evidence not found" },
+          "409": { description: "Invalid state or file required" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/reject": {
+      post: {
+        summary: "Reject submitted Evidence",
+        description:
+          "Requires evidence:review. Only SUBMITTED Evidence. Mandatory reason " +
+          "(2–2000). Same maker-checker rules as approve. Correction uses a new " +
+          "superseding DRAFT Evidence record.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "REJECTED Evidence with review summary" },
+          "400": { description: "Missing or invalid reason" },
+          "403": { description: "Missing permission or self-review" },
+          "404": { description: "Evidence not found" },
+          "409": { description: "Invalid state" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/review-decisions": {
+      get: {
+        summary: "List Evidence review decisions",
+        description:
+          "Requires evidence:read. Append-only history ordered by decidedAt desc. " +
+          "Includes decision, reason/comment, and actedBy summary.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated review decisions" },
+          "404": { description: "Evidence not found" },
         },
       },
     },

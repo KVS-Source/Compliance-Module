@@ -128,8 +128,60 @@ export const emptyBodySchema = z.object({}).strict();
 
 export const evidenceAuditListSchema = paginationSchema.strict();
 
+export const EVIDENCE_REVIEW_COMMENT_MIN = 2;
+export const EVIDENCE_REVIEW_COMMENT_MAX = 2000;
+
+const optionalReviewComment = z
+  .string()
+  .trim()
+  .min(EVIDENCE_REVIEW_COMMENT_MIN)
+  .max(EVIDENCE_REVIEW_COMMENT_MAX)
+  .optional();
+
+export const approveEvidenceSchema = z
+  .object({
+    comment: optionalReviewComment,
+  })
+  .strict();
+
+export const rejectEvidenceSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(EVIDENCE_REVIEW_COMMENT_MIN)
+      .max(EVIDENCE_REVIEW_COMMENT_MAX),
+  })
+  .strict();
+
+export const evidenceReviewQueueSchema = paginationSchema
+  .extend({
+    q: z
+      .string()
+      .optional()
+      .transform((value) => {
+        if (value === undefined) return undefined;
+        const trimmed = value.trim();
+        return trimmed.length === 0 ? undefined : trimmed;
+      })
+      .pipe(z.string().max(EVIDENCE_SEARCH_MAX_LENGTH).optional()),
+    expiresBefore: dateSchema.optional(),
+    expiresAfter: dateSchema.optional(),
+  })
+  .strict();
+
+export const evidenceReviewDecisionListSchema = paginationSchema.strict();
+
 export type EvidenceListQuery = z.infer<typeof evidenceListSchema>;
 export type CreateEvidenceBody = z.infer<typeof createEvidenceSchema>;
 export type UpdateEvidenceBody = z.infer<typeof updateEvidenceSchema>;
 export type EvidenceAuditListQuery = z.infer<typeof evidenceAuditListSchema>;
 export type EvidenceLinkListQuery = z.infer<typeof evidenceLinkListSchema>;
+export type ApproveEvidenceBody = z.infer<typeof approveEvidenceSchema>;
+export type RejectEvidenceBody = z.infer<typeof rejectEvidenceSchema>;
+export type EvidenceReviewQueueQuery = z.infer<
+  typeof evidenceReviewQueueSchema
+>;
+export type EvidenceReviewDecisionListQuery = z.infer<
+  typeof evidenceReviewDecisionListSchema
+>;
