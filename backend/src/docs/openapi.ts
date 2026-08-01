@@ -1313,6 +1313,9 @@ export const openApiDocument = {
     "/evidence/{evidenceId}": {
       get: {
         summary: "Get Evidence detail",
+        description:
+          "Includes activeControlLinkCount and activeCheckpointLinkCount. " +
+          "Does not embed full link arrays or storageKey.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Evidence detail (no storageKey)" },
@@ -1326,6 +1329,102 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Updated Evidence" },
           "409": { description: "Invalid state or archived" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/controls": {
+      get: {
+        summary: "List active Control links for Evidence",
+        description:
+          "Paginated active EvidenceControlLink rows. Requires evidence:read. " +
+          "Readable for every Evidence lifecycle; mutations require DRAFT.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated active Control link summaries" },
+          "404": { description: "Evidence not found" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/controls/{controlId}": {
+      post: {
+        summary: "Link Evidence to a Control",
+        description:
+          "DRAFT Evidence only; Control must be ACTIVE. Empty body {}. " +
+          "201 on first link, 200 on re-link of inactive pair, " +
+          "409 EVIDENCE_CONTROL_LINK_EXISTS when already active. " +
+          "Does not submit, approve, or satisfy Evidence gates.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Created active Control link" },
+          "200": { description: "Reactivated Control link" },
+          "404": { description: "Evidence or Control not found" },
+          "409": {
+            description:
+              "Invalid Evidence state, Control not ACTIVE, or link already active",
+          },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/controls/{controlId}/unlink": {
+      post: {
+        summary: "Unlink Evidence from a Control (soft)",
+        description:
+          "DRAFT Evidence only. Sets isActive=false; preserves the row. " +
+          "Target may be INACTIVE or ARCHIVED. Empty body {}.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Link deactivated" },
+          "404": {
+            description: "Evidence, Control, or active link not found",
+          },
+          "409": { description: "Evidence not DRAFT" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/checkpoints": {
+      get: {
+        summary: "List active Checkpoint links for Evidence",
+        description:
+          "Paginated active EvidenceCheckpointLink rows. Independent of Control links. " +
+          "Requires evidence:read.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated active Checkpoint link summaries" },
+          "404": { description: "Evidence not found" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/checkpoints/{checkpointId}": {
+      post: {
+        summary: "Link Evidence to a Checkpoint",
+        description:
+          "DRAFT Evidence only; Checkpoint must be ACTIVE. Empty body {}. " +
+          "Does not require an Evidence-Control link. " +
+          "201 create / 200 re-link / 409 when already active.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Created active Checkpoint link" },
+          "200": { description: "Reactivated Checkpoint link" },
+          "404": { description: "Evidence or Checkpoint not found" },
+          "409": {
+            description:
+              "Invalid Evidence state, Checkpoint not ACTIVE, or link already active",
+          },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/checkpoints/{checkpointId}/unlink": {
+      post: {
+        summary: "Unlink Evidence from a Checkpoint (soft)",
+        description:
+          "DRAFT Evidence only. Soft isActive=false. Empty body {}.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Link deactivated" },
+          "404": {
+            description: "Evidence, Checkpoint, or active link not found",
+          },
+          "409": { description: "Evidence not DRAFT" },
         },
       },
     },
