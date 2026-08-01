@@ -15,7 +15,11 @@ x-app-environment: &app-environment
   FRONTEND_DIST: ../frontend/dist
   PROTOTYPE_DIR: ../docs/prototype
   FILE_STORAGE_DRIVER: ${FILE_STORAGE_DRIVER:-local}
-  LOCAL_UPLOAD_DIR: ${LOCAL_UPLOAD_DIR:-./uploads}
+  # Container WORKDIR is /app/backend; uploads live under that tree.
+  LOCAL_UPLOAD_DIR: ${LOCAL_UPLOAD_DIR:-/app/backend/uploads}
+  EVIDENCE_MAX_UPLOAD_BYTES: ${EVIDENCE_MAX_UPLOAD_BYTES:-10485760}
+  EVIDENCE_UPLOAD_RATE_MAX: ${EVIDENCE_UPLOAD_RATE_MAX:-20}
+  EVIDENCE_UPLOAD_RATE_WINDOW_MS: ${EVIDENCE_UPLOAD_RATE_WINDOW_MS:-900000}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
 x-app-build: &app-build
@@ -70,6 +74,9 @@ services:
     environment: *app-environment
     ports:
       - "8000:8000"
+    volumes:
+      # Local/UAT evidence file persistence only — not production object storage.
+      - genbioca_uploads:/app/backend/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,3 +85,4 @@ volumes:
   genbioca_postgres:
   genbioca_postgres_test:
     name: genbioca_compliance_test_data
+  genbioca_uploads:

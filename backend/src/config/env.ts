@@ -29,6 +29,24 @@ export const environmentSchema = z
     PROTOTYPE_DIR: z.string().default("../docs/prototype"),
     FILE_STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     LOCAL_UPLOAD_DIR: z.string().default("./uploads"),
+    EVIDENCE_MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(52_428_800)
+      .default(10_485_760),
+    EVIDENCE_UPLOAD_RATE_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(20),
+    EVIDENCE_UPLOAD_RATE_WINDOW_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(86_400_000)
+      .default(900_000),
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
       .default("info"),

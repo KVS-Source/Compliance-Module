@@ -54,3 +54,36 @@ export const refreshRateLimiter = () =>
     code: "AUTH_RATE_LIMITED",
     message: "Too many session refresh attempts. Try again later.",
   });
+
+/**
+ * Evidence multipart upload. Keys by authenticated user when present, else IP.
+ * Does not replace the broader API limiter mounted on `/api/v1`.
+ */
+export const evidenceUploadRateLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: env.EVIDENCE_UPLOAD_RATE_WINDOW_MS,
+    limit: env.EVIDENCE_UPLOAD_RATE_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => env.RATE_LIMIT_DISABLED === "true",
+    // Prefer authenticated user id; fall back to default IP keying.
+    keyGenerator: (req) => {
+      if (req.auth?.userId) return `evidence-upload:user:${req.auth.userId}`;
+      // Default library behaviour for IP (validated) when user is absent.
+      return `evidence-upload:ip:${req.ip || "unknown"}`;
+    },
+    validate: {
+      // Custom key prefers userId; IP fallback is intentional for unauthenticated edge cases.
+      keyGeneratorIpFallback: false,
+    },
+    handler: (req, res) => {
+      req.log?.warn({ path: req.path }, "evidence upload rate limit exceeded");
+      res.status(429).json({
+        success: false,
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many evidence upload attempts. Try again later.",
+        },
+      });
+    },
+  });
