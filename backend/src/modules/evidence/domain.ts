@@ -131,6 +131,7 @@ export const assertEvidenceSelfReviewAllowed = (input: {
   actorId: string;
   createdById: string;
   uploadedById: string | null | undefined;
+  submittedById?: string | null | undefined;
 }) => {
   if (input.actorId === input.createdById) {
     throw new GovernanceRuleError(
@@ -148,6 +149,16 @@ export const assertEvidenceSelfReviewAllowed = (input: {
       "Evidence uploader cannot review their own Evidence",
     );
   }
+  if (
+    input.submittedById != null &&
+    input.submittedById.length > 0 &&
+    input.actorId === input.submittedById
+  ) {
+    throw new GovernanceRuleError(
+      "EVIDENCE_SELF_REVIEW_FORBIDDEN",
+      "Evidence submitter cannot review their own Evidence",
+    );
+  }
 };
 
 export const assertEvidenceReviewDecision = (input: {
@@ -155,6 +166,7 @@ export const assertEvidenceReviewDecision = (input: {
   actorId: string;
   createdById: string;
   uploadedById: string | null | undefined;
+  submittedById?: string | null | undefined;
   decision: EvidenceDecisionOutcome;
   reason: string | null | undefined;
 }) => {
@@ -168,6 +180,7 @@ export const assertEvidenceReviewDecision = (input: {
     actorId: input.actorId,
     createdById: input.createdById,
     uploadedById: input.uploadedById,
+    submittedById: input.submittedById,
   });
   if (input.decision === "REJECTED") {
     const reason = input.reason?.trim() ?? "";
@@ -178,7 +191,20 @@ export const assertEvidenceReviewDecision = (input: {
       );
     }
   }
+  if (input.decision === "APPROVED" && input.reason != null) {
+    const comment = input.reason.trim();
+    if (comment.length > 0 && (comment.length < 2 || comment.length > 2000)) {
+      throw new GovernanceRuleError(
+        "VALIDATION_ERROR",
+        "Approval comment must be between 2 and 2000 characters when provided",
+      );
+    }
+  }
 };
+
+/** Optional approval comment / rejection reason free-text length (aligned with Policy). */
+export const EVIDENCE_REVIEW_TEXT_MIN = 2;
+export const EVIDENCE_REVIEW_TEXT_MAX = 2000;
 
 /** Link and unlink mutations are allowed only while Evidence is DRAFT. */
 export const isEvidenceLinkMutable = (
@@ -252,6 +278,9 @@ export const safeEvidenceAuditMetadata = (input: {
   checkpointCode?: string;
   isActive?: boolean;
   reactivated?: boolean;
+  reviewDecisionId?: string;
+  decision?: EvidenceDecisionOutcome;
+  hasComment?: boolean;
 }) => ({
   code: input.code,
   ...(input.lifecycleStatus
@@ -286,4 +315,7 @@ export const safeEvidenceAuditMetadata = (input: {
   ...(input.reactivated !== undefined
     ? { reactivated: input.reactivated }
     : {}),
+  ...(input.reviewDecisionId ? { reviewDecisionId: input.reviewDecisionId } : {}),
+  ...(input.decision ? { decision: input.decision } : {}),
+  ...(input.hasComment !== undefined ? { hasComment: input.hasComment } : {}),
 });

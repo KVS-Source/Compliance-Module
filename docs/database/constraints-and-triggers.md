@@ -5,7 +5,7 @@ are read-only and safe for a disposable or read-only administration session.
 Catalogue totals in the current database dictionary come from a freshly
 migrated disposable PostgreSQL database.
 
-## Application triggers: 51/51
+## Application triggers: 52/52
 
 All application triggers are `FOR EACH ROW`. `INSERT/UPDATE OF` means the
 trigger runs only when one of the named guarded fields participates in the
@@ -43,6 +43,7 @@ update.
 | T43–T49 | `policies_no_hard_delete`; `policy_frameworks_no_hard_delete`; `controls_no_hard_delete`; `control_policy_versions_no_hard_delete`; `control_frameworks_no_hard_delete`; `rule_controls_no_hard_delete`; `checkpoints_no_hard_delete` | named governance history tables | BEFORE DELETE | historically relevant records cannot be physically deleted | same | no hard-delete paths |
 | T50 | `checkpoint_reviews_period_guard` | `checkpoint_reviews` | BEFORE INSERT | Checkpoint is active and review period matches its `KpiFrequency` | same | review-period validation |
 | T51 | `checkpoint_reviews_sync_latest` | `checkpoint_reviews` | AFTER INSERT | latest review pointer, reviewed timestamp and next-review date advance by `(submitted_at, id)`, with lexicographically greater UUID text breaking equal-time ties | same | reordered, equal-time and concurrent latest-review synchronization |
+| T52 | `evidence_review_decisions_append_only` | `evidence_review_decisions` | BEFORE UPDATE or DELETE | Evidence review decisions are append-only | `20260801090000_milestone_5_slice_1_evidence_foundation` | `evidence-api.test.ts`, `evidence-review-api.test.ts` |
 
 ### Safe trigger verification queries
 

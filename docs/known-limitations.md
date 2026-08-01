@@ -26,13 +26,12 @@ by UAT language or status-page presentation.
 - Policy, Control and Checkpoint REST APIs are operational. React Policy
   Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
   Checkpoint Register/detail (Slice 7) are operational. Evidence metadata,
-  local file upload/download/submit and DRAFT-only Control/Checkpoint link APIs
-  are operational after Milestone 5 Slices 1–3. Evidence React routes,
-  approve/reject HTTP, reverse Control/Checkpoint Evidence lists and frontend
-  linking UI are not. The standalone Policy Versions navigation page, Gap, CAPA,
-  Import, Tasks, Notifications, Reports, global audit query/export and settings
-  domains are not operational. Same-period Checkpoint Review correction remains
-  unsupported.
+  local file upload/download/submit, DRAFT-only Control/Checkpoint link APIs,
+  and approve/reject review (Slice 5.4) are operational. Evidence React routes,
+  reverse Control/Checkpoint Evidence lists and frontend linking/review UI are
+  not. The standalone Policy Versions navigation page, Gap, CAPA, Import, Tasks,
+  Notifications, Reports, global audit query/export and settings domains are not
+  operational. Same-period Checkpoint Review correction remains unsupported.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Policy, Control and Checkpoint register filters are React state only
   (no URL query sync). Control Checkpoint panels keep counts and, when
@@ -40,12 +39,13 @@ by UAT language or status-page presentation.
   `/compliance/checkpoints` without controlId query or `location.state`.
 - Evidence-required KPI approval deliberately fails closed where already
   defined (`EVIDENCE_GATE_NOT_IMPLEMENTED`). Policy approval also fails closed
-  when `requiresEvidence=true`. Linking Evidence to Controls or Checkpoints does
-  not satisfy those gates. Evidence file upload/download works for local
-  storage only; submit requires a stored file. There is no approval override
-  that skips Evidence gates. Policy content/purpose/scope render as plain text
-  only (no HTML/Markdown). Evidence links are mutable only while DRAFT and
-  become immutable after submit (soft `isActive` + audit history).
+  when `requiresEvidence=true`. Linking or approving Evidence does not satisfy
+  those gates until a later gate slice. Evidence file upload/download works for
+  local storage only; submit requires a stored file. There is no approval
+  override that skips Evidence gates. Policy content/purpose/scope render as
+  plain text only (no HTML/Markdown). Evidence links are mutable only while
+  DRAFT. Evidence review is limited to SUBMITTED rows with creator/uploader/
+  submitter self-review blocked.
 - Playwright Policy, Control and Checkpoint suites use mocked HTTP only. Backend
   Policy, Control and Checkpoint PostgreSQL integration tests remain the
   database authority.

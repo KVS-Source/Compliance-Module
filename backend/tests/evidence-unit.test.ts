@@ -23,12 +23,15 @@ import {
   controlLinkDto,
 } from "../src/modules/evidence/service.js";
 import {
+  approveEvidenceSchema,
   createEvidenceSchema,
   emptyBodySchema,
   evidenceCheckpointLinkParamsSchema,
   evidenceControlLinkParamsSchema,
   evidenceLinkListSchema,
   evidenceListSchema,
+  evidenceReviewQueueSchema,
+  rejectEvidenceSchema,
   updateEvidenceSchema,
 } from "../src/modules/evidence/validators.js";
 import {
@@ -167,11 +170,20 @@ describe("Evidence domain and validators", () => {
       }),
     ).toThrow(/uploader/);
     expect(() =>
+      assertEvidenceSelfReviewAllowed({
+        actorId: "u3",
+        createdById: "u1",
+        uploadedById: null,
+        submittedById: "u3",
+      }),
+    ).toThrow(/submitter/);
+    expect(() =>
       assertEvidenceReviewDecision({
         lifecycleStatus: "SUBMITTED",
         actorId: "reviewer",
         createdById: "creator",
         uploadedById: null,
+        submittedById: "submitter",
         decision: "REJECTED",
         reason: "x",
       }),
@@ -182,6 +194,7 @@ describe("Evidence domain and validators", () => {
         actorId: "reviewer",
         createdById: "creator",
         uploadedById: null,
+        submittedById: "submitter",
         decision: "APPROVED",
         reason: null,
       }),
@@ -196,6 +209,18 @@ describe("Evidence domain and validators", () => {
         reason: null,
       }),
     ).toThrow(/SUBMITTED/);
+    for (const status of ["APPROVED", "REJECTED", "ARCHIVED"] as const) {
+      expect(() =>
+        assertEvidenceReviewDecision({
+          lifecycleStatus: status,
+          actorId: "reviewer",
+          createdById: "creator",
+          uploadedById: null,
+          decision: "APPROVED",
+          reason: null,
+        }),
+      ).toThrow(/SUBMITTED/);
+    }
   });
 
   it("allows Control and Checkpoint link mutations only for DRAFT Evidence", () => {
@@ -229,6 +254,52 @@ describe("Evidence domain and validators", () => {
     expect(() => assertCheckpointLinkTargetActive("ARCHIVED")).toThrow(
       /Only ACTIVE Checkpoints/,
     );
+  });
+
+  it("validates approve and reject review bodies", () => {
+    expect(approveEvidenceSchema.parse({})).toEqual({});
+    expect(approveEvidenceSchema.parse({ comment: "Looks good" })).toEqual({
+      comment: "Looks good",
+    });
+    expect(() => approveEvidenceSchema.parse({ comment: "x" })).toThrow();
+    expect(() =>
+      approveEvidenceSchema.parse({ comment: "a".repeat(2001) }),
+    ).toThrow();
+    expect(() => approveEvidenceSchema.parse({ reason: "nope" })).toThrow();
+    expect(rejectEvidenceSchema.parse({ reason: "Needs more detail" })).toEqual(
+      { reason: "Needs more detail" },
+    );
+    expect(() => rejectEvidenceSchema.parse({})).toThrow();
+    expect(() => rejectEvidenceSchema.parse({ reason: "  " })).toThrow();
+    expect(() => rejectEvidenceSchema.parse({ reason: "x" })).toThrow();
+    expect(() =>
+      rejectEvidenceSchema.parse({ reason: "a".repeat(2001) }),
+    ).toThrow();
+    expect(evidenceReviewQueueSchema.parse({})).toEqual({
+      page: 1,
+      pageSize: 20,
+    });
+  });
+
+  it("allowlists review audit metadata without free-text reason", () => {
+    const metadata = safeEvidenceAuditMetadata({
+      code: "EVD-001",
+      fromStatus: "SUBMITTED",
+      toStatus: "REJECTED",
+      decision: "REJECTED",
+      reviewDecisionId: "dec-1",
+      hasFile: true,
+      hasComment: true,
+    });
+    expect(metadata).toMatchObject({
+      code: "EVD-001",
+      decision: "REJECTED",
+      hasComment: true,
+      hasFile: true,
+    });
+    expect(metadata).not.toHaveProperty("reason");
+    expect(metadata).not.toHaveProperty("comment");
+    expect(metadata).not.toHaveProperty("description");
   });
 
   it("validates empty link bodies and UUID path params", () => {

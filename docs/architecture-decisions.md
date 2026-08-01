@@ -88,6 +88,21 @@ Evidence, never changes Control/Checkpoint lifecycle or reviews, and never
 satisfies Policy/KPI/Checkpoint Evidence gates. Reverse Control/Checkpoint
 Evidence list endpoints and frontend linking UI remain deferred.
 
+## AD-016 Evidence approval and rejection (Milestone 5 Slice 4)
+
+Only `SUBMITTED` Evidence may be approved or rejected. Review is atomic:
+tenant-scoped Evidence `FOR UPDATE`, maker-checker checks, append-only
+`evidence_review_decisions` insert, Evidence lifecycle update
+(`reviewedById` / `reviewedAt`), and audit in one transaction. Self-review is
+forbidden when the actor is the creator, uploader, or submitter; administrators
+and wildcards do not bypass this rule. Rejection requires a reason (2–2000
+characters); approval may include an optional comment stored on the decision
+row. Free-text reasons/comments are excluded from audit metadata. Concurrent
+reviews serialize on the Evidence row so exactly one terminal decision wins.
+Rejected Evidence is not re-opened: correction uses a superseding DRAFT.
+Approval does not satisfy Policy/KPI/Checkpoint Evidence gates (deferred).
+Frontend review UI and notifications remain unavailable.
+
 ## AD-009 Errors, logging and environment
 
 Zod validates environment and request inputs. Safe response envelopes hide stack traces and Prisma details. Pino emits structured logs with auth/cookie/password redaction. Helmet includes a React-compatible Content Security Policy: scripts and API connections are same-origin; Google font styles/fonts are explicitly allowed; objects and external framing are blocked. The legacy prototype is reference-only and receives an isolated compatibility CSP so its approved inline behavior remains available for visual comparison; it does not define the production CSP architecture.

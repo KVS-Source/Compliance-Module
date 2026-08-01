@@ -23,7 +23,7 @@ routes require bearer authentication and active Company membership.
 | Policies | `GET/POST /policies`; `GET/PATCH /policies/:policyId`; `POST /policies/:policyId/archive`; `GET/POST /policies/:policyId/versions`; `GET /policies/:policyId/versions/:versionId`; `GET /policies/:policyId/traceability`; `GET /policies/:policyId/audit-events`; `PATCH /policy-versions/:versionId`; `PUT /policy-versions/:versionId/frameworks`; `POST /policy-versions/:versionId/submit`; `/approve`; `/reject` |
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
 | Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews`; `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
-| Evidence | `GET/POST /evidence`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/file`; `GET /evidence/:evidenceId/file`; `POST /evidence/:evidenceId/submit`; `/archive`; `POST /evidence/:evidenceId/controls/:controlId`; `/unlink`; `GET /evidence/:evidenceId/controls`; `POST /evidence/:evidenceId/checkpoints/:checkpointId`; `/unlink`; `GET /evidence/:evidenceId/checkpoints`; `GET /evidence/:evidenceId/audit-events` |
+| Evidence | `GET/POST /evidence`; `GET /evidence/review-queue`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/file`; `GET /evidence/:evidenceId/file`; `POST /evidence/:evidenceId/submit`; `/archive`; `/approve`; `/reject`; `GET /evidence/:evidenceId/review-decisions`; Control/Checkpoint link routes; `GET /evidence/:evidenceId/audit-events` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,
 `meta.pageSize`, `meta.total` and `meta.totalPages`.
@@ -48,15 +48,17 @@ allowlisted types). Download is `GET /evidence/:evidenceId/file` and requires
 `evidence:read` plus `evidence:download`. Submit requires a stored file.
 Control and Checkpoint link mutations require DRAFT Evidence and
 `evidence:write`; lists require `evidence:read`. New links require ACTIVE
-targets. Soft unlink uses `POST …/unlink`. Reverse Control/Checkpoint Evidence
-lists and approve/reject HTTP are not present. Linking does not submit or
-approve Evidence and does not satisfy Policy/KPI/Checkpoint Evidence gates.
+targets. Soft unlink uses `POST …/unlink`. Approve/reject require
+`evidence:review` and only apply to SUBMITTED Evidence (maker-checker:
+creator/uploader/submitter cannot decide). Review queue requires
+`evidence:review`. Reverse Control/Checkpoint Evidence lists are not present.
+Linking or approving does not satisfy Policy/KPI/Checkpoint Evidence gates.
 
 ## Explicitly absent
 
-No active API implements Evidence approve/reject, reverse Evidence lookup on
-Controls/Checkpoints, Gap, CAPA, Import, Tasks, Notifications, Reports,
-global audit search/export, settings or GenRAC connectivity.
+No active API implements reverse Evidence lookup on Controls/Checkpoints, Gap,
+CAPA, Import, Tasks, Notifications, Reports, global audit search/export,
+settings or GenRAC connectivity.
 Policy Version obsoletion and Policy INACTIVE transitions are deferred.
 No Control or Checkpoint DELETE route exists. No Review PATCH/DELETE or same-period
 Review correction route exists. No nested `GET /controls/:controlId/checkpoints`

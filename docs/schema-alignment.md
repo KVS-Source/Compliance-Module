@@ -21,7 +21,7 @@ Key authority decisions:
 - KPI approvals, Policy approvals, Checkpoint reviews, risk reviews, risk
   treatments, Evidence review decisions and audit events are append-only;
 - Evidence metadata foundation (Milestone 5 Slice 1) exists with typed Control
-  and Checkpoint link tables; file upload, approve/reject HTTP and link
+  and Checkpoint link tables; file upload, link APIs and approve/reject HTTP
   mutations are deferred;
 - no Gap, CAPA, Import, Task, Notification, Report or GenRAC model exists.
 

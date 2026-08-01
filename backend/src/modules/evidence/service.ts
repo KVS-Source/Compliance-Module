@@ -32,12 +32,17 @@ import type {
   EvidenceControlLinkRecord,
   EvidenceRecord,
   EvidenceRepository,
+  EvidenceReviewDecisionRecord,
 } from "./repository.js";
 import type {
+  ApproveEvidenceBody,
   CreateEvidenceBody,
   EvidenceAuditListQuery,
   EvidenceLinkListQuery,
   EvidenceListQuery,
+  EvidenceReviewDecisionListQuery,
+  EvidenceReviewQueueQuery,
+  RejectEvidenceBody,
   UpdateEvidenceBody,
 } from "./validators.js";
 
@@ -90,6 +95,9 @@ const mapGovernanceError = (error: unknown): never => {
     }
     if (error.code === "EVIDENCE_SELF_REVIEW_FORBIDDEN") {
       throw new AppError(403, "EVIDENCE_SELF_REVIEW_FORBIDDEN", error.message);
+    }
+    if (error.code === "EVIDENCE_REJECT_REASON_REQUIRED") {
+      throw new AppError(400, "EVIDENCE_REJECT_REASON_REQUIRED", error.message);
     }
     if (error.code === "EVIDENCE_SUPERSEDE_INVALID") {
       throw new AppError(409, "EVIDENCE_SUPERSEDE_INVALID", error.message);
@@ -180,9 +188,18 @@ const fileSummary = (evidence: EvidenceRecord) => {
   };
 };
 
+export const reviewDecisionDto = (decision: EvidenceReviewDecisionRecord) => ({
+  id: decision.id,
+  decision: decision.decision,
+  reason: decision.reason,
+  decidedAt: decision.decidedAt,
+  actedBy: personDto(decision.actedBy),
+});
+
 export const evidenceDto = (
   evidence: EvidenceRecord,
   counts?: ActiveLinkCounts,
+  latestReviewDecision?: EvidenceReviewDecisionRecord | null,
 ) => ({
   id: evidence.id,
   code: evidence.code,
@@ -204,13 +221,45 @@ export const evidenceDto = (
     : {}),
   submittedById: evidence.submittedById,
   submittedAt: evidence.submittedAt,
+  submittedBy: personDto(evidence.submittedBy),
   reviewedById: evidence.reviewedById,
   reviewedAt: evidence.reviewedAt,
+  reviewedBy: personDto(evidence.reviewedBy),
+  ...(latestReviewDecision !== undefined
+    ? {
+        latestReviewDecision: latestReviewDecision
+          ? reviewDecisionDto(latestReviewDecision)
+          : null,
+      }
+    : {}),
   archivedAt: evidence.archivedAt,
   createdById: evidence.createdById,
+  createdBy: personDto(evidence.createdBy),
   updatedById: evidence.updatedById,
   createdAt: evidence.createdAt,
   updatedAt: evidence.updatedAt,
+});
+
+export const reviewQueueItemDto = (
+  evidence: EvidenceRecord,
+  counts: ActiveLinkCounts,
+) => ({
+  id: evidence.id,
+  code: evidence.code,
+  title: evidence.title,
+  lifecycleStatus: evidence.lifecycleStatus,
+  issueDate: dateOnly(evidence.issueDate),
+  expiresAt: dateOnly(evidence.expiresAt),
+  submittedAt: evidence.submittedAt,
+  submittedBy: personDto(evidence.submittedBy),
+  createdBy: personDto(evidence.createdBy),
+  hasFile: hasEvidenceFile({
+    storageKey: evidence.storageKey,
+    contentSha256: evidence.contentSha256,
+    byteSize: evidence.byteSize,
+  }),
+  activeControlLinkCount: counts.activeControlLinkCount,
+  activeCheckpointLinkCount: counts.activeCheckpointLinkCount,
 });
 
 export const controlLinkDto = (link: EvidenceControlLinkRecord) => ({
@@ -330,11 +379,11 @@ export class EvidenceService {
     tenantId: string,
     evidence: EvidenceRecord,
   ) {
-    const counts = await this.repository.countActiveLinks(
-      tenantId,
-      evidence.id,
-    );
-    return evidenceDto(evidence, counts);
+    const [counts, latestReviewDecision] = await Promise.all([
+      this.repository.countActiveLinks(tenantId, evidence.id),
+      this.repository.findLatestReviewDecision(tenantId, evidence.id),
+    ]);
+    return evidenceDto(evidence, counts, latestReviewDecision);
   }
 
   async get(tenantId: string, evidenceId: string) {
@@ -961,5 +1010,134 @@ export class EvidenceService {
       );
     }
     return checkpointLinkDto(result.link);
+  }
+
+  async listReviewQueue(tenantId: string, query: EvidenceReviewQueueQuery) {
+    const result = await this.repository.listReviewQueue(tenantId, query);
+    const countsById = await this.repository.countActiveLinksForMany(
+      tenantId,
+      result.items.map((item) => item.id),
+    );
+    return {
+      data: result.items.map((item) =>
+        reviewQueueItemDto(
+          item,
+          countsById.get(item.id) ?? {
+            activeControlLinkCount: 0,
+            activeCheckpointLinkCount: 0,
+          },
+        ),
+      ),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async listReviewDecisions(
+    tenantId: string,
+    evidenceId: string,
+    query: EvidenceReviewDecisionListQuery,
+  ) {
+    const existing = await this.repository.findEvidence(tenantId, evidenceId);
+    if (!existing) throw evidenceNotFound();
+    const result = await this.repository.listReviewDecisions(
+      tenantId,
+      evidenceId,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      data: result.items.map(reviewDecisionDto),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async approve(
+    tenantId: string,
+    evidenceId: string,
+    actorUserId: string,
+    body: ApproveEvidenceBody,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const reason =
+      body.comment != null && body.comment.trim().length > 0
+        ? body.comment.trim()
+        : null;
+    const result = await this.repository.decideEvidence({
+      tenantId,
+      evidenceId,
+      actorUserId,
+      decision: "APPROVED",
+      reason,
+      context,
+    });
+    return this.mapDecideResult(tenantId, result);
+  }
+
+  async reject(
+    tenantId: string,
+    evidenceId: string,
+    actorUserId: string,
+    body: RejectEvidenceBody,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.decideEvidence({
+      tenantId,
+      evidenceId,
+      actorUserId,
+      decision: "REJECTED",
+      reason: body.reason,
+      context,
+    });
+    return this.mapDecideResult(tenantId, result);
+  }
+
+  private async mapDecideResult(
+    tenantId: string,
+    result: Awaited<ReturnType<EvidenceRepository["decideEvidence"]>>,
+  ) {
+    if (result.kind === "not_found") throw evidenceNotFound();
+    if (result.kind === "invalid_state") {
+      throw new AppError(
+        409,
+        "EVIDENCE_INVALID_STATE",
+        "Only SUBMITTED Evidence can be reviewed",
+      );
+    }
+    if (result.kind === "self_review") {
+      const message =
+        result.role === "creator"
+          ? "Evidence creator cannot review their own Evidence"
+          : result.role === "uploader"
+            ? "Evidence uploader cannot review their own Evidence"
+            : "Evidence submitter cannot review their own Evidence";
+      throw new AppError(403, "EVIDENCE_SELF_REVIEW_FORBIDDEN", message);
+    }
+    if (result.kind === "reason_required") {
+      throw new AppError(
+        400,
+        "EVIDENCE_REJECT_REASON_REQUIRED",
+        "Rejection requires a reason between 2 and 2000 characters",
+      );
+    }
+    if (result.kind === "file_required") {
+      throw new AppError(
+        409,
+        "EVIDENCE_FILE_REQUIRED",
+        "Evidence cannot be approved without a stored file",
+      );
+    }
+    const counts = await this.repository.countActiveLinks(
+      tenantId,
+      result.evidence.id,
+    );
+    return evidenceDto(result.evidence, counts, result.decision);
   }
 }

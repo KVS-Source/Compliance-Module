@@ -78,6 +78,7 @@ run(
     "tests/evidence-api.test.ts",
     "tests/evidence-file-api.test.ts",
     "tests/evidence-link-api.test.ts",
+    "tests/evidence-review-api.test.ts",
   ],
   true,
 );
