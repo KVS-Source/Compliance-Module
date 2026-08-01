@@ -183,7 +183,7 @@ type Mode =
   | "rejected"
   | "requires-evidence"
   | "server-rejects-self"
-  | "evidence-gate-501";
+  | "evidence-gate-409";
 
 interface MockOptions {
   permissions?: string[];
@@ -225,7 +225,7 @@ async function installApprovalMock(page: Page, options: MockOptions = {}) {
           rejectionReason: "Needs a corrected sample.",
         };
       case "requires-evidence":
-      case "evidence-gate-501":
+      case "evidence-gate-409":
         return {
           ...baseActual,
           configuration: { ...configuration, requiresEvidence: true },
@@ -341,13 +341,14 @@ async function installApprovalMock(page: Page, options: MockOptions = {}) {
           failure("FORBIDDEN", "KPI actual self-approval is forbidden"),
         );
       }
-      if (mode === "evidence-gate-501" && action !== "resubmit") {
+      if (mode === "evidence-gate-409" && action !== "resubmit") {
         return json(
           route,
-          501,
+          409,
           failure(
-            "EVIDENCE_GATE_NOT_IMPLEMENTED",
-            "KPI actual approval requires evidence support that is not implemented",
+            "EVIDENCE_REQUIRED",
+            "This KPI actual requires at least one active Evidence link before approval",
+            { reason: "EVIDENCE_KPI_LINK_REQUIRED" },
           ),
         );
       }
@@ -589,10 +590,10 @@ test.describe("KPI actual approval", () => {
     );
   });
 
-  test("warns before an evidence-gated decision and explains the 501", async ({
+  test("warns before an evidence-gated decision and maps 409 gate errors", async ({
     page,
   }) => {
-    await installApprovalMock(page, { mode: "evidence-gate-501" });
+    await installApprovalMock(page, { mode: "evidence-gate-409" });
     await gotoApproval(page);
     await shown(
       page.getByRole("button", { name: `Approve actual ${baseActual.code}` }),
@@ -600,14 +601,12 @@ test.describe("KPI actual approval", () => {
 
     const warning = page.getByTestId("evidence-gate-warning");
     await expect(warning).toBeVisible();
-    await expect(warning).toContainText("EVIDENCE_GATE_NOT_IMPLEMENTED");
+    await expect(warning).toContainText("qualifying approved Evidence");
 
     await page.getByRole("button", { name: "Approve KPI actual" }).click();
     const error = page.getByTestId("decision-error");
     await expect(error).toBeVisible();
-    await expect(error).toContainText(
-      "the Evidence domain is not implemented yet",
-    );
+    await expect(error).toContainText("linked Evidence record");
     await expect(error).toContainText("nothing was saved");
   });
 
