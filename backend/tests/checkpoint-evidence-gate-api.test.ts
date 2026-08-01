@@ -698,13 +698,14 @@ describe("Checkpoint Evidence gate Slice 5.5A+B", () => {
       }),
     ).rejects.toThrow();
 
-    expect(() => new EvidenceGateService().assertSatisfied(true)).toThrowError(
-      expect.objectContaining({
-        status: 501,
-        code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
+    await expect(
+      new EvidenceGateService().assertKpiActualApprovalSatisfied({
+        tenantId: "00000000-0000-4000-8000-000000000001",
+        kpiActualId: "00000000-0000-4000-8000-000000000002",
+        requiresEvidence: false,
       }),
-    );
-    // Policy domain no longer 501s; KPI remains fail-closed via assertSatisfied.
+    ).resolves.toEqual({ satisfied: true, qualifyingCount: 0 });
+    // Policy/KPI gates are real; fail-closed only when coverage is required.
     const { assertPolicyApprovalAllowed } = await import(
       "../src/modules/policies/domain.js"
     );

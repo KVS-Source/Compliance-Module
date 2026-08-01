@@ -75,6 +75,29 @@ const checkpointLinkInclude =
     updatedBy: { select: personSelect },
   });
 
+const kpiActualLinkInclude =
+  Prisma.validator<Prisma.EvidenceKpiActualLinkInclude>()({
+    kpiActual: {
+      select: {
+        id: true,
+        code: true,
+        period: true,
+        approvalStatus: true,
+        deletedAt: true,
+      },
+    },
+    evidence: {
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        lifecycleStatus: true,
+      },
+    },
+    createdBy: { select: personSelect },
+    updatedBy: { select: personSelect },
+  });
+
 export type EvidenceControlLinkRecord = Prisma.EvidenceControlLinkGetPayload<{
   include: typeof controlLinkInclude;
 }>;
@@ -82,6 +105,11 @@ export type EvidenceControlLinkRecord = Prisma.EvidenceControlLinkGetPayload<{
 export type EvidenceCheckpointLinkRecord =
   Prisma.EvidenceCheckpointLinkGetPayload<{
     include: typeof checkpointLinkInclude;
+  }>;
+
+export type EvidenceKpiActualLinkRecord =
+  Prisma.EvidenceKpiActualLinkGetPayload<{
+    include: typeof kpiActualLinkInclude;
   }>;
 
 export type ActiveLinkCounts = {
@@ -1135,6 +1163,299 @@ export class EvidenceRepository {
           linkId: link.id,
           checkpointId: checkpoint.id,
           checkpointCode: checkpoint.code,
+          isActive: false,
+        },
+        context: input.context,
+      });
+
+      return { kind: "ok" as const, link };
+    });
+  }
+
+  findKpiActualForLink(tenantId: string, kpiActualId: string) {
+    return this.db.kpiActual.findFirst({
+      where: { tenantId, id: kpiActualId, deletedAt: null },
+      select: {
+        id: true,
+        code: true,
+        period: true,
+        approvalStatus: true,
+      },
+    });
+  }
+
+  async listKpiActualLinksForEvidence(
+    tenantId: string,
+    evidenceId: string,
+    page: number,
+    pageSize: number,
+  ) {
+    const where: Prisma.EvidenceKpiActualLinkWhereInput = {
+      tenantId,
+      evidenceId,
+      isActive: true,
+    };
+    const [items, total] = await this.db.$transaction([
+      this.db.evidenceKpiActualLink.findMany({
+        where,
+        include: kpiActualLinkInclude,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.evidenceKpiActualLink.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async listKpiActualLinksForActual(
+    tenantId: string,
+    kpiActualId: string,
+    page: number,
+    pageSize: number,
+  ) {
+    const where: Prisma.EvidenceKpiActualLinkWhereInput = {
+      tenantId,
+      kpiActualId,
+      isActive: true,
+    };
+    const [items, total] = await this.db.$transaction([
+      this.db.evidenceKpiActualLink.findMany({
+        where,
+        include: kpiActualLinkInclude,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.evidenceKpiActualLink.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  /**
+   * Lock order (compatible with KPI approval Actual → Evidence):
+   * KpiActual FOR UPDATE → Evidence FOR UPDATE → link mutation.
+   */
+  linkKpiActual(input: {
+    tenantId: string;
+    evidenceId: string;
+    kpiActualId: string;
+    actorUserId: string;
+    context: AuditContext;
+  }) {
+    return this.db.$transaction(async (transaction) => {
+      // 1) KpiActual first (never Evidence → Actual).
+      const lockedActual = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          approval_status: string;
+        }>
+      >`
+        SELECT id, code, approval_status
+        FROM kpi_actuals
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.kpiActualId}::uuid
+          AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (lockedActual.length === 0) {
+        return { kind: "kpi_actual_not_found" as const };
+      }
+      const actual = lockedActual[0]!;
+      if (actual.approval_status === "APPROVED") {
+        return {
+          kind: "kpi_actual_invalid_state" as const,
+          status: actual.approval_status,
+        };
+      }
+
+      // 2) Evidence second.
+      const lockedEvidence = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          lifecycle_status: EvidenceLifecycleStatus;
+        }>
+      >`
+        SELECT id, code, lifecycle_status
+        FROM evidence
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.evidenceId}::uuid
+        FOR UPDATE
+      `;
+      if (lockedEvidence.length === 0) {
+        return { kind: "evidence_not_found" as const };
+      }
+      const evidence = lockedEvidence[0]!;
+      if (evidence.lifecycle_status !== "DRAFT") {
+        return {
+          kind: "evidence_invalid_state" as const,
+          status: evidence.lifecycle_status,
+        };
+      }
+
+      const existing = await transaction.evidenceKpiActualLink.findFirst({
+        where: {
+          tenantId: input.tenantId,
+          evidenceId: input.evidenceId,
+          kpiActualId: input.kpiActualId,
+        },
+      });
+
+      if (existing?.isActive) {
+        return { kind: "exists" as const };
+      }
+
+      let link: EvidenceKpiActualLinkRecord;
+      let reactivated = false;
+      if (existing) {
+        link = await transaction.evidenceKpiActualLink.update({
+          where: { id: existing.id },
+          data: {
+            isActive: true,
+            updatedById: input.actorUserId,
+          },
+          include: kpiActualLinkInclude,
+        });
+        reactivated = true;
+      } else {
+        try {
+          link = await transaction.evidenceKpiActualLink.create({
+            data: {
+              tenantId: input.tenantId,
+              evidenceId: input.evidenceId,
+              kpiActualId: input.kpiActualId,
+              isActive: true,
+              createdById: input.actorUserId,
+              updatedById: input.actorUserId,
+            },
+            include: kpiActualLinkInclude,
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            return { kind: "exists" as const };
+          }
+          throw error;
+        }
+      }
+
+      await writeAudit(transaction, {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        action: "EVIDENCE_KPI_ACTUAL_LINKED",
+        entityType: "EVIDENCE",
+        entityId: input.evidenceId,
+        metadata: {
+          code: evidence.code,
+          linkId: link.id,
+          kpiActualId: actual.id,
+          kpiActualCode: actual.code,
+          isActive: true,
+          ...(reactivated ? { reactivated: true } : {}),
+        },
+        context: input.context,
+      });
+
+      return {
+        kind: reactivated ? ("reactivated" as const) : ("created" as const),
+        link,
+      };
+    });
+  }
+
+  unlinkKpiActual(input: {
+    tenantId: string;
+    evidenceId: string;
+    kpiActualId: string;
+    actorUserId: string;
+    context: AuditContext;
+  }) {
+    return this.db.$transaction(async (transaction) => {
+      // 1) KpiActual first (never Evidence → Actual).
+      const lockedActual = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          approval_status: string;
+        }>
+      >`
+        SELECT id, code, approval_status
+        FROM kpi_actuals
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.kpiActualId}::uuid
+          AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (lockedActual.length === 0) {
+        return { kind: "kpi_actual_not_found" as const };
+      }
+      const actual = lockedActual[0]!;
+      if (actual.approval_status === "APPROVED") {
+        return {
+          kind: "kpi_actual_invalid_state" as const,
+          status: actual.approval_status,
+        };
+      }
+
+      // 2) Evidence second.
+      const lockedEvidence = await transaction.$queryRaw<
+        Array<{
+          id: string;
+          code: string;
+          lifecycle_status: EvidenceLifecycleStatus;
+        }>
+      >`
+        SELECT id, code, lifecycle_status
+        FROM evidence
+        WHERE tenant_id = ${input.tenantId}::uuid
+          AND id = ${input.evidenceId}::uuid
+        FOR UPDATE
+      `;
+      if (lockedEvidence.length === 0) {
+        return { kind: "evidence_not_found" as const };
+      }
+      const evidence = lockedEvidence[0]!;
+      if (evidence.lifecycle_status !== "DRAFT") {
+        return {
+          kind: "evidence_invalid_state" as const,
+          status: evidence.lifecycle_status,
+        };
+      }
+
+      const existing = await transaction.evidenceKpiActualLink.findFirst({
+        where: {
+          tenantId: input.tenantId,
+          evidenceId: input.evidenceId,
+          kpiActualId: input.kpiActualId,
+          isActive: true,
+        },
+      });
+      if (!existing) return { kind: "link_not_found" as const };
+
+      const link = await transaction.evidenceKpiActualLink.update({
+        where: { id: existing.id },
+        data: {
+          isActive: false,
+          updatedById: input.actorUserId,
+        },
+        include: kpiActualLinkInclude,
+      });
+
+      await writeAudit(transaction, {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        action: "EVIDENCE_KPI_ACTUAL_UNLINKED",
+        entityType: "EVIDENCE",
+        entityId: input.evidenceId,
+        metadata: {
+          code: evidence.code,
+          linkId: link.id,
+          kpiActualId: actual.id,
+          kpiActualCode: actual.code,
           isActive: false,
         },
         context: input.context,

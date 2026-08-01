@@ -184,6 +184,7 @@ model Tenant {
   evidence                 Evidence[]
   evidenceControlLinks     EvidenceControlLink[]
   evidenceCheckpointLinks  EvidenceCheckpointLink[]
+  evidenceKpiActualLinks   EvidenceKpiActualLink[]
   evidenceReviewDecisions  EvidenceReviewDecision[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
@@ -265,6 +266,8 @@ model User {
   updatedEvidenceControlLinks EvidenceControlLink[] @relation("EvidenceControlLinkUpdatedBy")
   createdEvidenceCheckpointLinks EvidenceCheckpointLink[] @relation("EvidenceCheckpointLinkCreatedBy")
   updatedEvidenceCheckpointLinks EvidenceCheckpointLink[] @relation("EvidenceCheckpointLinkUpdatedBy")
+  createdEvidenceKpiActualLinks EvidenceKpiActualLink[] @relation("EvidenceKpiActualLinkCreatedBy")
+  updatedEvidenceKpiActualLinks EvidenceKpiActualLink[] @relation("EvidenceKpiActualLinkUpdatedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -782,6 +785,7 @@ model Evidence {
   updatedBy            User                    @relation("EvidenceUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   controlLinks         EvidenceControlLink[]
   checkpointLinks      EvidenceCheckpointLink[]
+  kpiActualLinks       EvidenceKpiActualLink[]
   reviewDecisions      EvidenceReviewDecision[]
 
   @@unique([tenantId, id])
@@ -841,6 +845,30 @@ model EvidenceCheckpointLink {
   @@index([tenantId, checkpointId, isActive])
   @@index([tenantId, evidenceId, isActive])
   @@map("evidence_checkpoint_links")
+}
+
+model EvidenceKpiActualLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  evidenceId  String    @map("evidence_id") @db.Uuid
+  kpiActualId String    @map("kpi_actual_id") @db.Uuid
+  isActive    Boolean   @default(true) @map("is_active")
+  linkReason  String?   @map("link_reason") @db.Text
+  createdById String    @map("created_by_id") @db.Uuid
+  updatedById String    @map("updated_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  evidence    Evidence  @relation(fields: [tenantId, evidenceId], references: [tenantId, id], onDelete: Restrict)
+  kpiActual   KpiActual @relation(fields: [tenantId, kpiActualId], references: [tenantId, id], onDelete: Restrict)
+  createdBy   User      @relation("EvidenceKpiActualLinkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User      @relation("EvidenceKpiActualLinkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, evidenceId, kpiActualId])
+  @@index([tenantId, kpiActualId, isActive])
+  @@index([tenantId, evidenceId, isActive])
+  @@map("evidence_kpi_actual_links")
 }
 
 model EvidenceReviewDecision {
@@ -1033,6 +1061,7 @@ model KpiActual {
   updatedBy           User             @relation("KpiActualUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   approvals           KpiApproval[]
   risks               Risk[]
+  evidenceLinks       EvidenceKpiActualLink[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, kpiConfigurationId, kpiTargetId])

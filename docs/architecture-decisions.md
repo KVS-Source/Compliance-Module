@@ -130,8 +130,7 @@ default Prisma/PostgreSQL transaction level (not SERIALIZABLE).
 The gate writes no audit; parent `CHECKPOINT_REVIEWED` audit occurs only after
 success. Failure is HTTP 409 `EVIDENCE_REQUIRED` with safe reason
 `EVIDENCE_COVERAGE_INCOMPLETE`. No extra permission beyond `checkpoints:review`.
-KPI gates remain fail-closed `501 EVIDENCE_GATE_NOT_IMPLEMENTED` until a typed
-KPI–Evidence relationship lands.
+KPI Actual Evidence gate is documented in AD-019.
 
 ## AD-018 Policy Version Evidence gate (Milestone 5 Slice 5.5C)
 
@@ -174,6 +173,37 @@ audit; no new permission beyond `policies:approve`.
 `policy_versions_submission_fields_consistent` no longer requires
 `AND NOT requires_evidence` for APPROVED/SUPERSEDED/OBSOLETE. Other lifecycle
 and self-approval invariants remain.
+
+## AD-019 KPI Actual Evidence gate (Milestone 5 Slice 5D)
+
+KPI approval uses **`KpiConfiguration.requiresEvidence`** only. When false,
+approve is unchanged. When true, `EvidenceGateService.assertKpiActualApprovalSatisfied`
+runs inside the existing `approveActual` transaction after locking the
+`KpiActual` row (`FOR UPDATE`) and before APPROVED status, `KpiApproval` row,
+and approval audit.
+
+**Authoritative target:** the exact **`KpiActual`** (period identity = actual
+id). Typed table `evidence_kpi_actual_links` (tenant-safe FKs to Evidence and
+KpiActual, soft `is_active`, unique pair). No configuration, target, Control,
+Checkpoint, Policy, or tenant-wide fallback.
+
+**Configuration invariant:** `requiresEvidence=true` requires
+`requiresApproval=true` (reject on create/update; never coerce). Evidence-
+required actuals always enter `PENDING_APPROVAL` so Evidence can be linked
+before approval.
+
+**Coverage:** ≥1 qualifying linked Evidence (Slice 5.5A eligibility, evaluation
+UTC date). Empty active links → 409 `EVIDENCE_REQUIRED` /
+`EVIDENCE_KPI_LINK_REQUIRED`. Links exist but none qualify →
+`EVIDENCE_KPI_COVERAGE_INCOMPLETE`. Selected Evidence is locked with
+`FOR SHARE OF e` until commit.
+
+**Risk:** automatic AMBER/RED Risk still creates on submit; gate failure on
+approve does not create, delete, or mutate that Risk.
+
+**Permissions:** link mutate `evidence:write`; list `evidence:read`; approve
+`kpi-actual:approve`. No admin bypass. Frontend attachment UX deferred to
+Slice 5.6.
 
 ## AD-009 Errors, logging and environment
 

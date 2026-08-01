@@ -18,6 +18,11 @@ export type PolicyEvidenceGateReason =
   | "EVIDENCE_CHECKPOINT_COVERAGE_INCOMPLETE"
   | "EVIDENCE_COVERAGE_INCOMPLETE";
 
+/** Safe KPI Actual Evidence gate reasons (API details.reason). */
+export type KpiEvidenceGateReason =
+  | "EVIDENCE_KPI_LINK_REQUIRED"
+  | "EVIDENCE_KPI_COVERAGE_INCOMPLETE";
+
 /** UTC calendar date as `YYYY-MM-DD`. */
 export type UtcDateString = string;
 

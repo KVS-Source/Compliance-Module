@@ -41,12 +41,17 @@ by UAT language or status-page presentation.
   Evidence linked to that Checkpoint (Slice 5.5B). Policy approval with
   `requiresEvidence=true` evaluates exact-version Control/Checkpoint Evidence
   coverage (Slice 5.5C); empty configuration fails with 409
-  `EVIDENCE_GATE_NOT_CONFIGURED`. KPI approval still fails closed with
-  `EVIDENCE_GATE_NOT_IMPLEMENTED` (501). There is no approval override that
-  skips those gates. Evidence file upload/download works for local storage
-  only. Policy content/purpose/scope render as plain text only. Evidence links
-  are mutable only while DRAFT. Evidence review is limited to SUBMITTED rows
-  with creator/uploader/submitter self-review blocked.
+  `EVIDENCE_GATE_NOT_CONFIGURED`. KPI actual approval with
+  `requiresEvidence=true` requires at least one active qualifying
+  Evidence↔KpiActual link (409 `EVIDENCE_REQUIRED` with
+  `EVIDENCE_KPI_LINK_REQUIRED` or `EVIDENCE_KPI_COVERAGE_INCOMPLETE`). Evidence
+  attachment UI for KPI actuals is deferred to Slice 5.6; backend link APIs
+  exist. Configurations cannot combine `requiresEvidence=true` with
+  `requiresApproval=false`. There is no approval override that skips those
+  gates. Evidence file upload/download works for local storage only. Policy
+  content/purpose/scope render as plain text only. Evidence links are mutable
+  only while DRAFT. Evidence review is limited to SUBMITTED rows with
+  creator/uploader/submitter self-review blocked.
 - Playwright Policy, Control and Checkpoint suites use mocked HTTP only. Backend
   Policy, Control and Checkpoint PostgreSQL integration tests remain the
   database authority.

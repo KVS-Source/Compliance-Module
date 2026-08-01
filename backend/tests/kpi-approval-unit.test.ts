@@ -38,11 +38,36 @@ const actualForWorkflow = (
     },
   }) as unknown as KpiActualRecord;
 
-const serviceWithActual = (actual: KpiActualRecord) => {
+const serviceWithActual = (
+  actual: KpiActualRecord,
+  gate?: EvidenceGateService,
+) => {
   const transaction = {
-    findWorkflowActual: vi.fn().mockResolvedValue(actual),
+    lockActual: vi.fn().mockResolvedValue([
+      {
+        id: actual.id,
+        approval_status: actual.approvalStatus,
+        kpi_configuration_id: "config",
+        submitted_by_id: actual.submittedById,
+      },
+    ]),
+    lockConfigurationForApproval: vi.fn().mockResolvedValue([
+      {
+        id: "config",
+        requires_evidence: actual.configuration.requiresEvidence,
+        requires_approval: actual.configuration.requiresApproval,
+        approver_id: actual.configuration.approverId,
+      },
+    ]),
+    findWorkflowActual: vi.fn().mockResolvedValue({
+      ...actual,
+      kpiConfigurationId: "config",
+    }),
     decideActual: vi.fn(),
     resubmitActual: vi.fn(),
+    get transactionClient() {
+      return {} as never;
+    },
   } as unknown as KpiActualTransactionRepository;
   const repository = {
     runWorkflowTransaction: vi.fn(
@@ -55,22 +80,22 @@ const serviceWithActual = (actual: KpiActualRecord) => {
       repository,
       {} as KpiPerformanceService,
       {} as RiskService,
-      new EvidenceGateService(),
+      gate ?? new EvidenceGateService(),
     ),
     transaction,
   };
 };
 
 describe("EvidenceGateService", () => {
-  it("passes only when evidence is not required", () => {
+  it("KPI actual gate short-circuits when evidence is not required", async () => {
     const gate = new EvidenceGateService();
-    expect(gate.assertSatisfied(false)).toBe(true);
-    expect(() => gate.assertSatisfied(true)).toThrowError(
-      expect.objectContaining({
-        status: 501,
-        code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
+    await expect(
+      gate.assertKpiActualApprovalSatisfied({
+        tenantId: "00000000-0000-4000-8000-000000000001",
+        kpiActualId: "00000000-0000-4000-8000-000000000002",
+        requiresEvidence: false,
       }),
-    );
+    ).resolves.toEqual({ satisfied: true, qualifyingCount: 0 });
   });
 });
 
@@ -130,8 +155,21 @@ describe("KPI actual workflow authorization", () => {
   });
 
   it("fails closed at the evidence gate before approval writes", async () => {
+    const gate = {
+      assertKpiActualApprovalSatisfied: vi.fn().mockRejectedValue(
+        Object.assign(new Error("Evidence required"), {
+          status: 409,
+          code: "EVIDENCE_REQUIRED",
+          details: { reason: "EVIDENCE_KPI_LINK_REQUIRED" },
+        }),
+      ),
+    } as unknown as EvidenceGateService;
     const { service, transaction } = serviceWithActual(
-      actualForWorkflow("PENDING_APPROVAL", { requiresEvidence: true }),
+      actualForWorkflow("PENDING_APPROVAL", {
+        requiresEvidence: true,
+        requiresApproval: true,
+      }),
+      gate,
     );
 
     await expect(
@@ -143,10 +181,11 @@ describe("KPI actual workflow authorization", () => {
         {},
       ),
     ).rejects.toMatchObject({
-      status: 501,
-      code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
+      status: 409,
+      code: "EVIDENCE_REQUIRED",
     });
     expect(transaction.decideActual).not.toHaveBeenCalled();
+    expect(gate.assertKpiActualApprovalSatisfied).toHaveBeenCalled();
   });
 
   it("allows only the original submitter to resubmit", async () => {

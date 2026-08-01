@@ -419,7 +419,7 @@ describe("KPI configuration and target Slice A", () => {
     }
   });
 
-  it("auto-approves without enforcing the future evidence gate", async () => {
+  it("auto-approves targets when approval is not required", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const suffix = randomUUID().slice(0, 8);
     const configuration = await createConfiguration(
@@ -428,7 +428,7 @@ describe("KPI configuration and target Slice A", () => {
       {
         productService: `Automatic ${suffix}`,
         requiresApproval: false,
-        requiresEvidence: true,
+        requiresEvidence: false,
       },
     );
     expect(configuration.status).toBe(201);

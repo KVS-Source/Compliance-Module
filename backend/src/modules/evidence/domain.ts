@@ -216,8 +216,8 @@ export const assertEvidenceLinkMutable = (status: EvidenceLifecycleStatus) => {
     throw new GovernanceRuleError(
       status === "ARCHIVED" ? "EVIDENCE_ARCHIVED" : "EVIDENCE_INVALID_STATE",
       status === "ARCHIVED"
-        ? "Archived Evidence cannot change Control or Checkpoint links"
-        : "Only DRAFT Evidence can change Control or Checkpoint links",
+        ? "Archived Evidence cannot change Control, Checkpoint or KPI Actual links"
+        : "Only DRAFT Evidence can change Control, Checkpoint or KPI Actual links",
     );
   }
 };

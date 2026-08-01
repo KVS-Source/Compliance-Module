@@ -30,6 +30,7 @@ import type {
   AuditContext,
   EvidenceCheckpointLinkRecord,
   EvidenceControlLinkRecord,
+  EvidenceKpiActualLinkRecord,
   EvidenceRecord,
   EvidenceRepository,
   EvidenceReviewDecisionRecord,
@@ -129,7 +130,7 @@ const evidenceInvalidStateForLink = () =>
   new AppError(
     409,
     "EVIDENCE_INVALID_STATE",
-    "Only DRAFT Evidence can change Control or Checkpoint links",
+    "Only DRAFT Evidence can change Control, Checkpoint or KPI Actual links",
   );
 
 const controlInvalidStateForLink = () =>
@@ -144,6 +145,16 @@ const checkpointInvalidStateForLink = () =>
     409,
     "CHECKPOINT_INVALID_STATE",
     "Only ACTIVE Checkpoints can receive Evidence links",
+  );
+
+const kpiActualNotFound = () =>
+  new AppError(404, "KPI_ACTUAL_NOT_FOUND", "KPI actual not found");
+
+const kpiActualInvalidStateForLink = () =>
+  new AppError(
+    409,
+    "KPI_ACTUAL_INVALID_STATE",
+    "Approved KPI actuals cannot change Evidence links",
   );
 
 const ownerInvalid = () =>
@@ -270,6 +281,27 @@ export const controlLinkDto = (link: EvidenceControlLinkRecord) => ({
     code: link.control.code,
     title: link.control.title,
     lifecycleStatus: link.control.lifecycleStatus,
+  },
+  linkedAt: link.createdAt,
+  linkedBy: personDto(link.createdBy),
+  updatedAt: link.updatedAt,
+  updatedBy: personDto(link.updatedBy),
+});
+
+export const kpiActualLinkDto = (link: EvidenceKpiActualLinkRecord) => ({
+  id: link.id,
+  isActive: link.isActive,
+  evidence: {
+    id: link.evidence.id,
+    code: link.evidence.code,
+    title: link.evidence.title,
+    lifecycleStatus: link.evidence.lifecycleStatus,
+  },
+  kpiActual: {
+    id: link.kpiActual.id,
+    code: link.kpiActual.code,
+    period: link.kpiActual.period,
+    approvalStatus: link.kpiActual.approvalStatus,
   },
   linkedAt: link.createdAt,
   linkedBy: personDto(link.createdBy),
@@ -1010,6 +1042,122 @@ export class EvidenceService {
       );
     }
     return checkpointLinkDto(result.link);
+  }
+
+  async listKpiActualLinks(
+    tenantId: string,
+    evidenceId: string,
+    query: EvidenceLinkListQuery,
+  ) {
+    const existing = await this.repository.findEvidence(tenantId, evidenceId);
+    if (!existing) throw evidenceNotFound();
+    const result = await this.repository.listKpiActualLinksForEvidence(
+      tenantId,
+      evidenceId,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      data: result.items.map(kpiActualLinkDto),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async listEvidenceLinksForKpiActual(
+    tenantId: string,
+    kpiActualId: string,
+    query: EvidenceLinkListQuery,
+  ) {
+    const actual = await this.repository.findKpiActualForLink(
+      tenantId,
+      kpiActualId,
+    );
+    if (!actual) throw kpiActualNotFound();
+    const result = await this.repository.listKpiActualLinksForActual(
+      tenantId,
+      kpiActualId,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      data: result.items.map(kpiActualLinkDto),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async linkKpiActual(
+    tenantId: string,
+    evidenceId: string,
+    kpiActualId: string,
+    actorUserId: string,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.linkKpiActual({
+      tenantId,
+      evidenceId,
+      kpiActualId,
+      actorUserId,
+      context,
+    });
+    if (result.kind === "evidence_not_found") throw evidenceNotFound();
+    if (result.kind === "evidence_invalid_state") {
+      throw evidenceInvalidStateForLink();
+    }
+    if (result.kind === "kpi_actual_not_found") throw kpiActualNotFound();
+    if (result.kind === "kpi_actual_invalid_state") {
+      throw kpiActualInvalidStateForLink();
+    }
+    if (result.kind === "exists") {
+      throw new AppError(
+        409,
+        "EVIDENCE_KPI_ACTUAL_LINK_EXISTS",
+        "Evidence is already linked to this KPI actual",
+      );
+    }
+    return {
+      created: result.kind === "created",
+      data: kpiActualLinkDto(result.link),
+    };
+  }
+
+  async unlinkKpiActual(
+    tenantId: string,
+    evidenceId: string,
+    kpiActualId: string,
+    actorUserId: string,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.unlinkKpiActual({
+      tenantId,
+      evidenceId,
+      kpiActualId,
+      actorUserId,
+      context,
+    });
+    if (result.kind === "evidence_not_found") throw evidenceNotFound();
+    if (result.kind === "evidence_invalid_state") {
+      throw evidenceInvalidStateForLink();
+    }
+    if (result.kind === "kpi_actual_not_found") throw kpiActualNotFound();
+    if (result.kind === "kpi_actual_invalid_state") {
+      throw kpiActualInvalidStateForLink();
+    }
+    if (result.kind === "link_not_found") {
+      throw new AppError(
+        404,
+        "EVIDENCE_KPI_ACTUAL_LINK_NOT_FOUND",
+        "Active Evidence KPI actual link not found",
+      );
+    }
+    return kpiActualLinkDto(result.link);
   }
 
   async listReviewQueue(tenantId: string, query: EvidenceReviewQueueQuery) {

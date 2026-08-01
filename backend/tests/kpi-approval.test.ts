@@ -539,8 +539,11 @@ describe("KPI actual approval workflow Slice C", () => {
       const response = await request(app)
         .post(`/api/v1/kpi-actuals/${submitted.body.data.id}/approve`)
         .set("Authorization", `Bearer ${reviewer.accessToken}`)
-        .expect(501);
-      expect(response.body.error.code).toBe("EVIDENCE_GATE_NOT_IMPLEMENTED");
+        .expect(409);
+      expect(response.body.error.code).toBe("EVIDENCE_REQUIRED");
+      expect(response.body.error.details.reason).toBe(
+        "EVIDENCE_KPI_LINK_REQUIRED",
+      );
       expect(
         await prisma.kpiActual.findUniqueOrThrow({
           where: { id: submitted.body.data.id },
@@ -565,80 +568,34 @@ describe("KPI actual approval workflow Slice C", () => {
     }
   });
 
-  it("rolls back automatic submission approval when evidence is required", async () => {
+  it("rejects evidence-required auto-approval configuration", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
-    const configuration = await createConfiguration(
-      admin.accessToken,
-      admin.user.id,
-      { requiresEvidence: true, requiresApproval: false },
-    );
-    await createApprovedTarget(
-      admin.user.activeCompany.id,
-      configuration.body.data.id,
-      admin.user.id,
-    );
-    const before = await Promise.all([
-      prisma.tenant.findUniqueOrThrow({
-        where: { id: admin.user.activeCompany.id },
-        select: { nextRiskNumber: true, nextKpiActualNumber: true },
-      }),
-      prisma.risk.count({
-        where: { tenantId: admin.user.activeCompany.id },
-      }),
-      prisma.auditEvent.count({
-        where: {
-          tenantId: admin.user.activeCompany.id,
-          action: {
-            in: ["KPI_ACTUAL_SUBMITTED", "KPI_ACTUAL_APPROVED", "RISK_CREATED"],
-          },
-        },
-      }),
-      prisma.kpiActual.count({
-        where: {
-          tenantId: admin.user.activeCompany.id,
-          kpiConfigurationId: configuration.body.data.id,
-        },
-      }),
-    ]);
-
-    const response = await submitActual(
-      admin.accessToken,
-      configuration.body.data.id,
-      "80",
-    ).expect(501);
-    expect(response.body.error.code).toBe("EVIDENCE_GATE_NOT_IMPLEMENTED");
-    expect(
-      await prisma.kpiActual.count({
-        where: {
-          tenantId: admin.user.activeCompany.id,
-          kpiConfigurationId: configuration.body.data.id,
-        },
-      }),
-    ).toBe(before[3]);
-    expect(
-      await prisma.tenant.findUniqueOrThrow({
-        where: { id: admin.user.activeCompany.id },
-        select: { nextRiskNumber: true, nextKpiActualNumber: true },
-      }),
-    ).toEqual({
-      nextRiskNumber: before[0].nextRiskNumber,
-      nextKpiActualNumber: before[0].nextKpiActualNumber,
+    const definition = await prisma.kpiDefinition.upsert({
+      where: { code: "KPI-SLICEC-INV" },
+      update: {},
+      create: {
+        code: "KPI-SLICEC-INV",
+        name: "Invariant check KPI",
+        unit: "Count",
+        direction: "HIGHER_IS_BETTER",
+        frequency: "QUARTERLY",
+        status: "ACTIVE",
+      },
     });
-    expect(
-      await prisma.risk.count({
-        where: { tenantId: admin.user.activeCompany.id },
-      }),
-    ).toBe(before[1]);
-    expect(
-      await prisma.auditEvent.count({
-        where: {
-          tenantId: admin.user.activeCompany.id,
-          action: {
-            in: ["KPI_ACTUAL_SUBMITTED", "KPI_ACTUAL_APPROVED", "RISK_CREATED"],
-          },
-        },
-      }),
-    ).toBe(before[2]);
+    const response = await request(app)
+      .post("/api/v1/kpi-configurations")
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        kpiDefinitionId: definition.id,
+        ownerId: admin.user.id,
+        productService: `Inv ${randomUUID()}`,
+        reviewFrequency: "QUARTERLY",
+        effectiveFrom: "2026-07-01",
+        enabled: true,
+        requiresEvidence: true,
+        requiresApproval: false,
+      });
+    expect(response.status).toBe(400);
   });
 
   it("allows an explicit decision on a legacy SUBMITTED actual", async () => {

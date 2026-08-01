@@ -128,7 +128,7 @@ export const apiRoutes = (
   router.use("/kpi-goals", kpiGoalRoutes(provider));
   router.use("/kpi-configurations", kpiConfigurationRoutes(kpiManagement));
   router.use("/kpi-targets", kpiTargetRoutes(kpiManagement));
-  router.use("/kpi-actuals", kpiActualRoutes(kpiActuals));
+  router.use("/kpi-actuals", kpiActualRoutes(kpiActuals, evidence));
   router.use("/risks", riskRoutes(risks));
   router.use("/policies", policyRoutes(policies));
   router.use("/policy-versions", policyVersionRoutes(policies));

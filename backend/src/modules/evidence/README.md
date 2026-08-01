@@ -48,12 +48,31 @@ ControlPolicyVersion mappings when `requiresEvidence=true`:
 - Independent obligations; empty required set → `EVIDENCE_GATE_NOT_CONFIGURED`
 - Multi-target `FOR SHARE` locks; no public preview endpoint
 
+## KPI Actual gate (Slice 5D)
+
+`assertKpiActualApprovalSatisfied` evaluates active `EvidenceKpiActualLink`
+rows when `KpiConfiguration.requiresEvidence=true`:
+
+- Exact `KpiActual` only (period identity is the actual id)
+- Qualifying Evidence: APPROVED, file metadata complete, dates valid as of
+  evaluation UTC date, not superseded, active link
+- No active links → 409 `EVIDENCE_REQUIRED` / `EVIDENCE_KPI_LINK_REQUIRED`
+- Links exist but none qualify → `EVIDENCE_KPI_COVERAGE_INCOMPLETE`
+- `FOR SHARE OF e` on one qualifying Evidence until the approval transaction ends
+- Config invariant: `requiresEvidence=true` requires `requiresApproval=true`
+
+Link APIs (Evidence DRAFT only; actual not APPROVED):
+
+- `POST /evidence/:id/kpi-actuals/:kpiActualId`
+- `POST /evidence/:id/kpi-actuals/:kpiActualId/unlink`
+- `GET /evidence/:id/kpi-actuals`
+- `GET /kpi-actuals/:id/evidence-links`
+
 ## Explicitly deferred
 
-- KPI Evidence satisfaction (still `501` via boolean `assertSatisfied(true)`)
+- Frontend KPI Evidence attachment / approval UX (Slice 5.6)
 - Control-level standalone gate API
-- Frontend LIVE Evidence UI
-- Reverse Evidence lookup APIs
 - S3 / malware / RLS / production deployment
+- Period-window, department, or category Evidence rules
 
 `storageKey` is never returned in API responses.

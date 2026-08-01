@@ -15,6 +15,7 @@ import {
   evidenceCheckpointLinkParamsSchema,
   evidenceControlLinkParamsSchema,
   evidenceIdParamsSchema,
+  evidenceKpiActualLinkParamsSchema,
   evidenceLinkListSchema,
   evidenceListSchema,
   evidenceReviewDecisionListSchema,
@@ -336,6 +337,58 @@ export const evidenceRoutes = (service: EvidenceService) => {
         req.auth!.tenantId,
         String(req.params.evidenceId),
         String(req.params.checkpointId),
+        req.auth!.userId,
+        auditContext(req),
+      );
+      if (result.created) return created(res, result.data);
+      return ok(res, result.data);
+    }),
+  );
+
+  router.get(
+    "/:evidenceId/kpi-actuals",
+    permit("evidence:read"),
+    validate(evidenceIdParamsSchema, "params"),
+    validate(evidenceLinkListSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.listKpiActualLinks(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        req.query as unknown as EvidenceLinkListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
+  );
+
+  router.post(
+    "/:evidenceId/kpi-actuals/:kpiActualId/unlink",
+    permit("evidence:write"),
+    validate(evidenceKpiActualLinkParamsSchema, "params"),
+    validate(emptyBodySchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.unlinkKpiActual(
+          req.auth!.tenantId,
+          String(req.params.evidenceId),
+          String(req.params.kpiActualId),
+          req.auth!.userId,
+          auditContext(req),
+        ),
+      ),
+    ),
+  );
+
+  router.post(
+    "/:evidenceId/kpi-actuals/:kpiActualId",
+    permit("evidence:write"),
+    validate(evidenceKpiActualLinkParamsSchema, "params"),
+    validate(emptyBodySchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.linkKpiActual(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        String(req.params.kpiActualId),
         req.auth!.userId,
         auditContext(req),
       );

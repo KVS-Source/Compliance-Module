@@ -3,7 +3,7 @@
 ## Authority
 
 `backend/prisma/migrations/` is the only authoritative database migration
-history. The current baseline contains eleven ordered migrations:
+history. The current baseline contains ordered migrations including:
 
 1. `20260721181500_milestone_1`
 2. `20260721190000_membership_hardening`
@@ -17,15 +17,13 @@ history. The current baseline contains eleven ordered migrations:
 10. `20260730040412_milestone_4_policy_control_checkpoint_foundation`
 11. `20260801090000_milestone_5_slice_1_evidence_foundation`
 12. `20260801120000_milestone_5_slice_2_evidence_content_sha_unique`
+13. `20260801160000_milestone_5_slice_5c_policy_evidence_gate`
+14. `20260801200000_milestone_5_slice_5d_kpi_evidence_gate`
 
-Migration eleven adds Evidence metadata tables, typed Control/Checkpoint link
-tables, append-only review decisions, enums and `tenants.next_evidence_number`.
-Migration twelve adds partial unique index
-`evidence_tenant_content_sha256_unique` on `(tenant_id, content_sha256)`
-where the hash is not null (tenant-scoped duplicate file protection; not
-expressible as a Prisma `@@unique` partial index).
-Permission catalogue entries and role assignments are applied by the
-idempotent seed mechanism, not migration SQL.
+Migration fourteen adds typed `evidence_kpi_actual_links` (tenant-safe FKs,
+unique evidence+actual pair, soft `is_active`, indexes for gate and list
+queries). No Evidence-link backfill. Permission catalogue entries and role
+assignments are applied by the idempotent seed mechanism, not migration SQL.
 
 ## Commands by environment
 

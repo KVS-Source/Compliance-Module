@@ -488,10 +488,6 @@ export const openApiDocument = {
             description:
               "KPI_ACTUAL_PERIOD_EXISTS: an active actual already exists for the configuration and period",
           },
-          "501": {
-            description:
-              "Automatic approval requires evidence support that is not implemented",
-          },
         },
       },
     },
@@ -505,6 +501,29 @@ export const openApiDocument = {
           "200": { description: "KPI actual with approval history" },
           "403": { description: "Missing kpis:read permission" },
           "404": { description: "Actual not in Company context" },
+        },
+      },
+    },
+    "/kpi-actuals/{id}/evidence-links": {
+      get: {
+        summary: "List active Evidence links for a KPI actual",
+        description:
+          "Tenant-scoped active EvidenceKpiActualLink rows for the exact actual. " +
+          "Requires evidence:read. Safe DTOs omit storage keys and internal paths. " +
+          "Links are mutable only while Evidence is DRAFT and the actual is not APPROVED.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Paginated active Evidence links" },
+          "403": { description: "Missing evidence:read permission" },
+          "404": { description: "KPI actual not in the active Company" },
         },
       },
     },
@@ -542,11 +561,8 @@ export const openApiDocument = {
           },
           "404": { description: "KPI actual not in the active Company" },
           "409": {
-            description: "KPI actual is not awaiting an approval decision",
-          },
-          "501": {
             description:
-              "Approval requires evidence support that is not implemented",
+              "KPI actual is not awaiting an approval decision, or Evidence is required and not satisfied (EVIDENCE_REQUIRED with EVIDENCE_KPI_LINK_REQUIRED or EVIDENCE_KPI_COVERAGE_INCOMPLETE)",
           },
         },
       },
@@ -628,10 +644,6 @@ export const openApiDocument = {
           },
           "404": { description: "KPI actual not in the active Company" },
           "409": { description: "KPI actual is not rejected" },
-          "501": {
-            description:
-              "Automatic approval requires evidence support that is not implemented",
-          },
         },
       },
     },
@@ -1435,6 +1447,99 @@ export const openApiDocument = {
           "409": {
             description:
               "Invalid Evidence state, Checkpoint not ACTIVE, or link already active",
+          },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/kpi-actuals": {
+      get: {
+        summary: "List active KPI actual links for Evidence",
+        description:
+          "Tenant-scoped active EvidenceKpiActualLink rows for the Evidence item. " +
+          "Requires evidence:read. Mirrors Control/Checkpoint reverse lists.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "evidenceId",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Paginated active KPI actual links" },
+          "403": { description: "Missing evidence:read permission" },
+          "404": { description: "Evidence not in the active Company" },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/kpi-actuals/{kpiActualId}": {
+      post: {
+        summary: "Link Evidence to a KPI actual",
+        description:
+          "Creates or reactivates a typed EvidenceKpiActualLink. " +
+          "Locks KpiActual then Evidence (FOR UPDATE). Evidence must be DRAFT; " +
+          "KpiActual must not be APPROVED. Soft-reactivation of an inactive pair " +
+          "is allowed. Requires evidence:write. No hard-delete endpoint exists.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "evidenceId",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            in: "path",
+            name: "kpiActualId",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "201": { description: "Link created" },
+          "200": { description: "Link reactivated" },
+          "403": { description: "Missing evidence:write permission" },
+          "404": {
+            description: "Evidence or KPI actual not found for this Company",
+          },
+          "409": {
+            description:
+              "Evidence not DRAFT, KPI actual APPROVED, or active link already exists",
+          },
+        },
+      },
+    },
+    "/evidence/{evidenceId}/kpi-actuals/{kpiActualId}/unlink": {
+      post: {
+        summary: "Soft-deactivate Evidence KPI actual link",
+        description:
+          "Sets isActive=false on the typed link. Locks KpiActual then Evidence. " +
+          "Evidence must be DRAFT; KpiActual must not be APPROVED. Requires evidence:write.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "evidenceId",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            in: "path",
+            name: "kpiActualId",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Link deactivated" },
+          "403": { description: "Missing evidence:write permission" },
+          "404": {
+            description:
+              "Evidence, KPI actual, or active link not found for this Company",
+          },
+          "409": {
+            description: "Evidence not DRAFT or KPI actual is APPROVED",
           },
         },
       },
