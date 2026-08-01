@@ -180,6 +180,49 @@ export const assertEvidenceReviewDecision = (input: {
   }
 };
 
+/** Link and unlink mutations are allowed only while Evidence is DRAFT. */
+export const isEvidenceLinkMutable = (
+  status: EvidenceLifecycleStatus,
+): boolean => status === "DRAFT";
+
+export const assertEvidenceLinkMutable = (status: EvidenceLifecycleStatus) => {
+  if (!isEvidenceLinkMutable(status)) {
+    throw new GovernanceRuleError(
+      status === "ARCHIVED" ? "EVIDENCE_ARCHIVED" : "EVIDENCE_INVALID_STATE",
+      status === "ARCHIVED"
+        ? "Archived Evidence cannot change Control or Checkpoint links"
+        : "Only DRAFT Evidence can change Control or Checkpoint links",
+    );
+  }
+};
+
+/** New and reactivated links require an ACTIVE Control or Checkpoint target. */
+export const isLinkTargetActive = (
+  lifecycleStatus: "ACTIVE" | "INACTIVE" | "ARCHIVED",
+): boolean => lifecycleStatus === "ACTIVE";
+
+export const assertControlLinkTargetActive = (
+  lifecycleStatus: "ACTIVE" | "INACTIVE" | "ARCHIVED",
+) => {
+  if (!isLinkTargetActive(lifecycleStatus)) {
+    throw new GovernanceRuleError(
+      "CONTROL_INVALID_STATE",
+      "Only ACTIVE Controls can receive Evidence links",
+    );
+  }
+};
+
+export const assertCheckpointLinkTargetActive = (
+  lifecycleStatus: "ACTIVE" | "INACTIVE" | "ARCHIVED",
+) => {
+  if (!isLinkTargetActive(lifecycleStatus)) {
+    throw new GovernanceRuleError(
+      "CHECKPOINT_INVALID_STATE",
+      "Only ACTIVE Checkpoints can receive Evidence links",
+    );
+  }
+};
+
 const safeEvidenceAuditFields = new Set([
   "title",
   "ownerId",
@@ -202,6 +245,13 @@ export const safeEvidenceAuditMetadata = (input: {
   supersedesEvidenceId?: string | null;
   supersedesCode?: string | null;
   hasFile?: boolean;
+  linkId?: string;
+  controlId?: string;
+  controlCode?: string;
+  checkpointId?: string;
+  checkpointCode?: string;
+  isActive?: boolean;
+  reactivated?: boolean;
 }) => ({
   code: input.code,
   ...(input.lifecycleStatus
@@ -227,4 +277,13 @@ export const safeEvidenceAuditMetadata = (input: {
     : {}),
   ...(input.supersedesCode ? { supersedesCode: input.supersedesCode } : {}),
   ...(input.hasFile !== undefined ? { hasFile: input.hasFile } : {}),
+  ...(input.linkId ? { linkId: input.linkId } : {}),
+  ...(input.controlId ? { controlId: input.controlId } : {}),
+  ...(input.controlCode ? { controlCode: input.controlCode } : {}),
+  ...(input.checkpointId ? { checkpointId: input.checkpointId } : {}),
+  ...(input.checkpointCode ? { checkpointCode: input.checkpointCode } : {}),
+  ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+  ...(input.reactivated !== undefined
+    ? { reactivated: input.reactivated }
+    : {}),
 });

@@ -71,8 +71,10 @@ Milestone 4 Slice 7. The standalone Policy Versions navigation page remains
 `IN_DEVELOPMENT` (Version management lives inside Policy detail for Slice 5).
 Milestone 5 Slice 2 delivers Evidence metadata plus secure **local** file
 upload, SHA-256 tenant duplicate protection, authorized attachment download,
-and successful submit after upload. Evidence React routes remain
-`IN_DEVELOPMENT`. Gap, CAPA, Import, Tasks, Notifications, Reports, global
+and successful submit after upload. Milestone 5 Slice 3 adds tenant-safe
+Evidence↔Control and Evidence↔Checkpoint link/unlink/list APIs (mutable only
+while Evidence is `DRAFT`; soft `isActive` re-link model). Evidence React routes
+remain `IN_DEVELOPMENT`. Gap, CAPA, Import, Tasks, Notifications, Reports, global
 audit search/export, settings and most broader operations modules are not
 operational. Their visible routes are status pages, not simulated business
 screens.
@@ -80,8 +82,9 @@ screens.
 Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
 Evidence-dependent KPI and Policy approval behaviour remains fail-closed where
 `requiresEvidence=true`. Malware scanning, S3, inline preview, approve/reject
-HTTP and Control/Checkpoint Evidence link mutation APIs are not implemented.
-Policy content is rendered as plain text only.
+HTTP, reverse Control/Checkpoint Evidence lists and frontend linking UI are not
+implemented. Linking does not satisfy Evidence gates. Policy content is rendered
+as plain text only.
 
 This release is not a production deployment.
 

@@ -26,13 +26,17 @@ import {
   parseEvidenceMultipartUpload,
 } from "./multipart.js";
 import type {
+  ActiveLinkCounts,
   AuditContext,
+  EvidenceCheckpointLinkRecord,
+  EvidenceControlLinkRecord,
   EvidenceRecord,
   EvidenceRepository,
 } from "./repository.js";
 import type {
   CreateEvidenceBody,
   EvidenceAuditListQuery,
+  EvidenceLinkListQuery,
   EvidenceListQuery,
   UpdateEvidenceBody,
 } from "./validators.js";
@@ -93,6 +97,12 @@ const mapGovernanceError = (error: unknown): never => {
     if (error.code === "EVIDENCE_INVALID_STATE") {
       throw new AppError(409, "EVIDENCE_INVALID_STATE", error.message);
     }
+    if (error.code === "CONTROL_INVALID_STATE") {
+      throw new AppError(409, "CONTROL_INVALID_STATE", error.message);
+    }
+    if (error.code === "CHECKPOINT_INVALID_STATE") {
+      throw new AppError(409, "CHECKPOINT_INVALID_STATE", error.message);
+    }
     throw new AppError(400, error.code, error.message);
   }
   throw error;
@@ -100,6 +110,33 @@ const mapGovernanceError = (error: unknown): never => {
 
 const evidenceNotFound = () =>
   new AppError(404, "EVIDENCE_NOT_FOUND", "Evidence not found");
+
+const controlNotFound = () =>
+  new AppError(404, "CONTROL_NOT_FOUND", "Control not found");
+
+const checkpointNotFound = () =>
+  new AppError(404, "CHECKPOINT_NOT_FOUND", "Checkpoint not found");
+
+const evidenceInvalidStateForLink = () =>
+  new AppError(
+    409,
+    "EVIDENCE_INVALID_STATE",
+    "Only DRAFT Evidence can change Control or Checkpoint links",
+  );
+
+const controlInvalidStateForLink = () =>
+  new AppError(
+    409,
+    "CONTROL_INVALID_STATE",
+    "Only ACTIVE Controls can receive Evidence links",
+  );
+
+const checkpointInvalidStateForLink = () =>
+  new AppError(
+    409,
+    "CHECKPOINT_INVALID_STATE",
+    "Only ACTIVE Checkpoints can receive Evidence links",
+  );
 
 const ownerInvalid = () =>
   new AppError(
@@ -143,7 +180,10 @@ const fileSummary = (evidence: EvidenceRecord) => {
   };
 };
 
-export const evidenceDto = (evidence: EvidenceRecord) => ({
+export const evidenceDto = (
+  evidence: EvidenceRecord,
+  counts?: ActiveLinkCounts,
+) => ({
   id: evidence.id,
   code: evidence.code,
   title: evidence.title,
@@ -156,6 +196,12 @@ export const evidenceDto = (evidence: EvidenceRecord) => ({
   supersedesEvidenceId: evidence.supersedesEvidenceId,
   supersedes: supersedesDto(evidence.supersedes),
   ...fileSummary(evidence),
+  ...(counts
+    ? {
+        activeControlLinkCount: counts.activeControlLinkCount,
+        activeCheckpointLinkCount: counts.activeCheckpointLinkCount,
+      }
+    : {}),
   submittedById: evidence.submittedById,
   submittedAt: evidence.submittedAt,
   reviewedById: evidence.reviewedById,
@@ -165,6 +211,37 @@ export const evidenceDto = (evidence: EvidenceRecord) => ({
   updatedById: evidence.updatedById,
   createdAt: evidence.createdAt,
   updatedAt: evidence.updatedAt,
+});
+
+export const controlLinkDto = (link: EvidenceControlLinkRecord) => ({
+  id: link.id,
+  isActive: link.isActive,
+  control: {
+    id: link.control.id,
+    code: link.control.code,
+    title: link.control.title,
+    lifecycleStatus: link.control.lifecycleStatus,
+  },
+  linkedAt: link.createdAt,
+  linkedBy: personDto(link.createdBy),
+  updatedAt: link.updatedAt,
+  updatedBy: personDto(link.updatedBy),
+});
+
+export const checkpointLinkDto = (link: EvidenceCheckpointLinkRecord) => ({
+  id: link.id,
+  isActive: link.isActive,
+  checkpoint: {
+    id: link.checkpoint.id,
+    code: link.checkpoint.code,
+    title: link.checkpoint.title,
+    lifecycleStatus: link.checkpoint.lifecycleStatus,
+    controlId: link.checkpoint.controlId,
+  },
+  linkedAt: link.createdAt,
+  linkedBy: personDto(link.createdBy),
+  updatedAt: link.updatedAt,
+  updatedBy: personDto(link.updatedBy),
 });
 
 export class EvidenceService {
@@ -238,21 +315,32 @@ export class EvidenceService {
       context,
     });
 
-    return evidenceDto(created);
+    return this.withDetailCounts(tenantId, created);
   }
 
   async list(tenantId: string, query: EvidenceListQuery) {
     const result = await this.repository.list(tenantId, query);
     return {
-      data: result.items.map(evidenceDto),
+      data: result.items.map((item) => evidenceDto(item)),
       meta: pageMeta(query.page, query.pageSize, result.total),
     };
+  }
+
+  private async withDetailCounts(
+    tenantId: string,
+    evidence: EvidenceRecord,
+  ) {
+    const counts = await this.repository.countActiveLinks(
+      tenantId,
+      evidence.id,
+    );
+    return evidenceDto(evidence, counts);
   }
 
   async get(tenantId: string, evidenceId: string) {
     const evidence = await this.repository.findEvidence(tenantId, evidenceId);
     if (!evidence) throw evidenceNotFound();
-    return evidenceDto(evidence);
+    return this.withDetailCounts(tenantId, evidence);
   }
 
   async update(
@@ -357,7 +445,7 @@ export class EvidenceService {
         evidenceId,
       );
       if (!existing) throw evidenceNotFound();
-      return evidenceDto(existing);
+      return this.withDetailCounts(tenantId, existing);
     }
 
     const updated = await this.repository.updateEvidence({
@@ -377,7 +465,7 @@ export class EvidenceService {
       }),
       context,
     });
-    return evidenceDto(updated);
+    return this.withDetailCounts(tenantId, updated);
   }
 
   async submit(
@@ -414,7 +502,7 @@ export class EvidenceService {
         "Evidence cannot be submitted until a file has been uploaded",
       );
     }
-    return evidenceDto(result.evidence);
+    return this.withDetailCounts(tenantId, result.evidence);
   }
 
   async uploadFile(
@@ -532,7 +620,7 @@ export class EvidenceService {
           "An identical evidence file already exists for this Company",
         );
       }
-      return evidenceDto(finalized.evidence);
+      return this.withDetailCounts(tenantId, finalized.evidence);
     } catch (error) {
       if (parsed.tempPath) {
         await unlink(parsed.tempPath).catch(() => undefined);
@@ -663,7 +751,7 @@ export class EvidenceService {
       }),
       context,
     });
-    return evidenceDto(updated);
+    return this.withDetailCounts(tenantId, updated);
   }
 
   async listAuditEvents(
@@ -691,5 +779,187 @@ export class EvidenceService {
       })),
       meta: pageMeta(query.page, query.pageSize, result.total),
     };
+  }
+
+  async listControlLinks(
+    tenantId: string,
+    evidenceId: string,
+    query: EvidenceLinkListQuery,
+  ) {
+    const existing = await this.repository.findEvidence(tenantId, evidenceId);
+    if (!existing) throw evidenceNotFound();
+    const result = await this.repository.listControlLinks(
+      tenantId,
+      evidenceId,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      data: result.items.map(controlLinkDto),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async listCheckpointLinks(
+    tenantId: string,
+    evidenceId: string,
+    query: EvidenceLinkListQuery,
+  ) {
+    const existing = await this.repository.findEvidence(tenantId, evidenceId);
+    if (!existing) throw evidenceNotFound();
+    const result = await this.repository.listCheckpointLinks(
+      tenantId,
+      evidenceId,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      data: result.items.map(checkpointLinkDto),
+      meta: pageMeta(query.page, query.pageSize, result.total),
+    };
+  }
+
+  async linkControl(
+    tenantId: string,
+    evidenceId: string,
+    controlId: string,
+    actorUserId: string,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.linkControl({
+      tenantId,
+      evidenceId,
+      controlId,
+      actorUserId,
+      context,
+    });
+    if (result.kind === "evidence_not_found") throw evidenceNotFound();
+    if (result.kind === "evidence_invalid_state") {
+      throw evidenceInvalidStateForLink();
+    }
+    if (result.kind === "control_not_found") throw controlNotFound();
+    if (result.kind === "control_invalid_state") {
+      throw controlInvalidStateForLink();
+    }
+    if (result.kind === "exists") {
+      throw new AppError(
+        409,
+        "EVIDENCE_CONTROL_LINK_EXISTS",
+        "Evidence is already linked to this Control",
+      );
+    }
+    return {
+      created: result.kind === "created",
+      data: controlLinkDto(result.link),
+    };
+  }
+
+  async unlinkControl(
+    tenantId: string,
+    evidenceId: string,
+    controlId: string,
+    actorUserId: string,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.unlinkControl({
+      tenantId,
+      evidenceId,
+      controlId,
+      actorUserId,
+      context,
+    });
+    if (result.kind === "evidence_not_found") throw evidenceNotFound();
+    if (result.kind === "evidence_invalid_state") {
+      throw evidenceInvalidStateForLink();
+    }
+    if (result.kind === "control_not_found") throw controlNotFound();
+    if (result.kind === "link_not_found") {
+      throw new AppError(
+        404,
+        "EVIDENCE_CONTROL_LINK_NOT_FOUND",
+        "Active Evidence Control link not found",
+      );
+    }
+    return controlLinkDto(result.link);
+  }
+
+  async linkCheckpoint(
+    tenantId: string,
+    evidenceId: string,
+    checkpointId: string,
+    actorUserId: string,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.linkCheckpoint({
+      tenantId,
+      evidenceId,
+      checkpointId,
+      actorUserId,
+      context,
+    });
+    if (result.kind === "evidence_not_found") throw evidenceNotFound();
+    if (result.kind === "evidence_invalid_state") {
+      throw evidenceInvalidStateForLink();
+    }
+    if (result.kind === "checkpoint_not_found") throw checkpointNotFound();
+    if (result.kind === "checkpoint_invalid_state") {
+      throw checkpointInvalidStateForLink();
+    }
+    if (result.kind === "exists") {
+      throw new AppError(
+        409,
+        "EVIDENCE_CHECKPOINT_LINK_EXISTS",
+        "Evidence is already linked to this Checkpoint",
+      );
+    }
+    return {
+      created: result.kind === "created",
+      data: checkpointLinkDto(result.link),
+    };
+  }
+
+  async unlinkCheckpoint(
+    tenantId: string,
+    evidenceId: string,
+    checkpointId: string,
+    actorUserId: string,
+    context: AuditContext,
+  ) {
+    const member = await this.repository.findTenantUser(tenantId, actorUserId);
+    if (!member) {
+      throw new AppError(403, "FORBIDDEN", "Active Company membership required");
+    }
+    const result = await this.repository.unlinkCheckpoint({
+      tenantId,
+      evidenceId,
+      checkpointId,
+      actorUserId,
+      context,
+    });
+    if (result.kind === "evidence_not_found") throw evidenceNotFound();
+    if (result.kind === "evidence_invalid_state") {
+      throw evidenceInvalidStateForLink();
+    }
+    if (result.kind === "checkpoint_not_found") throw checkpointNotFound();
+    if (result.kind === "link_not_found") {
+      throw new AppError(
+        404,
+        "EVIDENCE_CHECKPOINT_LINK_NOT_FOUND",
+        "Active Evidence Checkpoint link not found",
+      );
+    }
+    return checkpointLinkDto(result.link);
   }
 }

@@ -56,6 +56,22 @@ export const evidenceIdParamsSchema = z
   .object({ evidenceId: z.string().uuid() })
   .strict();
 
+export const evidenceControlLinkParamsSchema = z
+  .object({
+    evidenceId: z.string().uuid(),
+    controlId: z.string().uuid(),
+  })
+  .strict();
+
+export const evidenceCheckpointLinkParamsSchema = z
+  .object({
+    evidenceId: z.string().uuid(),
+    checkpointId: z.string().uuid(),
+  })
+  .strict();
+
+export const evidenceLinkListSchema = paginationSchema.strict();
+
 export const evidenceListSchema = paginationSchema
   .extend({
     q: z
@@ -116,3 +132,4 @@ export type EvidenceListQuery = z.infer<typeof evidenceListSchema>;
 export type CreateEvidenceBody = z.infer<typeof createEvidenceSchema>;
 export type UpdateEvidenceBody = z.infer<typeof updateEvidenceSchema>;
 export type EvidenceAuditListQuery = z.infer<typeof evidenceAuditListSchema>;
+export type EvidenceLinkListQuery = z.infer<typeof evidenceLinkListSchema>;

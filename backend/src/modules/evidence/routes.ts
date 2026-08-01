@@ -11,10 +11,14 @@ import {
   createEvidenceSchema,
   emptyBodySchema,
   evidenceAuditListSchema,
+  evidenceCheckpointLinkParamsSchema,
+  evidenceControlLinkParamsSchema,
   evidenceIdParamsSchema,
+  evidenceLinkListSchema,
   evidenceListSchema,
   updateEvidenceSchema,
   type EvidenceAuditListQuery,
+  type EvidenceLinkListQuery,
   type EvidenceListQuery,
 } from "./validators.js";
 
@@ -162,6 +166,110 @@ export const evidenceRoutes = (service: EvidenceService) => {
         ),
       ),
     ),
+  );
+
+  router.get(
+    "/:evidenceId/controls",
+    permit("evidence:read"),
+    validate(evidenceIdParamsSchema, "params"),
+    validate(evidenceLinkListSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.listControlLinks(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        req.query as unknown as EvidenceLinkListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
+  );
+
+  router.post(
+    "/:evidenceId/controls/:controlId/unlink",
+    permit("evidence:write"),
+    validate(evidenceControlLinkParamsSchema, "params"),
+    validate(emptyBodySchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.unlinkControl(
+          req.auth!.tenantId,
+          String(req.params.evidenceId),
+          String(req.params.controlId),
+          req.auth!.userId,
+          auditContext(req),
+        ),
+      ),
+    ),
+  );
+
+  router.post(
+    "/:evidenceId/controls/:controlId",
+    permit("evidence:write"),
+    validate(evidenceControlLinkParamsSchema, "params"),
+    validate(emptyBodySchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.linkControl(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        String(req.params.controlId),
+        req.auth!.userId,
+        auditContext(req),
+      );
+      if (result.created) return created(res, result.data);
+      return ok(res, result.data);
+    }),
+  );
+
+  router.get(
+    "/:evidenceId/checkpoints",
+    permit("evidence:read"),
+    validate(evidenceIdParamsSchema, "params"),
+    validate(evidenceLinkListSchema, "query"),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.listCheckpointLinks(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        req.query as unknown as EvidenceLinkListQuery,
+      );
+      return ok(res, result.data, result.meta);
+    }),
+  );
+
+  router.post(
+    "/:evidenceId/checkpoints/:checkpointId/unlink",
+    permit("evidence:write"),
+    validate(evidenceCheckpointLinkParamsSchema, "params"),
+    validate(emptyBodySchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.unlinkCheckpoint(
+          req.auth!.tenantId,
+          String(req.params.evidenceId),
+          String(req.params.checkpointId),
+          req.auth!.userId,
+          auditContext(req),
+        ),
+      ),
+    ),
+  );
+
+  router.post(
+    "/:evidenceId/checkpoints/:checkpointId",
+    permit("evidence:write"),
+    validate(evidenceCheckpointLinkParamsSchema, "params"),
+    validate(emptyBodySchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.linkCheckpoint(
+        req.auth!.tenantId,
+        String(req.params.evidenceId),
+        String(req.params.checkpointId),
+        req.auth!.userId,
+        auditContext(req),
+      );
+      if (result.created) return created(res, result.data);
+      return ok(res, result.data);
+    }),
   );
 
   router.get(

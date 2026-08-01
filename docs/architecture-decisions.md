@@ -72,6 +72,22 @@ non-null. Downloads require `evidence:read` and `evidence:download` and are
 attachment-only. S3, malware scanning, signed URLs and inline preview remain
 deferred. KPI/Policy Evidence gates remain fail-closed stubs.
 
+## AD-015 Evidence links immutable after submit (Milestone 5 Slice 3)
+
+Evidence↔Control and Evidence↔Checkpoint links use the Slice 5.1 join tables
+with soft `isActive` state and one unique row per tenant/evidence/target pair.
+Link and unlink mutations are allowed only while Evidence is `DRAFT`. After
+submission, the linked Control and Checkpoint context is part of the review
+history and must not change silently; existing links remain readable for every
+lifecycle. New and reactivated links require an `ACTIVE` Control or Checkpoint.
+Re-link reactivates the same inactive row and preserves original
+`createdById`/`createdAt`. History is carried by soft state plus Evidence-scoped
+audit events (`EVIDENCE_CONTROL_LINKED` / `UNLINKED`,
+`EVIDENCE_CHECKPOINT_LINKED` / `UNLINKED`). Linking never submits or approves
+Evidence, never changes Control/Checkpoint lifecycle or reviews, and never
+satisfies Policy/KPI/Checkpoint Evidence gates. Reverse Control/Checkpoint
+Evidence list endpoints and frontend linking UI remain deferred.
+
 ## AD-009 Errors, logging and environment
 
 Zod validates environment and request inputs. Safe response envelopes hide stack traces and Prisma details. Pino emits structured logs with auth/cookie/password redaction. Helmet includes a React-compatible Content Security Policy: scripts and API connections are same-origin; Google font styles/fonts are explicitly allowed; objects and external framing are blocked. The legacy prototype is reference-only and receives an isolated compatibility CSP so its approved inline behavior remains available for visual comparison; it does not define the production CSP architecture.
