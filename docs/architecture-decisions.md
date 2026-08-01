@@ -100,8 +100,38 @@ characters); approval may include an optional comment stored on the decision
 row. Free-text reasons/comments are excluded from audit metadata. Concurrent
 reviews serialize on the Evidence row so exactly one terminal decision wins.
 Rejected Evidence is not re-opened: correction uses a superseding DRAFT.
-Approval does not satisfy Policy/KPI/Checkpoint Evidence gates (deferred).
-Frontend review UI and notifications remain unavailable.
+Approval does not satisfy Policy/KPI Evidence gates (deferred). Frontend review
+UI and notifications remain unavailable.
+
+## AD-017 Checkpoint Evidence gate (Milestone 5 Slice 5A+B)
+
+A shared eligibility engine evaluates whether Evidence may satisfy an Evidence
+gate. For Checkpoint reviews with `evidenceRequired=true`, evaluation runs
+inside the existing review transaction after Control and Checkpoint row locks
+and before the Review insert. Qualifying Evidence must be same-tenant,
+`APPROVED`, actively linked to that Checkpoint, file-metadata complete
+(`hasEvidenceFile`), with `issueDate` null or ≤ evaluation UTC date, `expiresAt`
+null or ≥ evaluation UTC date, and not superseded by a successor in
+`APPROVED` or `ARCHIVED`. DRAFT/SUBMITTED/REJECTED successors do not invalidate
+prior Evidence. Object-storage existence is not checked.
+
+When coverage is required, the gate selects one qualifying Evidence id with
+deterministic ordering (`ORDER BY e.id`), `LIMIT 1`, and acquires
+`SELECT … FOR SHARE OF e` on that Evidence row in the same statement as
+eligibility evaluation. The share lock is held until the parent Checkpoint
+review transaction commits or rolls back, so concurrent Evidence archive
+(`FOR UPDATE` / lifecycle `UPDATE` on that row) waits and cannot invalidate the
+selected Evidence before the Review and parent audit commit. Only one
+Evidence row is locked; active links are not table-locked (and link mutation
+is already unavailable while Evidence is `APPROVED`). No broad Evidence or
+link-table locks and no object-storage I/O occur. Isolation remains the
+default Prisma/PostgreSQL transaction level (not SERIALIZABLE).
+
+The gate writes no audit; parent `CHECKPOINT_REVIEWED` audit occurs only after
+success. Failure is HTTP 409 `EVIDENCE_REQUIRED` with safe reason
+`EVIDENCE_COVERAGE_INCOMPLETE`. No extra permission beyond `checkpoints:review`.
+Policy and KPI gates remain fail-closed `501 EVIDENCE_GATE_NOT_IMPLEMENTED`
+until dedicated relationship models and (for Policy) CHECK migration land.
 
 ## AD-009 Errors, logging and environment
 

@@ -29,10 +29,16 @@ Notes:
 - List via `GET /checkpoints?controlId=` — no nested Control Checkpoint routes.
 - Observation and recommendation are visible on Review history/detail for
   `checkpoints:read`, never in list rows, audit metadata, or logs.
+- When `evidenceRequired=true`, Review create requires qualifying APPROVED
+  Evidence actively linked to this Checkpoint (Milestone 5 Slice 5B). The gate
+  runs in the review transaction and share-locks one qualifying Evidence row
+  until commit so concurrent archive cannot invalidate coverage mid-review.
+  Failure returns `409 EVIDENCE_REQUIRED` and does not write a Review or audit.
 
-Out of scope in this slice:
+Out of scope:
 
-- Evidence, Gap, CAPA
+- Policy/KPI Evidence gates (remain fail-closed 501)
+- Gap, CAPA
 - Same-period Review correction
 
 ## Frontend status (Milestone 4 Slice 7)

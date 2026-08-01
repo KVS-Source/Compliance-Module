@@ -22,7 +22,7 @@ routes require bearer authentication and active Company membership.
 | Risks | `GET /risks`; `GET /risks/:id`; `POST /risks/:id/reviews`; `/treatments`; `/treatments/:treatmentId/complete`; `PATCH /risks/:id/owner`; `POST /risks/:id/close`; `/reopen` |
 | Policies | `GET/POST /policies`; `GET/PATCH /policies/:policyId`; `POST /policies/:policyId/archive`; `GET/POST /policies/:policyId/versions`; `GET /policies/:policyId/versions/:versionId`; `GET /policies/:policyId/traceability`; `GET /policies/:policyId/audit-events`; `PATCH /policy-versions/:versionId`; `PUT /policy-versions/:versionId/frameworks`; `POST /policy-versions/:versionId/submit`; `/approve`; `/reject` |
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
-| Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews`; `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
+| Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews` (Evidence gate when `evidenceRequired`); `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
 | Evidence | `GET/POST /evidence`; `GET /evidence/review-queue`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/file`; `GET /evidence/:evidenceId/file`; `POST /evidence/:evidenceId/submit`; `/archive`; `/approve`; `/reject`; `GET /evidence/:evidenceId/review-decisions`; Control/Checkpoint link routes; `GET /evidence/:evidenceId/audit-events` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,
@@ -52,7 +52,9 @@ targets. Soft unlink uses `POST …/unlink`. Approve/reject require
 `evidence:review` and only apply to SUBMITTED Evidence (maker-checker:
 creator/uploader/submitter cannot decide). Review queue requires
 `evidence:review`. Reverse Control/Checkpoint Evidence lists are not present.
-Linking or approving does not satisfy Policy/KPI/Checkpoint Evidence gates.
+Checkpoint reviews with `evidenceRequired=true` require qualifying linked
+APPROVED Evidence (`409 EVIDENCE_REQUIRED` otherwise). Policy/KPI Evidence
+gates remain fail-closed `501` until later slices.
 
 ## Explicitly absent
 

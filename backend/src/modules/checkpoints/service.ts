@@ -6,6 +6,8 @@ import {
 import { AppError } from "../../common/errors/app-error.js";
 import { pageMeta } from "../../common/responses/envelope.js";
 import { GovernanceRuleError } from "../governance/domain-error.js";
+import type { EvidenceGateService } from "../evidence/evidence-gate-service.js";
+import { utcDateString } from "../evidence/eligibility.js";
 import {
   assertCheckpointReview,
   assertCheckpointTextContent,
@@ -230,7 +232,10 @@ export const checkpointReviewDto = (review: CheckpointReviewRecord) => ({
 });
 
 export class CheckpointService {
-  constructor(private readonly repository: CheckpointRepository) {}
+  constructor(
+    private readonly repository: CheckpointRepository,
+    private readonly evidenceGate: EvidenceGateService,
+  ) {}
 
   private async assertActiveMember(tenantId: string, userId: string | null) {
     if (!userId) return;
@@ -677,6 +682,14 @@ export class CheckpointService {
         } catch (error) {
           mapGovernanceError(error);
         }
+
+        await this.evidenceGate.assertCheckpointReviewSatisfied({
+          tenantId,
+          checkpointId,
+          evidenceRequired: locked[0].evidence_required,
+          asOfDate: utcDateString(),
+          tx,
+        });
 
         const previousLatestReviewId = locked[0].latest_review_id;
         let created;

@@ -41,7 +41,9 @@ risk actions, including `policies:read`, `policies:write`, `policies:submit`,
 `evidence:review` and `evidence:download`. Evidence download requires both
 `evidence:read` and `evidence:download`. Evidence approve/reject and review
 queue require `evidence:review` with creator/uploader/submitter self-review
-blocked (including for administrators).
+blocked (including for administrators). Checkpoint Evidence gate evaluation is
+an internal integrity rule under `checkpoints:review` and does not require
+`evidence:read`.
 Evidence file upload uses a dedicated rate limiter and a code-controlled type
 allowlist (max 10 MiB). Downloads are attachment-only streams; `storageKey` is
 never returned to clients.

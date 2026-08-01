@@ -37,15 +37,15 @@ by UAT language or status-page presentation.
   (no URL query sync). Control Checkpoint panels keep counts and, when
   `checkpoints:read` is present, an Open Checkpoints link to
   `/compliance/checkpoints` without controlId query or `location.state`.
-- Evidence-required KPI approval deliberately fails closed where already
-  defined (`EVIDENCE_GATE_NOT_IMPLEMENTED`). Policy approval also fails closed
-  when `requiresEvidence=true`. Linking or approving Evidence does not satisfy
-  those gates until a later gate slice. Evidence file upload/download works for
-  local storage only; submit requires a stored file. There is no approval
-  override that skips Evidence gates. Policy content/purpose/scope render as
-  plain text only (no HTML/Markdown). Evidence links are mutable only while
-  DRAFT. Evidence review is limited to SUBMITTED rows with creator/uploader/
-  submitter self-review blocked.
+- Checkpoint reviews with `evidenceRequired=true` require qualifying APPROVED
+  Evidence linked to that Checkpoint (Slice 5.5B). KPI and Policy approval
+  still fail closed with `EVIDENCE_GATE_NOT_IMPLEMENTED` (501) when their
+  Evidence flags are true; Policy also has a database CHECK that blocks
+  APPROVED versions while `requires_evidence` remains true. There is no
+  approval override that skips those gates. Evidence file upload/download works
+  for local storage only. Policy content/purpose/scope render as plain text
+  only. Evidence links are mutable only while DRAFT. Evidence review is limited
+  to SUBMITTED rows with creator/uploader/submitter self-review blocked.
 - Playwright Policy, Control and Checkpoint suites use mocked HTTP only. Backend
   Policy, Control and Checkpoint PostgreSQL integration tests remain the
   database authority.

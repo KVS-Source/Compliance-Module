@@ -727,6 +727,33 @@ describe("Checkpoint API Slice 4", () => {
       .expect(201);
     const checkpointId = created.body.data.id as string;
 
+    // Slice 5.5B: evidenceRequired reviews need qualifying APPROVED linked Evidence.
+    const evidence = await prisma.evidence.create({
+      data: {
+        tenantId: admin.user.activeCompany.id,
+        code: `EVD-CHK-${randomUUID().slice(0, 8)}`,
+        title: "Filterable checkpoint evidence",
+        lifecycleStatus: "APPROVED",
+        storageKey: `${admin.user.activeCompany.id}/evidence/${randomUUID()}`,
+        contentSha256: (randomUUID() + randomUUID())
+          .replace(/-/g, "")
+          .slice(0, 64),
+        byteSize: 64,
+        createdById: admin.user.id,
+        updatedById: admin.user.id,
+      },
+    });
+    await prisma.evidenceCheckpointLink.create({
+      data: {
+        tenantId: admin.user.activeCompany.id,
+        evidenceId: evidence.id,
+        checkpointId,
+        isActive: true,
+        createdById: admin.user.id,
+        updatedById: admin.user.id,
+      },
+    });
+
     await request(app)
       .post(`/api/v1/checkpoints/${checkpointId}/reviews`)
       .set("Authorization", `Bearer ${admin.accessToken}`)
