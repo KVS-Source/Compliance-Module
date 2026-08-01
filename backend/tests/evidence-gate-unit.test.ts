@@ -163,15 +163,15 @@ describe("Evidence gate eligibility", () => {
     ).toBe(true);
   });
 
-  it("short-circuits boolean KPI gate and maps coverage reason", () => {
+  it("short-circuits KPI actual gate when evidence is not required", async () => {
     const gate = new EvidenceGateService();
-    expect(gate.assertSatisfied(false)).toBe(true);
-    expect(() => gate.assertSatisfied(true)).toThrowError(
-      expect.objectContaining({
-        status: 501,
-        code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
+    await expect(
+      gate.assertKpiActualApprovalSatisfied({
+        tenantId: "00000000-0000-4000-8000-000000000001",
+        kpiActualId: "00000000-0000-4000-8000-000000000002",
+        requiresEvidence: false,
       }),
-    );
+    ).resolves.toEqual({ satisfied: true, qualifyingCount: 0 });
     expect(coverageIncompleteReason()).toBe("EVIDENCE_COVERAGE_INCOMPLETE");
     expect(utcDateString(new Date("2026-08-01T15:00:00.000Z"))).toBe(
       "2026-08-01",

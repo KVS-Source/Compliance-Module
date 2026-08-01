@@ -592,9 +592,13 @@ describe("Evidence approve/reject review Slice 5.4", () => {
         "../src/modules/kpis/evidence-gate-service.js"
       );
       const service = new gate.EvidenceGateService();
-      expect(() => service.assertSatisfied(true)).toThrowError(
-        /EVIDENCE_GATE_NOT_IMPLEMENTED|not implemented/i,
-      );
+      await expect(
+        service.assertKpiActualApprovalSatisfied({
+          tenantId: "00000000-0000-4000-8000-000000000001",
+          kpiActualId: "00000000-0000-4000-8000-000000000002",
+          requiresEvidence: false,
+        }),
+      ).resolves.toEqual({ satisfied: true, qualifyingCount: 0 });
     } finally {
       await grant.revoke();
     }

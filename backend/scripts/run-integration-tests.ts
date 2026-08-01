@@ -82,6 +82,7 @@ run(
     "tests/checkpoint-evidence-gate-api.test.ts",
     "tests/policy-evidence-gate-api.test.ts",
     "tests/policy-lifecycle-lock-api.test.ts",
+    "tests/kpi-evidence-gate-api.test.ts",
   ],
   true,
 );

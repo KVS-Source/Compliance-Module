@@ -628,13 +628,14 @@ describe("Policy Version Evidence gate Slice 5.5C", () => {
     }
   });
 
-  it("keeps KPI fail-closed at 501", () => {
-    expect(() => new EvidenceGateService().assertSatisfied(true)).toThrowError(
-      expect.objectContaining({
-        status: 501,
-        code: "EVIDENCE_GATE_NOT_IMPLEMENTED",
+  it("keeps KPI gate short-circuit when evidence is not required", async () => {
+    await expect(
+      new EvidenceGateService().assertKpiActualApprovalSatisfied({
+        tenantId: "00000000-0000-4000-8000-000000000001",
+        kpiActualId: "00000000-0000-4000-8000-000000000002",
+        requiresEvidence: false,
       }),
-    );
+    ).resolves.toEqual({ satisfied: true, qualifyingCount: 0 });
   });
 
   it("CHECK policy_versions_submission_fields_consistent allows requires_evidence on approved family", async () => {
