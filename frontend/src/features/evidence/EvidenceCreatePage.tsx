@@ -1,6 +1,7 @@
 import { ArrowLeft, Save, TriangleAlert, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Modal } from "../../components/feedback/Modal";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
@@ -14,6 +15,7 @@ import type {
   Evidence,
 } from "../../types/api";
 import { evidenceWorkflowError, type FieldErrors } from "../../utils/fieldErrors";
+import { parseReturnTo } from "../../utils/returnTo";
 import {
   EvidenceFileUpload,
   useEvidenceUpload,
@@ -67,7 +69,11 @@ export function EvidenceCreatePage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const activeCompanyId = user?.activeCompany.id;
+
+  const returnTo = parseReturnTo(searchParams.get("returnTo"));
+  const linkKpiActualId = searchParams.get("linkKpiActualId")?.trim() || null;
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [file, setFile] = useState<File | null>(null);
@@ -78,6 +84,13 @@ export function EvidenceCreatePage() {
   // so a failed upload can never produce a second Evidence.
   const [draft, setDraft] = useState<Evidence | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [linkConfirmOpen, setLinkConfirmOpen] = useState(false);
+  const [linkConfirmDetail, setLinkConfirmDetail] = useState<{
+    id: string;
+    code: string;
+  } | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const upload = useEvidenceUpload();
 
@@ -102,6 +115,9 @@ export function EvidenceCreatePage() {
     setFormError(null);
     setDraft(null);
     setUploadError(null);
+    setLinkConfirmOpen(false);
+    setLinkConfirmDetail(null);
+    setLinkError(null);
   }, [activeCompanyId, contextVersion]);
 
   useEffect(() => {
@@ -192,12 +208,54 @@ export function EvidenceCreatePage() {
   const runUpload = async (evidenceId: string, selected: File) => {
     setUploadError(null);
     const detail = await upload.upload(evidenceId, selected);
+    if (linkKpiActualId) {
+      setLinkConfirmDetail({ id: detail.id, code: detail.code });
+      setLinkConfirmOpen(true);
+      return detail;
+    }
     showToast(
       "success",
       "Evidence created",
       `${detail.code} was created as a DRAFT with its file uploaded.`,
     );
-    navigate(`/evidence/${detail.id}`);
+    navigate(returnTo ?? `/evidence/${detail.id}`);
+    return detail;
+  };
+
+  const confirmLinkToKpiActual = async () => {
+    if (!linkConfirmDetail || !linkKpiActualId || linkBusy) return;
+    setLinkBusy(true);
+    setLinkError(null);
+    try {
+      await evidenceApi.linkKpiActual(linkConfirmDetail.id, linkKpiActualId);
+      showToast(
+        "success",
+        "Evidence linked",
+        `${linkConfirmDetail.code} was linked to the KPI actual.`,
+      );
+      setLinkConfirmOpen(false);
+      navigate(returnTo ?? `/evidence/${linkConfirmDetail.id}`);
+    } catch (error) {
+      const mapped = evidenceWorkflowError(error, "evidence:write");
+      setLinkError(
+        mapped.formError ??
+          Object.values(mapped.fieldErrors)[0] ??
+          "The link could not be created. The Evidence remains in DRAFT.",
+      );
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const skipLinkToKpiActual = () => {
+    if (!linkConfirmDetail) return;
+    setLinkConfirmOpen(false);
+    showToast(
+      "success",
+      "Evidence created",
+      `${linkConfirmDetail.code} was saved as DRAFT without linking.`,
+    );
+    navigate(returnTo ?? `/evidence/${linkConfirmDetail.id}`);
   };
 
   const onSubmit = async (event: FormEvent) => {
@@ -264,6 +322,19 @@ export function EvidenceCreatePage() {
           </Link>
         }
       />
+
+      {linkKpiActualId ? (
+        <div
+          className="banner information"
+          role="status"
+          data-testid="evidence-create-kpi-context"
+        >
+          After the file upload succeeds, you will be asked whether to link this
+          Evidence to KPI actual{" "}
+          <span className="mono">{linkKpiActualId}</span>. Linking never
+          submits the Evidence for review automatically.
+        </div>
+      ) : null}
 
       {recovering ? (
         <div
@@ -570,6 +641,50 @@ export function EvidenceCreatePage() {
           </form>
         </div>
       </section>
+
+      {linkConfirmOpen && linkConfirmDetail ? (
+        <Modal
+          title="Link Evidence to KPI actual?"
+          onClose={linkBusy ? () => undefined : skipLinkToKpiActual}
+          footer={
+            <>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                disabled={linkBusy}
+                data-testid="evidence-link-kpi-skip"
+                onClick={skipLinkToKpiActual}
+              >
+                Keep DRAFT only
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={linkBusy}
+                data-testid="evidence-link-kpi-confirm"
+                onClick={() => void confirmLinkToKpiActual()}
+              >
+                {linkBusy ? "Linking…" : "Link to KPI actual"}
+              </button>
+            </>
+          }
+        >
+          {linkError ? (
+            <div className="banner warning" role="alert" data-testid="evidence-link-kpi-error">
+              {linkError}
+            </div>
+          ) : null}
+          <p>
+            <strong>{linkConfirmDetail.code}</strong> was created and its file
+            uploaded. Link it to KPI actual{" "}
+            <span className="mono">{linkKpiActualId}</span> now?
+          </p>
+          <p className="muted">
+            If linking fails, the Evidence stays in DRAFT and you can retry from
+            the Evidence detail page.
+          </p>
+        </Modal>
+      ) : null}
     </div>
   );
 }
