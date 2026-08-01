@@ -150,6 +150,8 @@ const FULL_PERMISSIONS = [
   "kpis:read",
   "kpi-actual:approve",
   "kpi-actual:write",
+  "kpi-actual:read",
+  "evidence:read",
   "risk:read",
   "tenants:read",
 ];
@@ -160,9 +162,9 @@ const success = (data: unknown, meta?: unknown) => ({
   ...(meta ? { meta } : {}),
 });
 
-const failure = (code: string, message: string) => ({
+const failure = (code: string, message: string, details?: unknown) => ({
   success: false,
-  error: { code, message },
+  error: { code, message, ...(details ? { details } : {}) },
 });
 
 const pageMeta = (total: number) => ({
@@ -322,6 +324,13 @@ async function installApprovalMock(page: Page, options: MockOptions = {}) {
           ? []
           : [actual];
       return json(route, 200, success(rows, pageMeta(rows.length)));
+    }
+
+    const evidenceLinksMatch = path.match(
+      /^\/api\/v1\/kpi-actuals\/([^/]+)\/evidence-links$/,
+    );
+    if (evidenceLinksMatch && method === "GET") {
+      return json(route, 200, success([], pageMeta(0)));
     }
 
     const actionMatch = path.match(
