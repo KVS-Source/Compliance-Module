@@ -650,4 +650,169 @@ describe("Policy Version Evidence gate Slice 5.5C", () => {
     expect(rows[0]!.def).toMatch(/APPROVED/);
     expect(rows[0]!.def).toMatch(/submitted_by_id/);
   });
+
+  it("source order: replacePolicyVersions locks Policy before Control", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const path = await import("node:path");
+    const servicePath = path.join(
+      process.cwd(),
+      "src/modules/controls/service.ts",
+    );
+    const src = await readFile(servicePath, "utf8");
+    const start = src.indexOf("async replacePolicyVersions");
+    const end = src.indexOf("async replaceFrameworks", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const method = src.slice(start, end);
+    const policyLock = method.indexOf("lockPoliciesAndVersionsForMapping");
+    const controlLock = method.indexOf("lockControl");
+    expect(policyLock).toBeGreaterThan(-1);
+    expect(controlLock).toBeGreaterThan(-1);
+    expect(policyLock).toBeLessThan(controlLock);
+  });
+
+  /**
+   * Production-equivalent lock sequences (mirrors approve gate + corrected
+   * replacePolicyVersions order). Barriers prove wait without AB–BA deadlock.
+   */
+  it("approval-first: mapping waits on Policy lock then completes", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const tenantId = admin.user.activeCompany.id;
+    const actorId = admin.user.id;
+    const { policyId, versionId } = await createSubmittedPolicy(
+      admin.accessToken,
+      true,
+    );
+    const control = await createControl(admin.accessToken, {
+      requiresEvidence: true,
+      policyVersionIds: [versionId],
+    });
+    await seedApprovedEvidence(tenantId, actorId, { controlId: control.id });
+
+    const hold = deferred();
+    const approvalLocked = deferred();
+    let mappingCompleted = false;
+
+    const approvalTx = prisma.$transaction(
+      async (tx) => {
+        // Mirror Policy approve: Policy → Version
+        await tx.$queryRaw`
+          SELECT p.id FROM policies p
+          WHERE p.tenant_id = ${tenantId}::uuid AND p.id = ${policyId}::uuid
+          FOR UPDATE
+        `;
+        await tx.$queryRaw`
+          SELECT id FROM policy_versions
+          WHERE tenant_id = ${tenantId}::uuid AND id = ${versionId}::uuid
+          FOR UPDATE
+        `;
+        approvalLocked.resolve();
+        await hold.promise;
+      },
+      { maxWait: 15_000, timeout: 20_000 },
+    );
+
+    await approvalLocked.promise;
+
+    const mappingTx = (async () => {
+      // Mirror corrected replacePolicyVersions: Policy → Version → Control
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`
+            SELECT p.id FROM policies p
+            WHERE p.tenant_id = ${tenantId}::uuid AND p.id = ${policyId}::uuid
+            FOR UPDATE
+          `;
+          await tx.$queryRaw`
+            SELECT id FROM policy_versions
+            WHERE tenant_id = ${tenantId}::uuid AND id = ${versionId}::uuid
+            FOR UPDATE
+          `;
+          await tx.$queryRaw`
+            SELECT id FROM controls
+            WHERE tenant_id = ${tenantId}::uuid AND id = ${control.id}::uuid
+            FOR UPDATE
+          `;
+        },
+        { maxWait: 15_000, timeout: 20_000 },
+      );
+      mappingCompleted = true;
+    })();
+
+    await sleep(400);
+    expect(mappingCompleted).toBe(false);
+    hold.resolve();
+    await approvalTx;
+    await mappingTx;
+    expect(mappingCompleted).toBe(true);
+  });
+
+  it("mapping-first: approval waits on Policy lock then proceeds", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const tenantId = admin.user.activeCompany.id;
+    const { policyId, versionId } = await createSubmittedPolicy(
+      admin.accessToken,
+      true,
+    );
+    const control = await createControl(admin.accessToken, {
+      requiresEvidence: true,
+      policyVersionIds: [versionId],
+    });
+
+    const hold = deferred();
+    const mappingLocked = deferred();
+    let approvalSettled = false;
+
+    const mappingTx = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT p.id FROM policies p
+          WHERE p.tenant_id = ${tenantId}::uuid AND p.id = ${policyId}::uuid
+          FOR UPDATE
+        `;
+        await tx.$queryRaw`
+          SELECT id FROM policy_versions
+          WHERE tenant_id = ${tenantId}::uuid AND id = ${versionId}::uuid
+          FOR UPDATE
+        `;
+        await tx.$queryRaw`
+          SELECT id FROM controls
+          WHERE tenant_id = ${tenantId}::uuid AND id = ${control.id}::uuid
+          FOR UPDATE
+        `;
+        mappingLocked.resolve();
+        await hold.promise;
+      },
+      { maxWait: 15_000, timeout: 20_000 },
+    );
+
+    await mappingLocked.promise;
+
+    const approvalTx = prisma
+      .$transaction(
+        async (tx) => {
+          await tx.$queryRaw`
+            SELECT p.id FROM policies p
+            WHERE p.tenant_id = ${tenantId}::uuid AND p.id = ${policyId}::uuid
+            FOR UPDATE
+          `;
+          await tx.$queryRaw`
+            SELECT id FROM policy_versions
+            WHERE tenant_id = ${tenantId}::uuid AND id = ${versionId}::uuid
+            FOR UPDATE
+          `;
+        },
+        { maxWait: 15_000, timeout: 20_000 },
+      )
+      .finally(() => {
+        approvalSettled = true;
+      });
+
+    await sleep(400);
+    expect(approvalSettled).toBe(false);
+    hold.resolve();
+    await mappingTx;
+    await approvalTx;
+    expect(approvalSettled).toBe(true);
+  });
 });

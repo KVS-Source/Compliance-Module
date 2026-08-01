@@ -278,19 +278,22 @@ export class ControlService {
   }
 
   /**
-   * Lock Policy then PolicyVersion rows (ID order) so mapping mutations cannot
-   * race Policy approval gate evaluation of the same version.
+   * Lock Policy then PolicyVersion rows in ascending ID order.
+   * Global compatible order with Policy approval:
+   * Policy → Policy Version → Control → CPV mutation.
    */
   private async lockPoliciesAndVersionsForMapping(
     tx: Prisma.TransactionClient,
     tenantId: string,
     policyVersionIds: string[],
-  ) {
+  ): Promise<
+    Array<{ id: string; policyId: string; status: string }>
+  > {
     const unique = [...new Set(policyVersionIds)].sort();
-    if (unique.length === 0) return;
+    if (unique.length === 0) return [];
     const versions = await tx.policyVersion.findMany({
       where: { tenantId, id: { in: unique } },
-      select: { id: true, policyId: true },
+      select: { id: true, policyId: true, status: true },
     });
     if (versions.length !== unique.length) {
       throw relatedInvalid(
@@ -309,12 +312,17 @@ export class ControlService {
         throw relatedInvalid("Policy was not found for this Company");
       }
     }
-    const versionIdsOrdered = [...versions]
-      .map((v) => v.id)
-      .sort();
+    const versionIdsOrdered = [...versions].map((v) => v.id).sort();
+    const lockedVersions: Array<{
+      id: string;
+      policyId: string;
+      status: string;
+    }> = [];
     for (const versionId of versionIdsOrdered) {
-      const locked = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT id
+      const locked = await tx.$queryRaw<
+        Array<{ id: string; policy_id: string; status: string }>
+      >`
+        SELECT id, policy_id, status
         FROM policy_versions
         WHERE tenant_id = ${tenantId}::uuid AND id = ${versionId}::uuid
         FOR UPDATE
@@ -322,6 +330,33 @@ export class ControlService {
       if (!locked[0]) {
         throw relatedInvalid(
           "One or more Policy Versions were not found for this Company",
+        );
+      }
+      lockedVersions.push({
+        id: locked[0].id,
+        policyId: locked[0].policy_id,
+        status: locked[0].status,
+      });
+    }
+    return lockedVersions;
+  }
+
+  /** After locks, ensure every requested Version remains mappable (M1). */
+  private assertLockedVersionsStillMappable(
+    locked: Array<{ id: string; policyId: string; status: string }>,
+    expectedDesired: Array<{ policyId: string; policyVersionId: string }>,
+  ) {
+    const byId = new Map(locked.map((v) => [v.id, v]));
+    for (const item of expectedDesired) {
+      const row = byId.get(item.policyVersionId);
+      if (!row || row.policyId !== item.policyId) {
+        throw relatedInvalid(
+          "One or more Policy Versions were not found for this Company",
+        );
+      }
+      if (row.status !== "APPROVED" && row.status !== "SUBMITTED") {
+        throw mappingInvalid(
+          "Only SUBMITTED or APPROVED Policy Versions may be actively mapped",
         );
       }
     }
@@ -799,6 +834,7 @@ export class ControlService {
     body: ReplaceControlPolicyVersionsBody,
     context: AuditContext,
   ) {
+    // Tenant-scoped pre-resolution of desired versions (revalidated under locks).
     const desired = await this.resolveMappablePolicyVersions(
       tenantId,
       body.policyVersionIds,
@@ -809,10 +845,38 @@ export class ControlService {
     const desiredVersionIds = desired.map((item) => item.policyVersionId);
 
     const updated = await this.repository.runInTransaction(async (tx) => {
+      // Discovery only: current active mapping version IDs (no Control lock yet).
+      const existingPreview = await tx.controlPolicyVersion.findMany({
+        where: { tenantId, controlId },
+        select: {
+          id: true,
+          policyId: true,
+          policyVersionId: true,
+          isActive: true,
+        },
+      });
+      const currentActivePreview = existingPreview
+        .filter((row) => row.isActive)
+        .map((row) => row.policyVersionId);
+
+      // 1–5: Policy → Policy Version locks (never Control before Policy).
+      const versionsToLock = [
+        ...new Set([...desiredVersionIds, ...currentActivePreview]),
+      ];
+      const lockedVersions = await this.lockPoliciesAndVersionsForMapping(
+        tx,
+        tenantId,
+        versionsToLock,
+      );
+      // 6: Revalidate desired versions still SUBMITTED/APPROVED under locks.
+      this.assertLockedVersionsStillMappable(lockedVersions, desired);
+
+      // 7: Control lock after Policy/Version.
       const locked = await this.repository.lockControl(tx, tenantId, controlId);
       if (!locked[0]) throw controlNotFound();
       if (locked[0].lifecycle_status === "ARCHIVED") throw controlArchived();
 
+      // 8: Resolve current mappings after locks.
       const existing = await tx.controlPolicyVersion.findMany({
         where: { tenantId, controlId },
       });
@@ -823,17 +887,23 @@ export class ControlService {
         return this.repository.findControl(tenantId, controlId, tx);
       }
 
-      // Policy → Version locks before mapping mutation (compatible with approve).
-      const versionsToLock = [
-        ...new Set([...desiredVersionIds, ...currentActive]),
-      ];
-      await this.lockPoliciesAndVersionsForMapping(tx, tenantId, versionsToLock);
+      // Never lock Policy after Control. If discovery missed a concurrent
+      // activation, abort for client retry rather than reverse lock order.
+      const unlockedActives = currentActive.filter(
+        (id) => !versionsToLock.includes(id),
+      );
+      if (unlockedActives.length > 0) {
+        throw new AppError(
+          409,
+          "CONTROL_MAPPING_CONFLICT",
+          "Control Policy mappings changed concurrently; retry the request",
+        );
+      }
 
       const addedIds: string[] = [];
       const removedIds: string[] = [];
 
-      // Phase 1: deactivate every active row that is not the desired Version
-      // for its Policy (satisfies control_policy_versions_one_active_mapping).
+      // 9: Phase 1 — deactivate actives that are not desired for their Policy.
       for (const mapping of existing) {
         const desiredVersionId = desiredByPolicy.get(mapping.policyId);
         const shouldStayActive =
@@ -856,7 +926,6 @@ export class ControlService {
             row.policyVersionId === policyVersionId,
         );
         if (historical) {
-          // Desired rows that were already active were left alone in phase 1.
           if (historical.isActive) continue;
           await tx.controlPolicyVersion.update({
             where: { id: historical.id },
@@ -879,6 +948,7 @@ export class ControlService {
         }
       }
 
+      // 10: Audit
       await this.repository.writeAudit(tx, {
         tenantId,
         actorUserId,

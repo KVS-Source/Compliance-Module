@@ -143,8 +143,12 @@ before supersession/APPROVED writes.
 **Mappings (M1):** Active `ControlPolicyVersion` rows may target **SUBMITTED**
 or **APPROVED** versions only. Evaluation uses active mappings for the **exact**
 version under approval (no previous-version, parent-Policy, or tenant-wide
-fallback). Mapping mutations lock Policy → Policy Version before changing
-active rows so the required set cannot change mid-approval.
+fallback). Mapping **replacement** uses global lock order
+**Policy → Policy Version → Control → CPV mutation** (deterministic Policy and
+Version ID order). Policy **approval** uses
+**Policy → Version → CPV/targets → Evidence**. Both serialize on Policy/Version
+locks without a Control-before-Policy AB–BA cycle. Pre-existing Policy
+submit/reject paths may still lock Version then Policy (unrelated limitation).
 
 **Independent obligations (Decision D):**
 

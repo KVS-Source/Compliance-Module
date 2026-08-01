@@ -16,8 +16,9 @@ Notes:
 - Mapping replacement is soft (`isActive`); hard deletes are never used.
 - Policy Version mappings may target **SUBMITTED** or **APPROVED** Versions
   (M1 / Slice 5.5C). DRAFT, REJECTED, SUPERSEDED, and OBSOLETE are rejected.
-  One active mapping per Control and stable Policy. Mapping mutations lock
-  Policy → Policy Version before changing active rows.
+  One active mapping per Control and stable Policy. Mapping replacement locks
+  **Policy → Policy Version → Control → CPV** (never Control before Policy),
+  matching Policy approval serialization on the same graph.
 - Framework removal is refused while active RuleControl rows depend on it.
 - Archive is refused while any Checkpoint on the Control is `ACTIVE`
   (`CONTROL_HAS_ACTIVE_CHECKPOINTS`).
