@@ -488,10 +488,6 @@ export const openApiDocument = {
             description:
               "KPI_ACTUAL_PERIOD_EXISTS: an active actual already exists for the configuration and period",
           },
-          "501": {
-            description:
-              "Automatic approval requires evidence support that is not implemented",
-          },
         },
       },
     },
@@ -542,11 +538,8 @@ export const openApiDocument = {
           },
           "404": { description: "KPI actual not in the active Company" },
           "409": {
-            description: "KPI actual is not awaiting an approval decision",
-          },
-          "501": {
             description:
-              "Approval requires evidence support that is not implemented",
+              "KPI actual is not awaiting an approval decision, or Evidence is required and not satisfied (EVIDENCE_REQUIRED with EVIDENCE_KPI_LINK_REQUIRED or EVIDENCE_KPI_COVERAGE_INCOMPLETE)",
           },
         },
       },
@@ -628,10 +621,6 @@ export const openApiDocument = {
           },
           "404": { description: "KPI actual not in the active Company" },
           "409": { description: "KPI actual is not rejected" },
-          "501": {
-            description:
-              "Automatic approval requires evidence support that is not implemented",
-          },
         },
       },
     },

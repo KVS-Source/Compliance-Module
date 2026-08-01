@@ -188,6 +188,21 @@ export function kpiActualDecisionError(
   if (error.code === "EVIDENCE_GATE_NOT_IMPLEMENTED") {
     return "This KPI configuration requires evidence, and the Evidence domain is not implemented yet. Approval is blocked and nothing was saved. Turn off “Requires evidence” on the configuration, or wait for Evidence to ship.";
   }
+  if (error.code === "EVIDENCE_REQUIRED") {
+    const reason =
+      error.details &&
+      typeof error.details === "object" &&
+      "reason" in error.details
+        ? String((error.details as { reason?: unknown }).reason)
+        : "";
+    if (reason === "EVIDENCE_KPI_LINK_REQUIRED") {
+      return "This KPI actual requires at least one linked Evidence record before approval. Link approved Evidence to this actual (backend API), then try again. Nothing was saved.";
+    }
+    if (reason === "EVIDENCE_KPI_COVERAGE_INCOMPLETE") {
+      return "This KPI actual has Evidence links, but none currently qualify (must be approved with a complete file and valid dates). Nothing was saved.";
+    }
+    return "This KPI actual requires qualifying Evidence before approval. Nothing was saved.";
+  }
   if (error.status === 403) {
     if (error.message === "KPI actual self-approval is forbidden") {
       return "You submitted this actual, so you cannot approve or reject it. Another user holding kpi-actual:approve must decide.";
