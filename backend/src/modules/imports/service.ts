@@ -524,6 +524,93 @@ export class WorkbookImportService {
     return report;
   }
 
+  /** Import batches for the authenticated company, newest first. */
+  async listBatches(
+    tenantId: string,
+    query: { page: number; pageSize: number },
+  ) {
+    const [items, total] = await this.db.$transaction([
+      this.db.importBatch.findMany({
+        where: { tenantId },
+        orderBy: { startedAt: "desc" },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        select: {
+          id: true,
+          originalFilename: true,
+          fileChecksum: true,
+          status: true,
+          createdCount: true,
+          updatedCount: true,
+          skippedCount: true,
+          errorCount: true,
+          startedAt: true,
+          completedAt: true,
+          uploadedBy: { select: { id: true, code: true, fullName: true } },
+        },
+      }),
+      this.db.importBatch.count({ where: { tenantId } }),
+    ]);
+    return { data: items, total };
+  }
+
+  async getBatch(tenantId: string, importId: string) {
+    return this.db.importBatch.findFirst({
+      where: { tenantId, id: importId },
+      select: {
+        id: true,
+        originalFilename: true,
+        fileChecksum: true,
+        idempotencyKey: true,
+        status: true,
+        createdCount: true,
+        updatedCount: true,
+        skippedCount: true,
+        errorCount: true,
+        startedAt: true,
+        completedAt: true,
+        report: true,
+        uploadedBy: { select: { id: true, code: true, fullName: true } },
+      },
+    });
+  }
+
+  /**
+   * Rejected rows for one batch. The normalised payload is deliberately not
+   * returned: an error needs its sheet, row number and reason, not a copy of
+   * the confidential cell values that failed.
+   */
+  async listBatchErrors(
+    tenantId: string,
+    importId: string,
+    query: { page: number; pageSize: number; sheet?: string | undefined },
+  ) {
+    const where = {
+      tenantId,
+      batchId: importId,
+      importResult: "FAILED" as const,
+      ...(query.sheet ? { sheet: query.sheet } : {}),
+    };
+    const [items, total] = await this.db.$transaction([
+      this.db.importBatchRow.findMany({
+        where,
+        orderBy: [{ sheet: "asc" }, { rowNumber: "asc" }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        select: {
+          id: true,
+          sheet: true,
+          rowNumber: true,
+          businessKey: true,
+          validationErrors: true,
+          importResult: true,
+        },
+      }),
+      this.db.importBatchRow.count({ where }),
+    ]);
+    return { data: items, total };
+  }
+
   /**
    * Loads references that already exist, so a rerun resolves them even when
    * the sheet that creates them reported no changes.
