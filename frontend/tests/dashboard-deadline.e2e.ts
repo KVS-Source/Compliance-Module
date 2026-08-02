@@ -14,11 +14,17 @@ const summary = {
   registers: [{ code: "AUDIT", name: "Audit Schedule", recordCount: 106 }],
 };
 const success = (data: unknown) => ({ success: true, data });
-async function mockDashboard(page: Page, mode: "data" | "zero" | "error" = "data") {
+async function mockDashboard(
+  page: Page,
+  mode: "data" | "zero" | "error" = "data",
+  permissions: string[] = ["*"],
+  onSummaryRequest: () => void = () => undefined,
+) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/auth/refresh") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "token", user: { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "UAT Admin", email: "uat@example.test", phone: null, status: "ACTIVE", lastLogin: null, permissions: ["*"], activeCompany: company, companies: [company] } })) });
+    if (path === "/api/v1/auth/refresh") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "token", user: { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "UAT Admin", email: "uat@example.test", phone: null, status: "ACTIVE", lastLogin: null, permissions, activeCompany: company, companies: [company] } })) });
     if (path === "/api/v1/dashboard/summary") {
+      onSummaryRequest();
       if (mode === "error") return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "INTERNAL", message: "Summary unavailable" } }) });
       const payload = mode === "zero" ? { ...summary, compliance: { overallPercentage: 0, measuredKpis: 0, kpisMeetingTarget: 0 }, kpis: { ...summary.kpis, activeConfigurations: 0, meetingTarget: 0, amberActuals: 0, redActuals: 0 }, risks: { ...summary.risks, openRisks: 0, risksUnderTreatment: 0, closedRisks: 0 }, gaps: { ...summary.gaps, open: 0, overdue: 0 }, capas: { ...summary.capas, open: 0, overdue: 0 }, evidence: { ...summary.evidence, pendingReview: 0 }, registers: [] } : summary;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(payload)) });
@@ -30,3 +36,10 @@ test("Dashboard renders deadline aggregates from the API", async ({ page }) => {
 test("Dashboard gives stable zero-data values", async ({ page }) => { await mockDashboard(page, "zero"); await page.goto("/dashboard"); await expect(page.getByText("No compliance activity yet")).toBeVisible(); await expect(page.getByLabel(/Open Gaps: 0/)).toBeVisible(); await expect(page.getByLabel(/Open CAPAs: 0/)).toBeVisible(); });
 test("Dashboard shows its API failure state", async ({ page }) => { await mockDashboard(page, "error"); await page.goto("/dashboard"); await expect(page.getByRole("alert")).toContainText("Summary unavailable"); });
 test("Dashboard deadline cards collapse to one mobile column", async ({ page }) => { await page.setViewportSize({ width: 390, height: 844 }); await mockDashboard(page); await page.goto("/dashboard"); const columns = await page.locator(".dashboard-cards").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length); expect(columns).toBe(1); await expect(page.getByLabel(/Open Gaps: 4/)).toBeVisible(); });
+test("Dashboard permission boundary prevents an unauthorised summary request", async ({ page }) => {
+  let summaryRequests = 0;
+  await mockDashboard(page, "data", ["kpis:read"], () => { summaryRequests += 1; });
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Permission required" })).toBeVisible();
+  expect(summaryRequests).toBe(0);
+});

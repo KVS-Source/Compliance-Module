@@ -15,19 +15,23 @@ import type {
 } from "../../types/api";
 
 const priorities: CapaPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
-const editableStatuses: Array<Exclude<CapaStatus, "CLOSED">> = [
-  "OPEN",
-  "IN_PROGRESS",
-  "PENDING_VERIFICATION",
-  "CANCELLED",
-];
+type EditableCapaStatus = Exclude<CapaStatus, "CLOSED">;
+const editableStatuses: Readonly<
+  Record<EditableCapaStatus, readonly EditableCapaStatus[]>
+> = {
+  OPEN: ["OPEN", "IN_PROGRESS", "PENDING_VERIFICATION", "CANCELLED"],
+  IN_PROGRESS: ["IN_PROGRESS", "OPEN", "PENDING_VERIFICATION", "CANCELLED"],
+  PENDING_VERIFICATION: ["PENDING_VERIFICATION", "IN_PROGRESS", "CANCELLED"],
+  CANCELLED: ["CANCELLED", "OPEN"],
+};
 const optional = (value: string) => value.trim() || null;
 
 export function CapaFormModal({ capa, initialGapId, onClose, onSaved }: { capa?: Capa; initialGapId?: string; onClose: () => void; onSaved: (capa: Capa) => void }) {
+  const persistedStatus: EditableCapaStatus = capa?.status === "IN_PROGRESS" || capa?.status === "PENDING_VERIFICATION" || capa?.status === "CANCELLED" ? capa.status : "OPEN";
   const [title, setTitle] = useState(capa?.title ?? "");
   const [description, setDescription] = useState(capa?.description ?? "");
   const [priority, setPriority] = useState<CapaPriority>(capa?.priority ?? "MEDIUM");
-  const [status, setStatus] = useState<Exclude<CapaStatus, "CLOSED">>(capa?.status === "IN_PROGRESS" || capa?.status === "PENDING_VERIFICATION" || capa?.status === "CANCELLED" ? capa.status : "OPEN");
+  const [status, setStatus] = useState<EditableCapaStatus>(persistedStatus);
   const [gapId, setGapId] = useState(capa?.gap?.id ?? initialGapId ?? "");
   const [source, setSource] = useState(capa?.source ?? "");
   const [sourceRef, setSourceRef] = useState(capa?.sourceRef ?? "");
@@ -99,7 +103,7 @@ export function CapaFormModal({ capa, initialGapId, onClose, onSaved }: { capa?:
         <div className="form-grid">
           <label className="field field-span"><span>Title</span><input className="control" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={300} required autoFocus /></label>
           <label className="field"><span>Priority</span><select className="control" value={priority} onChange={(event) => setPriority(event.target.value as CapaPriority)}>{priorities.map((value) => <option value={value} key={value}>{value}</option>)}</select></label>
-          {capa ? <label className="field"><span>Status</span><select className="control" value={status} onChange={(event) => setStatus(event.target.value as Exclude<CapaStatus, "CLOSED">)}>{editableStatuses.map((value) => <option value={value} key={value}>{value.replaceAll("_", " ")}</option>)}</select></label> : null}
+          {capa ? <label className="field"><span>Status</span><select className="control" value={status} onChange={(event) => setStatus(event.target.value as EditableCapaStatus)}>{editableStatuses[persistedStatus].map((value) => <option value={value} key={value}>{value.replaceAll("_", " ")}</option>)}</select></label> : null}
           <label className="field field-span"><span>Description</span><textarea className="control" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} maxLength={5000} /></label>
           <label className="field"><span>Linked Gap</span><select className="control" value={gapId} onChange={(event) => setGapId(event.target.value)}><option value="">No linked Gap</option>{linkedGapOptions.map((gap) => <option key={gap.id} value={gap.id}>{gap.code} · {gap.title}</option>)}</select></label>
           <label className="field"><span>Owner</span><select className="control" value={ownerId} onChange={(event) => setOwnerId(event.target.value)} disabled={Boolean(capa)}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} ({user.code})</option>)}</select>{capa ? <small>Use Assign owner on the detail page.</small> : null}</label>

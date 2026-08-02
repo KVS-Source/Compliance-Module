@@ -258,11 +258,15 @@ export class GapService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      const existing = await tx.gap.findFirst({
-        where: { tenantId, id, deletedAt: null },
-        select: { id: true, code: true, status: true },
-      });
+      const existing = await this.repository.lockLifecycle(tx, tenantId, id);
       if (!existing) throw gapNotFound();
+      if (existing.status === "CLOSED") {
+        throw new AppError(
+          409,
+          "INVALID_STATUS_TRANSITION",
+          "Use POST /gaps/:gapId/reopen before editing a closed Gap",
+        );
+      }
       await assertSameCompany(tx, tenantId, body);
       if (body.status) assertGapTransition(existing.status, body.status);
       const gap = await tx.gap.update({
@@ -363,10 +367,7 @@ export class GapService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      const existing = await tx.gap.findFirst({
-        where: { tenantId, id, deletedAt: null },
-        select: { id: true, code: true, status: true },
-      });
+      const existing = await this.repository.lockLifecycle(tx, tenantId, id);
       if (!existing) throw gapNotFound();
       assertGapTransition(existing.status, "CLOSED", { allowSelf: false });
       const closureNote = assertClosureNote(body.closureNote);
@@ -416,10 +417,7 @@ export class GapService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      const existing = await tx.gap.findFirst({
-        where: { tenantId, id, deletedAt: null },
-        select: { id: true, code: true, status: true },
-      });
+      const existing = await this.repository.lockLifecycle(tx, tenantId, id);
       if (!existing) throw gapNotFound();
       assertGapTransition(existing.status, "IN_PROGRESS");
       const gap = await tx.gap.update({

@@ -7,13 +7,13 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const gapId = "91000000-0000-4000-8000-000000000001";
 const company = { id: "10000000-0000-4000-8000-000000000001", code: "GEN", name: "GenBioCa" };
 
-const makeGap = () => ({
+const makeGap = (status: "OPEN" | "IN_PROGRESS" | "CANCELLED" = "OPEN") => ({
   id: gapId,
   code: "GAP-001",
   title: "Missing quarterly review",
   description: "The required review was not recorded.",
   severity: "MAJOR",
-  status: "OPEN",
+  status,
   source: "Internal audit",
   clauseRef: "ISO-9.3",
   recommendedAction: "Complete and evidence the review.",
@@ -39,8 +39,12 @@ const makeGap = () => ({
 
 const success = (data: unknown, meta?: unknown) => ({ success: true, data, ...(meta ? { meta } : {}) });
 
-async function installMock(page: Page, closeMode: "success" | "evidence-error" = "success") {
-  let gap = makeGap();
+async function installMock(
+  page: Page,
+  closeMode: "success" | "evidence-error" = "success",
+  initialStatus: "OPEN" | "IN_PROGRESS" | "CANCELLED" = "OPEN",
+) {
+  let gap = makeGap(initialStatus);
   const calls: string[] = [];
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -60,6 +64,11 @@ async function installMock(page: Page, closeMode: "success" | "evidence-error" =
       return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(success(gap)) });
     }
     if (path === `/api/v1/gaps/${gapId}` && method === "GET") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(gap)) });
+    }
+    if (path === `/api/v1/gaps/${gapId}` && method === "PATCH") {
+      const input = request.postDataJSON() as Partial<typeof gap>;
+      gap = { ...gap, ...input };
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(gap)) });
     }
     if (path === `/api/v1/gaps/${gapId}/close` && method === "POST") {
@@ -112,6 +121,16 @@ test("Gap detail displays returned source context", async ({ page }) => {
   await page.goto(`/compliance/gaps/${gapId}`);
   await expect(page.getByText("ISO 9001 (ISO9001)")).toBeVisible();
   await expect(page.getByText("Management review (CTL-001)")).toBeVisible();
+});
+
+test("Gap edit offers only valid transitions from CANCELLED", async ({ page }) => {
+  await installMock(page, "success", "CANCELLED");
+  await page.goto(`/compliance/gaps/${gapId}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByLabel("Status").locator("option")).toHaveText([
+    "CANCELLED",
+    "OPEN",
+  ]);
 });
 
 test("Gap closes through the backend action", async ({ page }) => {

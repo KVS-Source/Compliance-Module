@@ -89,7 +89,14 @@ function LegacyHashRedirect() {
 }
 
 const migratedRoutes: RouteObject[] = [
-  { path: "dashboard", element: <DashboardPage /> },
+  {
+    path: "dashboard",
+    element: (
+      <PermissionBoundary permission="dashboard:read">
+        <DashboardPage />
+      </PermissionBoundary>
+    ),
+  },
   {
     path: "admin/companies",
     element: (

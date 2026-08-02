@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { signAccessToken } from "../src/common/security/tokens.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -15,6 +16,16 @@ if (
   );
 }
 
+const deferred = <T = void>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("Gap and CAPA API", () => {
   let app: Express;
   let prisma: PrismaClient;
@@ -22,6 +33,7 @@ describe("Gap and CAPA API", () => {
   let adminUserId: string;
   let companyOneId: string;
   let readerToken: string;
+  let writerToken: string;
   let companyTwoToken: string;
 
   const loginAs = async (email: string, password: string) => {
@@ -48,6 +60,11 @@ describe("Gap and CAPA API", () => {
     companyOneId = admin.user.activeCompany.id;
     const reader = await loginAs("user001@example.test", "User001!Secure");
     readerToken = reader.accessToken;
+    writerToken = signAccessToken({
+      sub: adminUserId,
+      tenantId: companyOneId,
+      permissions: ["gaps:read", "gaps:write", "capa:read", "capa:write"],
+    });
     const company2 = admin.user.companies.find(
       ({ code }) => code === "COM-002",
     );
@@ -138,6 +155,101 @@ describe("Gap and CAPA API", () => {
     return evidence;
   };
 
+  const waitForBlockedLifecycleQueries = async (
+    table: "gaps" | "capas",
+    lockClause: "FOR UPDATE" | "FOR SHARE",
+    expectedCount: number,
+  ) => {
+    const deadline = Date.now() + 5_000;
+    const queryPattern = `%FROM ${table}%${lockClause}%`;
+    while (Date.now() < deadline) {
+      const rows = await prisma.$queryRaw<Array<{ blockedCount: bigint }>>`
+        SELECT count(*)::bigint AS "blockedCount"
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND pid <> pg_backend_pid()
+          AND wait_event_type = 'Lock'
+          AND cardinality(pg_blocking_pids(pid)) > 0
+          AND query ILIKE ${queryPattern}
+      `;
+      if (Number(rows[0]?.blockedCount ?? 0) >= expectedCount) return;
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error(
+      `Expected ${expectedCount} blocked ${lockClause} queries for ${table}`,
+    );
+  };
+
+  const serializeBehindExternalLock = async <TClose, TPatch>(input: {
+    table: "gaps" | "capas";
+    id: string;
+    startClose: () => Promise<TClose>;
+    startPatch: () => Promise<TPatch>;
+    secondLockClause?: "FOR UPDATE" | "FOR SHARE";
+  }): Promise<[TClose, TPatch]> => {
+    const release = deferred();
+    const locked = deferred();
+    const holder = prisma
+      .$transaction(
+        async (tx) => {
+          if (input.table === "gaps") {
+            await tx.$queryRaw`
+              SELECT id FROM gaps
+              WHERE tenant_id = ${companyOneId}::uuid
+                AND id = ${input.id}::uuid
+                AND deleted_at IS NULL
+              FOR UPDATE
+            `;
+          } else {
+            await tx.$queryRaw`
+              SELECT id FROM capas
+              WHERE tenant_id = ${companyOneId}::uuid
+                AND id = ${input.id}::uuid
+                AND deleted_at IS NULL
+              FOR UPDATE
+            `;
+          }
+          locked.resolve();
+          await release.promise;
+        },
+        { maxWait: 15_000, timeout: 20_000 },
+      )
+      .catch((error: unknown) => {
+        locked.reject(error);
+        throw error;
+      });
+
+    await locked.promise;
+    let closePromise: Promise<TClose> | undefined;
+    let patchPromise: Promise<TPatch> | undefined;
+    let coordinationError: unknown;
+    try {
+      closePromise = input.startClose();
+      await waitForBlockedLifecycleQueries(input.table, "FOR UPDATE", 1);
+      patchPromise = input.startPatch();
+      await waitForBlockedLifecycleQueries(
+        input.table,
+        input.secondLockClause ?? "FOR UPDATE",
+        input.secondLockClause === undefined ? 2 : 1,
+      );
+    } catch (error) {
+      coordinationError = error;
+    } finally {
+      release.resolve();
+    }
+
+    const pending: Promise<unknown>[] = [holder];
+    if (closePromise) pending.push(closePromise);
+    if (patchPromise) pending.push(patchPromise);
+    const [holderResult] = await Promise.allSettled(pending);
+    if (holderResult?.status === "rejected") throw holderResult.reason;
+    if (coordinationError) throw coordinationError;
+    if (!closePromise || !patchPromise) {
+      throw new Error("Lifecycle race requests did not both start");
+    }
+    return Promise.all([closePromise, patchPromise]);
+  };
+
   it("creates a gap with a server-generated code and derives company scope", async () => {
     const gap = await createGap(adminToken);
     expect(gap.code).toMatch(/^GAP-\d{3,}$/);
@@ -199,6 +311,90 @@ describe("Gap and CAPA API", () => {
       .expect(400);
     expect(response.body.error.code).toBe("RELATED_RECORD_INVALID");
     expect(response.body.error.details.fields).toContain("gapId");
+  });
+
+  it("prevents an open CAPA from being created, relinked, or reopened against a closed Gap", async () => {
+    const gap = await createGap(adminToken);
+    const linkedCapa = await createCapa(adminToken, { gapId: gap.id });
+    const cancelledCapa = await createCapa(adminToken, { gapId: gap.id });
+    await request(app)
+      .patch(`/api/v1/capas/${cancelledCapa.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ status: "CANCELLED" })
+      .expect(200);
+    await linkQualifyingEvidence("capas", linkedCapa.id);
+    await request(app)
+      .post(`/api/v1/capas/${linkedCapa.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ closureNote: "The linked corrective action is fully verified." })
+      .expect(200);
+    await linkQualifyingEvidence("gaps", gap.id);
+    await request(app)
+      .post(`/api/v1/gaps/${gap.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ closureNote: "All linked corrective actions are now complete." })
+      .expect(200);
+
+    const createResponse = await request(app)
+      .post("/api/v1/capas")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        title: "Must not attach to a closed Gap",
+        priority: "LOW",
+        gapId: gap.id,
+      })
+      .expect(409);
+    expect(createResponse.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+
+    const unlinkedCapa = await createCapa(adminToken);
+    const relinkResponse = await request(app)
+      .patch(`/api/v1/capas/${unlinkedCapa.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ gapId: gap.id })
+      .expect(409);
+    expect(relinkResponse.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+
+    const reopenResponse = await request(app)
+      .post(`/api/v1/capas/${linkedCapa.id}/reopen`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "A closed parent Gap cannot accept reopened work." })
+      .expect(409);
+    expect(reopenResponse.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+
+    const reactivateResponse = await request(app)
+      .patch(`/api/v1/capas/${cancelledCapa.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ status: "OPEN" })
+      .expect(409);
+    expect(reactivateResponse.body.error.code).toBe(
+      "INVALID_STATUS_TRANSITION",
+    );
+
+    const [persistedLinked, persistedCancelled, persistedUnlinked] =
+      await Promise.all([
+        prisma.capa.findUniqueOrThrow({
+          where: { id: linkedCapa.id },
+          select: { gapId: true, status: true, completionPercentage: true },
+        }),
+        prisma.capa.findUniqueOrThrow({
+          where: { id: cancelledCapa.id },
+          select: { gapId: true, status: true },
+        }),
+        prisma.capa.findUniqueOrThrow({
+          where: { id: unlinkedCapa.id },
+          select: { gapId: true, status: true },
+        }),
+      ]);
+    expect(persistedLinked).toEqual({
+      gapId: gap.id,
+      status: "CLOSED",
+      completionPercentage: 100,
+    });
+    expect(persistedCancelled).toEqual({
+      gapId: gap.id,
+      status: "CANCELLED",
+    });
+    expect(persistedUnlinked).toEqual({ gapId: null, status: "OPEN" });
   });
 
   it("refuses an owner who is not a member of the company", async () => {
@@ -402,6 +598,212 @@ describe("Gap and CAPA API", () => {
     expect(reopened.body.data.status).toBe("IN_PROGRESS");
     expect(reopened.body.data.closedAt).toBeNull();
     expect(reopened.body.data.closureNote).toBeNull();
+  });
+
+  it("routes every closed-record reopen through the protected action", async () => {
+    const gap = await createGap(adminToken);
+    await linkQualifyingEvidence("gaps", gap.id);
+    const closedGap = await request(app)
+      .post(`/api/v1/gaps/${gap.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ closureNote: "Closed after the remediation was evidenced." })
+      .expect(200);
+
+    await request(app)
+      .post(`/api/v1/gaps/${gap.id}/reopen`)
+      .set("Authorization", `Bearer ${writerToken}`)
+      .send({ reason: "Writer must not hold reopen authority." })
+      .expect(403);
+    const gapPatch = await request(app)
+      .patch(`/api/v1/gaps/${gap.id}`)
+      .set("Authorization", `Bearer ${writerToken}`)
+      .send({ title: "A closed Gap cannot be edited through generic PATCH" })
+      .expect(409);
+    expect(gapPatch.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+
+    const persistedGap = await request(app)
+      .get(`/api/v1/gaps/${gap.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    expect(persistedGap.body.data).toMatchObject({
+      status: "CLOSED",
+      closedAt: closedGap.body.data.closedAt,
+      closureNote: closedGap.body.data.closureNote,
+    });
+
+    const capa = await createCapa(adminToken);
+    await linkQualifyingEvidence("capas", capa.id);
+    const closedCapa = await request(app)
+      .post(`/api/v1/capas/${capa.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        closureNote: "Closed after the corrective action was evidenced.",
+      })
+      .expect(200);
+
+    await request(app)
+      .post(`/api/v1/capas/${capa.id}/reopen`)
+      .set("Authorization", `Bearer ${writerToken}`)
+      .send({ reason: "Writer must not hold reopen authority." })
+      .expect(403);
+    const capaPatch = await request(app)
+      .patch(`/api/v1/capas/${capa.id}`)
+      .set("Authorization", `Bearer ${writerToken}`)
+      .send({ completionPercentage: 40 })
+      .expect(409);
+    expect(capaPatch.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+
+    const persistedCapa = await request(app)
+      .get(`/api/v1/capas/${capa.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    expect(persistedCapa.body.data).toMatchObject({
+      status: "CLOSED",
+      closedAt: closedCapa.body.data.closedAt,
+      closureNote: closedCapa.body.data.closureNote,
+      completionPercentage: 100,
+    });
+  });
+
+  it("serializes Gap closure ahead of a concurrent write-only status patch", async () => {
+    const gap = await createGap(adminToken);
+    await linkQualifyingEvidence("gaps", gap.id);
+    const closureNote = "Concurrent closure preserves the authorised sign-off.";
+    const beforeUpdateAudits = await prisma.auditEvent.count({
+      where: { entityType: "GAP", entityId: gap.id, action: "GAP_UPDATED" },
+    });
+
+    const [closed, patch] = await serializeBehindExternalLock({
+      table: "gaps",
+      id: gap.id,
+      startClose: () =>
+        request(app)
+          .post(`/api/v1/gaps/${gap.id}/close`)
+          .set("Authorization", `Bearer ${adminToken}`)
+          .send({ closureNote })
+          .then((response) => response),
+      startPatch: () =>
+        request(app)
+          .patch(`/api/v1/gaps/${gap.id}`)
+          .set("Authorization", `Bearer ${writerToken}`)
+          .send({ title: "Concurrent write must not alter a closed Gap" })
+          .then((response) => response),
+    });
+
+    expect(closed.status).toBe(200);
+    expect(patch.status).toBe(409);
+    expect(patch.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+    const persisted = await prisma.gap.findUniqueOrThrow({
+      where: { id: gap.id },
+      select: { status: true, closedAt: true, closureNote: true },
+    });
+    expect(persisted).toMatchObject({
+      status: "CLOSED",
+      closureNote,
+    });
+    expect(persisted.closedAt).not.toBeNull();
+    expect(
+      await prisma.auditEvent.count({
+        where: { entityType: "GAP", entityId: gap.id, action: "GAP_UPDATED" },
+      }),
+    ).toBe(beforeUpdateAudits);
+  });
+
+  it("serializes Gap closure ahead of concurrent CAPA creation", async () => {
+    const gap = await createGap(adminToken);
+    await linkQualifyingEvidence("gaps", gap.id);
+    const closureNote = "Concurrent closure prevents new corrective work.";
+
+    const [closed, create] = await serializeBehindExternalLock({
+      table: "gaps",
+      id: gap.id,
+      secondLockClause: "FOR SHARE",
+      startClose: () =>
+        request(app)
+          .post(`/api/v1/gaps/${gap.id}/close`)
+          .set("Authorization", `Bearer ${adminToken}`)
+          .send({ closureNote })
+          .then((response) => response),
+      startPatch: () =>
+        request(app)
+          .post("/api/v1/capas")
+          .set("Authorization", `Bearer ${adminToken}`)
+          .send({
+            title: "Concurrent CAPA must not attach after closure",
+            priority: "HIGH",
+            gapId: gap.id,
+          })
+          .then((response) => response),
+    });
+
+    expect(closed.status).toBe(200);
+    expect(create.status).toBe(409);
+    expect(create.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+    expect(
+      await prisma.capa.count({
+        where: { tenantId: companyOneId, gapId: gap.id, deletedAt: null },
+      }),
+    ).toBe(0);
+    const persisted = await prisma.gap.findUniqueOrThrow({
+      where: { id: gap.id },
+      select: { status: true, closureNote: true },
+    });
+    expect(persisted).toEqual({ status: "CLOSED", closureNote });
+  });
+
+  it("serializes CAPA closure ahead of a concurrent write-only status patch", async () => {
+    const capa = await createCapa(adminToken, { completionPercentage: 35 });
+    await linkQualifyingEvidence("capas", capa.id);
+    const closureNote =
+      "Concurrent closure preserves the authorised CAPA sign-off.";
+    const beforeUpdateAudits = await prisma.auditEvent.count({
+      where: { entityType: "CAPA", entityId: capa.id, action: "CAPA_UPDATED" },
+    });
+
+    const [closed, patch] = await serializeBehindExternalLock({
+      table: "capas",
+      id: capa.id,
+      startClose: () =>
+        request(app)
+          .post(`/api/v1/capas/${capa.id}/close`)
+          .set("Authorization", `Bearer ${adminToken}`)
+          .send({ closureNote })
+          .then((response) => response),
+      startPatch: () =>
+        request(app)
+          .patch(`/api/v1/capas/${capa.id}`)
+          .set("Authorization", `Bearer ${writerToken}`)
+          .send({ completionPercentage: 40 })
+          .then((response) => response),
+    });
+
+    expect(closed.status).toBe(200);
+    expect(patch.status).toBe(409);
+    expect(patch.body.error.code).toBe("INVALID_STATUS_TRANSITION");
+    const persisted = await prisma.capa.findUniqueOrThrow({
+      where: { id: capa.id },
+      select: {
+        status: true,
+        closedAt: true,
+        closureNote: true,
+        completionPercentage: true,
+      },
+    });
+    expect(persisted).toMatchObject({
+      status: "CLOSED",
+      closureNote,
+      completionPercentage: 100,
+    });
+    expect(persisted.closedAt).not.toBeNull();
+    expect(
+      await prisma.auditEvent.count({
+        where: {
+          entityType: "CAPA",
+          entityId: capa.id,
+          action: "CAPA_UPDATED",
+        },
+      }),
+    ).toBe(beforeUpdateAudits);
   });
 
   it("routes closure through the close endpoint, not a status patch", async () => {

@@ -26,23 +26,27 @@ const severities: GapSeverity[] = [
   "OFI",
 ];
 
-const editableStatuses: Array<Exclude<GapStatus, "CLOSED">> = [
-  "OPEN",
-  "IN_PROGRESS",
-  "CANCELLED",
-];
+type EditableGapStatus = Exclude<GapStatus, "CLOSED">;
+
+const editableStatuses: Readonly<
+  Record<EditableGapStatus, readonly EditableGapStatus[]>
+> = {
+  OPEN: ["OPEN", "IN_PROGRESS", "CANCELLED"],
+  IN_PROGRESS: ["IN_PROGRESS", "OPEN", "CANCELLED"],
+  CANCELLED: ["CANCELLED", "OPEN"],
+};
 
 const optional = (value: string) => value.trim() || null;
 
 export function GapFormModal({ gap, onClose, onSaved }: GapFormModalProps) {
+  const persistedStatus: EditableGapStatus =
+    gap?.status === "IN_PROGRESS" || gap?.status === "CANCELLED"
+      ? gap.status
+      : "OPEN";
   const [title, setTitle] = useState(gap?.title ?? "");
   const [description, setDescription] = useState(gap?.description ?? "");
   const [severity, setSeverity] = useState<GapSeverity>(gap?.severity ?? "MINOR");
-  const [status, setStatus] = useState<Exclude<GapStatus, "CLOSED">>(
-    gap?.status === "IN_PROGRESS" || gap?.status === "CANCELLED"
-      ? gap.status
-      : "OPEN",
-  );
+  const [status, setStatus] = useState<EditableGapStatus>(persistedStatus);
   const [source, setSource] = useState(gap?.source ?? "");
   const [clauseRef, setClauseRef] = useState(gap?.clauseRef ?? "");
   const [recommendedAction, setRecommendedAction] = useState(
@@ -147,8 +151,8 @@ export function GapFormModal({ gap, onClose, onSaved }: GapFormModalProps) {
           {gap ? (
             <label className="field">
               <span>Status</span>
-              <select className="control" value={status} onChange={(event) => setStatus(event.target.value as Exclude<GapStatus, "CLOSED">)}>
-                {editableStatuses.map((value) => <option value={value} key={value}>{value.replaceAll("_", " ")}</option>)}
+              <select className="control" value={status} onChange={(event) => setStatus(event.target.value as EditableGapStatus)}>
+                {editableStatuses[persistedStatus].map((value) => <option value={value} key={value}>{value.replaceAll("_", " ")}</option>)}
               </select>
             </label>
           ) : null}

@@ -114,6 +114,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "Dashboard",
     "Company-scoped KPI, risk, organisation and framework overview.",
     LayoutDashboard,
+    { permission: "dashboard:read", api: "GET /dashboard/summary" },
   ),
 
   live(
