@@ -31,6 +31,19 @@ export type PolicyGateResult = {
   coveredCheckpointCount: number;
 };
 
+export type ClosureEvidenceGateResult = {
+  satisfied: true;
+  qualifyingCount: number;
+  lockedEvidenceId: string;
+};
+
+type ClosureEvidenceEntity = "GAP" | "CAPA";
+type ClosureEvidenceGateReason =
+  | "EVIDENCE_GAP_LINK_REQUIRED"
+  | "EVIDENCE_GAP_COVERAGE_INCOMPLETE"
+  | "EVIDENCE_CAPA_LINK_REQUIRED"
+  | "EVIDENCE_CAPA_COVERAGE_INCOMPLETE";
+
 /**
  * Central Evidence gate evaluation.
  *
@@ -109,6 +122,42 @@ export class EvidenceGateService {
       qualifyingCount: 1,
       lockedEvidenceId,
     };
+  }
+
+  /**
+   * Gap closure requires one active, qualifying Evidence link. This is not a
+   * configurable gate: the repository business rules make Evidence a closure
+   * prerequisite for every Gap.
+   */
+  async assertGapClosureSatisfied(input: {
+    tenantId: string;
+    gapId: string;
+    asOfDate?: UtcDateString;
+    tx?: Prisma.TransactionClient;
+  }): Promise<ClosureEvidenceGateResult> {
+    return this.assertClosureEvidenceSatisfied({
+      tenantId: input.tenantId,
+      entity: "GAP",
+      entityId: input.gapId,
+      ...(input.asOfDate ? { asOfDate: input.asOfDate } : {}),
+      ...(input.tx ? { tx: input.tx } : {}),
+    });
+  }
+
+  /** CAPA closure uses the same Evidence eligibility contract as Gap closure. */
+  async assertCapaClosureSatisfied(input: {
+    tenantId: string;
+    capaId: string;
+    asOfDate?: UtcDateString;
+    tx?: Prisma.TransactionClient;
+  }): Promise<ClosureEvidenceGateResult> {
+    return this.assertClosureEvidenceSatisfied({
+      tenantId: input.tenantId,
+      entity: "CAPA",
+      entityId: input.capaId,
+      ...(input.asOfDate ? { asOfDate: input.asOfDate } : {}),
+      ...(input.tx ? { tx: input.tx } : {}),
+    });
   }
 
   /**
@@ -303,6 +352,75 @@ export class EvidenceGateService {
         ? "This KPI actual requires at least one active Evidence link before approval"
         : "This KPI actual approval requires qualifying approved Evidence coverage";
     throw new AppError(409, "EVIDENCE_REQUIRED", message, { reason });
+  }
+
+  private throwClosureEvidenceRequired(
+    entity: ClosureEvidenceEntity,
+    reason: ClosureEvidenceGateReason,
+  ): never {
+    const label = entity === "GAP" ? "Gap" : "CAPA";
+    const linkRequired = reason.endsWith("_LINK_REQUIRED");
+    throw new AppError(
+      409,
+      "EVIDENCE_REQUIRED",
+      linkRequired
+        ? `${label} closure requires at least one active Evidence link`
+        : `${label} closure requires qualifying approved Evidence`,
+      { reason },
+    );
+  }
+
+  private async assertClosureEvidenceSatisfied(input: {
+    tenantId: string;
+    entity: ClosureEvidenceEntity;
+    entityId: string;
+    asOfDate?: UtcDateString;
+    tx?: Prisma.TransactionClient;
+  }): Promise<ClosureEvidenceGateResult> {
+    const client = this.requireClient(input.tx);
+    const activeLinkCount =
+      input.entity === "GAP"
+        ? await client.gapEvidenceLink.count({
+            where: {
+              tenantId: input.tenantId,
+              gapId: input.entityId,
+              isActive: true,
+            },
+          })
+        : await client.capaEvidenceLink.count({
+            where: {
+              tenantId: input.tenantId,
+              capaId: input.entityId,
+              isActive: true,
+            },
+          });
+
+    if (activeLinkCount === 0) {
+      this.throwClosureEvidenceRequired(
+        input.entity,
+        input.entity === "GAP"
+          ? "EVIDENCE_GAP_LINK_REQUIRED"
+          : "EVIDENCE_CAPA_LINK_REQUIRED",
+      );
+    }
+
+    const lockedEvidenceId = await this.lockOneQualifyingClosureEvidence(
+      client,
+      input.tenantId,
+      input.entity,
+      input.entityId,
+      input.asOfDate ?? utcDateString(),
+    );
+    if (!lockedEvidenceId) {
+      this.throwClosureEvidenceRequired(
+        input.entity,
+        input.entity === "GAP"
+          ? "EVIDENCE_GAP_COVERAGE_INCOMPLETE"
+          : "EVIDENCE_CAPA_COVERAGE_INCOMPLETE",
+      );
+    }
+
+    return { satisfied: true, qualifyingCount: 1, lockedEvidenceId };
   }
 
   /**
@@ -583,6 +701,60 @@ export class EvidenceGateService {
       LIMIT 1
       FOR SHARE OF e
     `;
+    return rows[0]?.id ?? null;
+  }
+
+  /**
+   * Selects and locks one qualifying Evidence row linked to a Gap or CAPA.
+   * SQL identifiers are fixed fragments selected by a closed enum; tenant,
+   * entity and date values remain parameterised.
+   */
+  private async lockOneQualifyingClosureEvidence(
+    client: DbClient,
+    tenantId: string,
+    entity: ClosureEvidenceEntity,
+    entityId: string,
+    asOfDate: UtcDateString,
+  ): Promise<string | null> {
+    const linkJoin =
+      entity === "GAP"
+        ? Prisma.sql`INNER JOIN gap_evidence_links AS l
+            ON l.tenant_id = e.tenant_id
+           AND l.evidence_id = e.id`
+        : Prisma.sql`INNER JOIN capa_evidence_links AS l
+            ON l.tenant_id = e.tenant_id
+           AND l.evidence_id = e.id`;
+    const entityPredicate =
+      entity === "GAP"
+        ? Prisma.sql`l.gap_id = ${entityId}::uuid`
+        : Prisma.sql`l.capa_id = ${entityId}::uuid`;
+    const rows = await client.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT e.id
+      FROM evidence AS e
+      ${linkJoin}
+      WHERE e.tenant_id = ${tenantId}::uuid
+        AND ${entityPredicate}
+        AND l.is_active = true
+        AND e.lifecycle_status = 'APPROVED'
+        AND e.storage_key IS NOT NULL
+        AND length(e.storage_key) > 0
+        AND e.content_sha256 IS NOT NULL
+        AND length(e.content_sha256) > 0
+        AND e.byte_size IS NOT NULL
+        AND e.byte_size > 0
+        AND (e.issue_date IS NULL OR e.issue_date <= ${asOfDate}::date)
+        AND (e.expires_at IS NULL OR e.expires_at >= ${asOfDate}::date)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM evidence AS successor
+          WHERE successor.tenant_id = e.tenant_id
+            AND successor.supersedes_evidence_id = e.id
+            AND successor.lifecycle_status IN ('APPROVED', 'ARCHIVED')
+        )
+      ORDER BY e.id ASC
+      LIMIT 1
+      FOR SHARE OF e
+    `);
     return rows[0]?.id ?? null;
   }
 }

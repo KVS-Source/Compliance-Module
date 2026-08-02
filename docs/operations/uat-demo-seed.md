@@ -1,5 +1,9 @@
 # UAT demo seed
 
+This page describes the synthetic KPI/Risk walkthrough seed. For the separate
+GenBioCa Company seed plus actual workbook import, use
+[`backend-data-mvp-contract-and-uat.md`](../backend-data-mvp-contract-and-uat.md#repeatable-genbioca-uat-load).
+
 The demo seed is an explicit operator action. It is never called by application
 startup, Docker startup, or a migration.
 

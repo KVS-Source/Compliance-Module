@@ -30,9 +30,11 @@ by UAT language or status-page presentation.
   React Evidence routes (Library, Create, Detail, Review, link panels), and
   Evidence gates for Checkpoint, Policy Version and KPI actual approval are
   operational (Milestone 5). The standalone Policy Versions navigation page,
-  Gap, CAPA, Import, Tasks, Notifications, Reports, global audit query/export
-  and settings domains are not operational. Same-period Checkpoint Review
-  correction remains unsupported.
+  Gap/CAPA/import/operational-register frontend integrations, Tasks,
+  Notifications, Reports, global audit query/export and settings are not
+  operational. The Gap, CAPA, operational-register, import-read, dashboard and
+  CSV-export backend paths are available under the frozen backend/data MVP
+  contract. Same-period Checkpoint Review correction remains unsupported.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Policy, Control and Checkpoint register filters are React state only
   (no URL query sync). Control Checkpoint panels keep counts and, when

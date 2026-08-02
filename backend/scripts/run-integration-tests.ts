@@ -85,6 +85,9 @@ run(
     "tests/policy-lifecycle-lock-api.test.ts",
     "tests/kpi-evidence-gate-api.test.ts",
     "tests/kpi-evidence-concurrency-api.test.ts",
+    "tests/gap-capa-api.test.ts",
+    "tests/workbook-import-api.test.ts",
+    "tests/registers-dashboard-api.test.ts",
   ],
   true,
 );

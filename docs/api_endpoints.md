@@ -24,6 +24,11 @@ routes require bearer authentication and active Company membership.
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
 | Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews` (Evidence gate when `evidenceRequired`); `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |
 | Evidence | `GET/POST /evidence`; `GET /evidence/review-queue`; `GET/PATCH /evidence/:evidenceId`; `POST /evidence/:evidenceId/file`; `GET /evidence/:evidenceId/file`; `POST /evidence/:evidenceId/submit`; `/archive`; `/approve`; `/reject`; `GET /evidence/:evidenceId/review-decisions`; Control/Checkpoint link routes; `GET /evidence/:evidenceId/audit-events` |
+| Gaps | `GET/POST /gaps`; `GET/PATCH /gaps/:gapId`; `PATCH /gaps/:gapId/owner`; `POST /gaps/:gapId/close`; `/reopen`; `POST /gaps/:gapId/evidence`; `DELETE /gaps/:gapId/evidence/:evidenceId` |
+| CAPAs | `GET/POST /capas`; `GET/PATCH /capas/:capaId`; `PATCH /capas/:capaId/owner`; `POST /capas/:capaId/close`; `/reopen`; `POST /capas/:capaId/evidence`; `DELETE /capas/:capaId/evidence/:evidenceId` |
+| Operational registers | `GET /operational-registers`; `GET/POST /operational-registers/:registerCode/records`; `GET/PATCH /operational-registers/:registerCode/records/:recordId` |
+| Workbook imports | `GET /imports`; `GET /imports/:importId`; `GET /imports/:importId/errors` (CLI owns preview/commit) |
+| CSV exports | `GET /exports/gaps.csv`; `/capas.csv`; `/kpi-actuals.csv`; `/risks.csv`; `/evidence.csv`; `/operational-registers/:registerCode.csv` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,
 `meta.pageSize`, `meta.total` and `meta.totalPages`.
@@ -60,11 +65,15 @@ with `requiresEvidence=true` requires qualifying Evidence↔KpiActual links
 (`409 EVIDENCE_REQUIRED` with `EVIDENCE_KPI_LINK_REQUIRED` or
 `EVIDENCE_KPI_COVERAGE_INCOMPLETE`).
 
+The frozen request/response shapes, permissions, lifecycle gates, dashboard
+extensions, export contract and GenBioCa UAT load are documented in
+[backend-data-mvp-contract-and-uat.md](./backend-data-mvp-contract-and-uat.md).
+
 ## Explicitly absent
 
-No active API implements reverse Evidence lookup on Controls/Checkpoints, Gap,
-CAPA, Import, Tasks, Notifications, Reports, global audit search/export,
-settings or GenRAC connectivity.
+No active API implements reverse Evidence lookup on Controls/Checkpoints,
+workbook upload preview/commit, Tasks, Notifications, a report builder, global
+audit search/export, settings or GenRAC connectivity.
 Policy Version obsoletion and Policy INACTIVE transitions are deferred.
 No Control or Checkpoint DELETE route exists. No Review PATCH/DELETE or same-period
 Review correction route exists. No nested `GET /controls/:controlId/checkpoints`

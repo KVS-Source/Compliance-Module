@@ -29,8 +29,21 @@ import { RiskService } from "../modules/risks/service.js";
 import { riskRoutes } from "../modules/risks/routes.js";
 import { EvidenceGateService } from "../modules/evidence/evidence-gate-service.js";
 import { DashboardRepository } from "../modules/dashboard/repository.js";
-import { DashboardService } from "../modules/dashboard/service.js";
+import { DashboardSummaryRepository } from "../modules/dashboard/summary-repository.js";
+import { DashboardSummaryService } from "../modules/dashboard/summary-service.js";
 import { dashboardRoutes } from "../modules/dashboard/routes.js";
+import { GapRepository } from "../modules/gaps/repository.js";
+import { GapService } from "../modules/gaps/service.js";
+import { gapRoutes } from "../modules/gaps/routes.js";
+import { CapaRepository } from "../modules/capa/repository.js";
+import { CapaService } from "../modules/capa/service.js";
+import { capaRoutes } from "../modules/capa/routes.js";
+import { RegisterService } from "../modules/registers/service.js";
+import { registerRoutes } from "../modules/registers/routes.js";
+import { WorkbookImportService } from "../modules/imports/service.js";
+import { importRoutes } from "../modules/imports/routes.js";
+import { ExportService } from "../modules/exports/service.js";
+import { exportRoutes } from "../modules/exports/routes.js";
 import { PolicyRepository } from "../modules/policies/repository.js";
 import { PolicyService } from "../modules/policies/service.js";
 import {
@@ -52,9 +65,7 @@ import {
 } from "../common/middleware/http.js";
 import { apiRateLimiter } from "../common/middleware/rate-limit.js";
 import type { FileStorageProvider } from "../providers/file-storage/file-storage.js";
-import {
-  createFileStorageProvider,
-} from "../providers/file-storage/file-storage.js";
+import { createFileStorageProvider } from "../providers/file-storage/file-storage.js";
 import { env } from "../config/env.js";
 
 export const apiRoutes = (
@@ -70,18 +81,23 @@ export const apiRoutes = (
     new KpiManagementRepository(db),
   );
   const risks = new RiskService(new RiskRepository(db));
-  const dashboard = new DashboardService(new DashboardRepository(db));
+  const dashboard = new DashboardSummaryService(
+    new DashboardSummaryRepository(db),
+    new DashboardRepository(db),
+  );
   const evidenceGate = new EvidenceGateService(db);
+  const gaps = new GapService(new GapRepository(db), evidenceGate);
+  const capas = new CapaService(new CapaRepository(db), evidenceGate);
+  const registers = new RegisterService(db);
+  const workbookImports = new WorkbookImportService(db);
+  const exports = new ExportService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
   const controls = new ControlService(new ControlRepository(db));
   const checkpoints = new CheckpointService(
     new CheckpointRepository(db),
     evidenceGate,
   );
-  const evidence = new EvidenceService(
-    new EvidenceRepository(db),
-    fileStorage,
-  );
+  const evidence = new EvidenceService(new EvidenceRepository(db), fileStorage);
   const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
@@ -135,5 +151,10 @@ export const apiRoutes = (
   router.use("/controls", controlRoutes(controls));
   router.use("/checkpoints", checkpointRoutes(checkpoints));
   router.use("/evidence", evidenceRoutes(evidence));
+  router.use("/gaps", gapRoutes(gaps));
+  router.use("/capas", capaRoutes(capas));
+  router.use("/operational-registers", registerRoutes(registers));
+  router.use("/imports", importRoutes(workbookImports));
+  router.use("/exports", exportRoutes(exports));
   return router;
 };

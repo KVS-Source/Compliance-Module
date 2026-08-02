@@ -4,7 +4,7 @@ export const openApiDocument = {
     title: "GenBioCa Compliance Platform API",
     version: "1.0.0",
     description:
-      "Milestone 1 authentication, Company context and shared-master read APIs.",
+      "Company-scoped compliance APIs for authentication, governance, KPI/Risk workflows, Evidence, Gaps, CAPAs, operational registers, workbook import reads, dashboard aggregates and CSV exports.",
   },
   servers: [{ url: "/api/v1" }],
   components: {
@@ -25,6 +25,659 @@ export const openApiDocument = {
               code: { type: "string" },
               message: { type: "string" },
             },
+          },
+        },
+      },
+      PageMeta: {
+        type: "object",
+        required: ["page", "pageSize", "total", "totalPages"],
+        properties: {
+          page: { type: "integer", minimum: 1 },
+          pageSize: { type: "integer", minimum: 1, maximum: 100 },
+          total: { type: "integer", minimum: 0 },
+          totalPages: { type: "integer", minimum: 0 },
+        },
+      },
+      PersonSummary: {
+        type: "object",
+        required: ["id", "code", "name"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string" },
+          name: { type: "string" },
+        },
+      },
+      DepartmentSummary: {
+        type: "object",
+        required: ["id", "code", "name"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string" },
+          name: { type: "string" },
+        },
+      },
+      FrameworkSummary: {
+        type: "object",
+        required: ["id", "code", "name", "version"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string" },
+          name: { type: "string" },
+          version: { type: "string" },
+        },
+      },
+      EntitySummary: {
+        type: "object",
+        required: ["id", "code", "title"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string" },
+          title: { type: "string" },
+        },
+      },
+      EvidenceLinkSummary: {
+        type: "object",
+        required: [
+          "linkId",
+          "id",
+          "code",
+          "title",
+          "lifecycleStatus",
+          "file",
+          "linkReason",
+          "linkedAt",
+        ],
+        properties: {
+          linkId: { type: "string", format: "uuid" },
+          id: { type: "string", format: "uuid" },
+          code: { type: "string" },
+          title: { type: "string" },
+          lifecycleStatus: {
+            type: "string",
+            enum: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"],
+          },
+          file: {
+            type: "object",
+            required: ["available", "sourceReference"],
+            properties: {
+              available: {
+                type: "boolean",
+                description: "True only when the platform holds stored bytes.",
+              },
+              sourceReference: { type: "string", nullable: true },
+            },
+          },
+          linkReason: { type: "string", nullable: true },
+          linkedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Gap: {
+        type: "object",
+        required: [
+          "id",
+          "code",
+          "title",
+          "description",
+          "severity",
+          "status",
+          "source",
+          "clauseRef",
+          "recommendedAction",
+          "owner",
+          "sourceOwnerRef",
+          "department",
+          "framework",
+          "frameworkRule",
+          "control",
+          "checkpoint",
+          "identifiedOn",
+          "dueDate",
+          "overdue",
+          "closedAt",
+          "closureNote",
+          "needsReview",
+          "reviewReason",
+          "capas",
+          "evidence",
+          "createdAt",
+          "updatedAt",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string", example: "GAP-001" },
+          title: { type: "string" },
+          description: { type: "string", nullable: true },
+          severity: {
+            type: "string",
+            enum: ["CRITICAL", "MAJOR", "MINOR", "OBSERVATION", "OFI"],
+          },
+          status: {
+            type: "string",
+            enum: ["OPEN", "IN_PROGRESS", "CLOSED", "CANCELLED"],
+          },
+          source: { type: "string", nullable: true },
+          clauseRef: { type: "string", nullable: true },
+          recommendedAction: { type: "string", nullable: true },
+          owner: {
+            allOf: [{ $ref: "#/components/schemas/PersonSummary" }],
+            nullable: true,
+          },
+          sourceOwnerRef: { type: "string", nullable: true },
+          department: {
+            allOf: [{ $ref: "#/components/schemas/DepartmentSummary" }],
+            nullable: true,
+          },
+          framework: {
+            allOf: [{ $ref: "#/components/schemas/FrameworkSummary" }],
+            nullable: true,
+          },
+          frameworkRule: {
+            allOf: [{ $ref: "#/components/schemas/EntitySummary" }],
+            nullable: true,
+          },
+          control: {
+            allOf: [{ $ref: "#/components/schemas/EntitySummary" }],
+            nullable: true,
+          },
+          checkpoint: {
+            allOf: [{ $ref: "#/components/schemas/EntitySummary" }],
+            nullable: true,
+          },
+          identifiedOn: { type: "string", format: "date", nullable: true },
+          dueDate: { type: "string", format: "date", nullable: true },
+          overdue: { type: "boolean" },
+          closedAt: { type: "string", format: "date-time", nullable: true },
+          closureNote: { type: "string", nullable: true },
+          needsReview: { type: "boolean" },
+          reviewReason: { type: "string", nullable: true },
+          capas: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", format: "uuid" },
+                code: { type: "string" },
+                title: { type: "string" },
+                status: { type: "string" },
+                priority: { type: "string" },
+                dueDate: { type: "string", format: "date", nullable: true },
+                completionPercentage: {
+                  type: "integer",
+                  minimum: 0,
+                  maximum: 100,
+                },
+              },
+            },
+          },
+          evidence: {
+            type: "array",
+            items: { $ref: "#/components/schemas/EvidenceLinkSummary" },
+          },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Capa: {
+        type: "object",
+        required: [
+          "id",
+          "code",
+          "title",
+          "description",
+          "priority",
+          "status",
+          "gap",
+          "source",
+          "sourceRef",
+          "framework",
+          "rootCause",
+          "correctiveAction",
+          "preventiveAction",
+          "owner",
+          "sourceOwnerRef",
+          "department",
+          "raisedOn",
+          "dueDate",
+          "overdue",
+          "completionPercentage",
+          "closedAt",
+          "closureNote",
+          "needsReview",
+          "reviewReason",
+          "evidence",
+          "createdAt",
+          "updatedAt",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string", example: "CAPA-001" },
+          title: { type: "string" },
+          description: { type: "string", nullable: true },
+          priority: {
+            type: "string",
+            enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+          },
+          status: {
+            type: "string",
+            enum: [
+              "OPEN",
+              "IN_PROGRESS",
+              "PENDING_VERIFICATION",
+              "CLOSED",
+              "CANCELLED",
+            ],
+          },
+          gap: {
+            type: "object",
+            nullable: true,
+            properties: {
+              id: { type: "string", format: "uuid" },
+              code: { type: "string" },
+              title: { type: "string" },
+              severity: { type: "string" },
+              status: { type: "string" },
+            },
+          },
+          source: { type: "string", nullable: true },
+          sourceRef: { type: "string", nullable: true },
+          framework: {
+            allOf: [{ $ref: "#/components/schemas/FrameworkSummary" }],
+            nullable: true,
+          },
+          rootCause: { type: "string", nullable: true },
+          correctiveAction: { type: "string", nullable: true },
+          preventiveAction: { type: "string", nullable: true },
+          owner: {
+            allOf: [{ $ref: "#/components/schemas/PersonSummary" }],
+            nullable: true,
+          },
+          sourceOwnerRef: { type: "string", nullable: true },
+          department: {
+            allOf: [{ $ref: "#/components/schemas/DepartmentSummary" }],
+            nullable: true,
+          },
+          raisedOn: { type: "string", format: "date", nullable: true },
+          dueDate: { type: "string", format: "date", nullable: true },
+          overdue: { type: "boolean" },
+          completionPercentage: { type: "integer", minimum: 0, maximum: 100 },
+          closedAt: { type: "string", format: "date-time", nullable: true },
+          closureNote: { type: "string", nullable: true },
+          needsReview: { type: "boolean" },
+          reviewReason: { type: "string", nullable: true },
+          evidence: {
+            type: "array",
+            items: { $ref: "#/components/schemas/EvidenceLinkSummary" },
+          },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      RegisterType: {
+        type: "object",
+        required: [
+          "id",
+          "code",
+          "name",
+          "description",
+          "sourceSheet",
+          "fields",
+          "active",
+          "recordCount",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          code: { type: "string" },
+          name: { type: "string" },
+          description: { type: "string", nullable: true },
+          sourceSheet: { type: "string", nullable: true },
+          fields: {
+            type: "array",
+            items: { type: "object", additionalProperties: true },
+          },
+          active: { type: "boolean" },
+          recordCount: { type: "integer", minimum: 0 },
+        },
+      },
+      RegisterRecord: {
+        type: "object",
+        required: [
+          "id",
+          "register",
+          "businessRecordCode",
+          "title",
+          "status",
+          "owner",
+          "sourceOwnerRef",
+          "department",
+          "recordDate",
+          "dueDate",
+          "overdue",
+          "fields",
+          "source",
+          "createdAt",
+          "updatedAt",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          register: {
+            type: "object",
+            required: ["id", "code", "name"],
+            properties: {
+              id: { type: "string", format: "uuid" },
+              code: { type: "string" },
+              name: { type: "string" },
+            },
+          },
+          businessRecordCode: { type: "string" },
+          title: { type: "string" },
+          status: { type: "string", nullable: true },
+          owner: {
+            allOf: [{ $ref: "#/components/schemas/PersonSummary" }],
+            nullable: true,
+          },
+          sourceOwnerRef: { type: "string", nullable: true },
+          department: {
+            allOf: [{ $ref: "#/components/schemas/DepartmentSummary" }],
+            nullable: true,
+          },
+          recordDate: { type: "string", format: "date", nullable: true },
+          dueDate: { type: "string", format: "date", nullable: true },
+          overdue: { type: "boolean" },
+          fields: { type: "object", additionalProperties: true },
+          source: {
+            type: "object",
+            required: ["sheet", "row", "importBatchId"],
+            properties: {
+              sheet: { type: "string", nullable: true },
+              row: { type: "integer", nullable: true },
+              importBatchId: { type: "string", format: "uuid", nullable: true },
+            },
+          },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      ImportBatch: {
+        type: "object",
+        required: [
+          "id",
+          "originalFilename",
+          "fileChecksum",
+          "status",
+          "createdCount",
+          "updatedCount",
+          "skippedCount",
+          "errorCount",
+          "startedAt",
+          "completedAt",
+          "uploadedBy",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          originalFilename: { type: "string" },
+          fileChecksum: { type: "string", pattern: "^[a-f0-9]{64}$" },
+          idempotencyKey: { type: "string" },
+          status: {
+            type: "string",
+            enum: ["PREVIEWED", "COMMITTING", "COMPLETED", "PARTIAL", "FAILED"],
+          },
+          createdCount: { type: "integer", minimum: 0 },
+          updatedCount: { type: "integer", minimum: 0 },
+          skippedCount: { type: "integer", minimum: 0 },
+          errorCount: { type: "integer", minimum: 0 },
+          startedAt: { type: "string", format: "date-time" },
+          completedAt: { type: "string", format: "date-time", nullable: true },
+          uploadedBy: {
+            type: "object",
+            nullable: true,
+            properties: {
+              id: { type: "string", format: "uuid" },
+              code: { type: "string" },
+              fullName: { type: "string" },
+            },
+          },
+          report: { type: "object", additionalProperties: true },
+        },
+      },
+      ImportError: {
+        type: "object",
+        required: [
+          "id",
+          "sheet",
+          "rowNumber",
+          "businessKey",
+          "validationErrors",
+          "importResult",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          sheet: { type: "string" },
+          rowNumber: { type: "integer", minimum: 1 },
+          businessKey: { type: "string", nullable: true },
+          validationErrors: {
+            type: "array",
+            items: { type: "object", additionalProperties: true },
+          },
+          importResult: { type: "string", enum: ["FAILED"] },
+        },
+      },
+      DashboardSummary: {
+        type: "object",
+        required: [
+          "generatedAt",
+          "filters",
+          "compliance",
+          "kpis",
+          "risks",
+          "organisation",
+          "gaps",
+          "capas",
+          "evidence",
+          "policies",
+          "frameworks",
+          "departments",
+          "registers",
+          "recentActivity",
+          "latestImport",
+        ],
+        properties: {
+          generatedAt: { type: "string", format: "date-time" },
+          filters: {
+            type: "object",
+            properties: {
+              departmentId: { type: "string", format: "uuid", nullable: true },
+              frameworkId: { type: "string", format: "uuid", nullable: true },
+              period: { type: "string", nullable: true },
+              from: { type: "string", format: "date", nullable: true },
+              to: { type: "string", format: "date", nullable: true },
+            },
+          },
+          compliance: {
+            type: "object",
+            nullable: true,
+            properties: {
+              overallPercentage: {
+                type: "number",
+                minimum: 0,
+                maximum: 100,
+                description:
+                  "Share of measured actuals for enabled, active, non-informational KPI configurations that met target",
+              },
+              measuredKpis: { type: "integer", minimum: 0 },
+              kpisMeetingTarget: { type: "integer", minimum: 0 },
+            },
+          },
+          kpis: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          risks: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          organisation: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          gaps: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          capas: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          evidence: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          policies: {
+            type: "object",
+            nullable: true,
+            additionalProperties: { type: "integer", minimum: 0 },
+          },
+          frameworks: {
+            type: "object",
+            nullable: true,
+            properties: {
+              activeFrameworks: {
+                type: "integer",
+                minimum: 0,
+                description:
+                  "Frameworks whose scopeStatus is Active – In Scope",
+              },
+              total: { type: "integer", minimum: 0 },
+              active: {
+                type: "integer",
+                minimum: 0,
+                description:
+                  "Frameworks whose scopeStatus is Active – In Scope",
+              },
+              breakdown: {
+                type: "array",
+                items: { type: "object", additionalProperties: true },
+              },
+            },
+          },
+          departments: {
+            type: "array",
+            nullable: true,
+            items: { type: "object", additionalProperties: true },
+          },
+          registers: {
+            type: "array",
+            nullable: true,
+            items: { type: "object", additionalProperties: true },
+          },
+          recentActivity: {
+            type: "array",
+            items: { type: "object", additionalProperties: true },
+          },
+          latestImport: {
+            type: "object",
+            nullable: true,
+            properties: {
+              id: { type: "string", format: "uuid" },
+              originalFilename: { type: "string" },
+              status: {
+                type: "string",
+                enum: [
+                  "PREVIEWED",
+                  "COMMITTING",
+                  "COMPLETED",
+                  "PARTIAL",
+                  "FAILED",
+                ],
+              },
+              createdCount: { type: "integer", minimum: 0 },
+              updatedCount: { type: "integer", minimum: 0 },
+              skippedCount: { type: "integer", minimum: 0 },
+              errorCount: { type: "integer", minimum: 0 },
+              startedAt: { type: "string", format: "date-time" },
+              completedAt: {
+                type: "string",
+                format: "date-time",
+                nullable: true,
+              },
+            },
+          },
+        },
+      },
+      GapWrite: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "severity"],
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: 300 },
+          description: { type: "string", maxLength: 5000, nullable: true },
+          severity: {
+            type: "string",
+            enum: ["CRITICAL", "MAJOR", "MINOR", "OBSERVATION", "OFI"],
+          },
+          source: { type: "string", maxLength: 200, nullable: true },
+          frameworkId: { type: "string", format: "uuid", nullable: true },
+          frameworkRuleId: { type: "string", format: "uuid", nullable: true },
+          controlId: { type: "string", format: "uuid", nullable: true },
+          checkpointId: { type: "string", format: "uuid", nullable: true },
+          clauseRef: { type: "string", maxLength: 200, nullable: true },
+          recommendedAction: {
+            type: "string",
+            maxLength: 5000,
+            nullable: true,
+          },
+          ownerId: { type: "string", format: "uuid", nullable: true },
+          departmentId: { type: "string", format: "uuid", nullable: true },
+          identifiedOn: { type: "string", format: "date", nullable: true },
+          dueDate: { type: "string", format: "date", nullable: true },
+        },
+      },
+      CapaWrite: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "priority"],
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: 300 },
+          description: { type: "string", maxLength: 5000, nullable: true },
+          gapId: { type: "string", format: "uuid", nullable: true },
+          priority: {
+            type: "string",
+            enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+          },
+          source: { type: "string", maxLength: 200, nullable: true },
+          sourceRef: { type: "string", maxLength: 200, nullable: true },
+          frameworkId: { type: "string", format: "uuid", nullable: true },
+          rootCause: { type: "string", maxLength: 5000, nullable: true },
+          correctiveAction: { type: "string", maxLength: 5000, nullable: true },
+          preventiveAction: { type: "string", maxLength: 5000, nullable: true },
+          ownerId: { type: "string", format: "uuid", nullable: true },
+          departmentId: { type: "string", format: "uuid", nullable: true },
+          raisedOn: { type: "string", format: "date", nullable: true },
+          dueDate: { type: "string", format: "date", nullable: true },
+          completionPercentage: { type: "integer", minimum: 0, maximum: 100 },
+        },
+      },
+      RegisterRecordWrite: {
+        type: "object",
+        additionalProperties: false,
+        required: ["businessRecordCode", "title"],
+        properties: {
+          businessRecordCode: { type: "string", minLength: 1, maxLength: 64 },
+          title: { type: "string", minLength: 1, maxLength: 300 },
+          status: { type: "string", maxLength: 120, nullable: true },
+          ownerId: { type: "string", format: "uuid", nullable: true },
+          departmentId: { type: "string", format: "uuid", nullable: true },
+          recordDate: { type: "string", format: "date", nullable: true },
+          dueDate: { type: "string", format: "date", nullable: true },
+          payload: {
+            type: "object",
+            maxProperties: 60,
+            additionalProperties: { type: "string", maxLength: 2000 },
           },
         },
       },
@@ -108,10 +761,53 @@ export const openApiDocument = {
       get: {
         summary: "Get Company-scoped operational dashboard aggregates",
         description:
-          "Returns KPI, risk, organisation and framework sections allowed by the authenticated user's read permissions. Restricted sections are null.",
+          "Extends the Milestone 1 payload with database-calculated compliance, KPI RAG, Major/Minor and enterprise Risk, Gap, CAPA, Evidence, Policy, Framework, department, operational-register, recent-activity and latest-import sections. Sections follow module read permissions; restricted sections are null and permitted empty sections contain zeros/empty arrays.",
         security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: "query",
+            name: "departmentId",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            in: "query",
+            name: "frameworkId",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            in: "query",
+            name: "period",
+            schema: { type: "string", minLength: 1, maxLength: 48 },
+          },
+          {
+            in: "query",
+            name: "from",
+            schema: { type: "string", format: "date" },
+          },
+          {
+            in: "query",
+            name: "to",
+            description: "Must not precede from.",
+            schema: { type: "string", format: "date" },
+          },
+        ],
         responses: {
-          "200": { description: "Permission-aware dashboard summary" },
+          "200": {
+            description: "Permission-aware database-backed dashboard summary",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["success", "data"],
+                  properties: {
+                    success: { type: "boolean", enum: [true] },
+                    data: { $ref: "#/components/schemas/DashboardSummary" },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Invalid filter or date range" },
           "401": { description: "Missing or invalid Company context" },
         },
       },
@@ -761,7 +1457,9 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "201": { description: "Review recorded" },
-          "400": { description: "Revised likelihood and impact must be given together" },
+          "400": {
+            description: "Revised likelihood and impact must be given together",
+          },
           "403": { description: "Missing risk:treat permission" },
           "404": { description: "Risk not in the active Company context" },
           "409": { description: "Risk is closed or archived" },
@@ -795,8 +1493,12 @@ export const openApiDocument = {
         responses: {
           "201": { description: "Completion entry appended" },
           "403": { description: "Missing risk:treat permission" },
-          "404": { description: "Risk or treatment not in the active Company context" },
-          "409": { description: "Treatment already completed, cancelled or superseded" },
+          "404": {
+            description: "Risk or treatment not in the active Company context",
+          },
+          "409": {
+            description: "Treatment already completed, cancelled or superseded",
+          },
         },
       },
     },
@@ -834,7 +1536,9 @@ export const openApiDocument = {
           "already exists for the same KPI actual, which risks_one_active_per_kpi_actual forbids.",
         security: [{ bearerAuth: [] }],
         responses: {
-          "200": { description: "Risk reopened and RISK_REOPENED audit written" },
+          "200": {
+            description: "Risk reopened and RISK_REOPENED audit written",
+          },
           "403": { description: "Missing risk:close permission" },
           "404": { description: "Risk not in the active Company context" },
           "409": {
@@ -872,7 +1576,10 @@ export const openApiDocument = {
         summary: "Get Policy detail",
         security: [{ bearerAuth: [] }],
         responses: {
-          "200": { description: "Policy detail with latestVersion and currentApprovedVersion" },
+          "200": {
+            description:
+              "Policy detail with latestVersion and currentApprovedVersion",
+          },
           "404": { description: "Policy not found in active Company" },
         },
       },
@@ -893,7 +1600,9 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Policy archived" },
-          "409": { description: "Already archived or SUBMITTED Version present" },
+          "409": {
+            description: "Already archived or SUBMITTED Version present",
+          },
         },
       },
     },
@@ -907,7 +1616,9 @@ export const openApiDocument = {
         summary: "Create DRAFT Policy Version",
         security: [{ bearerAuth: [] }],
         responses: {
-          "201": { description: "Version created with server-allocated MAJOR/MINOR" },
+          "201": {
+            description: "Version created with server-allocated MAJOR/MINOR",
+          },
           "409": { description: "Policy archived" },
         },
       },
@@ -983,7 +1694,9 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Approved with atomic supersession" },
-          "403": { description: "Self-approval or requested-approver mismatch" },
+          "403": {
+            description: "Self-approval or requested-approver mismatch",
+          },
           "409": {
             description:
               "EVIDENCE_REQUIRED (coverage incomplete or not configured), " +
@@ -997,8 +1710,13 @@ export const openApiDocument = {
         summary: "Reject submitted Policy Version",
         security: [{ bearerAuth: [] }],
         responses: {
-          "200": { description: "Rejected with mandatory comments on PolicyApproval only" },
-          "403": { description: "Self-decision or requested-approver mismatch" },
+          "200": {
+            description:
+              "Rejected with mandatory comments on PolicyApproval only",
+          },
+          "403": {
+            description: "Self-decision or requested-approver mismatch",
+          },
         },
       },
     },
@@ -1025,7 +1743,9 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "201": { description: "Control created" },
-          "400": { description: "Validation, mapping or related-record failure" },
+          "400": {
+            description: "Validation, mapping or related-record failure",
+          },
           "403": { description: "Missing controls:write" },
         },
       },
@@ -1056,7 +1776,8 @@ export const openApiDocument = {
     "/controls/{controlId}/activate": {
       post: {
         summary: "Activate Control",
-        description: "INACTIVE → ACTIVE only. Same-state and archived calls return 409.",
+        description:
+          "INACTIVE → ACTIVE only. Same-state and archived calls return 409.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Control activated" },
@@ -1101,7 +1822,9 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Mappings updated" },
-          "400": { description: "CONTROL_MAPPING_INVALID or RELATED_RECORD_INVALID" },
+          "400": {
+            description: "CONTROL_MAPPING_INVALID or RELATED_RECORD_INVALID",
+          },
           "409": { description: "Archived Control" },
         },
       },
@@ -1130,7 +1853,10 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Mappings updated" },
-          "400": { description: "CONTROL_MAPPING_INVALID when Framework mapping missing" },
+          "400": {
+            description:
+              "CONTROL_MAPPING_INVALID when Framework mapping missing",
+          },
         },
       },
     },
@@ -1226,7 +1952,8 @@ export const openApiDocument = {
     "/checkpoints/{checkpointId}/deactivate": {
       post: {
         summary: "Deactivate Checkpoint",
-        description: "ACTIVE → INACTIVE. Empty body {}. Does not alter parent Control.",
+        description:
+          "ACTIVE → INACTIVE. Empty body {}. Does not alter parent Control.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Checkpoint deactivated" },
@@ -1362,7 +2089,8 @@ export const openApiDocument = {
       },
       patch: {
         summary: "Update eligible Evidence metadata",
-        description: "Allowed only for DRAFT or REJECTED. No lifecycle mutation.",
+        description:
+          "Allowed only for DRAFT or REJECTED. No lifecycle mutation.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Updated Evidence" },
@@ -1547,8 +2275,7 @@ export const openApiDocument = {
     "/evidence/{evidenceId}/checkpoints/{checkpointId}/unlink": {
       post: {
         summary: "Unlink Evidence from a Checkpoint (soft)",
-        description:
-          "DRAFT Evidence only. Soft isActive=false. Empty body {}.",
+        description: "DRAFT Evidence only. Soft isActive=false. Empty body {}.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Link deactivated" },
@@ -1655,6 +2382,459 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Paginated review decisions" },
           "404": { description: "Evidence not found" },
+        },
+      },
+    },
+    "/gaps": {
+      get: {
+        summary: "List Company Gaps",
+        description:
+          "Paginated Gap DTOs. Filters: q, code, severity, status, ownerId, departmentId, frameworkId, overdue, needsReview, dueFrom and dueTo.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Company-scoped Gap page" },
+          "403": { description: "Missing gaps:read permission" },
+        },
+      },
+      post: {
+        summary: "Create a Gap",
+        description:
+          "Company scope comes from the token. The server allocates GAP-nnn and creates the record OPEN.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/GapWrite" },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Gap created" },
+          "400": { description: "Validation or related-record failure" },
+          "403": { description: "Missing gaps:write permission" },
+        },
+      },
+    },
+    "/gaps/{gapId}": {
+      get: {
+        summary: "Get a Gap",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Gap DTO in the active Company" },
+          "404": { description: "Gap not found in active Company" },
+        },
+      },
+      patch: {
+        summary: "Update a Gap",
+        description:
+          "Updates mutable GapWrite fields and status. Use /close for CLOSED; owner has its own endpoint.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Gap updated" },
+          "400": { description: "Validation or related-record failure" },
+          "409": { description: "Invalid status transition" },
+        },
+      },
+    },
+    "/gaps/{gapId}/owner": {
+      patch: {
+        summary: "Assign or clear a Gap owner",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["ownerId"],
+                properties: {
+                  ownerId: { type: "string", format: "uuid", nullable: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Owner updated" },
+          "400": { description: "Owner is not active in the Company" },
+          "403": { description: "Missing gaps:write permission" },
+        },
+      },
+    },
+    "/gaps/{gapId}/close": {
+      post: {
+        summary: "Close a Gap",
+        description:
+          "Requires gaps:close, a substantive closure note, no open linked CAPA and one active qualifying APPROVED Evidence link backed by a held file.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["closureNote"],
+                properties: {
+                  closureNote: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 5000,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Gap closed" },
+          "403": { description: "Missing gaps:close permission" },
+          "409": {
+            description:
+              "GAP_HAS_OPEN_CAPA, invalid transition, or EVIDENCE_REQUIRED with EVIDENCE_GAP_LINK_REQUIRED / EVIDENCE_GAP_COVERAGE_INCOMPLETE",
+          },
+          "422": { description: "Closure note shorter than 10 characters" },
+        },
+      },
+    },
+    "/gaps/{gapId}/reopen": {
+      post: {
+        summary: "Reopen a closed Gap into IN_PROGRESS",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Gap reopened" },
+          "403": { description: "Missing gaps:close permission" },
+          "409": { description: "Gap is not CLOSED" },
+        },
+      },
+    },
+    "/gaps/{gapId}/evidence": {
+      post: {
+        summary: "Link Evidence to a Gap",
+        description:
+          "Adds or reactivates a same-Company Evidence link. A workbook source path remains metadata and does not make file.available true.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Evidence linked; returns the Gap DTO" },
+          "400": { description: "Evidence is not available in the Company" },
+          "403": { description: "Missing gaps:write permission" },
+        },
+      },
+    },
+    "/gaps/{gapId}/evidence/{evidenceId}": {
+      delete: {
+        summary: "Soft-unlink Evidence from a Gap",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Evidence unlinked; returns the Gap DTO" },
+          "404": { description: "Active link not found" },
+        },
+      },
+    },
+    "/capas": {
+      get: {
+        summary: "List Company CAPAs",
+        description:
+          "Paginated CAPA DTOs. Filters: q, code, priority, status, gapId, ownerId, departmentId, frameworkId, overdue, needsReview, dueFrom and dueTo.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Company-scoped CAPA page" },
+          "403": { description: "Missing capa:read permission" },
+        },
+      },
+      post: {
+        summary: "Create a CAPA",
+        description:
+          "Company scope comes from the token. The server allocates CAPA-nnn and creates the record OPEN.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CapaWrite" },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "CAPA created" },
+          "400": { description: "Validation or related-record failure" },
+          "403": { description: "Missing capa:write permission" },
+        },
+      },
+    },
+    "/capas/{capaId}": {
+      get: {
+        summary: "Get a CAPA",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "CAPA DTO in the active Company" },
+          "404": { description: "CAPA not found in active Company" },
+        },
+      },
+      patch: {
+        summary: "Update a CAPA",
+        description:
+          "Updates mutable CapaWrite fields and status. Use /close for CLOSED; owner has its own endpoint.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "CAPA updated" },
+          "400": { description: "Validation or related-record failure" },
+          "409": { description: "Invalid status transition" },
+        },
+      },
+    },
+    "/capas/{capaId}/owner": {
+      patch: {
+        summary: "Assign or clear a CAPA owner",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["ownerId"],
+                properties: {
+                  ownerId: { type: "string", format: "uuid", nullable: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Owner updated" },
+          "400": { description: "Owner is not active in the Company" },
+          "403": { description: "Missing capa:write permission" },
+        },
+      },
+    },
+    "/capas/{capaId}/close": {
+      post: {
+        summary: "Close a CAPA",
+        description:
+          "Requires capa:close, a substantive closure note and one active qualifying APPROVED Evidence link backed by a held file. Completion becomes 100.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["closureNote"],
+                properties: {
+                  closureNote: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 5000,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "CAPA closed at 100 percent completion" },
+          "403": { description: "Missing capa:close permission" },
+          "409": {
+            description:
+              "Invalid transition, or EVIDENCE_REQUIRED with EVIDENCE_CAPA_LINK_REQUIRED / EVIDENCE_CAPA_COVERAGE_INCOMPLETE",
+          },
+          "422": { description: "Closure note shorter than 10 characters" },
+        },
+      },
+    },
+    "/capas/{capaId}/reopen": {
+      post: {
+        summary: "Reopen a closed CAPA into IN_PROGRESS",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "CAPA reopened" },
+          "403": { description: "Missing capa:close permission" },
+          "409": { description: "CAPA is not CLOSED" },
+        },
+      },
+    },
+    "/capas/{capaId}/evidence": {
+      post: {
+        summary: "Link Evidence to a CAPA",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "201": { description: "Evidence linked; returns the CAPA DTO" },
+          "400": { description: "Evidence is not available in the Company" },
+          "403": { description: "Missing capa:write permission" },
+        },
+      },
+    },
+    "/capas/{capaId}/evidence/{evidenceId}": {
+      delete: {
+        summary: "Soft-unlink Evidence from a CAPA",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Evidence unlinked; returns the CAPA DTO" },
+          "404": { description: "Active link not found" },
+        },
+      },
+    },
+    "/operational-registers": {
+      get: {
+        summary: "List operational register types",
+        description: "Paginated; optional active boolean filter.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Register type page with record counts" },
+          "403": { description: "Missing registers:read permission" },
+        },
+      },
+    },
+    "/operational-registers/{registerCode}/records": {
+      get: {
+        summary: "List records in an operational register",
+        description:
+          "Filters: q, status, ownerId, departmentId, overdue, dueFrom and dueTo.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Register record page" },
+          "404": { description: "Register code not found in active Company" },
+        },
+      },
+      post: {
+        summary: "Create an operational register record",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/RegisterRecordWrite" },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Register record created" },
+          "400": { description: "Validation or related-record failure" },
+          "409": { description: "Business record code already exists" },
+        },
+      },
+    },
+    "/operational-registers/{registerCode}/records/{recordId}": {
+      get: {
+        summary: "Get an operational register record",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Register record DTO" },
+          "404": { description: "Register or record not found" },
+        },
+      },
+      patch: {
+        summary: "Update an operational register record",
+        description: "The Company-scoped business record code is immutable.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Register record updated" },
+          "400": { description: "Validation or related-record failure" },
+          "403": { description: "Missing registers:write permission" },
+        },
+      },
+    },
+    "/imports": {
+      get: {
+        summary: "List workbook import batches",
+        description:
+          "Read-only HTTP view over CLI-created batches, newest first. Workbook upload preview/commit APIs are not implemented in this slice.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated Company import batches" },
+          "403": { description: "Missing imports:read permission" },
+        },
+      },
+    },
+    "/imports/{importId}": {
+      get: {
+        summary: "Get a workbook import batch and persisted report",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Company-scoped ImportBatch DTO" },
+          "404": { description: "Import batch not found in active Company" },
+        },
+      },
+    },
+    "/imports/{importId}/errors": {
+      get: {
+        summary: "List failed workbook rows",
+        description:
+          "Paginated; optional sheet filter. Returns sheet, row, business key and validation messages, but not normalized source payloads.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated ImportError DTOs" },
+          "403": { description: "Missing imports:read permission" },
+        },
+      },
+    },
+    "/exports/gaps.csv": {
+      get: {
+        summary: "Export Company Gaps as CSV",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "RFC 4180 CSV attachment; maximum 5,000 rows" },
+        },
+      },
+    },
+    "/exports/capas.csv": {
+      get: {
+        summary: "Export Company CAPAs as CSV",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "RFC 4180 CSV attachment; maximum 5,000 rows" },
+        },
+      },
+    },
+    "/exports/kpi-actuals.csv": {
+      get: {
+        summary: "Export KPI target-versus-actual data as CSV",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description:
+              "KPI code/name/unit/frequency/period/target/actual/direction/variance/RAG/department CSV",
+          },
+        },
+      },
+    },
+    "/exports/risks.csv": {
+      get: {
+        summary: "Export Company Risks as CSV",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description:
+              "Separate KPI risk class and enterprise level CSV columns",
+          },
+        },
+      },
+    },
+    "/exports/evidence.csv": {
+      get: {
+        summary: "Export Company Evidence metadata as CSV",
+        description:
+          "Includes truthful file-held state; never exports storage keys.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Evidence metadata CSV attachment" },
+        },
+      },
+    },
+    "/exports/operational-registers/{registerCode}.csv": {
+      get: {
+        summary: "Export one operational register as CSV",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Stable fields plus configured source fields as CSV",
+          },
+          "404": { description: "Register not found in active Company" },
         },
       },
     },

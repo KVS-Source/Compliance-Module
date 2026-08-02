@@ -37,9 +37,24 @@ export const DEMO_PERMISSIONS = [
   ["checkpoints:write", "Create and update Company Checkpoints"],
   ["checkpoints:review", "Record Company Checkpoint reviews"],
   ["evidence:read", "Read Company Evidence, links, review and audit history"],
-  ["evidence:write", "Create and update Company Evidence metadata, submit, archive and links"],
+  [
+    "evidence:write",
+    "Create and update Company Evidence metadata, submit, archive and links",
+  ],
   ["evidence:review", "Approve or reject submitted Company Evidence"],
   ["evidence:download", "Download Company Evidence file content"],
+  ["gaps:read", "Read Company Gaps"],
+  ["gaps:write", "Create and update Company Gaps"],
+  ["gaps:close", "Close and reopen Company Gaps"],
+  ["capa:read", "Read Company CAPAs"],
+  ["capa:write", "Create and update Company CAPAs"],
+  ["capa:close", "Close and reopen Company CAPAs"],
+  ["registers:read", "Read Company operational registers"],
+  ["registers:write", "Create and update Company operational register records"],
+  ["imports:read", "Read Company workbook import batches and row errors"],
+  ["imports:write", "Preview and commit Company workbook imports"],
+  ["dashboard:read", "Read the Company compliance dashboard"],
+  ["exports:read", "Export Company records as CSV"],
 ] as const;
 
 export const DEMO_USERS = [
