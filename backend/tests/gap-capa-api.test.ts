@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
@@ -19,6 +20,7 @@ describe("Gap and CAPA API", () => {
   let prisma: PrismaClient;
   let adminToken: string;
   let adminUserId: string;
+  let companyOneId: string;
   let readerToken: string;
   let companyTwoToken: string;
 
@@ -43,6 +45,7 @@ describe("Gap and CAPA API", () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     adminToken = admin.accessToken;
     adminUserId = admin.user.id;
+    companyOneId = admin.user.activeCompany.id;
     const reader = await loginAs("user001@example.test", "User001!Secure");
     readerToken = reader.accessToken;
     const company2 = admin.user.companies.find(
@@ -106,6 +109,33 @@ describe("Gap and CAPA API", () => {
       completionPercentage: number;
       gap: { id: string; code: string } | null;
     };
+  };
+
+  const linkQualifyingEvidence = async (
+    entity: "gaps" | "capas",
+    entityId: string,
+  ) => {
+    const unique = randomUUID().replace(/-/g, "");
+    const evidence = await prisma.evidence.create({
+      data: {
+        tenantId: companyOneId,
+        code: `EVD-CLOSE-${unique.slice(0, 12)}`,
+        title: "Synthetic approved closure Evidence",
+        lifecycleStatus: "APPROVED",
+        storageKey: `${companyOneId}/evidence/${unique}.pdf`,
+        contentSha256: `${unique}${unique}`.slice(0, 64),
+        byteSize: 128,
+        createdById: adminUserId,
+        updatedById: adminUserId,
+      },
+      select: { id: true },
+    });
+    await request(app)
+      .post(`/api/v1/${entity}/${entityId}/evidence`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ evidenceId: evidence.id, linkReason: "Supports closure" })
+      .expect(201);
+    return evidence;
   };
 
   it("creates a gap with a server-generated code and derives company scope", async () => {
@@ -230,6 +260,59 @@ describe("Gap and CAPA API", () => {
     expect(response.body.error.code).toBe("CLOSURE_NOTE_REQUIRED");
   });
 
+  it("requires qualifying approved Evidence to close a gap", async () => {
+    const gap = await createGap(adminToken);
+    const noLink = await request(app)
+      .post(`/api/v1/gaps/${gap.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ closureNote: "Remediation is complete and ready for closure." })
+      .expect(409);
+    expect(noLink.body.error).toMatchObject({
+      code: "EVIDENCE_REQUIRED",
+      details: { reason: "EVIDENCE_GAP_LINK_REQUIRED" },
+    });
+
+    const metadataOnly = await prisma.evidence.create({
+      data: {
+        tenantId: companyOneId,
+        code: `EVD-METADATA-${randomUUID().slice(0, 8)}`,
+        title: "Workbook reference without a held file",
+        lifecycleStatus: "DRAFT",
+        sourceFileReference: "/client/reference-only.pdf",
+        createdById: adminUserId,
+        updatedById: adminUserId,
+      },
+      select: { id: true },
+    });
+    await request(app)
+      .post(`/api/v1/gaps/${gap.id}/evidence`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ evidenceId: metadataOnly.id })
+      .expect(201);
+    const incomplete = await request(app)
+      .post(`/api/v1/gaps/${gap.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ closureNote: "Remediation is complete and ready for closure." })
+      .expect(409);
+    expect(incomplete.body.error).toMatchObject({
+      code: "EVIDENCE_REQUIRED",
+      details: { reason: "EVIDENCE_GAP_COVERAGE_INCOMPLETE" },
+    });
+  });
+
+  it("requires qualifying approved Evidence to close a CAPA", async () => {
+    const capa = await createCapa(adminToken);
+    const response = await request(app)
+      .post(`/api/v1/capas/${capa.id}/close`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ closureNote: "Corrective action is complete and verified." })
+      .expect(409);
+    expect(response.body.error).toMatchObject({
+      code: "EVIDENCE_REQUIRED",
+      details: { reason: "EVIDENCE_CAPA_LINK_REQUIRED" },
+    });
+  });
+
   it("will not close a gap while a linked CAPA is still open", async () => {
     const gap = await createGap(adminToken);
     const capa = await createCapa(adminToken, { gapId: gap.id });
@@ -244,12 +327,14 @@ describe("Gap and CAPA API", () => {
     expect(blocked.body.error.code).toBe("GAP_HAS_OPEN_CAPA");
     expect(blocked.body.error.details.openCapas).toContain(capa.code);
 
+    await linkQualifyingEvidence("capas", capa.id);
     await request(app)
       .post(`/api/v1/capas/${capa.id}/close`)
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ closureNote: "Quarterly review scheduled and first run held." })
       .expect(200);
 
+    await linkQualifyingEvidence("gaps", gap.id);
     const closed = await request(app)
       .post(`/api/v1/gaps/${gap.id}/close`)
       .set("Authorization", `Bearer ${adminToken}`)
@@ -263,6 +348,7 @@ describe("Gap and CAPA API", () => {
 
   it("drives a closed CAPA to full completion", async () => {
     const capa = await createCapa(adminToken, { completionPercentage: 40 });
+    await linkQualifyingEvidence("capas", capa.id);
     const closed = await request(app)
       .post(`/api/v1/capas/${capa.id}/close`)
       .set("Authorization", `Bearer ${adminToken}`)
@@ -286,6 +372,7 @@ describe("Gap and CAPA API", () => {
 
   it("refuses to move a closed gap straight back to closed", async () => {
     const gap = await createGap(adminToken);
+    await linkQualifyingEvidence("gaps", gap.id);
     await request(app)
       .post(`/api/v1/gaps/${gap.id}/close`)
       .set("Authorization", `Bearer ${adminToken}`)
@@ -301,6 +388,7 @@ describe("Gap and CAPA API", () => {
 
   it("reopens a closed gap into IN_PROGRESS", async () => {
     const gap = await createGap(adminToken);
+    await linkQualifyingEvidence("gaps", gap.id);
     await request(app)
       .post(`/api/v1/gaps/${gap.id}/close`)
       .set("Authorization", `Bearer ${adminToken}`)

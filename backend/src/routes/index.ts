@@ -85,12 +85,12 @@ export const apiRoutes = (
     new DashboardSummaryRepository(db),
     new DashboardRepository(db),
   );
-  const gaps = new GapService(new GapRepository(db));
-  const capas = new CapaService(new CapaRepository(db));
+  const evidenceGate = new EvidenceGateService(db);
+  const gaps = new GapService(new GapRepository(db), evidenceGate);
+  const capas = new CapaService(new CapaRepository(db), evidenceGate);
   const registers = new RegisterService(db);
   const workbookImports = new WorkbookImportService(db);
   const exports = new ExportService(db);
-  const evidenceGate = new EvidenceGateService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
   const controls = new ControlService(new ControlRepository(db));
   const checkpoints = new CheckpointService(

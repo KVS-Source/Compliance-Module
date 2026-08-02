@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { AppError, notFound } from "../../common/errors/app-error.js";
 import { pageMeta } from "../../common/responses/envelope.js";
+import type { EvidenceGateService } from "../evidence/evidence-gate-service.js";
 import {
   assertCapaTransition,
   assertClosureNote,
@@ -153,7 +154,10 @@ const toDate = (value: string | null) =>
   value === null ? null : new Date(`${value}T00:00:00.000Z`);
 
 export class CapaService {
-  constructor(private readonly repository: CapaRepository) {}
+  constructor(
+    private readonly repository: CapaRepository,
+    private readonly evidenceGate: EvidenceGateService,
+  ) {}
 
   async list(tenantId: string, query: CapaListQuery) {
     const result = await this.repository.list(tenantId, query);
@@ -351,6 +355,11 @@ export class CapaService {
       if (!existing) throw capaNotFound();
       assertCapaTransition(existing.status, "CLOSED", { allowSelf: false });
       const closureNote = assertClosureNote(body.closureNote);
+      await this.evidenceGate.assertCapaClosureSatisfied({
+        tenantId,
+        capaId: id,
+        tx,
+      });
       const capa = await tx.capa.update({
         where: { id },
         data: {

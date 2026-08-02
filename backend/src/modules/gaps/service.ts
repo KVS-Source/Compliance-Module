@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { AppError, notFound } from "../../common/errors/app-error.js";
 import { pageMeta } from "../../common/responses/envelope.js";
+import type { EvidenceGateService } from "../evidence/evidence-gate-service.js";
 import {
   assertClosureNote,
   assertGapTransition,
@@ -179,7 +180,10 @@ const toDate = (value: string | null) =>
   value === null ? null : new Date(`${value}T00:00:00.000Z`);
 
 export class GapService {
-  constructor(private readonly repository: GapRepository) {}
+  constructor(
+    private readonly repository: GapRepository,
+    private readonly evidenceGate: EvidenceGateService,
+  ) {}
 
   async list(tenantId: string, query: GapListQuery) {
     const result = await this.repository.list(tenantId, query);
@@ -376,6 +380,11 @@ export class GapService {
         select: { code: true },
       });
       assertNoOpenCapas(openCapas.map((capa) => capa.code));
+      await this.evidenceGate.assertGapClosureSatisfied({
+        tenantId,
+        gapId: id,
+        tx,
+      });
       const gap = await tx.gap.update({
         where: { id },
         data: {
