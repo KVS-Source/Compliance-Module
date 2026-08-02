@@ -38,8 +38,23 @@ export class DashboardSummaryRepository {
           }
         : {}),
       ...(filters.departmentId
-        ? { configuration: { departmentId: filters.departmentId } }
-        : {}),
+        ? {
+            configuration: {
+              departmentId: filters.departmentId,
+              deletedAt: null,
+              enabled: true,
+              status: "ACTIVE",
+              definition: { direction: { not: "INFORMATIONAL" } },
+            },
+          }
+        : {
+            configuration: {
+              deletedAt: null,
+              enabled: true,
+              status: "ACTIVE",
+              definition: { direction: { not: "INFORMATIONAL" } },
+            },
+          }),
     };
   }
 
@@ -90,12 +105,6 @@ export class DashboardSummaryRepository {
         where: {
           ...base,
           targetMet: true,
-          configuration: {
-            ...(filters.departmentId
-              ? { departmentId: filters.departmentId }
-              : {}),
-            definition: { direction: { not: "INFORMATIONAL" } },
-          },
         },
       }),
       this.db.kpiActual.count({

@@ -229,6 +229,95 @@ describe("Operational registers, dashboard and CSV export", () => {
     expect(data.frameworks).toHaveProperty("activeFrameworks");
   });
 
+  it("excludes actuals for disabled KPI configurations from compliance", async () => {
+    const candidate = await prisma.kpiActual.findFirstOrThrow({
+      where: {
+        tenantId: companyOne,
+        deletedAt: null,
+        configuration: {
+          enabled: true,
+          status: "ACTIVE",
+          deletedAt: null,
+          definition: { direction: { not: "INFORMATIONAL" } },
+        },
+      },
+      select: { kpiConfigurationId: true },
+    });
+    const configurationActuals = await prisma.kpiActual.count({
+      where: {
+        tenantId: companyOne,
+        deletedAt: null,
+        kpiConfigurationId: candidate.kpiConfigurationId,
+      },
+    });
+    const before = await request(app)
+      .get("/api/v1/dashboard/summary")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+
+    await prisma.kpiConfiguration.update({
+      where: { id: candidate.kpiConfigurationId },
+      data: { enabled: false },
+    });
+    try {
+      const after = await request(app)
+        .get("/api/v1/dashboard/summary")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
+      expect(after.body.data.compliance.measuredKpis).toBe(
+        before.body.data.compliance.measuredKpis - configurationActuals,
+      );
+    } finally {
+      await prisma.kpiConfiguration.update({
+        where: { id: candidate.kpiConfigurationId },
+        data: { enabled: true },
+      });
+    }
+  });
+
+  it("derives active-framework totals from scopeStatus", async () => {
+    const before = await request(app)
+      .get("/api/v1/dashboard/summary")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const unique = Date.now().toString();
+    const created = await prisma.framework.createManyAndReturn({
+      data: [
+        {
+          code: `TEST-PLANNING-${unique}`,
+          name: "Synthetic planning framework",
+          version: "1",
+          status: "ACTIVE",
+          scopeStatus: "Planning",
+        },
+        {
+          code: `TEST-IN-SCOPE-${unique}`,
+          name: "Synthetic in-scope framework",
+          version: "1",
+          status: "ACTIVE",
+          scopeStatus: "Active – In Scope",
+        },
+      ],
+      select: { id: true },
+    });
+    try {
+      const after = await request(app)
+        .get("/api/v1/dashboard/summary")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
+      expect(after.body.data.frameworks.activeFrameworks).toBe(
+        before.body.data.frameworks.activeFrameworks + 1,
+      );
+      expect(after.body.data.frameworks.active).toBe(
+        before.body.data.frameworks.active + 1,
+      );
+    } finally {
+      await prisma.framework.deleteMany({
+        where: { id: { in: created.map(({ id }) => id) } },
+      });
+    }
+  });
+
   it("keeps Major, Minor and enterprise risk counts as separate figures", async () => {
     const response = await request(app)
       .get("/api/v1/dashboard/summary")

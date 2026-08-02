@@ -496,7 +496,13 @@ export const openApiDocument = {
             type: "object",
             nullable: true,
             properties: {
-              overallPercentage: { type: "number", minimum: 0, maximum: 100 },
+              overallPercentage: {
+                type: "number",
+                minimum: 0,
+                maximum: 100,
+                description:
+                  "Share of measured actuals for enabled, active, non-informational KPI configurations that met target",
+              },
               measuredKpis: { type: "integer", minimum: 0 },
               kpisMeetingTarget: { type: "integer", minimum: 0 },
             },
@@ -540,9 +546,19 @@ export const openApiDocument = {
             type: "object",
             nullable: true,
             properties: {
-              activeFrameworks: { type: "integer", minimum: 0 },
+              activeFrameworks: {
+                type: "integer",
+                minimum: 0,
+                description:
+                  "Frameworks whose scopeStatus is Active – In Scope",
+              },
               total: { type: "integer", minimum: 0 },
-              active: { type: "integer", minimum: 0 },
+              active: {
+                type: "integer",
+                minimum: 0,
+                description:
+                  "Frameworks whose scopeStatus is Active – In Scope",
+              },
               breakdown: {
                 type: "array",
                 items: { type: "object", additionalProperties: true },

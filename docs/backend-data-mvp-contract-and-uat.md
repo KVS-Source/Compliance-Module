@@ -473,9 +473,12 @@ type DashboardSummaryDto = {
 
 Sections follow module read permissions and are `null` when restricted. Empty
 permitted sections return zeros/empty arrays. `overallPercentage` is the
-backend-calculated share of measured non-informational KPI actuals that met
-target, rounded to one decimal; no measured KPI returns 0. Workbook dashboard
-and formula-summary cells are never the authority.
+backend-calculated share of measured KPI actuals for enabled, active,
+non-informational configurations that met target, rounded to one decimal.
+Enabled configurations without an actual are unmeasured, not failed. Framework
+`activeFrameworks`/`active` totals count `scopeStatus=Active – In Scope`, not
+the shared-master lifecycle `status`. Workbook dashboard and formula-summary
+cells are never the authority.
 
 ## Workbook selection and sheet inventory
 

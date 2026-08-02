@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { isFrameworkActiveInScope } from "./framework-scope.js";
 
 export class DashboardRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -107,10 +108,13 @@ export class DashboardRepository {
   }
 
   async frameworks() {
+    const frameworks = await this.db.framework.findMany({
+      select: { scopeStatus: true },
+    });
     return {
-      activeFrameworks: await this.db.framework.count({
-        where: { status: "ACTIVE" },
-      }),
+      activeFrameworks: frameworks.filter(({ scopeStatus }) =>
+        isFrameworkActiveInScope(scopeStatus),
+      ).length,
     };
   }
 }

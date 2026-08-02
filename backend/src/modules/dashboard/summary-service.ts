@@ -4,6 +4,7 @@ import type {
   SummaryFilters,
 } from "./summary-repository.js";
 import type { DashboardSummaryQuery } from "./validators.js";
+import { isFrameworkActiveInScope } from "./framework-scope.js";
 
 const may = (permissions: readonly string[], permission: string) =>
   permissions.includes("*") || permissions.includes(permission);
@@ -176,8 +177,9 @@ export class DashboardSummaryService {
           : {
               ...legacyFrameworks,
               total: frameworks.length,
-              active: frameworks.filter((item) => item.status === "ACTIVE")
-                .length,
+              active: frameworks.filter((item) =>
+                isFrameworkActiveInScope(item.scopeStatus),
+              ).length,
               breakdown: frameworks.map((item) => ({
                 id: item.id,
                 code: item.code,
