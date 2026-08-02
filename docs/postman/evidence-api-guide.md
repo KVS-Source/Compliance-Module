@@ -1,90 +1,219 @@
-# Evidence API Postman guide
+# Evidence API Postman guide (Milestone 5)
 
-Authoritative Postman workflow for Milestone 5 Evidence APIs. Uses synthetic
-`.test` identities only. The collection creates Evidence, Control, and Checkpoint
-records dynamically — no seed changes are required.
+Authoritative HTTP demonstration for Milestone 5 Evidence lifecycle, typed
+links, and Evidence gates. Synthetic `.test` identities only.
 
-## Prerequisites
+## Authoritative assets
 
-1. Local backend running against a migrated PostgreSQL database.
-2. Import:
-   - `postman/Evidence-API.postman_collection.json`
-   - `postman/Evidence-API.postman_environment.json`
-3. Set local-only environment values (never commit them):
-   - `adminPassword` — seed admin password for `admin001@example.test`
-   - `reviewerPassword` — seed password for `user001@example.test`
-4. Confirm `baseUrl` matches your backend (`http://localhost:4000/api/v1` for
-   direct Node; `http://localhost:8000/api/v1` when fronted by Docker Compose).
+| Path | Role |
+| --- | --- |
+| `postman/Evidence-API.postman_collection.json` | Authoritative collection |
+| `postman/Evidence-API.postman_environment.json` | Local environment template |
 
-## Multipart file fixture
+Do **not** use `postman/GenBioCa-GRC.postman_collection.json` for Evidence. Its
+legacy `/evidence/upload` path is not the active API. Active flow:
 
-Step **4. Upload file** uses the repository fixture:
+1. `POST /evidence`
+2. `POST /evidence/:id/file` (multipart field `file`)
+
+## Import and base URL
+
+1. Import the collection and environment from `postman/`.
+2. Select **GenBioCa Evidence API (local)**.
+3. Set `baseUrl`:
+   - Direct Node: `http://localhost:4000/api/v1`
+   - Docker Compose: `http://localhost:8000/api/v1`
+4. Set local-only secrets (never commit):
+   - `adminPassword` for `admin001@example.test`
+   - `reviewerPassword` for `user001@example.test`
+
+Generated IDs and tokens start empty in the template. A1 clears generated
+scenario IDs on each writer login so reruns replace them predictably. Manual
+KPI Actual IDs are retained across reruns until you clear them.
+
+## Synthetic users and maker-checker
+
+| Variable | Default | Role |
+| --- | --- | --- |
+| `adminEmail` | `admin001@example.test` | Writer: create, upload, submit, link |
+| `reviewerEmail` | `user001@example.test` | Independent reviewer: approve/reject |
+
+The same user who creates/submits Evidence cannot approve or reject it.
+
+### Local permission grants (not seed changes)
+
+Grant only in the local database for demos:
+
+- `evidence:review` — required for approve/reject and review queue
+- `policies:approve` — Policy Version approve steps
+- `kpi-actual:approve` — KPI Actual approve steps
+
+Re-login the reviewer after granting so the JWT includes the permission.
+
+## Multipart fixture
+
+Upload steps use:
 
 `frontend/tests/fixtures/sample-evidence.txt`
 
-In Postman, select that file for the `file` form field. The environment variable
-`evidenceFixturePath` documents the relative path from the `postman/` folder.
-Adjust locally if your checkout layout differs.
+In Postman, either:
 
-Allowed types are code-controlled (PDF, plain text, common images, etc.). Max
-size is 10 MiB. Do not upload real employee, client or production documents.
+- set the collection working directory so `{{evidenceFixturePath}}` resolves, or
+- manually choose that file for each `file` form field.
 
-## Reviewer permission prerequisite
+Do not upload real employee, client, or production documents.
 
-`user001@example.test` must have `evidence:review` before approve/reject steps.
-Seed defaults give Company User `evidence:read` only. Grant `evidence:review`
-locally for the demo (same temporary approach integration tests use). Re-login
-the reviewer after granting so the JWT includes the permission.
+## Purpose-specific Evidence ID variables
 
-Maker-checker: the same user who created/uploaded/submitted Evidence cannot
-approve or reject it. Steps use separate admin (create/upload/submit) and
-reviewer (approve) identities.
-
-## Recommended order
-
-| Step | Request | Expected |
+| Variable | Owner folder | Purpose |
 | --- | --- | --- |
-| 1 | Admin login | `200`; captures `accessToken` |
-| 2 | Create Evidence | `201`; DRAFT; captures `evidenceId` and server `EVD-*` code |
-| 3 | View Evidence detail | `200`; `hasFile: false` |
-| 4 | Upload file (multipart `file`) | `200`; `hasFile: true`; no `storageKey` in response |
-| 5 | Submit Evidence | `200`; `SUBMITTED` |
-| 6 | Reviewer login | `200`; captures `reviewerToken` |
-| 7 | Review queue | `200`; includes submitted row |
-| 8 | Approve Evidence | `200`; `APPROVED` |
-| 9 | Create Control (link target) | `201`; captures `controlId` |
-| 10 | Create Checkpoint | `201`; captures `checkpointId` |
-| 11 | Link Control (expect fail — not DRAFT) | `409` or domain error |
-| 12 | Create second DRAFT Evidence | `201`; new `evidenceId` |
-| 13 | Link Control on DRAFT | `201` or `200` idempotent |
-| 14 | Link Checkpoint on DRAFT | `201` or `200` |
-| 15 | List Control links | `200` |
-| 16 | List Checkpoint links | `200` |
-| 17 | Download file (`evidence:download`) | `200`; binary body |
-| 18 | Audit events | `200`; safe metadata only |
+| `approvedEvidenceId` | B | File-backed path: metadata, upload, submit, approve, **download**, audit, review-decisions |
+| `draftEvidenceId` | E → F | DRAFT link/unlink demos and Checkpoint gate success path |
+| `rejectedEvidenceId` | C | Separate reject + review-decision history |
+| `archivableEvidenceId` | D | Separate DRAFT archive path |
+| `policyCoverageEvidenceId` | G | Qualifying Evidence for Policy gate success |
+| `ineligibleKpiEvidenceId` | H | DRAFT / no-file Evidence for KPI ineligible-link failure |
+| `kpiSuccessEvidenceId` | H | Qualifying Evidence for KPI success (linked while DRAFT) |
 
-Steps 11–14 demonstrate DRAFT-only link mutability and ACTIVE target rules.
-For a Checkpoint Evidence gate demo, create a Checkpoint with
-`evidenceRequired: true`, link approved Evidence, then submit a Review via the
-Checkpoint collection or UI.
+**Safety rules**
+
+- Later requests never overwrite `approvedEvidenceId` with a second DRAFT.
+- Download always uses `approvedEvidenceId` (known file-backed record).
+- Scripts assign IDs only after a successful response and validate the ID string.
+- Failed responses do not write `undefined` into environment variables.
+- Rejection and approval use separate Evidence records.
+
+## Folder order
+
+Run folders **A → H** in order when demonstrating the full Milestone 5 surface.
+
+| Folder | Purpose | Expected |
+| --- | --- | --- |
+| A | Admin + reviewer login; clear generated IDs | `200` |
+| B | Approved file-backed lifecycle, download, decisions, audit | `201`/`200` |
+| C | Reject path on separate Evidence | `201`/`200` |
+| D | Archive separate DRAFT Evidence | `201`/`200` |
+| E | Control/Checkpoint link, unlink, relink; post-APPROVED mutation fails | `200`/`201`; mutation `4xx` not `501` |
+| F | Checkpoint gate failure then success | `409` then `200`/`201` |
+| G | Policy gate failure then configured success | `409` then `200` |
+| H | KPI no-link, ineligible-link, success (**manual Actual IDs**) | `409` / `409` / `200` |
+
+### B — Approved file-backed flow
+
+1. Create → `approvedEvidenceId` (DRAFT, `hasFile: false`)
+2. Metadata PATCH while DRAFT
+3. Upload multipart → `hasFile: true`; no `storageKey` / `contentSha256`
+4. Detail, submit, review queue, approve (reviewer)
+5. Download binary (does **not** parse JSON)
+6. Review decisions (APPROVED present)
+7. Audit events (no storage secrets)
+
+### C — Reject
+
+Separate Evidence: create → upload → submit → reject with `reason` → review
+decisions show REJECTED.
+
+### D — Archive
+
+Separate DRAFT Evidence → `POST .../archive` → ARCHIVED.
+
+### E — Typed links (DRAFT-first)
+
+1. Create `draftEvidenceId` (does not clobber `approvedEvidenceId`)
+2. Create Control and Checkpoint (`evidenceRequired: true`)
+3. Link Control (path-only, empty body) → list → unlink → list → relink
+4. Link Checkpoint → unlink → relink (retained for folder F)
+5. Mutation on APPROVED Evidence fails (`409`/`400`/`422`, never `501`)
+
+No `tenantId` in bodies. No polymorphic target payload.
+
+### F — Checkpoint gate
+
+Lifecycle-valid sequence:
+
+1. Upload + link already done for `draftEvidenceId` / `gateCheckpointId`
+2. Review while Evidence not APPROVED → **409** `EVIDENCE_REQUIRED` /
+   `details.reason = EVIDENCE_COVERAGE_INCOMPLETE`
+3. Submit + approve Evidence (reviewer)
+4. Review succeeds (different `reviewPeriod`)
+
+### G — Policy gate
+
+1. Create Policy `requiresEvidence: true` → submit version
+2. Approve fails → **409** `EVIDENCE_REQUIRED` with a supported reason
+   (`EVIDENCE_GATE_NOT_CONFIGURED` when no required targets are mapped)
+3. Create Control with `requiresEvidence: true` and
+   `policyVersionIds: [policyVersionId]`
+4. Create `policyCoverageEvidenceId`, link Control while DRAFT, upload, submit,
+   approve
+5. Policy Version approve succeeds on the **same** `policyVersionId`
+
+Reviewer must hold `policies:approve`.
+
+### H — KPI gate (manual prerequisites)
+
+**Manual** environment values (empty in the template):
+
+| Variable | Requirement |
+| --- | --- |
+| `kpiNoLinkActualId` | PENDING/SUBMITTED Actual; config `requiresEvidence=true`; **no** active Evidence links |
+| `kpiIneligibleActualId` | Separate Actual; config `requiresEvidence=true` |
+| `kpiSuccessActualId` | Separate Actual; config `requiresEvidence=true`; same exact reporting period as the linked target |
+
+H0 optionally lists Actuals and fills empty slots only. Prefer three distinct
+Actuals so failure scenarios do not poison success.
+
+| Step | Assertion |
+| --- | --- |
+| H1 no-link | 409 / `EVIDENCE_KPI_LINK_REQUIRED` |
+| H2–H5 ineligible | Link DRAFT Evidence (no file) → 409 / `EVIDENCE_KPI_COVERAGE_INCOMPLETE`; link remains |
+| H6–H14 success | Link while DRAFT → reverse-list → unlink/relink → submit/approve Evidence → approve Actual |
+| H14 | Actual `approvalStatus=APPROVED` and exact `kpiSuccessActualId` |
+
+Reviewer needs `kpi-actual:approve`. Gate failures must not be expected as
+`501`. Risk side-effects are covered by backend integration tests; this
+collection does not mutate production Risk rules.
+
+## Assertions
+
+JSON requests assert, where applicable:
+
+- exact HTTP status
+- Content-Type before `pm.response.json()`
+- success/error envelope
+- ID present before environment write
+- lifecycle / gate reason
+- absence of `storageKey` and `contentSha256`
+
+Download asserts non-empty binary/file body and does not parse as JSON.
+
+## Rerun behaviour
+
+- A1 replaces tokens and clears generated Evidence/Control/Policy IDs
+- Manual KPI Actual IDs are kept until you clear them
+- Each create uses `runSuffix` for unique titles
+- No destructive database cleanup requests
+- Records created remain in the local database (retained-record behaviour)
+
+## Accepted local/UAT limitations
+
+- KPI Actual fixtures are **manual** when seed data has no suitable
+  `requiresEvidence` Actuals
+- Reviewer permissions are not granted by the collection
+- Multipart file selection may require Postman working-directory setup
+- Newman is optional and not installed by this repository
+- Playwright suites remain mocked browser flows; this collection hits the real
+  local HTTP API
 
 ## Response safety
 
-- Responses must not expose `storageKey`, raw password hashes, or refresh tokens.
-- Error envelopes use safe codes (`EVIDENCE_REQUIRED`, `VALIDATION_ERROR`, etc.).
-- Evidence gates return HTTP **409** `EVIDENCE_REQUIRED`, not `501`.
+Responses must not expose `storageKey`, raw hashes, refresh tokens, or
+filesystem paths. Evidence gates return HTTP **409** `EVIDENCE_REQUIRED`, never
+**501**.
 
-## Reset variables
+## Related
 
-Clear: `accessToken`, `reviewerToken`, `evidenceId`, `controlId`, `checkpointId`.
-Keep `baseUrl` and fixture path. Re-run from step 1 after database reset.
-
-## Related collections
-
-- `Checkpoint-API.postman_collection.json` — Checkpoint Review and Evidence gate
-- `Policy-API.postman_collection.json` — Policy Version Evidence gate (409)
-- `Milestone-4-E2E.postman_collection.json` — Policy → Control → Checkpoint flow
-
-Do not use `GenBioCa-GRC.postman_collection.json` for Evidence; its legacy
-`/evidence/upload` path is not the active API (`POST /evidence` then
-`POST /evidence/:id/file`).
+- `docs/evidence-demo-and-release-readiness.md` — demo and release readiness
+- `postman/Checkpoint-API.postman_collection.json` — Checkpoint-only drills
+- `postman/Policy-API.postman_collection.json` — Policy-only drills
+- `postman/Milestone-4-E2E.postman_collection.json` — Policy → Control → Checkpoint

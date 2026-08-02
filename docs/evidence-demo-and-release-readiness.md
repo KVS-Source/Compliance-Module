@@ -43,10 +43,18 @@ Playwright suites use mocked browser APIs only.
 
 Import and run in order:
 
-1. `postman/Evidence-API.postman_collection.json`
+1. `postman/Evidence-API.postman_collection.json` (authoritative Milestone 5)
 2. `postman/Evidence-API.postman_environment.json`
 
-See [Evidence API Postman guide](./postman/evidence-api-guide.md).
+See [Evidence API Postman guide](./postman/evidence-api-guide.md) for:
+
+- purpose-specific Evidence IDs (`approvedEvidenceId`, `draftEvidenceId`,
+  `rejectedEvidenceId`, `archivableEvidenceId`, KPI/Policy coverage IDs)
+- DRAFT-link-first lifecycle and maker-checker separation
+- Policy / Checkpoint / KPI gate failure and success sequences
+- manual KPI Actual prerequisites (`kpiNoLinkActualId`,
+  `kpiIneligibleActualId`, `kpiSuccessActualId`)
+- rerun behaviour and retained local records
 
 For Policy → Control → Checkpoint → Review, use
 `postman/Milestone-4-E2E.postman_collection.json`.
