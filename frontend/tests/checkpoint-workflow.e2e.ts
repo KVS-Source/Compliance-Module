@@ -138,9 +138,21 @@ const success = (data: unknown, meta?: unknown) => ({
   ...(meta ? { meta } : {}),
 });
 
-const failure = (status: number, code: string, message: string) => ({
+const failure = (
+  status: number,
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+) => ({
   status,
-  body: { success: false, error: { code, message } },
+  body: {
+    success: false,
+    error: {
+      code,
+      message,
+      ...(details ? { details } : {}),
+    },
+  },
 });
 
 async function installCheckpointWorkflowMock(
@@ -1108,5 +1120,154 @@ test.describe("Checkpoint detail and Review workflows", () => {
     await page.goto("/compliance/checkpoints");
     await expect(page.getByTestId("checkpoint-review-open")).toHaveCount(0);
     await expect(page.getByText("Submit Review")).toHaveCount(0);
+  });
+
+  test("maps Evidence gate on review submit", async ({ page }) => {
+    checkpoint = { ...checkpoint, evidenceRequired: true };
+    await page.unroute("**/api/v1/**");
+    await page.route("**/api/v1/**", async (route: Route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      const method = request.method();
+
+      if (path === "/api/v1/auth/refresh" || path === "/api/v1/auth/login") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            success({
+              accessToken: "mock-access-token",
+              user: {
+                id: userOne.id,
+                code: userOne.code,
+                name: userOne.name,
+                email: userOne.email,
+                phone: null,
+                status: "ACTIVE",
+                lastLogin: null,
+                permissions: ["*"],
+                activeCompany: company,
+                companies: [company],
+              },
+            }),
+          ),
+        });
+      }
+
+      if (
+        path === `/api/v1/checkpoints/${checkpoint.id}` &&
+        method === "GET"
+      ) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(success(checkpoint)),
+        });
+      }
+
+      if (path.endsWith("/reviews") && method === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            success([], { page: 1, pageSize: 20, total: 0, totalPages: 1 }),
+          ),
+        });
+      }
+
+      if (path.endsWith("/latest-review") && method === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(success(null)),
+        });
+      }
+
+      if (path.endsWith("/reviews") && method === "POST") {
+        const blocked = failure(
+          409,
+          "EVIDENCE_REQUIRED",
+          "This Checkpoint review requires qualifying approved Evidence",
+          { reason: "EVIDENCE_COVERAGE_INCOMPLETE" },
+        );
+        return route.fulfill({
+          status: blocked.status,
+          contentType: "application/json",
+          body: JSON.stringify(blocked.body),
+        });
+      }
+
+      if (path.includes("/audit-events")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            success([], { page: 1, pageSize: 20, total: 0, totalPages: 1 }),
+          ),
+        });
+      }
+
+      if (path.endsWith("/traceability")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            success({
+              checkpoint: {
+                id: checkpoint.id,
+                code: checkpoint.code,
+                title: checkpoint.title,
+                lifecycleStatus: checkpoint.lifecycleStatus,
+                verificationFrequency: checkpoint.verificationFrequency,
+              },
+              control: checkpoint.control,
+              latestReview: checkpoint.latestReview,
+              totalReviewCount: checkpoint.totalReviewCount,
+              policyVersionMappings: { active: [], historical: [] },
+              frameworkMappings: { active: [], historical: [] },
+              frameworkRuleMappings: { active: [], historical: [] },
+            }),
+          ),
+        });
+      }
+
+      if (path === "/api/v1/users" || path.includes("/organisation/")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(success([])),
+        });
+      }
+
+      if (path.startsWith("/api/v1/controls/")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(success(parentControl)),
+        });
+      }
+
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Not found" },
+        }),
+      });
+    });
+
+    await page.goto(`/compliance/checkpoints/${checkpoint.id}`);
+    await page.getByTestId("checkpoint-review-open").click();
+    await expect(page.getByTestId("checkpoint-evidence-gate-hint")).toBeVisible();
+    await page.getByTestId("checkpoint-review-period").fill("2026-07");
+    await page.getByTestId("checkpoint-review-date").fill("2026-07-31");
+    await page.getByTestId("checkpoint-review-save").click();
+    const errorBanner = page.getByTestId("checkpoint-review-error");
+    await expect(errorBanner).toBeVisible();
+    await expect(errorBanner).toContainText("qualifying approved Evidence link");
+    await expect(errorBanner).not.toContainText("501");
+    await expect(errorBanner).not.toContainText(checkpoint.id);
+    await expect(errorBanner).not.toContainText("EVIDENCE_GATE_NOT_IMPLEMENTED");
   });
 });

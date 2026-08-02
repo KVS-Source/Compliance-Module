@@ -572,11 +572,12 @@ test.describe("Evidence workflow (Slice 5.6A)", () => {
   test("4. Lifecycle filter", async ({ page }) => {
     const state = await installEvidenceMock(page);
     await gotoLibrary(page);
-    await page.getByLabel("Filter by lifecycle status").selectOption("APPROVED");
-    await expect(page).toHaveURL(/lifecycleStatus=APPROVED/);
-    await page.waitForResponse((response) =>
+    const responsePromise = page.waitForResponse((response) =>
       response.url().includes("lifecycleStatus=APPROVED"),
     );
+    await page.getByLabel("Filter by lifecycle status").selectOption("APPROVED");
+    await expect(page).toHaveURL(/lifecycleStatus=APPROVED/);
+    await responsePromise;
     expect(
       state.listUrls.some((entry) => entry.includes("lifecycleStatus=APPROVED")),
     ).toBeTruthy();
