@@ -17,6 +17,10 @@ Module-scoped collections remain available for deeper drills:
 - `Policy-API.postman_collection.json`
 - `Control-API.postman_collection.json`
 - `Checkpoint-API.postman_collection.json`
+- `Evidence-API.postman_collection.json` (Milestone 5 Evidence workflow)
+
+Legacy `GenBioCa-GRC.postman_collection.json` is not authoritative; its
+`/evidence/upload` path does not match the active API.
 
 ## Import
 
