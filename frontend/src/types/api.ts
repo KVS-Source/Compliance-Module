@@ -1609,3 +1609,98 @@ export interface UpdateGapInput {
   identifiedOn?: string | null;
   dueDate?: string | null;
 }
+
+export type CapaPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+export type CapaStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "PENDING_VERIFICATION"
+  | "CLOSED"
+  | "CANCELLED";
+
+export interface CapaLinkedGap {
+  id: string;
+  code: string;
+  title: string;
+  severity: GapSeverity;
+  status: GapStatus;
+}
+
+export interface Capa {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  priority: CapaPriority;
+  status: CapaStatus;
+  gap: CapaLinkedGap | null;
+  source: string | null;
+  sourceRef: string | null;
+  framework: ComplianceNamedRef | null;
+  rootCause: string | null;
+  correctiveAction: string | null;
+  preventiveAction: string | null;
+  owner: CompliancePersonRef | null;
+  sourceOwnerRef: string | null;
+  department: ComplianceNamedRef | null;
+  raisedOn: string | null;
+  dueDate: string | null;
+  overdue: boolean;
+  completionPercentage: number;
+  closedAt: string | null;
+  closureNote: string | null;
+  needsReview: boolean;
+  reviewReason: string | null;
+  evidence: ComplianceEvidenceLink[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CapaListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: CapaStatus;
+  priority?: CapaPriority;
+  gapId?: string;
+  overdue?: boolean;
+}
+
+export interface CapaListResult {
+  data: Capa[];
+  meta: PageMeta;
+}
+
+export interface CreateCapaInput {
+  title: string;
+  description?: string | null;
+  gapId?: string | null;
+  priority: CapaPriority;
+  source?: string | null;
+  sourceRef?: string | null;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  preventiveAction?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  raisedOn?: string | null;
+  dueDate?: string | null;
+  completionPercentage?: number;
+}
+
+export interface UpdateCapaInput {
+  title?: string;
+  description?: string | null;
+  gapId?: string | null;
+  priority?: CapaPriority;
+  status?: Exclude<CapaStatus, "CLOSED">;
+  source?: string | null;
+  sourceRef?: string | null;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  preventiveAction?: string | null;
+  departmentId?: string | null;
+  raisedOn?: string | null;
+  dueDate?: string | null;
+  completionPercentage?: number;
+}

@@ -432,20 +432,14 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       ],
     },
   ),
-  development(
+  live(
     "/compliance/capa",
     "#compliance/capa",
     "CAPA Register",
     "Gap & CAPA",
     "Corrective and preventive action records.",
     Wrench,
-    {
-      plannedCapabilities: [
-        "Register corrective and preventive actions",
-        "Assign owners and deadlines",
-        "Track verification to closure",
-      ],
-    },
+    { permission: "capa:read", api: "GET/POST /capas · GET/PATCH /capas/:id · owner and closure actions" },
   ),
   development(
     "/compliance/capa/review",
@@ -831,6 +825,7 @@ export const migratedPaths = new Set([
   "/compliance/controls",
   "/compliance/checkpoints",
   "/compliance/gaps",
+  "/compliance/capa",
   "/evidence",
   "/evidence/new",
   "/evidence/review",

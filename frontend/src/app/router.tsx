@@ -37,6 +37,8 @@ import { RiskDetailPage } from "../features/risks/RiskDetailPage";
 import { RiskRegisterPage } from "../features/risks/RiskRegisterPage";
 import { GapDetailPage } from "../features/gaps/GapDetailPage";
 import { GapRegisterPage } from "../features/gaps/GapRegisterPage";
+import { CapaDetailPage } from "../features/capas/CapaDetailPage";
+import { CapaRegisterPage } from "../features/capas/CapaRegisterPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -219,6 +221,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="gaps:read">
         <GapDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/capa",
+    element: (
+      <PermissionBoundary permission="capa:read">
+        <CapaRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/capa/:capaId",
+    element: (
+      <PermissionBoundary permission="capa:read">
+        <CapaDetailPage />
       </PermissionBoundary>
     ),
   },

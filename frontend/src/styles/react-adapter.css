@@ -783,6 +783,22 @@
   font-weight: 700;
 }
 
+.deadline-progress {
+  height: 7px;
+  margin: -5px 0 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--grey-100);
+}
+
+.deadline-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-500);
+  transition: width .2s ease;
+}
+
 .deadline-summary-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
