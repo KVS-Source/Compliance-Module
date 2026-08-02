@@ -35,6 +35,8 @@ import { PolicyDetailPage } from "../features/policies/PolicyDetailPage";
 import { PolicyRegisterPage } from "../features/policies/PolicyRegisterPage";
 import { RiskDetailPage } from "../features/risks/RiskDetailPage";
 import { RiskRegisterPage } from "../features/risks/RiskRegisterPage";
+import { GapDetailPage } from "../features/gaps/GapDetailPage";
+import { GapRegisterPage } from "../features/gaps/GapRegisterPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -201,6 +203,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="risk:read">
         <RiskDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/gaps",
+    element: (
+      <PermissionBoundary permission="gaps:read">
+        <GapRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/gaps/:gapId",
+    element: (
+      <PermissionBoundary permission="gaps:read">
+        <GapDetailPage />
       </PermissionBoundary>
     ),
   },

@@ -408,20 +408,14 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     },
   ),
 
-  development(
+  live(
     "/compliance/gaps",
     "#compliance/gaps",
     "Gap Register",
     "Gap & CAPA",
     "Compliance gaps, ownership and remediation state.",
     TriangleAlert,
-    {
-      plannedCapabilities: [
-        "Register compliance gaps",
-        "Assign remediation owners",
-        "Link gaps to evidence and controls",
-      ],
-    },
+    { permission: "gaps:read", api: "GET/POST /gaps · GET/PATCH /gaps/:id · owner and closure actions" },
   ),
   development(
     "/compliance/gaps/review",
@@ -836,6 +830,7 @@ export const migratedPaths = new Set([
   "/compliance/policy-register",
   "/compliance/controls",
   "/compliance/checkpoints",
+  "/compliance/gaps",
   "/evidence",
   "/evidence/new",
   "/evidence/review",

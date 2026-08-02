@@ -748,6 +748,128 @@
   gap: 12px;
 }
 
+.deadline-filter-bar {
+  flex-wrap: wrap;
+}
+
+.deadline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  color: var(--grey-700);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.deadline-register-mobile {
+  display: none;
+  gap: 12px;
+}
+
+.deadline-register-card h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.deadline-register-card .card-pad {
+  display: grid;
+  gap: 8px;
+}
+
+.deadline-overdue {
+  color: var(--red-700);
+  font-weight: 700;
+}
+
+.deadline-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.deadline-summary-strip > div {
+  display: grid;
+  gap: 7px;
+  min-height: 76px;
+  padding: 14px;
+  border: 1px solid var(--grey-100);
+  border-radius: var(--radius-md);
+  background: white;
+}
+
+.deadline-summary-strip span:first-child {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.deadline-notice {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-color: var(--amber-100);
+  background: var(--amber-50);
+}
+
+.deadline-notice p,
+.deadline-actions p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.deadline-section,
+.deadline-actions {
+  margin-top: 16px;
+}
+
+.deadline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.deadline-actions h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.deadline-link-list {
+  display: grid;
+  gap: 8px;
+}
+
+.deadline-link-list > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--grey-100);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.deadline-link-list > a:hover {
+  border-color: var(--primary-200);
+  background: var(--primary-50);
+}
+
+.deadline-link-list span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.deadline-link-list small {
+  color: var(--text-muted);
+}
+
 .risk-register-card h2 {
   margin: 0;
   font-size: 14px;
@@ -765,6 +887,29 @@
   }
   .risk-register-mobile {
     display: grid;
+  }
+  .deadline-register-desktop {
+    display: none;
+  }
+  .deadline-register-mobile {
+    display: grid;
+  }
+  .deadline-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .deadline-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .deadline-summary-strip {
+    grid-template-columns: 1fr;
+  }
+  .deadline-link-list > a {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

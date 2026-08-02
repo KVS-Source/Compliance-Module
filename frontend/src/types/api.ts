@@ -1493,3 +1493,119 @@ export interface EvidenceDownloadResult {
   fileName: string;
   byteSize: number;
 }
+
+export type GapSeverity =
+  | "CRITICAL"
+  | "MAJOR"
+  | "MINOR"
+  | "OBSERVATION"
+  | "OFI";
+
+export type GapStatus = "OPEN" | "IN_PROGRESS" | "CLOSED" | "CANCELLED";
+
+export interface CompliancePersonRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface ComplianceNamedRef {
+  id: string;
+  code: string;
+  name?: string;
+  title?: string;
+}
+
+export interface ComplianceEvidenceLink {
+  linkId: string;
+  id: string;
+  code: string;
+  title: string;
+  lifecycleStatus: EvidenceLifecycleStatus;
+  file: {
+    available: boolean;
+    sourceReference: string | null;
+  };
+  linkReason: string | null;
+  linkedAt: string;
+}
+
+export interface GapLinkedCapa {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate: string | null;
+  completionPercentage: number;
+}
+
+export interface Gap {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  severity: GapSeverity;
+  status: GapStatus;
+  source: string | null;
+  clauseRef: string | null;
+  recommendedAction: string | null;
+  owner: CompliancePersonRef | null;
+  sourceOwnerRef: string | null;
+  department: ComplianceNamedRef | null;
+  framework: ComplianceNamedRef | null;
+  frameworkRule: ComplianceNamedRef | null;
+  control: ComplianceNamedRef | null;
+  checkpoint: ComplianceNamedRef | null;
+  identifiedOn: string | null;
+  dueDate: string | null;
+  overdue: boolean;
+  closedAt: string | null;
+  closureNote: string | null;
+  needsReview: boolean;
+  reviewReason: string | null;
+  capas: GapLinkedCapa[];
+  evidence: ComplianceEvidenceLink[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GapListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  severity?: GapSeverity;
+  status?: GapStatus;
+  overdue?: boolean;
+}
+
+export interface GapListResult {
+  data: Gap[];
+  meta: PageMeta;
+}
+
+export interface CreateGapInput {
+  title: string;
+  description?: string | null;
+  severity: GapSeverity;
+  source?: string | null;
+  clauseRef?: string | null;
+  recommendedAction?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  identifiedOn?: string | null;
+  dueDate?: string | null;
+}
+
+export interface UpdateGapInput {
+  title?: string;
+  description?: string | null;
+  severity?: GapSeverity;
+  status?: Exclude<GapStatus, "CLOSED">;
+  source?: string | null;
+  clauseRef?: string | null;
+  recommendedAction?: string | null;
+  departmentId?: string | null;
+  identifiedOn?: string | null;
+  dueDate?: string | null;
+}
