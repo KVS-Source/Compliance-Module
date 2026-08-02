@@ -21,12 +21,26 @@ export interface ApiFailure {
 }
 
 export interface DashboardSummary {
+  generatedAt?: string;
+  compliance?: {
+    overallPercentage: number;
+    measuredKpis: number;
+    kpisMeetingTarget: number;
+  } | null;
   kpis: {
     activeConfigurations: number;
     meetingTarget: number;
     amberActuals: number;
     redActuals: number;
     pendingApprovals: number;
+    definitions?: number;
+    configured?: number;
+    enabled?: number;
+    measured?: number;
+    green?: number;
+    amber?: number;
+    red?: number;
+    pendingApproval?: number;
   } | null;
   risks: {
     openRisks: number;
@@ -34,6 +48,12 @@ export interface DashboardSummary {
     majorRisks: number;
     risksUnderTreatment: number;
     closedRisks: number;
+    openMajor?: number;
+    openMinor?: number;
+    openEnterprise?: number;
+    openTotal?: number;
+    treated?: number;
+    closed?: number;
   } | null;
   organisation: {
     departments: number;
@@ -42,7 +62,42 @@ export interface DashboardSummary {
   } | null;
   frameworks: {
     activeFrameworks: number;
+    total?: number;
+    active?: number;
+    breakdown?: Array<{
+      id: string;
+      code: string;
+      name: string;
+      version: string;
+      status: string;
+      scopeStatus: string;
+      ruleCount: number;
+    }>;
   } | null;
+  gaps?: {
+    open: number;
+    overdue: number;
+    closed: number;
+    critical: number;
+    major: number;
+    needsReview: number;
+  } | null;
+  capas?: {
+    open: number;
+    overdue: number;
+    closed: number;
+    pendingVerification: number;
+    needsReview: number;
+  } | null;
+  evidence?: {
+    total: number;
+    pendingReview: number;
+    approved: number;
+    expiringSoon: number;
+    expired: number;
+    withoutFile: number;
+  } | null;
+  registers?: Array<{ code: string; name: string; recordCount: number }> | null;
 }
 
 export interface Company {

@@ -47,7 +47,7 @@ async function installMock(page: Page, closeMode: "success" | "evidence-error" =
     const path = new URL(request.url()).pathname;
     const method = request.method();
     if (path === "/api/v1/auth/refresh") {
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "token", user: { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "UAT Admin", email: "uat@example.test", phone: null, status: "ACTIVE", lastLogin: null, permissions: ["gaps:read", "gaps:write", "gaps:close", "capa:write", "users:read", "organisation:read"], activeCompany: company, companies: [company] } })) });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "token", user: { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "UAT Admin", email: "uat@example.test", phone: null, status: "ACTIVE", lastLogin: null, permissions: ["gaps:read", "gaps:write", "gaps:close", "capa:write", "users:read", "organisation:read", "exports:read"], activeCompany: company, companies: [company] } })) });
     }
     if (path === "/api/v1/gaps" && method === "GET") {
       calls.push(`${method} ${request.url()}`);
@@ -69,6 +69,10 @@ async function installMock(page: Page, closeMode: "success" | "evidence-error" =
       }
       gap = { ...gap, status: "CLOSED", closureNote: "Reviewed approved evidence.", closedAt: "2026-08-02T00:00:00.000Z", overdue: false };
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(gap)) });
+    }
+    if (path === "/api/v1/exports/gaps.csv") {
+      calls.push(`EXPORT ${request.headers()["authorization"] ?? "no-auth"}`);
+      return route.fulfill({ status: 200, contentType: "text/csv", headers: { "Content-Disposition": "attachment; filename=\"gaps-2026-08-02.csv\"" }, body: "code,title\nGAP-001,Missing quarterly review\n" });
     }
     if (path === "/api/v1/users") {
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success([])) });
@@ -128,4 +132,14 @@ test("Evidence-required Gap close conflict is explained safely", async ({ page }
   await page.getByRole("button", { name: "Close Gap", exact: true }).last().click();
   await expect(page.getByRole("alert")).toContainText("approved Evidence with an available physical file");
   await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+test("Gap CSV export uses authenticated Blob download and server filename", async ({ page }) => {
+  const calls = await installMock(page);
+  await page.goto("/compliance/gaps");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export CSV" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("gaps-2026-08-02.csv");
+  expect(calls).toContain("EXPORT Bearer token");
 });

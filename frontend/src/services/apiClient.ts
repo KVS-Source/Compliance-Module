@@ -153,5 +153,66 @@ export const apiRequest = async <T>(
   }
 };
 
+const safeDownloadName = (value: string | null, fallback: string) => {
+  let name = (value ?? fallback).normalize("NFC").split(/[/\\]/).pop() ?? fallback;
+  // eslint-disable-next-line no-control-regex
+  name = name.replace(/[\u0000-\u001f\u007f]/g, "").replace(/["<>|:*?\\]/g, "_").replace(/^\.+/, "").trim();
+  return (name || fallback).slice(0, 200);
+};
+
+const dispositionName = (value: string | null) => {
+  if (!value) return null;
+  const encoded = /filename\*\s*=\s*[^']*'[^']*'([^;]+)/i.exec(value)?.[1];
+  if (encoded) {
+    try { return decodeURIComponent(encoded.trim()); } catch { return encoded.trim(); }
+  }
+  return /filename\s*=\s*"([^"]+)"/i.exec(value)?.[1] ?? /filename\s*=\s*([^;]+)/i.exec(value)?.[1]?.trim() ?? null;
+};
+
+const blobOnce = async (path: string, fallbackFilename: string) => {
+  let response: Response;
+  try {
+    response = await fetch(`/api/v1${path}`, {
+      credentials: "same-origin",
+      headers: {
+        Accept: "text/csv, application/octet-stream, application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+  } catch {
+    throw new ApiError(SERVICE_UNAVAILABLE_MESSAGE, 0, "SERVICE_UNAVAILABLE");
+  }
+  if (!response.ok) {
+    let failure: ApiFailure | null = null;
+    try { failure = (await response.json()) as ApiFailure; } catch { /* A proxy may return HTML. */ }
+    throw new ApiError(failure?.error.message ?? `Download failed (${response.status})`, response.status, failure?.error.code, failure?.error.details);
+  }
+  return {
+    blob: await response.blob(),
+    fileName: safeDownloadName(dispositionName(response.headers.get("content-disposition")), fallbackFilename),
+  };
+};
+
+/** Authenticated Blob transport with the same one-refresh policy as JSON APIs. */
+export const apiBlobRequest = async (path: string, fallbackFilename: string, retry = true): Promise<{ blob: Blob; fileName: string }> => {
+  try {
+    return await blobOnce(path, fallbackFilename);
+  } catch (error) {
+    if (retry && error instanceof ApiError && error.status === 401) {
+      try {
+        await refreshSession();
+        return await apiBlobRequest(path, fallbackFilename, false);
+      } catch (refreshError) {
+        if (isExplicitSessionInvalid(refreshError)) {
+          expireSession();
+          throw new ApiError("Your session has expired. Please sign in again.", 401, "SESSION_EXPIRED");
+        }
+        throw refreshError;
+      }
+    }
+    throw error;
+  }
+};
+
 export const pageQuery = (page = 1, pageSize = 100) =>
   `?page=${page}&pageSize=${pageSize}`;

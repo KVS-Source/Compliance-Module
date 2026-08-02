@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
@@ -72,7 +73,7 @@ export function GapRegisterPage() {
         connected
         primaryLabel={hasPermission("gaps:write") ? "Create Gap" : undefined}
         onPrimary={() => setCreating(true)}
-        actions={<button className="btn btn-secondary" type="button" onClick={() => setVersion((value) => value + 1)}><RefreshCw size={15} /> Refresh</button>}
+        actions={<>{hasPermission("exports:read") ? <CsvExportButton module="gaps" /> : null}<button className="btn btn-secondary" type="button" onClick={() => setVersion((value) => value + 1)}><RefreshCw size={15} /> Refresh</button></>}
       />
 
       <form className="filter-bar deadline-filter-bar" onSubmit={applySearch}>

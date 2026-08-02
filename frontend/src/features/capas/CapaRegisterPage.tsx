@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
@@ -63,7 +64,7 @@ export function CapaRegisterPage() {
 
   return (
     <div className="page">
-      <PageHeader title="CAPA Register" section="Gap & CAPA" description="Track corrective and preventive actions, ownership, progress and Evidence-gated closure." connected primaryLabel={hasPermission("capa:write") ? "Create CAPA" : undefined} onPrimary={() => { setInitialGapId(undefined); setCreating(true); }} actions={<button className="btn btn-secondary" type="button" onClick={() => setVersion((value) => value + 1)}><RefreshCw size={15} /> Refresh</button>} />
+      <PageHeader title="CAPA Register" section="Gap & CAPA" description="Track corrective and preventive actions, ownership, progress and Evidence-gated closure." connected primaryLabel={hasPermission("capa:write") ? "Create CAPA" : undefined} onPrimary={() => { setInitialGapId(undefined); setCreating(true); }} actions={<>{hasPermission("exports:read") ? <CsvExportButton module="capas" /> : null}<button className="btn btn-secondary" type="button" onClick={() => setVersion((value) => value + 1)}><RefreshCw size={15} /> Refresh</button></>} />
       <form className="filter-bar deadline-filter-bar" onSubmit={applySearch}>
         <label className="filter-search"><span className="sr-only">Search CAPAs</span><Search className="icon" size={16} aria-hidden /><input className="control" type="search" value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} placeholder="Search code, title or Gap…" maxLength={100} /></label>
         <label className="toolbar-select"><span className="sr-only">CAPA status</span><select className="control" value={status} onChange={(event) => { setStatus(event.target.value as CapaStatus | ""); setPage(1); }}><option value="">All statuses</option><option value="OPEN">OPEN</option><option value="IN_PROGRESS">IN PROGRESS</option><option value="PENDING_VERIFICATION">PENDING VERIFICATION</option><option value="CLOSED">CLOSED</option><option value="CANCELLED">CANCELLED</option></select></label>

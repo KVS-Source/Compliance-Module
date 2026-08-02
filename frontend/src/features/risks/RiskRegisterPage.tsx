@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useApiResource } from "../../hooks/useApiResource";
@@ -36,7 +37,7 @@ const named = (
 ) => (value ? `${value.name} (${value.code})` : fallback);
 
 export function RiskRegisterPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
   const navigate = useNavigate();
 
@@ -120,6 +121,8 @@ export function RiskRegisterPage() {
         description="Company-scoped risks raised from KPI misses and enterprise assessment. Reads use risk:read only."
         connected
         actions={
+          <>
+          {hasPermission("exports:read") ? <CsvExportButton module="risks" /> : null}
           <button
             className="btn btn-secondary"
             type="button"
@@ -127,6 +130,7 @@ export function RiskRegisterPage() {
           >
             <RefreshCw size={15} /> Refresh
           </button>
+          </>
         }
       />
 

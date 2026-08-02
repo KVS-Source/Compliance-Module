@@ -40,6 +40,9 @@ const requiredLiveRoutes = [
   { path: "/compliance/policy-register", component: "PolicyRegisterPage" },
   { path: "/compliance/controls", component: "ControlRegisterPage" },
   { path: "/compliance/checkpoints", component: "CheckpointRegisterPage" },
+  { path: "/compliance/gaps", component: "GapRegisterPage" },
+  { path: "/compliance/capa", component: "CapaRegisterPage" },
+  { path: "/data/import-history", component: "ImportHistoryPage" },
   { path: "/evidence", component: "EvidenceLibraryPage" },
   { path: "/evidence/new", component: "EvidenceCreatePage" },
   { path: "/evidence/review", component: "EvidenceReviewQueuePage" },
@@ -69,6 +72,9 @@ const requiredLiveChildRoutes = [
   },
   { path: "master/frameworks/:frameworkId/rules", component: "FrameworkRulesPage" },
   { path: "evidence/:evidenceId", component: "EvidenceDetailPage" },
+  { path: "compliance/gaps/:gapId", component: "GapDetailPage" },
+  { path: "compliance/capa/:capaId", component: "CapaDetailPage" },
+  { path: "data/import-history/:importId", component: "ImportDetailPage" },
 ];
 
 /**
@@ -212,14 +218,14 @@ const statusCounts = {
 const protectedLivePatterns =
   statusCounts.LIVE + requiredLiveChildRoutes.length;
 if (
-  protectedLivePatterns !== 26 ||
-  statusCounts.IN_DEVELOPMENT !== 21 ||
+  protectedLivePatterns !== 32 ||
+  statusCounts.IN_DEVELOPMENT !== 18 ||
   statusCounts.AWAITING_INTEGRATION !== 1 ||
   statusCounts.COMPATIBILITY !== 22 ||
   visiblePaths.length !== 41
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 26 protected LIVE route patterns, 21 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 41 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 32 protected LIVE route patterns, 18 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 41 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 
@@ -328,5 +334,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: 1 public login, 26 protected LIVE patterns, 21 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
+  `Live-route guard passed: 1 public login, 32 protected LIVE patterns, 18 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
 );
