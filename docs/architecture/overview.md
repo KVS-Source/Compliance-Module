@@ -22,18 +22,20 @@ what counts as production-target code, read
 | **Compliance masters (read)** | Frameworks and rules | Live framework list + rules |
 | **KPI** | Definitions (shared), configurations, targets, actuals, approval history, performance calculation | Live configuration, targets, actual entry and approval; KPI Mapping is an approved `IN_DEVELOPMENT` route rendered by the truthful `ModuleStatusPage`, is not operational and uses no prototype records |
 | **Risk** | Automatic create on KPI miss; owner assignment, review, treatment, residual scoring, closure and reopening | Live Risk Register and workflow-enabled detail |
-| **Governance foundation** | Policy, Policy Version, Control, mapping, Checkpoint and Checkpoint Review persistence plus pure domain rules; no API routes | Policy, Control and Checkpoint routes remain truthful `IN_DEVELOPMENT` status pages |
+| **Governance** | Policy, Control, Checkpoint APIs and React workflows | Live register/detail pages for Policy, Control and Checkpoint |
+| **Evidence (Milestone 5)** | Metadata, file, links, review, gates | Live Evidence Library, Create, Detail, Review and link panels |
 
-### Evidence (Milestone 5 Slice 1 partial)
+### Evidence (Milestone 5 — operational)
 
 | Layer | Status |
 | --- | --- |
-| Schema | Evidence, typed Control/Checkpoint links, append-only review decisions |
-| Metadata APIs | LIVE under `/api/v1/evidence` (create/list/detail/patch/submit/archive/audit) |
-| File upload/download | Not implemented; submit fails with `EVIDENCE_FILE_REQUIRED` |
-| Approve/reject HTTP | Not implemented (domain + DB ready) |
-| Link mutation APIs | Not implemented |
-| React routes | `IN_DEVELOPMENT` status pages |
+| Schema | Evidence, Control/Checkpoint/KpiActual links, append-only review decisions (14 migrations) |
+| Metadata APIs | LIVE under `/api/v1/evidence` |
+| File upload/download | LIVE (local storage; 10 MiB allowlist) |
+| Approve/reject HTTP | LIVE (`evidence:review`, maker-checker) |
+| Link mutation APIs | LIVE (DRAFT Evidence only) |
+| React routes | LIVE (`/evidence`, `/evidence/new`, `/evidence/review`, `/evidence/:evidenceId`) |
+| Evidence gates | LIVE — HTTP 409 `EVIDENCE_REQUIRED` for Checkpoint Review, Policy Version approve, KPI actual approve |
 
 ### Non-operational seams
 
@@ -50,17 +52,12 @@ no routes, services, or schema:
 
 **Notifications** has no module folder yet.
 
-### Evidence gates remain fail-closed
+### Evidence gates (operational)
 
-Approved-evidence gates are still intended to block:
-
-- KPI actual approval (when `requiresEvidence` is true)
-- Policy approval (when `requiresEvidence` is true)
-- Gap closure / CAPA closure / risk-treatment completion (future)
-
-`EvidenceGateService` and Policy domain rules still return
-`EVIDENCE_GATE_NOT_IMPLEMENTED` / fail-closed behaviour. Slice 5.1 does **not**
-replace those gates. Later slices wire real approved-Evidence verification.
+When `requiresEvidence` / `evidenceRequired` is true, approval and Review
+paths evaluate qualifying approved Evidence and return HTTP **409**
+`EVIDENCE_REQUIRED` with safe reason codes. Gap closure / CAPA closure /
+risk-treatment completion gates remain future work.
 
 ---
 

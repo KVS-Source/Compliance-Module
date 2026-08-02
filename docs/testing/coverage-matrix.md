@@ -12,13 +12,15 @@
 | Automatic risk | risk/performance unit suites | `kpi-actuals.test.ts` | risk fixture flows | real missed KPI |
 | Risk review/treatment/closure | risk service unit suite | `risk-workflow.test.ts` | Risk Register/detail flows | real append-only history |
 | Policy/Control/Checkpoint foundation | `governance-domain-unit.test.ts` | `governance-foundation.test.ts` reciprocal lifecycle and catalogue invariants | Checkpoint Register/detail Playwright suites (mocked HTTP) | `INACTIVE` Control + `ACTIVE` Checkpoint remains accepted |
-| Policy APIs | `policies-unit.test.ts` | `policies-api.test.ts` tenant isolation, concurrency, submit/approve/reject, Evidence 501, archive rules, audit metadata safety | `policy-register.e2e.ts`, `policy-workflow.e2e.ts` (mocked HTTP only; not PostgreSQL E2E) | Postman Policy collection + pgAdmin inspection guide; backend suites remain DB authority |
+| Policy APIs | `policies-unit.test.ts` | `policies-api.test.ts` tenant isolation, concurrency, submit/approve/reject, Evidence 409, archive rules, audit metadata safety | `policy-register.e2e.ts`, `policy-workflow.e2e.ts` (mocked HTTP only; not PostgreSQL E2E) | Postman Policy collection + pgAdmin inspection guide; backend suites remain DB authority |
+| Evidence foundation | `evidence-unit.test.ts`, `evidence-gate-unit.test.ts`, `file-storage-unit.test.ts` | `evidence-foundation.test.ts` Milestone 5 catalogue; `evidence-api.test.ts`, file/link/review suites | `evidence-workflow.e2e.ts`, `evidence-links-gates.e2e.ts` (mocked HTTP) | Postman Evidence collection + fixture guidance |
+| Policy/Checkpoint/KPI Evidence gates | gate unit suites | `policy-evidence-gate-api.test.ts`, `checkpoint-evidence-gate-api.test.ts`, `kpi-evidence-gate-api.test.ts` | gate UX in policy/checkpoint/kpi Playwright suites (mocked HTTP) | Postman Evidence + domain collections |
 | Control APIs | `controls-unit.test.ts` | `controls-api.test.ts` tenant isolation, concurrency, lifecycle, archive protection, mapping replace, audit metadata safety | `control-register.e2e.ts`, `control-workflow.e2e.ts` (mocked HTTP only; not PostgreSQL E2E) | Postman Control collection + pgAdmin inspection guide; backend suites remain DB authority |
 | Checkpoint APIs | `checkpoints-unit.test.ts` | `checkpoints-api.test.ts` tenant isolation, concurrent codes/reviews, lifecycle, frequency freeze, latest-review ties, reciprocal archive/activation, audit metadata safety | `checkpoint-register.e2e.ts`, `checkpoint-workflow.e2e.ts` (mocked HTTP only; not PostgreSQL E2E) | Postman Checkpoint collection + pgAdmin inspection guide; backend suites remain DB authority |
 | Dashboard | — | `dashboard.test.ts` | dashboard fixture flows | compare API/database counts |
 | Route truthfulness | route/router/boundary scripts | — | navigation/status assertions | visible route review |
-| Migration history | — | runner deploys ten migrations | — | empty history and nine-migration upgrade drills |
-| Trigger/constraint/index catalogue | — | migration-defined governance objects reconciled in `governance-foundation.test.ts`; domain invariants exercised | — | PostgreSQL catalogue reconciliation |
+| Migration history | — | runner deploys fourteen migrations | — | empty history and upgrade drills |
+| Trigger/constraint/index catalogue | — | Milestone 4 in `governance-foundation.test.ts`; Milestone 5 Evidence in `evidence-foundation.test.ts` | — | PostgreSQL catalogue reconciliation |
 | Backup/restore | — | — | — | custom-format disposable drill |
 | Secrets/SAST | — | — | — | Gitleaks and Semgrep CI/local scans |
 
@@ -56,7 +58,7 @@ rejected; it does not claim a correction workflow exists.
 ## Interpretation
 
 Backend integration means real Express/Prisma behavior against an isolated
-PostgreSQL service migrated from the authoritative ten migrations. Playwright
+PostgreSQL service migrated from the authoritative fourteen migrations. Playwright
 uses `page.route`/browser interception for `/api/v1/**`; it verifies frontend
 behavior but does not prove the browser, Express and PostgreSQL together.
 

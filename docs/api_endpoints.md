@@ -55,8 +55,10 @@ creator/uploader/submitter cannot decide). Review queue requires
 Checkpoint reviews with `evidenceRequired=true` require qualifying linked
 APPROVED Evidence (`409 EVIDENCE_REQUIRED` otherwise). Policy Version approval
 with `requiresEvidence=true` requires exact-version Control/Checkpoint
-coverage (`409 EVIDENCE_REQUIRED` with configured reasons). KPI Evidence gates
-remain fail-closed `501`.
+coverage (`409 EVIDENCE_REQUIRED` with configured reasons). KPI actual approval
+with `requiresEvidence=true` requires qualifying Evidence↔KpiActual links
+(`409 EVIDENCE_REQUIRED` with `EVIDENCE_KPI_LINK_REQUIRED` or
+`EVIDENCE_KPI_COVERAGE_INCOMPLETE`).
 
 ## Explicitly absent
 

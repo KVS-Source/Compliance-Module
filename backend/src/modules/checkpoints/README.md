@@ -37,7 +37,6 @@ Notes:
 
 Out of scope:
 
-- Policy/KPI Evidence gates (remain fail-closed 501)
 - Gap, CAPA
 - Same-period Review correction
 

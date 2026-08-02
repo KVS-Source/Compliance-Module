@@ -49,6 +49,7 @@ Synthetic emails already in the environment:
 ## Notes
 
 - Rejection comments are stored only on `PolicyApproval.comments`
-- Evidence-required approval returns `501 EVIDENCE_GATE_NOT_IMPLEMENTED`
+- Evidence-required Policy approval returns `409 EVIDENCE_REQUIRED` with safe
+  configured reasons (not `501`).
 - Policy Version obsoletion is deferred and not exposed
 - Control and Checkpoint APIs are out of scope for this collection
