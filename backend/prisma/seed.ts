@@ -115,7 +115,10 @@ async function main() {
         ["risk:treat", "Review, treat and assign Company risks"],
         ["risk:close", "Close and reopen Company risks"],
         ["policies:read", "Read Company Policies and Policy Versions"],
-        ["policies:write", "Create and update Company Policies and Policy Versions"],
+        [
+          "policies:write",
+          "Create and update Company Policies and Policy Versions",
+        ],
         ["policies:submit", "Submit Company Policy Versions for approval"],
         ["policies:approve", "Approve and reject Company Policy Versions"],
         ["controls:read", "Read Company Controls and mappings"],
@@ -123,10 +126,29 @@ async function main() {
         ["checkpoints:read", "Read Company Checkpoints and reviews"],
         ["checkpoints:write", "Create and update Company Checkpoints"],
         ["checkpoints:review", "Record Company Checkpoint reviews"],
-        ["evidence:read", "Read Company Evidence, links, review and audit history"],
-        ["evidence:write", "Create and update Company Evidence metadata, submit, archive and links"],
+        [
+          "evidence:read",
+          "Read Company Evidence, links, review and audit history",
+        ],
+        [
+          "evidence:write",
+          "Create and update Company Evidence metadata, submit, archive and links",
+        ],
         ["evidence:review", "Approve or reject submitted Company Evidence"],
         ["evidence:download", "Download Company Evidence file content"],
+        ["gaps:read", "Read Company Gaps"],
+        ["gaps:write", "Create and update Company Gaps"],
+        ["gaps:close", "Close and reopen Company Gaps"],
+        ["capa:read", "Read Company CAPAs"],
+        ["capa:write", "Create and update Company CAPAs"],
+        ["capa:close", "Close and reopen Company CAPAs"],
+        ["registers:read", "Read Company operational registers"],
+        [
+          "registers:write",
+          "Create and update Company operational register records",
+        ],
+        ["imports:read", "Read Company workbook import batches and row errors"],
+        ["exports:read", "Export Company records as CSV"],
       ] as const
     ).map(([code, name]) =>
       db.permission.upsert({
@@ -183,6 +205,16 @@ async function main() {
         "evidence:write",
         "evidence:review",
         "evidence:download",
+        "gaps:read",
+        "gaps:write",
+        "gaps:close",
+        "capa:read",
+        "capa:write",
+        "capa:close",
+        "registers:read",
+        "registers:write",
+        "imports:read",
+        "exports:read",
       ].includes(code),
     )) {
       await db.rolePermission.upsert({
@@ -248,7 +280,12 @@ async function main() {
           code !== "checkpoints:review" &&
           code !== "evidence:write" &&
           code !== "evidence:review" &&
-          code !== "evidence:download",
+          code !== "evidence:download" &&
+          code !== "gaps:write" &&
+          code !== "gaps:close" &&
+          code !== "capa:write" &&
+          code !== "capa:close" &&
+          code !== "registers:write",
       )) {
         await db.rolePermission.upsert({
           where: {
