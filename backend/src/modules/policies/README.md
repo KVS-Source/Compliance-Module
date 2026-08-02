@@ -40,12 +40,11 @@ Out of scope / deferred:
 
 - Policy Version obsoletion endpoint
 - Policy INACTIVE transitions
-- KPI Evidence satisfaction (still 501)
 
-Frontend status (Milestone 4 Slice 5):
+Frontend status (Milestone 4 Slice 5 + Milestone 5 gates):
 
 - React Policy Register (`/compliance/policy-register`) and Policy detail
-  (`/compliance/policies/:policyId`) are LIVE after verification
+  (`/compliance/policies/:policyId`) are LIVE
 - Standalone Policy Versions navigation (`/compliance/policy-versions`) remains
   `IN_DEVELOPMENT`
-- React Control and Checkpoint UI remain `IN_DEVELOPMENT`
+- React Control, Checkpoint and Evidence UI are LIVE (Milestones 4–5)

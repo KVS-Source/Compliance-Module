@@ -58,7 +58,12 @@ React Policy pages render content, purpose, scope and change summary as plain
 text (`white-space: pre-wrap`) only. They must not use `dangerouslySetInnerHTML`,
 unsanitized Markdown or HTML parsing. Approval and rejection comments are not
 echoed into toasts, audit metadata displays or console logs. Evidence-required
-Policy approval remains fail-closed with `EVIDENCE_GATE_NOT_IMPLEMENTED`.
+Policy, Checkpoint and KPI actual Evidence gates are enforced in application
+code. Failure is HTTP 409 `EVIDENCE_REQUIRED` with safe reason codes (for
+example `EVIDENCE_COVERAGE_INCOMPLETE`, `EVIDENCE_GATE_NOT_CONFIGURED`,
+`EVIDENCE_KPI_LINK_REQUIRED`). Historical `501 EVIDENCE_GATE_NOT_IMPLEMENTED`
+behaviour is retained only in legacy unit-test seams, not in live approval
+paths.
 
 ## Control UI rendering
 

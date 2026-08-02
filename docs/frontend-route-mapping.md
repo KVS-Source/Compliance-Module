@@ -7,8 +7,8 @@ The route guard enforces unique paths and route IDs, navigation resolution,
 status/page consistency and these counts:
 
 - one public login;
-- 22 protected `LIVE` route patterns;
-- 26 visible `IN_DEVELOPMENT` routes;
+- 26 protected `LIVE` route patterns;
+- 21 visible `IN_DEVELOPMENT` routes;
 - one visible `AWAITING_INTEGRATION` route;
 - 22 hidden `COMPATIBILITY` routes.
 
@@ -18,7 +18,7 @@ status/page consistency and these counts:
 | --- | --- | --- |
 | `/login` | `LoginPage` | real auth API; public |
 
-## Protected LIVE routes: 22
+## Protected LIVE routes: 26
 
 These render dedicated business pages and call real Express/PostgreSQL APIs.
 They must never render `ModuleStatusPage`.
@@ -47,11 +47,15 @@ They must never render `ModuleStatusPage`.
 | `/compliance/controls/:controlId` | `ControlDetailPage` | Control detail, lifecycle, mappings |
 | `/compliance/checkpoints` | `CheckpointRegisterPage` | Checkpoint list/create |
 | `/compliance/checkpoints/:checkpointId` | `CheckpointDetailPage` | Checkpoint detail, Review, lifecycle |
+| `/evidence` | `EvidenceLibraryPage` | Evidence list/read |
+| `/evidence/new` | `EvidenceCreatePage` | Evidence create and file upload |
+| `/evidence/review` | `EvidenceReviewQueuePage` | Evidence review queue |
+| `/evidence/:evidenceId` | `EvidenceDetailPage` | Evidence detail, links, lifecycle |
 
-The 16 top-level paths are in `migratedPaths`; six child/detail patterns are
+The 19 top-level paths are in `migratedPaths`; seven child/detail patterns are
 declared directly in the router and separately asserted by the guard.
 
-## Visible IN DEVELOPMENT routes: 26
+## Visible IN DEVELOPMENT routes: 21
 
 Each path resolves to `ModuleStatusPage` and explicitly states that the module
 is not operational:
@@ -61,12 +65,14 @@ is not operational:
 | Administration | `/admin/roles` |
 | Policies & Controls | `/compliance/policy-versions` |
 | KPI | `/master/kpis`, `/kpi/dashboard`, `/kpi/mapping` |
-| Evidence | `/evidence/register`, `/evidence/upload`, `/evidence/review`, `/evidence/approved`, `/evidence/rejected` |
 | Gap & CAPA | `/compliance/gaps`, `/compliance/gaps/review`, `/compliance/capa`, `/compliance/capa/review` |
 | Audit & Operations | `/audit-trail`, `/tasks`, `/notifications` |
 | Data Management | `/data/import`, `/data/import-history`, `/data/upload-errors` |
 | Reports | `/reports`, `/reports/kpi-performance`, `/reports/risk-summary`, `/reports/compliance-summary` |
 | Settings | `/settings/tenant`, `/settings/integrations` |
+
+Legacy Evidence URLs (`/evidence/register`, `/evidence/upload`, etc.) redirect
+to the live Evidence routes; they are not listed as `IN_DEVELOPMENT`.
 
 ## AWAITING INTEGRATION route: 1
 

@@ -1,6 +1,6 @@
 # Known limitations
 
-These limitations remain through Milestone 5 Slice 3. They must not be hidden
+These limitations remain through Milestone 5 Slice 5.7. They must not be hidden
 by UAT language or status-page presentation.
 
 ## Production blockers
@@ -26,35 +26,36 @@ by UAT language or status-page presentation.
 - Policy, Control and Checkpoint REST APIs are operational. React Policy
   Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
   Checkpoint Register/detail (Slice 7) are operational. Evidence metadata,
-  local file upload/download/submit, DRAFT-only Control/Checkpoint link APIs,
-  and approve/reject review (Slice 5.4) are operational. Evidence React routes,
-  reverse Control/Checkpoint Evidence lists and frontend linking/review UI are
-  not. The standalone Policy Versions navigation page, Gap, CAPA, Import, Tasks,
-  Notifications, Reports, global audit query/export and settings domains are not
-  operational. Same-period Checkpoint Review correction remains unsupported.
+  local file upload/download/submit, DRAFT-only link APIs, approve/reject review,
+  React Evidence routes (Library, Create, Detail, Review, link panels), and
+  Evidence gates for Checkpoint, Policy Version and KPI actual approval are
+  operational (Milestone 5). The standalone Policy Versions navigation page,
+  Gap, CAPA, Import, Tasks, Notifications, Reports, global audit query/export
+  and settings domains are not operational. Same-period Checkpoint Review
+  correction remains unsupported.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Policy, Control and Checkpoint register filters are React state only
   (no URL query sync). Control Checkpoint panels keep counts and, when
   `checkpoints:read` is present, an Open Checkpoints link to
   `/compliance/checkpoints` without controlId query or `location.state`.
 - Checkpoint reviews with `evidenceRequired=true` require qualifying APPROVED
-  Evidence linked to that Checkpoint (Slice 5.5B). Policy approval with
-  `requiresEvidence=true` evaluates exact-version Control/Checkpoint Evidence
-  coverage (Slice 5.5C); empty configuration fails with 409
-  `EVIDENCE_GATE_NOT_CONFIGURED`. KPI actual approval with
+  Evidence linked to that Checkpoint (409 `EVIDENCE_REQUIRED` /
+  `EVIDENCE_COVERAGE_INCOMPLETE`). Policy approval with `requiresEvidence=true`
+  evaluates exact-version Control/Checkpoint Evidence coverage (409 with
+  configured reasons; empty configuration →
+  `EVIDENCE_GATE_NOT_CONFIGURED`). KPI actual approval with
   `requiresEvidence=true` requires at least one active qualifying
   Evidence↔KpiActual link (409 `EVIDENCE_REQUIRED` with
-  `EVIDENCE_KPI_LINK_REQUIRED` or `EVIDENCE_KPI_COVERAGE_INCOMPLETE`). Evidence
-  attachment UI for KPI actuals is deferred to Slice 5.6; backend link APIs
-  exist. Configurations cannot combine `requiresEvidence=true` with
+  `EVIDENCE_KPI_LINK_REQUIRED` or `EVIDENCE_KPI_COVERAGE_INCOMPLETE`). KPI
+  actual Evidence attachment UI is available on the approval page (Slice 5.6).
+  Configurations cannot combine `requiresEvidence=true` with
   `requiresApproval=false`. There is no approval override that skips those
   gates. Evidence file upload/download works for local storage only. Policy
   content/purpose/scope render as plain text only. Evidence links are mutable
   only while DRAFT. Evidence review is limited to SUBMITTED rows with
   creator/uploader/submitter self-review blocked.
-- Playwright Policy, Control and Checkpoint suites use mocked HTTP only. Backend
-  Policy, Control and Checkpoint PostgreSQL integration tests remain the
-  database authority.
+- Playwright Policy, Control, Checkpoint and Evidence suites use mocked HTTP
+  only. Backend PostgreSQL integration tests remain the database authority.
 - Checkpoint reviews are append-only and unique per Checkpoint/review period. A
   mistaken review cannot currently be edited, deleted or replaced for that
   period; a formal correction/supersession mechanism is deferred.
@@ -81,9 +82,9 @@ by UAT language or status-page presentation.
   authority.
 - `prisma migrate diff` reports pre-existing name-only differences for several
   KPI/Risk foreign keys and indexes because the reviewed SQL names differ from
-  Prisma's generated defaults. `prisma migrate status` is up to date and the
-  Milestone 4 catalogue is reconciled independently; no existing migration is
-  rewritten to rename applied objects.
+  Prisma's generated defaults. `prisma migrate status` is up to date; Milestone 4
+  and Milestone 5 catalogues are reconciled in integration tests; no existing
+  migration is rewritten to rename applied objects.
 
 ## Governance and CI supply chain
 

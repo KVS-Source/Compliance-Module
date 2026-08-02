@@ -1,5 +1,9 @@
 {
-  "info": { "name": "GenBioCa GRC API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "info": {
+    "name": "GenBioCa GRC API (legacy — do not use for Evidence)",
+    "description": "Deprecated stub collection. Evidence upload uses POST /evidence then POST /evidence/:id/file — see Evidence-API.postman_collection.json.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
   "variable": [{ "key": "baseUrl", "value": "http://localhost:8000" }, { "key": "token", "value": "" }],
   "item": [
     { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/health" } },

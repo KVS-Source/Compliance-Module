@@ -16,8 +16,6 @@ the backend remains authoritative.
 ## Still IN_DEVELOPMENT
 
 - `/compliance/policy-versions` (standalone navigation page)
-- Control UI
-- Checkpoint UI
 
 ## Behaviour notes
 
@@ -26,7 +24,8 @@ the backend remains authoritative.
 - `latestVersion` is the highest-sequence Version. `currentApprovedVersion` is
   set only when an APPROVED Version is current. They are never conflated.
 - Filters stay in React state (no URL query sync in this slice).
-- Evidence-required Versions show a warning; approval maps
-  `EVIDENCE_GATE_NOT_IMPLEMENTED` clearly. No Evidence upload UI exists.
+- Evidence-required Versions show proactive and error UX for HTTP 409
+  `EVIDENCE_REQUIRED` (configured reasons). Link approved Evidence from the
+  Evidence detail page while DRAFT.
 - Playwright suites under `frontend/tests/policy-*.e2e.ts` use mocked HTTP only.
   Backend PostgreSQL integration tests remain the database authority.
