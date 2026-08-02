@@ -263,6 +263,8 @@ the automatic risk.
 All routes in this walkthrough are live and API-connected. For the deterministic
 local/UAT dataset and synthetic login setup, follow
 [`docs/operations/uat-demo-seed.md`](./docs/operations/uat-demo-seed.md).
+For the separate GenBioCa Company and actual-workbook backend MVP, follow
+[`docs/backend-data-mvp-contract-and-uat.md`](./docs/backend-data-mvp-contract-and-uat.md).
 
 ### 1. Sign in
 
