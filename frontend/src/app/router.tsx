@@ -39,6 +39,8 @@ import { GapDetailPage } from "../features/gaps/GapDetailPage";
 import { GapRegisterPage } from "../features/gaps/GapRegisterPage";
 import { CapaDetailPage } from "../features/capas/CapaDetailPage";
 import { CapaRegisterPage } from "../features/capas/CapaRegisterPage";
+import { ImportDetailPage } from "../features/imports/ImportDetailPage";
+import { ImportHistoryPage } from "../features/imports/ImportHistoryPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -240,6 +242,8 @@ const migratedRoutes: RouteObject[] = [
       </PermissionBoundary>
     ),
   },
+  { path: "data/import-history", element: <PermissionBoundary permission="imports:read"><ImportHistoryPage /></PermissionBoundary> },
+  { path: "data/import-history/:importId", element: <PermissionBoundary permission="imports:read"><ImportDetailPage /></PermissionBoundary> },
   {
     path: "compliance/policy-register",
     element: (

@@ -520,20 +520,14 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       dependency: "Reviewed template contracts and safe import transaction design.",
     },
   ),
-  development(
+  live(
     "/data/import-history",
     "#data/import-history",
     "Import History",
     "Data Management",
     "Auditable history of reviewed data imports.",
     FileClock,
-    {
-      plannedCapabilities: [
-        "Review prior import jobs",
-        "Inspect accepted and rejected counts",
-        "Navigate to import audit events",
-      ],
-    },
+    { permission: "imports:read", api: "GET /imports · GET /imports/:id · GET /imports/:id/errors" },
   ),
   development(
     "/data/upload-errors",
@@ -826,6 +820,7 @@ export const migratedPaths = new Set([
   "/compliance/checkpoints",
   "/compliance/gaps",
   "/compliance/capa",
+  "/data/import-history",
   "/evidence",
   "/evidence/new",
   "/evidence/review",

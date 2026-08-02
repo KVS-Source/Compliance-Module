@@ -1704,3 +1704,21 @@ export interface UpdateCapaInput {
   dueDate?: string | null;
   completionPercentage?: number;
 }
+
+export type ImportBatchStatus = "PREVIEWED" | "COMMITTING" | "COMPLETED" | "PARTIAL" | "FAILED";
+export interface ImportActor { id: string; code: string; fullName: string; }
+export interface ImportSheetSummary { key: string; sheetName: string; target: "normalised" | "register" | "derived"; present: boolean; totalRows: number; validRows: number; errorRows: number; flaggedRows: number; missingHeaders: string[]; reason?: string; }
+export interface ImportSheetOutcome { sheet: string; created: number; updated: number; unchanged: number; skipped: number; }
+export interface ImportReport {
+  workbook?: { filename: string; checksum: string; byteSize: number; sheetCount: number };
+  sheets?: ImportSheetSummary[];
+  unmappedSheets?: string[];
+  totals?: { totalRows: number; validRows: number; errorRows: number; flaggedRows: number };
+  counts?: { created: number; updated: number; unchanged: number; skipped: number; errors: number };
+  perSheetOutcomes?: ImportSheetOutcome[];
+  alreadyImported?: boolean;
+}
+export interface ImportBatch { id: string; originalFilename: string; fileChecksum: string; idempotencyKey?: string; status: ImportBatchStatus; createdCount: number; updatedCount: number; skippedCount: number; errorCount: number; startedAt: string; completedAt: string | null; uploadedBy: ImportActor; report?: ImportReport | null; }
+export interface ImportBatchListResult { data: ImportBatch[]; meta: PageMeta; }
+export interface ImportBatchError { id: string; sheet: string; rowNumber: number; businessKey: string | null; validationErrors: unknown; importResult: "FAILED"; }
+export interface ImportBatchErrorListResult { data: ImportBatchError[]; meta: PageMeta; }

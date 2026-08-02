@@ -783,6 +783,8 @@
   font-weight: 700;
 }
 
+.deadline-break { overflow-wrap: anywhere; }
+
 .deadline-progress {
   height: 7px;
   margin: -5px 0 16px;
