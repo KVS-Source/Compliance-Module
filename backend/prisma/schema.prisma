@@ -139,6 +139,63 @@ enum EvidenceDecisionOutcome {
   REJECTED
 }
 
+/// Workbook `27_Lookups!Gap_Severity`. Distinct from KpiRiskClass and
+/// GeneralRiskLevel: a Gap severity never becomes a Risk severity implicitly.
+enum GapSeverity {
+  CRITICAL
+  MAJOR
+  MINOR
+  OBSERVATION
+  OFI
+}
+
+enum GapStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  CANCELLED
+}
+
+/// Workbook `27_Lookups!CAPA_Priority`.
+enum CapaPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Workbook `27_Lookups!CAPA_Status`.
+enum CapaStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_VERIFICATION
+  CLOSED
+  CANCELLED
+}
+
+enum ImportBatchStatus {
+  PREVIEWED
+  COMMITTING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum ImportRowResult {
+  CREATED
+  UPDATED
+  UNCHANGED
+  SKIPPED
+  FAILED
+}
+
+/// Separates history replayed from a client workbook from events this system
+/// observed. Imported rows are never presented as first-party audit evidence.
+enum AuditEventSource {
+  SYSTEM
+  IMPORT
+}
+
 model Tenant {
   id                       String                 @id @default(uuid()) @db.Uuid
   code                     String                 @unique
@@ -154,6 +211,8 @@ model Tenant {
   nextControlNumber        Int                    @default(1) @map("next_control_number")
   nextCheckpointNumber     Int                    @default(1) @map("next_checkpoint_number")
   nextEvidenceNumber       Int                    @default(1) @map("next_evidence_number")
+  nextGapNumber            Int                    @default(1) @map("next_gap_number")
+  nextCapaNumber           Int                    @default(1) @map("next_capa_number")
   createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships              UserCompany[]
@@ -186,6 +245,14 @@ model Tenant {
   evidenceCheckpointLinks  EvidenceCheckpointLink[]
   evidenceKpiActualLinks   EvidenceKpiActualLink[]
   evidenceReviewDecisions  EvidenceReviewDecision[]
+  gaps                     Gap[]
+  gapEvidenceLinks         GapEvidenceLink[]
+  capas                    Capa[]
+  capaEvidenceLinks        CapaEvidenceLink[]
+  registerTypes            OperationalRegisterType[]
+  registerRecords          OperationalRegisterRecord[]
+  importBatches            ImportBatch[]
+  importBatchRows          ImportBatchRow[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
 
@@ -268,6 +335,20 @@ model User {
   updatedEvidenceCheckpointLinks EvidenceCheckpointLink[] @relation("EvidenceCheckpointLinkUpdatedBy")
   createdEvidenceKpiActualLinks EvidenceKpiActualLink[] @relation("EvidenceKpiActualLinkCreatedBy")
   updatedEvidenceKpiActualLinks EvidenceKpiActualLink[] @relation("EvidenceKpiActualLinkUpdatedBy")
+  ownedGaps                 Gap[]                  @relation("GapOwner")
+  createdGaps               Gap[]                  @relation("GapCreatedBy")
+  updatedGaps               Gap[]                  @relation("GapUpdatedBy")
+  createdGapEvidenceLinks   GapEvidenceLink[]      @relation("GapEvidenceLinkCreatedBy")
+  updatedGapEvidenceLinks   GapEvidenceLink[]      @relation("GapEvidenceLinkUpdatedBy")
+  ownedCapas                Capa[]                 @relation("CapaOwner")
+  createdCapas              Capa[]                 @relation("CapaCreatedBy")
+  updatedCapas              Capa[]                 @relation("CapaUpdatedBy")
+  createdCapaEvidenceLinks  CapaEvidenceLink[]     @relation("CapaEvidenceLinkCreatedBy")
+  updatedCapaEvidenceLinks  CapaEvidenceLink[]     @relation("CapaEvidenceLinkUpdatedBy")
+  ownedRegisterRecords      OperationalRegisterRecord[] @relation("RegisterRecordOwner")
+  createdRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordCreatedBy")
+  updatedRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordUpdatedBy")
+  startedImportBatches      ImportBatch[]          @relation("ImportBatchUploadedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -360,6 +441,9 @@ model OrgDepartment {
   controls          Control[]
   checkpoints       Checkpoint[]
   evidence          Evidence[]
+  gaps              Gap[]
+  capas             Capa[]
+  registerRecords   OperationalRegisterRecord[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, id])
@@ -410,9 +494,15 @@ model Framework {
   version           String
   description       String?
   status            RecordStatus       @default(ACTIVE)
+  /// Verbatim client vocabulary from `27_Lookups!Compliance_Status`, for
+  /// example `Certified` or `Active – Out of Scope`. `status` stays the
+  /// coarse ACTIVE/DISABLED switch the rest of the platform filters on.
+  scopeStatus       String?            @map("scope_status")
   rules             FrameworkRule[]
   policyFrameworks  PolicyFramework[]
   controlFrameworks ControlFramework[]
+  gaps              Gap[]
+  capas             Capa[]
 
   @@unique([code, version])
   @@index([status, name])
@@ -426,8 +516,16 @@ model FrameworkRule {
   title        String
   description  String?
   status       RecordStatus  @default(ACTIVE)
+  /// Clause or control reference as written by the framework body, for
+  /// example `A.5.15` or `§164.308(a)(1)`. `code` stays the workbook checkpoint
+  /// identifier so a revised workbook still upserts onto the same row.
+  clauseRef    String?       @map("clause_ref")
+  theme        String?
+  criticality  String?
+  frequency    String?
   framework    Framework     @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
   ruleControls RuleControl[]
+  gaps         Gap[]
 
   @@unique([frameworkId, code])
   @@unique([frameworkId, id])
@@ -595,6 +693,7 @@ model Control {
   frameworkMappings     ControlFramework[]
   checkpoints           Checkpoint[]
   evidenceLinks         EvidenceControlLink[]
+  gaps                  Gap[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -707,6 +806,7 @@ model Checkpoint {
   createdBy             User                   @relation("CheckpointCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy             User                   @relation("CheckpointUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   evidenceLinks         EvidenceCheckpointLink[]
+  gaps                  Gap[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, latestReviewId])
@@ -767,6 +867,10 @@ model Evidence {
   detectedMimeType     String?                 @map("detected_mime_type")
   byteSize             Int?                    @map("byte_size")
   contentSha256        String?                 @map("content_sha256")
+  /// The `File Link / Path` string carried by an imported workbook row. It is
+  /// a claim made by a spreadsheet, never proof of a stored file: only a
+  /// non-null `storageKey` means this platform actually holds the bytes.
+  sourceFileReference  String?                 @map("source_file_reference")
   uploadedById         String?                 @map("uploaded_by_id") @db.Uuid
   uploadedAt           DateTime?               @map("uploaded_at") @db.Timestamptz(6)
   createdById          String                  @map("created_by_id") @db.Uuid
@@ -787,6 +891,8 @@ model Evidence {
   checkpointLinks      EvidenceCheckpointLink[]
   kpiActualLinks       EvidenceKpiActualLink[]
   reviewDecisions      EvidenceReviewDecision[]
+  gapLinks             GapEvidenceLink[]
+  capaLinks            CapaEvidenceLink[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1209,20 +1315,316 @@ model RefreshToken {
 }
 
 model AuditEvent {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenantId   String   @map("tenant_id") @db.Uuid
-  userId     String?  @map("user_id") @db.Uuid
+  id         String           @id @default(uuid()) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  userId     String?          @map("user_id") @db.Uuid
   action     String
-  entityType String   @map("entity_type")
-  entityId   String?  @map("entity_id")
-  metadata   Json     @default("{}")
-  ipAddress  String?  @map("ip_address")
-  userAgent  String?  @map("user_agent")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  entityType String           @map("entity_type")
+  entityId   String?          @map("entity_id")
+  metadata   Json             @default("{}")
+  ipAddress  String?          @map("ip_address")
+  userAgent  String?          @map("user_agent")
+  /// SYSTEM for events this platform observed, IMPORT for history replayed
+  /// from a client workbook. `createdAt` is always the time this row was
+  /// written; an imported event carries its original stamp in `metadata`.
+  source     AuditEventSource @default(SYSTEM)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user       User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
   @@index([tenantId, action])
+  @@index([tenantId, source, createdAt])
   @@map("audit_events")
+}
+
+/// A control weakness raised against a framework clause, control or
+/// checkpoint. Workbook source: `10_Gap_Analysis`.
+model Gap {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  code            String
+  title           String
+  description     String?           @db.Text
+  source          String?
+  frameworkId     String?           @map("framework_id") @db.Uuid
+  frameworkRuleId String?           @map("framework_rule_id") @db.Uuid
+  controlId       String?           @map("control_id") @db.Uuid
+  checkpointId    String?           @map("checkpoint_id") @db.Uuid
+  clauseRef       String?           @map("clause_ref")
+  recommendedAction String?         @map("recommended_action") @db.Text
+  severity        GapSeverity
+  status          GapStatus         @default(OPEN)
+  ownerId         String?           @map("owner_id") @db.Uuid
+  /// Workbook owner token such as `U-004`. Imported rows keep the client's
+  /// reference without provisioning an authenticated account for it.
+  sourceOwnerRef  String?           @map("source_owner_ref")
+  departmentId    String?           @map("department_id") @db.Uuid
+  identifiedOn    DateTime?         @map("identified_on") @db.Date
+  dueDate         DateTime?         @map("due_date") @db.Date
+  closedAt        DateTime?         @map("closed_at") @db.Timestamptz(6)
+  closureNote     String?           @map("closure_note") @db.Text
+  /// Set when the value could not be derived from the workbook and a
+  /// documented fallback was applied. Surfaced for human review.
+  needsReview     Boolean           @default(false) @map("needs_review")
+  reviewReason    String?           @map("review_reason")
+  importBatchId   String?           @map("import_batch_id") @db.Uuid
+  sourceSheet     String?           @map("source_sheet")
+  sourceRow       Int?              @map("source_row")
+  createdById     String            @map("created_by_id") @db.Uuid
+  updatedById     String            @map("updated_by_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  framework       Framework?        @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  frameworkRule   FrameworkRule?    @relation(fields: [frameworkRuleId], references: [id], onDelete: Restrict)
+  control         Control?          @relation(fields: [tenantId, controlId], references: [tenantId, id], onDelete: Restrict)
+  checkpoint      Checkpoint?       @relation(fields: [tenantId, checkpointId], references: [tenantId, id], onDelete: Restrict)
+  owner           User?             @relation("GapOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department      OrgDepartment?    @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  createdBy       User              @relation("GapCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User              @relation("GapUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  importBatch     ImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  capas           Capa[]
+  evidenceLinks   GapEvidenceLink[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId, status, deletedAt, dueDate])
+  @@index([tenantId, severity, status, deletedAt])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([tenantId, frameworkId])
+  @@index([frameworkRuleId])
+  @@index([tenantId, controlId])
+  @@index([tenantId, checkpointId])
+  @@index([importBatchId])
+  @@map("gaps")
+}
+
+model GapEvidenceLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  gapId       String   @map("gap_id") @db.Uuid
+  evidenceId  String   @map("evidence_id") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  linkReason  String?  @map("link_reason") @db.Text
+  createdById String   @map("created_by_id") @db.Uuid
+  updatedById String   @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  gap         Gap      @relation(fields: [tenantId, gapId], references: [tenantId, id], onDelete: Restrict)
+  evidence    Evidence @relation(fields: [tenantId, evidenceId], references: [tenantId, id], onDelete: Restrict)
+  createdBy   User     @relation("GapEvidenceLinkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User     @relation("GapEvidenceLinkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, gapId, evidenceId])
+  @@index([tenantId, gapId, isActive])
+  @@index([tenantId, evidenceId, isActive])
+  @@map("gap_evidence_links")
+}
+
+/// Corrective and preventive action. Workbook source: `11_CAPA_Register`.
+model Capa {
+  id                   String             @id @default(uuid()) @db.Uuid
+  tenantId             String             @map("tenant_id") @db.Uuid
+  code                 String
+  title                String
+  description          String?            @db.Text
+  gapId                String?            @map("gap_id") @db.Uuid
+  source               String?
+  sourceRef            String?            @map("source_ref")
+  frameworkId          String?            @map("framework_id") @db.Uuid
+  rootCause            String?            @map("root_cause") @db.Text
+  correctiveAction     String?            @map("corrective_action") @db.Text
+  preventiveAction     String?            @map("preventive_action") @db.Text
+  priority             CapaPriority
+  status               CapaStatus         @default(OPEN)
+  ownerId              String?            @map("owner_id") @db.Uuid
+  sourceOwnerRef       String?            @map("source_owner_ref")
+  departmentId         String?            @map("department_id") @db.Uuid
+  raisedOn             DateTime?          @map("raised_on") @db.Date
+  dueDate              DateTime?          @map("due_date") @db.Date
+  completionPercentage Int                @default(0) @map("completion_percentage")
+  closedAt             DateTime?          @map("closed_at") @db.Timestamptz(6)
+  closureNote          String?            @map("closure_note") @db.Text
+  needsReview          Boolean            @default(false) @map("needs_review")
+  reviewReason         String?            @map("review_reason")
+  importBatchId        String?            @map("import_batch_id") @db.Uuid
+  sourceSheet          String?            @map("source_sheet")
+  sourceRow            Int?               @map("source_row")
+  createdById          String             @map("created_by_id") @db.Uuid
+  updatedById          String             @map("updated_by_id") @db.Uuid
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt            DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  gap                  Gap?               @relation(fields: [tenantId, gapId], references: [tenantId, id], onDelete: Restrict)
+  framework            Framework?         @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  owner                User?              @relation("CapaOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department           OrgDepartment?     @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  createdBy            User               @relation("CapaCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User               @relation("CapaUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  importBatch          ImportBatch?       @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  evidenceLinks        CapaEvidenceLink[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId, status, deletedAt, dueDate])
+  @@index([tenantId, priority, status, deletedAt])
+  @@index([tenantId, gapId])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([frameworkId])
+  @@index([importBatchId])
+  @@map("capas")
+}
+
+model CapaEvidenceLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  capaId      String   @map("capa_id") @db.Uuid
+  evidenceId  String   @map("evidence_id") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  linkReason  String?  @map("link_reason") @db.Text
+  createdById String   @map("created_by_id") @db.Uuid
+  updatedById String   @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  capa        Capa     @relation(fields: [tenantId, capaId], references: [tenantId, id], onDelete: Restrict)
+  evidence    Evidence @relation(fields: [tenantId, evidenceId], references: [tenantId, id], onDelete: Restrict)
+  createdBy   User     @relation("CapaEvidenceLinkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User     @relation("CapaEvidenceLinkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, capaId, evidenceId])
+  @@index([tenantId, capaId, isActive])
+  @@index([tenantId, evidenceId, isActive])
+  @@map("capa_evidence_links")
+}
+
+/// Generic container for the workbook registers that do not warrant a
+/// dedicated normalised module in this MVP (audit schedule, findings,
+/// training, incidents, vendors, privacy, meetings, action items).
+model OperationalRegisterType {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  tenantId           String                      @map("tenant_id") @db.Uuid
+  code               String
+  name               String
+  description        String?
+  sourceSheet        String?                     @map("source_sheet")
+  /// Ordered column descriptors: `[{ key, label, type }]`. Drives generic
+  /// list rendering and CSV export without a per-register schema.
+  fieldConfiguration Json                        @default("[]") @map("field_configuration")
+  active             Boolean                     @default(true)
+  createdAt          DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant             Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  records            OperationalRegisterRecord[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId, active, code])
+  @@map("operational_register_types")
+}
+
+model OperationalRegisterRecord {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  tenantId           String                  @map("tenant_id") @db.Uuid
+  registerTypeId     String                  @map("register_type_id") @db.Uuid
+  businessRecordCode String                  @map("business_record_code")
+  title              String
+  status             String?
+  ownerId            String?                 @map("owner_id") @db.Uuid
+  sourceOwnerRef     String?                 @map("source_owner_ref")
+  departmentId       String?                 @map("department_id") @db.Uuid
+  recordDate         DateTime?               @map("record_date") @db.Date
+  dueDate            DateTime?               @map("due_date") @db.Date
+  sourceSheet        String?                 @map("source_sheet")
+  sourceRow          Int?                    @map("source_row")
+  importBatchId      String?                 @map("import_batch_id") @db.Uuid
+  payload            Json                    @default("{}")
+  createdById        String                  @map("created_by_id") @db.Uuid
+  updatedById        String                  @map("updated_by_id") @db.Uuid
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?               @map("deleted_at") @db.Timestamptz(6)
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  registerType       OperationalRegisterType @relation(fields: [tenantId, registerTypeId], references: [tenantId, id], onDelete: Restrict)
+  owner              User?                   @relation("RegisterRecordOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department         OrgDepartment?          @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  createdBy          User                    @relation("RegisterRecordCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User                    @relation("RegisterRecordUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  importBatch        ImportBatch?            @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, registerTypeId, businessRecordCode])
+  @@index([tenantId, registerTypeId, deletedAt, dueDate])
+  @@index([tenantId, registerTypeId, status])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, departmentId])
+  @@index([importBatchId])
+  @@map("operational_register_records")
+}
+
+/// One workbook preview or commit attempt. `fileChecksum` detects a byte
+/// identical workbook; `idempotencyKey` makes a repeated commit return the
+/// original result instead of writing a second set of records.
+model ImportBatch {
+  id               String                      @id @default(uuid()) @db.Uuid
+  tenantId         String                      @map("tenant_id") @db.Uuid
+  originalFilename String                      @map("original_filename")
+  fileChecksum     String                      @map("file_checksum")
+  idempotencyKey   String                      @map("idempotency_key")
+  status           ImportBatchStatus           @default(PREVIEWED)
+  createdCount     Int                         @default(0) @map("created_count")
+  updatedCount     Int                         @default(0) @map("updated_count")
+  skippedCount     Int                         @default(0) @map("skipped_count")
+  errorCount       Int                         @default(0) @map("error_count")
+  uploadedById     String?                     @map("uploaded_by_id") @db.Uuid
+  startedAt        DateTime                    @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime?                   @map("completed_at") @db.Timestamptz(6)
+  /// Per-sheet counts and the human readable summary, so a report can be
+  /// re-read without replaying the workbook.
+  report           Json                        @default("{}")
+  createdAt        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant           Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  uploadedBy       User?                       @relation("ImportBatchUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  rows             ImportBatchRow[]
+  gaps             Gap[]
+  capas            Capa[]
+  registerRecords  OperationalRegisterRecord[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, startedAt])
+  @@index([tenantId, fileChecksum])
+  @@map("import_batches")
+}
+
+model ImportBatchRow {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenantId            String          @map("tenant_id") @db.Uuid
+  batchId             String          @map("batch_id") @db.Uuid
+  sheet               String
+  rowNumber           Int             @map("row_number")
+  businessKey         String?         @map("business_key")
+  normalizedPayload   Json            @default("{}") @map("normalized_payload")
+  validationErrors    Json            @default("[]") @map("validation_errors")
+  importResult        ImportRowResult @map("import_result")
+  destinationTable    String?         @map("destination_table")
+  destinationRecordId String?         @map("destination_record_id")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  batch               ImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, batchId, sheet, rowNumber])
+  @@index([tenantId, batchId, importResult])
+  @@map("import_batch_rows")
 }
