@@ -3,6 +3,8 @@ import pino, {
   type Logger,
   type LoggerOptions,
 } from "pino";
+import { randomUUID } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Options as PinoHttpOptions } from "pino-http";
 import { env } from "./env.js";
 
@@ -93,10 +95,18 @@ export const createLogger = (
   level: LoggerOptions["level"] = env.LOG_LEVEL,
 ): Logger => pino({ ...loggerOptions, level }, destination);
 
-export const httpLoggerOptions = (
-  httpLogger: Logger,
-): PinoHttpOptions => ({
+export const httpLoggerOptions = (httpLogger: Logger): PinoHttpOptions => ({
   logger: httpLogger,
+  genReqId: (request: IncomingMessage, response: ServerResponse) => {
+    const supplied = request.headers["x-request-id"];
+    const candidate = Array.isArray(supplied) ? supplied[0] : supplied;
+    const requestId =
+      candidate && /^[A-Za-z0-9._:-]{1,128}$/.test(candidate)
+        ? candidate
+        : randomUUID();
+    response.setHeader("X-Request-Id", requestId);
+    return requestId;
+  },
   serializers: {
     res: serializeHttpResponse,
   },

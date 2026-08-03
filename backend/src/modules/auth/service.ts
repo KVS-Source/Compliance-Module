@@ -24,7 +24,11 @@ const activeMembership = (user: AuthUser, tenantId: string) =>
       membership.tenant.status === "ACTIVE",
   );
 
-const permissionsFor = (user: AuthUser, tenantId: string) => [
+export const permissionsFor = (
+  user: AuthUser,
+  tenantId: string,
+  nodeEnvironment = env.NODE_ENV,
+) => [
   ...new Set(
     user.roles
       .filter(
@@ -35,7 +39,9 @@ const permissionsFor = (user: AuthUser, tenantId: string) => [
           assignment.role.status === "ACTIVE",
       )
       .flatMap((assignment) =>
-        assignment.role.permissions.map((entry) => entry.permission.code),
+        assignment.role.permissions
+          .map((entry) => entry.permission.code)
+          .filter((code) => nodeEnvironment !== "production" || code !== "*"),
       ),
   ),
 ];

@@ -15,6 +15,7 @@
     "guard:router": "node ../scripts/check-router-mode.mjs",
     "guard:boundaries": "node ../scripts/check-active-boundaries.mjs",
     "guard:routes": "node ../scripts/check-live-routes.mjs",
+    "guard:production-api": "node ../scripts/check-production-api.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

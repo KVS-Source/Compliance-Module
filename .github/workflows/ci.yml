@@ -144,6 +144,8 @@ jobs:
         run: npm --prefix frontend run guard:boundaries
       - name: Enforce API-connected routes stay live
         run: npm --prefix frontend run guard:routes
+      - name: Enforce production API configuration safety
+        run: npm --prefix frontend run guard:production-api
 
   secret-scan:
     name: Gitleaks

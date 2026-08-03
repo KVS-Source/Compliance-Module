@@ -21,6 +21,7 @@ export interface StoredFile {
 }
 
 export interface FileStorageProvider {
+  checkReady(): Promise<void>;
   put(key: string, content: Buffer, contentType: string): Promise<StoredFile>;
   putStream(
     key: string,
@@ -121,12 +122,27 @@ export class LocalFileStorageProvider implements FileStorageProvider {
     return resolveContainedStoragePath(this.root, key);
   }
 
+  async checkReady() {
+    const probeDirectory = join(this.root, ".tmp", "readiness");
+    const probePath = join(probeDirectory, `${randomUUID()}.probe`);
+    await mkdir(probeDirectory, { recursive: true, mode: 0o700 });
+    try {
+      await writeFile(probePath, "ready", {
+        encoding: "utf8",
+        flag: "wx",
+        mode: 0o600,
+      });
+      if ((await readFile(probePath, "utf8")) !== "ready") {
+        throw new Error("Storage readiness probe failed");
+      }
+    } finally {
+      await unlink(probePath).catch(() => undefined);
+    }
+  }
+
   private assertUnderRoot(absolutePath: string) {
     const normalized = resolve(absolutePath);
-    if (
-      normalized !== this.root &&
-      !normalized.startsWith(this.root + sep)
-    ) {
+    if (normalized !== this.root && !normalized.startsWith(this.root + sep)) {
       throw new StoragePathError();
     }
     return normalized;
@@ -228,6 +244,11 @@ export class LocalFileStorageProvider implements FileStorageProvider {
 }
 
 export class S3CompatibleFileStorageProvider implements FileStorageProvider {
+  checkReady(): Promise<void> {
+    return Promise.reject(
+      new Error("S3 adapter is not configured in Milestone 1"),
+    );
+  }
   put(): Promise<StoredFile> {
     return Promise.reject(
       new Error("S3 adapter is not configured in Milestone 1"),

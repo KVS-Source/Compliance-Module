@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 
@@ -29,4 +29,6 @@ export const newRefreshToken = () => ({
 });
 
 export const hashToken = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
+  createHmac("sha256", env.REFRESH_TOKEN_SECRET ?? env.JWT_ACCESS_SECRET)
+    .update(token)
+    .digest("hex");
