@@ -3,19 +3,23 @@
 These limitations remain through Milestone 5 Slice 5.7. They must not be hidden
 by UAT language or status-page presentation.
 
-## Production blockers
+## Production release limitations
 
-1. `COMPANY_ADMIN` still receives wildcard permission `"*"`. Replace it with a
-   reviewed enumerated set and migrate existing assignments before production.
+1. Legacy development/UAT data may still contain `COMPANY_ADMIN` with wildcard
+   permission `"*"`. Production token issuance ignores wildcard permission,
+   the production initializer uses five explicit roles, and readiness refuses
+   any active wildcard assignment. Existing assignments must be replaced before
+   production readiness can pass.
 2. PostgreSQL RLS is not implemented. Tenant isolation currently depends on
    application context/predicates plus database FKs, constraints and triggers.
 3. There is no automated browser-to-PostgreSQL E2E suite. Playwright intercepts
    APIs; human real-stack verification remains required.
-4. AWS, production networking, managed PostgreSQL, secret management,
-   observability, alerting, TLS termination, autoscaling and disaster-recovery
-   infrastructure are not configured.
-5. The local backup/restore drill proves mechanics on small synthetic data; it
-   is not a production RPO/RTO or load/scale result.
+4. A production Compose fallback and HTTPS reverse-proxy configuration exist,
+   but the actual server, DNS, certificate, secret manager, log destination,
+   alerting and host/disk encryption still require human infrastructure inputs.
+5. The local backup/restore drill proves mechanics against the disposable
+   production-style workbook load; it is not a production RPO/RTO,
+   infrastructure-failure or load/scale result.
 6. The default branch is verified as `main`, but its protection/ruleset,
    required-review, required-check, conversation-resolution,
    force-push/deletion and administrator-bypass controls still require
@@ -25,16 +29,18 @@ by UAT language or status-page presentation.
 
 - Policy, Control and Checkpoint REST APIs are operational. React Policy
   Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
-  Checkpoint Register/detail (Slice 7) are operational. Evidence metadata,
+  Checkpoint Register/detail (Slice 7), Gap/CAPA registers and details, and
+  Import History/detail are operational. Evidence metadata,
   local file upload/download/submit, DRAFT-only link APIs, approve/reject review,
   React Evidence routes (Library, Create, Detail, Review, link panels), and
   Evidence gates for Checkpoint, Policy Version and KPI actual approval are
   operational (Milestone 5). The standalone Policy Versions navigation page,
-  Gap/CAPA/import/operational-register frontend integrations, Tasks,
-  Notifications, Reports, global audit query/export and settings are not
-  operational. The Gap, CAPA, operational-register, import-read, dashboard and
-  CSV-export backend paths are available under the frozen backend/data MVP
-  contract. Same-period Checkpoint Review correction remains unsupported.
+  dedicated operational-register UI, Tasks, Notifications, Reports, global
+  audit query/export and settings are not operational. Operational-register
+  data is available through the protected backend and dashboard summary. The
+  upload UI remains deliberately unavailable; authoritative workbook imports
+  use the reviewed operator CLI. Same-period Checkpoint Review correction
+  remains unsupported.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Policy, Control and Checkpoint register filters are React state only
   (no URL query sync). Control Checkpoint panels keep counts and, when
@@ -70,9 +76,10 @@ by UAT language or status-page presentation.
 
 ## Storage and operations
 
-- `FILE_STORAGE_DRIVER=local` is development/UAT storage. Docker Compose mounts
-  a named `genbioca_uploads` volume for container persistence; this is not
-  production object storage or a backup strategy.
+- `FILE_STORAGE_DRIVER=local` is the approved deadline fallback, not production
+  object storage. Production Compose mounts the private `production_evidence`
+  volume; host/disk encryption, restricted access and the combined encrypted
+  database-plus-Evidence backup procedure are mandatory compensating controls.
 - S3 is recognised but unimplemented and is rejected during configuration.
 - Evidence upload max is 10 MiB with a code-controlled type allowlist. Abrupt
   process termination may leave temporary files under `.tmp` (no periodic
