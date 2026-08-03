@@ -25,6 +25,8 @@
     "import:workbook:preview": "tsx scripts/workbook-import.ts preview",
     "import:workbook:commit": "tsx scripts/workbook-import.ts commit",
     "import:workbook:report": "tsx scripts/workbook-import.ts report",
+    "client:initialize": "tsx scripts/initialize-client.ts",
+    "smoke:production": "tsx scripts/production-smoke.ts",
     "start:docker": "node dist/src/server.js"
   },
   "dependencies": {

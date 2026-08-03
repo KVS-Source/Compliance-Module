@@ -8,10 +8,12 @@ import { assertSeedExecutionAllowed } from "../prisma/seed-safety.js";
 import { assertDemoSeedExecutionAllowed } from "../prisma/demo-seed-safety.js";
 import { refreshCookieOptions } from "../src/modules/auth/routes.js";
 import { createFileStorageProvider } from "../src/providers/file-storage/file-storage.js";
+import { databaseRuntimeUrl } from "../src/config/prisma.js";
 
 const backendRoot = process.cwd();
 const repositoryRoot = resolve(backendRoot, "..");
 const strongSecret = "8fd6b41004a74ce6a5342382180e76fca0bdf5aa";
+const refreshSecret = "2d4686e0060d42dc91b9ed4bda9d0ce499cb372a";
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
 
 const validDevelopment = {
@@ -21,11 +23,28 @@ const validDevelopment = {
   JWT_ISSUER: "genbioca-compliance-development",
   COOKIE_SECURE: "false",
 };
+const validProduction = {
+  ...validDevelopment,
+  NODE_ENV: "production",
+  JWT_ISSUER: "genbioca-client-release",
+  COOKIE_SECURE: "true",
+  REFRESH_TOKEN_SECRET: refreshSecret,
+  TRUST_PROXY: "1",
+  CORS_ORIGINS: "https://compliance.client.invalid",
+  FRONTEND_API_URL: "/api/v1",
+  PRODUCTION_DOMAIN: "compliance.client.invalid",
+  LOCAL_UPLOAD_DIR: "/var/lib/genbioca/evidence",
+  BACKUP_PATH: "/var/backups/genbioca",
+  READINESS_STORAGE_CHECK: "true",
+  ENABLE_API_DOCS: "false",
+  ENABLE_PROTOTYPE_ROUTES: "false",
+  LOG_LEVEL: "info",
+};
 
 describe("environment validation", () => {
   it("rejects production with insecure cookies", () => {
     expect(() =>
-      parseEnvironment({ ...validDevelopment, NODE_ENV: "production" }),
+      parseEnvironment({ ...validProduction, COOKIE_SECURE: "false" }),
     ).toThrow(/COOKIE_SECURE/);
   });
 
@@ -74,24 +93,14 @@ describe("environment validation", () => {
   });
 
   it("accepts valid production configuration", () => {
-    expect(
-      parseEnvironment({
-        ...validDevelopment,
-        NODE_ENV: "production",
-        COOKIE_SECURE: "true",
-        JWT_ISSUER: "genbioca-compliance",
-      }).NODE_ENV,
-    ).toBe("production");
+    expect(parseEnvironment(validProduction).NODE_ENV).toBe("production");
   });
 
   it("rejects unsafe placeholder secrets in production", () => {
     expect(() =>
       parseEnvironment({
-        ...validDevelopment,
-        NODE_ENV: "production",
-        COOKIE_SECURE: "true",
-        JWT_ACCESS_SECRET:
-          "replace-with-at-least-32-random-characters",
+        ...validProduction,
+        JWT_ACCESS_SECRET: "replace-with-at-least-32-random-characters",
       }),
     ).toThrow(/JWT_ACCESS_SECRET/);
   });
@@ -99,26 +108,111 @@ describe("environment validation", () => {
   it("rejects unsafe placeholder issuers in production", () => {
     expect(() =>
       parseEnvironment({
-        ...validDevelopment,
-        NODE_ENV: "production",
-        COOKIE_SECURE: "true",
+        ...validProduction,
         JWT_ISSUER: "replace-me-example",
       }),
     ).toThrow(/JWT_ISSUER/);
   });
 
   it("makes the production refresh cookie HttpOnly, Secure and SameSite=Strict", () => {
-    const production = parseEnvironment({
-      ...validDevelopment,
-      NODE_ENV: "production",
-      COOKIE_SECURE: "true",
-      JWT_ISSUER: "genbioca-compliance",
-    });
+    const production = parseEnvironment(validProduction);
     expect(refreshCookieOptions(production)).toMatchObject({
       httpOnly: true,
       secure: true,
       sameSite: "strict",
     });
+  });
+
+  it("requires separate non-placeholder access and refresh secrets in production", () => {
+    const { REFRESH_TOKEN_SECRET: _removed, ...missingRefresh } =
+      validProduction;
+    void _removed;
+    expect(() => parseEnvironment(missingRefresh)).toThrow(
+      /REFRESH_TOKEN_SECRET/,
+    );
+    expect(() =>
+      parseEnvironment({
+        ...validProduction,
+        REFRESH_TOKEN_SECRET: validProduction.JWT_ACCESS_SECRET,
+      }),
+    ).toThrow(/must be different/);
+    expect(() =>
+      parseEnvironment({
+        ...validProduction,
+        REFRESH_TOKEN_SECRET: "replace-with-a-refresh-secret-value-now",
+      }),
+    ).toThrow(/REFRESH_TOKEN_SECRET/);
+  });
+
+  it("requires an exact HTTPS CORS allowlist and a safe production API URL", () => {
+    expect(() =>
+      parseEnvironment({ ...validProduction, CORS_ORIGINS: "" }),
+    ).toThrow(/CORS_ORIGINS/);
+    expect(() =>
+      parseEnvironment({ ...validProduction, CORS_ORIGINS: "*" }),
+    ).toThrow(/CORS_ORIGINS/);
+    expect(() =>
+      parseEnvironment({
+        ...validProduction,
+        FRONTEND_API_URL: "http://localhost:8000/api/v1",
+      }),
+    ).toThrow(/FRONTEND_API_URL/);
+    for (const FRONTEND_API_URL of [
+      "//unapproved.invalid/api/v1",
+      "/\\unapproved.invalid/api/v1",
+      "http://api.client.invalid/api/v1",
+      "https://user:password@api.client.invalid/api/v1",
+      "/api/v1?redirect=https://unapproved.invalid",
+    ]) {
+      expect(() =>
+        parseEnvironment({ ...validProduction, FRONTEND_API_URL }),
+      ).toThrow(/FRONTEND_API_URL/);
+    }
+    expect(
+      parseEnvironment({
+        ...validProduction,
+        FRONTEND_API_URL: "https://api.client.invalid/api/v1",
+      }).FRONTEND_API_URL,
+    ).toBe("https://api.client.invalid/api/v1");
+  });
+
+  it("requires persistent absolute storage and backup paths in production", () => {
+    expect(() =>
+      parseEnvironment({ ...validProduction, LOCAL_UPLOAD_DIR: "./uploads" }),
+    ).toThrow(/LOCAL_UPLOAD_DIR/);
+    expect(() =>
+      parseEnvironment({ ...validProduction, BACKUP_PATH: "./backups" }),
+    ).toThrow(/BACKUP_PATH/);
+  });
+
+  it("rejects production documentation, prototype and non-auditable logging", () => {
+    expect(() =>
+      parseEnvironment({ ...validProduction, ENABLE_API_DOCS: "true" }),
+    ).toThrow(/ENABLE_API_DOCS/);
+    expect(() =>
+      parseEnvironment({
+        ...validProduction,
+        ENABLE_PROTOTYPE_ROUTES: "true",
+      }),
+    ).toThrow(/ENABLE_PROTOTYPE_ROUTES/);
+    expect(() =>
+      parseEnvironment({ ...validProduction, LOG_LEVEL: "silent" }),
+    ).toThrow(/LOG_LEVEL/);
+  });
+
+  it("accepts only a supported non-empty Evidence extension subset", () => {
+    expect(
+      parseEnvironment({
+        ...validProduction,
+        EVIDENCE_ALLOWED_EXTENSIONS: ".pdf,.xlsx",
+      }).EVIDENCE_ALLOWED_EXTENSIONS,
+    ).toBe(".pdf,.xlsx");
+    expect(() =>
+      parseEnvironment({
+        ...validProduction,
+        EVIDENCE_ALLOWED_EXTENSIONS: ".exe",
+      }),
+    ).toThrow(/EVIDENCE_ALLOWED_EXTENSIONS/);
   });
 
   it("fails closed for unknown and unimplemented storage providers", () => {
@@ -172,11 +266,36 @@ describe("environment validation", () => {
   });
 });
 
+describe("production database runtime URL", () => {
+  it("adds bounded pool and connection timeouts without replacing operator values", () => {
+    const configured = new URL(
+      databaseRuntimeUrl(`${databaseUrl}?schema=public`, {
+        connectionLimit: 12,
+        poolTimeoutSeconds: 7,
+        connectTimeoutSeconds: 4,
+      }),
+    );
+    expect(configured.searchParams.get("schema")).toBe("public");
+    expect(configured.searchParams.get("connection_limit")).toBe("12");
+    expect(configured.searchParams.get("pool_timeout")).toBe("7");
+    expect(configured.searchParams.get("connect_timeout")).toBe("4");
+
+    const preserved = new URL(
+      databaseRuntimeUrl(`${databaseUrl}?connection_limit=3`, {
+        connectionLimit: 12,
+        poolTimeoutSeconds: 7,
+        connectTimeoutSeconds: 4,
+      }),
+    );
+    expect(preserved.searchParams.get("connection_limit")).toBe("3");
+  });
+});
+
 describe("seed execution safety", () => {
   it("allows only explicit development and isolated-test modes", () => {
-    expect(
-      assertSeedExecutionAllowed(["--development"], "development"),
-    ).toBe("development");
+    expect(assertSeedExecutionAllowed(["--development"], "development")).toBe(
+      "development",
+    );
     expect(assertSeedExecutionAllowed(["--test-fixture"], "test")).toBe("test");
     expect(() => assertSeedExecutionAllowed([], "development")).toThrow();
     expect(() =>

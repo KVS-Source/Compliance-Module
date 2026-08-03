@@ -2,7 +2,11 @@ import { Prisma } from "@prisma/client";
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { errorHandler } from "../src/common/middleware/http.js";
+import {
+  errorHandler,
+  permissionAllowed,
+} from "../src/common/middleware/http.js";
+import { exactOriginCors } from "../src/common/middleware/cors.js";
 import { createRateLimiter } from "../src/common/middleware/rate-limit.js";
 import { parseEnvironment, resolveTrustProxy } from "../src/config/env.js";
 import {
@@ -18,6 +22,16 @@ const productionBase = {
   JWT_ACCESS_SECRET: strongSecret,
   JWT_ISSUER: "genbioca-compliance",
   COOKIE_SECURE: "true",
+  REFRESH_TOKEN_SECRET: "2d4686e0060d42dc91b9ed4bda9d0ce499cb372a",
+  TRUST_PROXY: "1",
+  CORS_ORIGINS: "https://compliance.client.invalid",
+  FRONTEND_API_URL: "/api/v1",
+  PRODUCTION_DOMAIN: "compliance.client.invalid",
+  LOCAL_UPLOAD_DIR: "/var/lib/genbioca/evidence",
+  BACKUP_PATH: "/var/backups/genbioca",
+  READINESS_STORAGE_CHECK: "true",
+  ENABLE_API_DOCS: "false",
+  ENABLE_PROTOTYPE_ROUTES: "false",
 };
 
 const appWithLimiter = (limit: number, disabled = false) => {
@@ -46,8 +60,7 @@ const knownRequestError = (code: string, target: string[]) =>
 
 describe("secret-safe test assertions", () => {
   it("sanitises cookie metadata without retaining the original value", () => {
-    const originalCookieValue =
-      "synthetic-cookie-value-that-must-not-survive";
+    const originalCookieValue = "synthetic-cookie-value-that-must-not-survive";
     const metadata = sanitiseSetCookieHeader(
       `genbioca_refresh=${originalCookieValue}; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=600`,
     );
@@ -140,6 +153,47 @@ describe("request rate limiting", () => {
     expect(() =>
       parseEnvironment({ ...productionBase, RATE_LIMIT_DISABLED: "true" }),
     ).toThrow(/RATE_LIMIT_DISABLED/);
+  });
+});
+
+describe("production wildcard permission restriction", () => {
+  it("does not authorize production requests through the legacy wildcard", () => {
+    expect(permissionAllowed(["*"], "users:write", "production")).toBe(false);
+    expect(
+      permissionAllowed(["users:write"], "users:write", "production"),
+    ).toBe(true);
+    expect(permissionAllowed(["*"], "users:write", "development")).toBe(true);
+  });
+});
+
+describe("browser origin policy", () => {
+  const corsApp = () => {
+    const app = express();
+    app.use(exactOriginCors(["https://compliance.client.invalid"]));
+    app.get("/probe", (_req, res) => res.json({ ok: true }));
+    app.use(errorHandler);
+    return app;
+  };
+
+  it("echoes only an exact approved origin with credentials", async () => {
+    const response = await request(corsApp())
+      .get("/probe")
+      .set("Origin", "https://compliance.client.invalid")
+      .expect(200);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "https://compliance.client.invalid",
+    );
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+    expect(response.headers.vary).toContain("Origin");
+  });
+
+  it("rejects an unapproved origin without a wildcard response", async () => {
+    const response = await request(corsApp())
+      .get("/probe")
+      .set("Origin", "https://unapproved.invalid")
+      .expect(403);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(JSON.stringify(response.body)).not.toContain("*");
   });
 });
 

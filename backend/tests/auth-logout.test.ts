@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { AuthRepository } from "../src/modules/auth/repository.js";
 import { AuthService } from "../src/modules/auth/service.js";
+import { hashToken } from "../src/common/security/tokens.js";
 
 describe("logout session handling", () => {
   it("does nothing when the refresh cookie is missing", async () => {
@@ -28,13 +28,10 @@ describe("logout session handling", () => {
       }),
     ).resolves.toBe(true);
 
-    expect(revokeSessionByHash).toHaveBeenCalledWith(
-      createHash("sha256").update(rawToken).digest("hex"),
-      {
-        ip: "192.0.2.1",
-        userAgent: "synthetic-test-agent",
-      },
-    );
+    expect(revokeSessionByHash).toHaveBeenCalledWith(hashToken(rawToken), {
+      ip: "192.0.2.1",
+      userAgent: "synthetic-test-agent",
+    });
     expect(revokeSessionByHash).not.toHaveBeenCalledWith(
       rawToken,
       expect.anything(),

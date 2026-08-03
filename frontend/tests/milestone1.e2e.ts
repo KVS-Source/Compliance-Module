@@ -459,6 +459,11 @@ test("every approved direct route remains reachable without horizontal overflow"
   test.setTimeout(150_000);
   await installMockApi(page, true);
   await page.goto("/dashboard");
+  // Auth restoration is asynchronous and may replace the document after the
+  // initial load event. Wait for the protected route to settle before using
+  // history.pushState in the direct-route loop.
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   for (const path of approvedPaths) {
     await navigateInApp(page, path);
     await expect(page.locator("main#page-content")).toBeVisible();

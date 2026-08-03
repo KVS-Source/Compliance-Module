@@ -88,6 +88,7 @@ run(
     "tests/gap-capa-api.test.ts",
     "tests/workbook-import-api.test.ts",
     "tests/registers-dashboard-api.test.ts",
+    "tests/production-initializer.test.ts",
   ],
   true,
 );
