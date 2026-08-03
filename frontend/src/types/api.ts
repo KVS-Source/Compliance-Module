@@ -21,12 +21,26 @@ export interface ApiFailure {
 }
 
 export interface DashboardSummary {
+  generatedAt?: string;
+  compliance?: {
+    overallPercentage: number;
+    measuredKpis: number;
+    kpisMeetingTarget: number;
+  } | null;
   kpis: {
     activeConfigurations: number;
     meetingTarget: number;
     amberActuals: number;
     redActuals: number;
     pendingApprovals: number;
+    definitions?: number;
+    configured?: number;
+    enabled?: number;
+    measured?: number;
+    green?: number;
+    amber?: number;
+    red?: number;
+    pendingApproval?: number;
   } | null;
   risks: {
     openRisks: number;
@@ -34,6 +48,12 @@ export interface DashboardSummary {
     majorRisks: number;
     risksUnderTreatment: number;
     closedRisks: number;
+    openMajor?: number;
+    openMinor?: number;
+    openEnterprise?: number;
+    openTotal?: number;
+    treated?: number;
+    closed?: number;
   } | null;
   organisation: {
     departments: number;
@@ -42,7 +62,42 @@ export interface DashboardSummary {
   } | null;
   frameworks: {
     activeFrameworks: number;
+    total?: number;
+    active?: number;
+    breakdown?: Array<{
+      id: string;
+      code: string;
+      name: string;
+      version: string;
+      status: string;
+      scopeStatus: string;
+      ruleCount: number;
+    }>;
   } | null;
+  gaps?: {
+    open: number;
+    overdue: number;
+    closed: number;
+    critical: number;
+    major: number;
+    needsReview: number;
+  } | null;
+  capas?: {
+    open: number;
+    overdue: number;
+    closed: number;
+    pendingVerification: number;
+    needsReview: number;
+  } | null;
+  evidence?: {
+    total: number;
+    pendingReview: number;
+    approved: number;
+    expiringSoon: number;
+    expired: number;
+    withoutFile: number;
+  } | null;
+  registers?: Array<{ code: string; name: string; recordCount: number }> | null;
 }
 
 export interface Company {
@@ -1493,3 +1548,232 @@ export interface EvidenceDownloadResult {
   fileName: string;
   byteSize: number;
 }
+
+export type GapSeverity =
+  | "CRITICAL"
+  | "MAJOR"
+  | "MINOR"
+  | "OBSERVATION"
+  | "OFI";
+
+export type GapStatus = "OPEN" | "IN_PROGRESS" | "CLOSED" | "CANCELLED";
+
+export interface CompliancePersonRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface ComplianceNamedRef {
+  id: string;
+  code: string;
+  name?: string;
+  title?: string;
+}
+
+export interface ComplianceEvidenceLink {
+  linkId: string;
+  id: string;
+  code: string;
+  title: string;
+  lifecycleStatus: EvidenceLifecycleStatus;
+  file: {
+    available: boolean;
+    sourceReference: string | null;
+  };
+  linkReason: string | null;
+  linkedAt: string;
+}
+
+export interface GapLinkedCapa {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate: string | null;
+  completionPercentage: number;
+}
+
+export interface Gap {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  severity: GapSeverity;
+  status: GapStatus;
+  source: string | null;
+  clauseRef: string | null;
+  recommendedAction: string | null;
+  owner: CompliancePersonRef | null;
+  sourceOwnerRef: string | null;
+  department: ComplianceNamedRef | null;
+  framework: ComplianceNamedRef | null;
+  frameworkRule: ComplianceNamedRef | null;
+  control: ComplianceNamedRef | null;
+  checkpoint: ComplianceNamedRef | null;
+  identifiedOn: string | null;
+  dueDate: string | null;
+  overdue: boolean;
+  closedAt: string | null;
+  closureNote: string | null;
+  needsReview: boolean;
+  reviewReason: string | null;
+  capas: GapLinkedCapa[];
+  evidence: ComplianceEvidenceLink[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GapListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  severity?: GapSeverity;
+  status?: GapStatus;
+  overdue?: boolean;
+}
+
+export interface GapListResult {
+  data: Gap[];
+  meta: PageMeta;
+}
+
+export interface CreateGapInput {
+  title: string;
+  description?: string | null;
+  severity: GapSeverity;
+  source?: string | null;
+  clauseRef?: string | null;
+  recommendedAction?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  identifiedOn?: string | null;
+  dueDate?: string | null;
+}
+
+export interface UpdateGapInput {
+  title?: string;
+  description?: string | null;
+  severity?: GapSeverity;
+  status?: Exclude<GapStatus, "CLOSED">;
+  source?: string | null;
+  clauseRef?: string | null;
+  recommendedAction?: string | null;
+  departmentId?: string | null;
+  identifiedOn?: string | null;
+  dueDate?: string | null;
+}
+
+export type CapaPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+export type CapaStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "PENDING_VERIFICATION"
+  | "CLOSED"
+  | "CANCELLED";
+
+export interface CapaLinkedGap {
+  id: string;
+  code: string;
+  title: string;
+  severity: GapSeverity;
+  status: GapStatus;
+}
+
+export interface Capa {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  priority: CapaPriority;
+  status: CapaStatus;
+  gap: CapaLinkedGap | null;
+  source: string | null;
+  sourceRef: string | null;
+  framework: ComplianceNamedRef | null;
+  rootCause: string | null;
+  correctiveAction: string | null;
+  preventiveAction: string | null;
+  owner: CompliancePersonRef | null;
+  sourceOwnerRef: string | null;
+  department: ComplianceNamedRef | null;
+  raisedOn: string | null;
+  dueDate: string | null;
+  overdue: boolean;
+  completionPercentage: number;
+  closedAt: string | null;
+  closureNote: string | null;
+  needsReview: boolean;
+  reviewReason: string | null;
+  evidence: ComplianceEvidenceLink[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CapaListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: CapaStatus;
+  priority?: CapaPriority;
+  gapId?: string;
+  overdue?: boolean;
+}
+
+export interface CapaListResult {
+  data: Capa[];
+  meta: PageMeta;
+}
+
+export interface CreateCapaInput {
+  title: string;
+  description?: string | null;
+  gapId?: string | null;
+  priority: CapaPriority;
+  source?: string | null;
+  sourceRef?: string | null;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  preventiveAction?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  raisedOn?: string | null;
+  dueDate?: string | null;
+  completionPercentage?: number;
+}
+
+export interface UpdateCapaInput {
+  title?: string;
+  description?: string | null;
+  gapId?: string | null;
+  priority?: CapaPriority;
+  status?: Exclude<CapaStatus, "CLOSED">;
+  source?: string | null;
+  sourceRef?: string | null;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  preventiveAction?: string | null;
+  departmentId?: string | null;
+  raisedOn?: string | null;
+  dueDate?: string | null;
+  completionPercentage?: number;
+}
+
+export type ImportBatchStatus = "PREVIEWED" | "COMMITTING" | "COMPLETED" | "PARTIAL" | "FAILED";
+export interface ImportActor { id: string; code: string; fullName: string; }
+export interface ImportSheetSummary { key: string; sheetName: string; target: "normalised" | "register" | "derived"; present: boolean; totalRows: number; validRows: number; errorRows: number; flaggedRows: number; missingHeaders: string[]; reason?: string; }
+export interface ImportSheetOutcome { sheet: string; created: number; updated: number; unchanged: number; skipped: number; }
+export interface ImportReport {
+  workbook?: { filename: string; checksum: string; byteSize: number; sheetCount: number };
+  sheets?: ImportSheetSummary[];
+  unmappedSheets?: string[];
+  totals?: { totalRows: number; validRows: number; errorRows: number; flaggedRows: number };
+  counts?: { created: number; updated: number; unchanged: number; skipped: number; errors: number };
+  perSheetOutcomes?: ImportSheetOutcome[];
+  alreadyImported?: boolean;
+}
+export interface ImportBatch { id: string; originalFilename: string; fileChecksum: string; idempotencyKey?: string; status: ImportBatchStatus; createdCount: number; updatedCount: number; skippedCount: number; errorCount: number; startedAt: string; completedAt: string | null; uploadedBy: ImportActor; report?: ImportReport | null; }
+export interface ImportBatchListResult { data: ImportBatch[]; meta: PageMeta; }
+export interface ImportBatchError { id: string; sheet: string; rowNumber: number; businessKey: string | null; validationErrors: unknown; importResult: "FAILED"; }
+export interface ImportBatchErrorListResult { data: ImportBatchError[]; meta: PageMeta; }

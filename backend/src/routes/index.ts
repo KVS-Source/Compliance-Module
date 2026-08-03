@@ -113,6 +113,24 @@ export const apiRoutes = (
   router.get("/ready", async (req, res) => {
     try {
       await db.$queryRaw`SELECT 1`;
+      if (env.READINESS_STORAGE_CHECK === "true") {
+        await fileStorage.checkReady();
+      }
+      if (env.NODE_ENV === "production") {
+        const wildcardAssignments = await db.userRole.count({
+          where: {
+            status: "ACTIVE",
+            user: { status: "ACTIVE" },
+            role: {
+              status: "ACTIVE",
+              permissions: { some: { permission: { code: "*" } } },
+            },
+          },
+        });
+        if (wildcardAssignments > 0) {
+          throw new Error("Unsafe production role assignment detected");
+        }
+      }
       return res.json({ success: true, data: { status: "ready" } });
     } catch {
       req.log?.warn("readiness check failed");

@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, type GapStatus, type PrismaClient } from "@prisma/client";
 import type { GapListQuery } from "./validators.js";
 
 export type AuditContext = { ip?: string; userAgent?: string };
@@ -47,6 +47,12 @@ export const gapInclude = Prisma.validator<Prisma.GapInclude>()({
 });
 
 export type GapRecord = Prisma.GapGetPayload<{ include: typeof gapInclude }>;
+
+export type LockedGapLifecycle = {
+  id: string;
+  code: string;
+  status: GapStatus;
+};
 
 /**
  * Writes an audit event for a gap or CAPA change. Events are append-only, so
@@ -149,6 +155,23 @@ export class GapRepository {
       where: { tenantId, id, deletedAt: null },
       include: gapInclude,
     });
+  }
+
+  /** Serializes every lifecycle decision for one tenant-scoped Gap row. */
+  async lockLifecycle(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ) {
+    const rows = await tx.$queryRaw<LockedGapLifecycle[]>`
+      SELECT id, code, status
+      FROM gaps
+      WHERE tenant_id = ${tenantId}::uuid
+        AND id = ${id}::uuid
+        AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    return rows[0] ?? null;
   }
 
   runTransaction<T>(handler: (tx: Prisma.TransactionClient) => Promise<T>) {

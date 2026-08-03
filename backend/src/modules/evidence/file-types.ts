@@ -2,20 +2,14 @@ import { createReadStream } from "node:fs";
 import { open } from "node:fs/promises";
 import { fileTypeFromFile } from "file-type";
 import { AppError } from "../../common/errors/app-error.js";
+import { env, parseEvidenceExtensions } from "../../config/env.js";
 
 export const EVIDENCE_UPLOAD_FIELD = "file";
 export const EVIDENCE_FILENAME_MAX = 200;
 
-export const ALLOWED_EXTENSIONS = new Set([
-  ".pdf",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".docx",
-  ".xlsx",
-  ".csv",
-  ".txt",
-]);
+export const ALLOWED_EXTENSIONS = new Set(
+  parseEvidenceExtensions(env.EVIDENCE_ALLOWED_EXTENSIONS),
+);
 
 const MIME_BY_EXT: Record<string, readonly string[]> = {
   ".pdf": ["application/pdf"],
@@ -238,10 +232,7 @@ export const validateEvidenceUploadFile = async (input: {
     extension,
     declaredMime: declared,
     detectedMimeType,
-    originalFileName: sanitizeEvidenceFilename(
-      input.clientFilename,
-      extension,
-    ),
+    originalFileName: sanitizeEvidenceFilename(input.clientFilename, extension),
   };
 };
 
@@ -263,9 +254,7 @@ const assertOoxmlKind = async (
   const asString = data.toString("binary");
   if (!asString.includes("[Content_Types].xml")) return false;
   if (extension === ".docx") {
-    return (
-      asString.includes("word/") || asString.includes("word\\")
-    );
+    return asString.includes("word/") || asString.includes("word\\");
   }
   if (extension === ".xlsx") {
     return asString.includes("xl/") || asString.includes("xl\\");

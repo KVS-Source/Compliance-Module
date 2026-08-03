@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useApiResource } from "../../hooks/useApiResource";
@@ -238,6 +239,7 @@ export function EvidenceLibraryPage() {
         connected
         actions={
           <>
+            {hasPermission("exports:read") ? <CsvExportButton module="evidence" /> : null}
             <button
               className="btn btn-secondary"
               type="button"

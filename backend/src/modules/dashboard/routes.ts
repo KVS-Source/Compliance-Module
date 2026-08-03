@@ -1,5 +1,9 @@
 import { Router, type Request, type Response } from "express";
-import { asyncHandler, validate } from "../../common/middleware/http.js";
+import {
+  asyncHandler,
+  permit,
+  validate,
+} from "../../common/middleware/http.js";
 import { ok } from "../../common/responses/envelope.js";
 import type { DashboardSummaryService } from "./summary-service.js";
 import {
@@ -11,6 +15,7 @@ export const dashboardRoutes = (service: DashboardSummaryService) => {
   const router = Router();
   router.get(
     "/summary",
+    permit("dashboard:read"),
     validate(dashboardSummarySchema, "query"),
     asyncHandler(async (req: Request, res: Response) =>
       ok(

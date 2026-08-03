@@ -4,6 +4,7 @@ import { ZodError, type ZodSchema } from "zod";
 import { Prisma } from "@prisma/client";
 import { AppError, forbidden, unauthorized } from "../errors/app-error.js";
 import { verifyAccessToken } from "../security/tokens.js";
+import { env } from "../../config/env.js";
 
 export const asyncHandler =
   (handler: RequestHandler): RequestHandler =>
@@ -20,7 +21,10 @@ export const authenticate: RequestHandler = (req, _res, next) => {
     req.auth = {
       userId: claims.sub,
       tenantId: claims.tenantId,
-      permissions: claims.permissions,
+      permissions:
+        env.NODE_ENV === "production"
+          ? claims.permissions.filter((permission) => permission !== "*")
+          : claims.permissions,
     };
     next();
   } catch {
@@ -52,13 +56,18 @@ export const authorizeTenantContext =
     }
   };
 
+export const permissionAllowed = (
+  permissions: readonly string[],
+  permission: string,
+  nodeEnvironment = env.NODE_ENV,
+) =>
+  permissions.includes(permission) ||
+  (nodeEnvironment !== "production" && permissions.includes("*"));
+
 export const permit =
   (permission: string): RequestHandler =>
   (req, _res, next) => {
-    if (
-      !req.auth?.permissions.includes(permission) &&
-      !req.auth?.permissions.includes("*")
-    ) {
+    if (!req.auth || !permissionAllowed(req.auth.permissions, permission)) {
       return next(forbidden());
     }
     next();

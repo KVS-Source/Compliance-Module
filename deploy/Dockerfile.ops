@@ -1,0 +1,5 @@
+FROM postgres:16-alpine
+RUN apk add --no-cache nodejs openssl
+COPY ops/backup.sh /usr/local/bin/genbioca-backup
+COPY ops/restore-drill.sh /usr/local/bin/genbioca-restore-drill
+RUN chmod 0755 /usr/local/bin/genbioca-backup /usr/local/bin/genbioca-restore-drill

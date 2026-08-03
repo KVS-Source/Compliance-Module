@@ -35,6 +35,12 @@ import { PolicyDetailPage } from "../features/policies/PolicyDetailPage";
 import { PolicyRegisterPage } from "../features/policies/PolicyRegisterPage";
 import { RiskDetailPage } from "../features/risks/RiskDetailPage";
 import { RiskRegisterPage } from "../features/risks/RiskRegisterPage";
+import { GapDetailPage } from "../features/gaps/GapDetailPage";
+import { GapRegisterPage } from "../features/gaps/GapRegisterPage";
+import { CapaDetailPage } from "../features/capas/CapaDetailPage";
+import { CapaRegisterPage } from "../features/capas/CapaRegisterPage";
+import { ImportDetailPage } from "../features/imports/ImportDetailPage";
+import { ImportHistoryPage } from "../features/imports/ImportHistoryPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -83,7 +89,14 @@ function LegacyHashRedirect() {
 }
 
 const migratedRoutes: RouteObject[] = [
-  { path: "dashboard", element: <DashboardPage /> },
+  {
+    path: "dashboard",
+    element: (
+      <PermissionBoundary permission="dashboard:read">
+        <DashboardPage />
+      </PermissionBoundary>
+    ),
+  },
   {
     path: "admin/companies",
     element: (
@@ -204,6 +217,40 @@ const migratedRoutes: RouteObject[] = [
       </PermissionBoundary>
     ),
   },
+  {
+    path: "compliance/gaps",
+    element: (
+      <PermissionBoundary permission="gaps:read">
+        <GapRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/gaps/:gapId",
+    element: (
+      <PermissionBoundary permission="gaps:read">
+        <GapDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/capa",
+    element: (
+      <PermissionBoundary permission="capa:read">
+        <CapaRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/capa/:capaId",
+    element: (
+      <PermissionBoundary permission="capa:read">
+        <CapaDetailPage />
+      </PermissionBoundary>
+    ),
+  },
+  { path: "data/import-history", element: <PermissionBoundary permission="imports:read"><ImportHistoryPage /></PermissionBoundary> },
+  { path: "data/import-history/:importId", element: <PermissionBoundary permission="imports:read"><ImportDetailPage /></PermissionBoundary> },
   {
     path: "compliance/policy-register",
     element: (

@@ -148,6 +148,7 @@ async function main() {
           "Create and update Company operational register records",
         ],
         ["imports:read", "Read Company workbook import batches and row errors"],
+        ["dashboard:read", "Read the Company compliance dashboard"],
         ["exports:read", "Export Company records as CSV"],
       ] as const
     ).map(([code, name]) =>
@@ -214,6 +215,7 @@ async function main() {
         "registers:read",
         "registers:write",
         "imports:read",
+        "dashboard:read",
         "exports:read",
       ].includes(code),
     )) {

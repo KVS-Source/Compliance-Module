@@ -92,7 +92,8 @@ export const capaDto = (record: CapaRecord, asOf = new Date()) => ({
 /**
  * Every reference a CAPA can carry must resolve inside the authenticated
  * company. A linked gap in another company would silently join two tenants'
- * compliance records, so it is rejected outright.
+ * compliance records, so it is rejected outright. A Gap lifecycle lock also
+ * prevents an open CAPA from being attached while that Gap is closing.
  */
 const assertSameCompany = async (
   tx: Prisma.TransactionClient,
@@ -103,8 +104,11 @@ const assertSameCompany = async (
     gapId?: string | null | undefined;
     frameworkId?: string | null | undefined;
   },
+  repository: CapaRepository,
+  options: { requireActiveGap?: boolean } = {},
 ) => {
   const invalid: string[] = [];
+  let closedGap = false;
   if (references.ownerId) {
     const membership = await tx.userCompany.findFirst({
       where: {
@@ -125,11 +129,15 @@ const assertSameCompany = async (
     if (!department) invalid.push("departmentId");
   }
   if (references.gapId) {
-    const gap = await tx.gap.findFirst({
-      where: { tenantId, id: references.gapId, deletedAt: null },
-      select: { id: true },
-    });
+    const gap = await repository.lockGapReference(
+      tx,
+      tenantId,
+      references.gapId,
+    );
     if (!gap) invalid.push("gapId");
+    else if (options.requireActiveGap && gap.status === "CLOSED") {
+      closedGap = true;
+    }
   }
   if (references.frameworkId) {
     const framework = await tx.framework.findUnique({
@@ -144,6 +152,13 @@ const assertSameCompany = async (
       "RELATED_RECORD_INVALID",
       "One or more referenced records are not available in this company",
       { fields: invalid },
+    );
+  }
+  if (closedGap) {
+    throw new AppError(
+      409,
+      "INVALID_STATUS_TRANSITION",
+      "An active CAPA cannot be linked to a closed Gap",
     );
   }
   return true as const;
@@ -181,7 +196,9 @@ export class CapaService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      await assertSameCompany(tx, tenantId, body);
+      await assertSameCompany(tx, tenantId, body, this.repository, {
+        requireActiveGap: true,
+      });
       const tenant = await tx.tenant.update({
         where: { id: tenantId },
         data: { nextCapaNumber: { increment: 1 } },
@@ -237,12 +254,32 @@ export class CapaService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      const existing = await tx.capa.findFirst({
-        where: { tenantId, id, deletedAt: null },
-        select: { id: true, code: true, status: true },
-      });
+      const existing = await this.repository.lockLifecycle(tx, tenantId, id);
       if (!existing) throw capaNotFound();
-      await assertSameCompany(tx, tenantId, body);
+      if (existing.status === "CLOSED") {
+        throw new AppError(
+          409,
+          "INVALID_STATUS_TRANSITION",
+          "Use POST /capas/:capaId/reopen before editing a closed CAPA",
+        );
+      }
+      const nextStatus = body.status ?? existing.status;
+      const gapIdForValidation =
+        body.gapId !== undefined
+          ? body.gapId
+          : body.status !== undefined
+            ? existing.gapId
+            : undefined;
+      await assertSameCompany(
+        tx,
+        tenantId,
+        { ...body, gapId: gapIdForValidation },
+        this.repository,
+        {
+          requireActiveGap:
+            nextStatus !== "CLOSED" && nextStatus !== "CANCELLED",
+        },
+      );
       if (body.status) assertCapaTransition(existing.status, body.status);
       const capa = await tx.capa.update({
         where: { id },
@@ -312,7 +349,12 @@ export class CapaService {
         select: { id: true, code: true },
       });
       if (!existing) throw capaNotFound();
-      await assertSameCompany(tx, tenantId, { ownerId: body.ownerId });
+      await assertSameCompany(
+        tx,
+        tenantId,
+        { ownerId: body.ownerId },
+        this.repository,
+      );
       const capa = await tx.capa.update({
         where: { id },
         data: { ownerId: body.ownerId, updatedById: actorUserId },
@@ -343,15 +385,7 @@ export class CapaService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      const existing = await tx.capa.findFirst({
-        where: { tenantId, id, deletedAt: null },
-        select: {
-          id: true,
-          code: true,
-          status: true,
-          completionPercentage: true,
-        },
-      });
+      const existing = await this.repository.lockLifecycle(tx, tenantId, id);
       if (!existing) throw capaNotFound();
       assertCapaTransition(existing.status, "CLOSED", { allowSelf: false });
       const closureNote = assertClosureNote(body.closureNote);
@@ -394,12 +428,18 @@ export class CapaService {
     context: AuditContext,
   ) {
     return this.repository.runTransaction(async (tx) => {
-      const existing = await tx.capa.findFirst({
-        where: { tenantId, id, deletedAt: null },
-        select: { id: true, code: true, status: true },
-      });
+      const existing = await this.repository.lockLifecycle(tx, tenantId, id);
       if (!existing) throw capaNotFound();
       assertCapaTransition(existing.status, "IN_PROGRESS");
+      if (existing.gapId !== null) {
+        await assertSameCompany(
+          tx,
+          tenantId,
+          { gapId: existing.gapId },
+          this.repository,
+          { requireActiveGap: true },
+        );
+      }
       const capa = await tx.capa.update({
         where: { id },
         data: {

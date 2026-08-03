@@ -1,4 +1,9 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import {
+  Prisma,
+  type CapaStatus,
+  type GapStatus,
+  type PrismaClient,
+} from "@prisma/client";
 import type { CapaListQuery } from "./validators.js";
 
 const personSelect = { id: true, code: true, fullName: true } as const;
@@ -38,6 +43,19 @@ export const capaInclude = Prisma.validator<Prisma.CapaInclude>()({
 });
 
 export type CapaRecord = Prisma.CapaGetPayload<{ include: typeof capaInclude }>;
+
+export type LockedCapaLifecycle = {
+  id: string;
+  code: string;
+  status: CapaStatus;
+  completionPercentage: number;
+  gapId: string | null;
+};
+
+export type LockedGapReference = {
+  id: string;
+  status: GapStatus;
+};
 
 export class CapaRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -107,6 +125,46 @@ export class CapaRepository {
       where: { tenantId, id, deletedAt: null },
       include: capaInclude,
     });
+  }
+
+  /** Serializes every lifecycle decision for one tenant-scoped CAPA row. */
+  async lockLifecycle(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ) {
+    const rows = await tx.$queryRaw<LockedCapaLifecycle[]>`
+      SELECT id, code, status,
+             completion_percentage AS "completionPercentage",
+             gap_id AS "gapId"
+      FROM capas
+      WHERE tenant_id = ${tenantId}::uuid
+        AND id = ${id}::uuid
+        AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Serializes an open CAPA link against closure of its tenant-scoped Gap.
+   * `FOR SHARE` conflicts with the Gap lifecycle `FOR UPDATE` lock while still
+   * allowing independent CAPAs to validate the same open Gap concurrently.
+   */
+  async lockGapReference(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    id: string,
+  ) {
+    const rows = await tx.$queryRaw<LockedGapReference[]>`
+      SELECT id, status
+      FROM gaps
+      WHERE tenant_id = ${tenantId}::uuid
+        AND id = ${id}::uuid
+        AND deleted_at IS NULL
+      FOR SHARE
+    `;
+    return rows[0] ?? null;
   }
 
   runTransaction<T>(handler: (tx: Prisma.TransactionClient) => Promise<T>) {

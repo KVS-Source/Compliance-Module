@@ -3,9 +3,12 @@ import {
   Building2,
   CheckCircle2,
   CircleGauge,
+  ClipboardCheck,
+  FileSearch,
   Landmark,
   MapPin,
   Network,
+  Wrench,
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
@@ -32,6 +35,14 @@ export function DashboardPage() {
   const risks = resource.data?.risks;
   const organisation = resource.data?.organisation;
   const frameworks = resource.data?.frameworks;
+  const compliance = resource.data?.compliance;
+  const gaps = resource.data?.gaps;
+  const capas = resource.data?.capas;
+  const evidence = resource.data?.evidence;
+  const registerRecords = resource.data?.registers?.reduce(
+    (total, register) => total + register.recordCount,
+    0,
+  );
   const operationalCount =
     (kpis?.activeConfigurations ?? 0) +
     (kpis?.amberActuals ?? 0) +
@@ -39,6 +50,12 @@ export function DashboardPage() {
     (risks?.openRisks ?? 0) +
     (risks?.risksUnderTreatment ?? 0) +
     (risks?.closedRisks ?? 0);
+  const deadlineCount =
+    operationalCount +
+    (gaps?.open ?? 0) +
+    (capas?.open ?? 0) +
+    (evidence?.pendingReview ?? 0) +
+    (registerRecords ?? 0);
 
   return (
     <div className="page">
@@ -73,11 +90,11 @@ export function DashboardPage() {
         <ErrorState error={resource.error} />
       ) : resource.data ? (
         <>
-          {operationalCount === 0 && (
+          {deadlineCount === 0 && (
             <div className="state-panel" role="status">
               <CircleGauge size={24} />
               <div>
-                <strong>No KPI or risk activity yet</strong>
+                <strong>No compliance activity yet</strong>
                 <p>
                   Configure a KPI and submit an actual to populate this
                   dashboard.
@@ -87,6 +104,14 @@ export function DashboardPage() {
           )}
 
           <div className="cards dashboard-cards">
+            <MetricCard
+              label="Overall Compliance"
+              value={compliance ? `${compliance.overallPercentage}%` : "—"}
+              note={compliance ? `${compliance.kpisMeetingTarget} of ${compliance.measuredKpis} measured KPIs met target` : "permission restricted"}
+              icon={CircleGauge}
+              tone="blue"
+              to="/kpi/approval"
+            />
             <MetricCard
               label="Active KPI Configurations"
               value={value(kpis?.activeConfigurations)}
@@ -167,6 +192,12 @@ export function DashboardPage() {
               tone="green"
               to="/compliance/risks"
             />
+            <MetricCard label="Open Gaps" value={value(gaps?.open)} note={gaps ? "requiring remediation" : "permission restricted"} icon={TriangleAlert} tone="amber" to="/compliance/gaps" />
+            <MetricCard label="Overdue Gaps" value={value(gaps?.overdue)} note={gaps ? "past due and still open" : "permission restricted"} icon={TriangleAlert} tone="red" to="/compliance/gaps" />
+            <MetricCard label="Open CAPAs" value={value(capas?.open)} note={capas ? "corrective actions active" : "permission restricted"} icon={Wrench} tone="blue" to="/compliance/capa" />
+            <MetricCard label="Overdue CAPAs" value={value(capas?.overdue)} note={capas ? "past due and still open" : "permission restricted"} icon={Wrench} tone="red" to="/compliance/capa" />
+            <MetricCard label="Pending Evidence Reviews" value={value(evidence?.pendingReview)} note={evidence ? "submitted for decision" : "permission restricted"} icon={FileSearch} tone="purple" to="/evidence" />
+            <MetricCard label="Operational Records" value={value(registerRecords)} note={resource.data.registers ? `across ${resource.data.registers.length} active registers` : "permission restricted"} icon={ClipboardCheck} tone="grey" />
           </div>
 
           <div className="grid-2 dashboard-secondary-grid">

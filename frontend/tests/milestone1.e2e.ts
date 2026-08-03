@@ -110,7 +110,7 @@ async function installMockApi(
                         : path === "/api/v1/kpi-goals" ? []
                           : path === "/api/v1/kpi-configurations" ? []
                             : path === "/api/v1/kpi-targets" ? []
-                              : path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints" || path === "/api/v1/evidence" || path === "/api/v1/evidence/review-queue" ? []
+                              : path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints" || path === "/api/v1/evidence" || path === "/api/v1/evidence/review-queue" || path === "/api/v1/gaps" || path === "/api/v1/capas" || path === "/api/v1/imports" ? []
                                 : null;
     if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
     if (
@@ -118,7 +118,10 @@ async function installMockApi(
       path === "/api/v1/controls" ||
       path === "/api/v1/checkpoints" ||
       path === "/api/v1/evidence" ||
-      path === "/api/v1/evidence/review-queue"
+      path === "/api/v1/evidence/review-queue" ||
+      path === "/api/v1/gaps" ||
+      path === "/api/v1/capas" ||
+      path === "/api/v1/imports"
     ) {
       return route.fulfill({
         status: 200,
@@ -270,6 +273,9 @@ const livePaths = [
   ["/compliance/policy-register", "Policy Register"],
   ["/compliance/controls", "Control Register"],
   ["/compliance/checkpoints", "Checkpoint Register"],
+  ["/compliance/gaps", "Gap Register"],
+  ["/compliance/capa", "CAPA Register"],
+  ["/data/import-history", "Import History"],
   ["/evidence", "Evidence Library"],
   ["/evidence/new", "Create Evidence"],
   ["/evidence/review", "Evidence Review"],
@@ -292,7 +298,7 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
       links.map((link) => link.getAttribute("href")).filter(Boolean),
     );
   expect(hrefs).toEqual(approvedPaths);
-  await expect(page.locator(".nav-status-badge")).toHaveCount(22);
+  await expect(page.locator(".nav-status-badge")).toHaveCount(19);
   await expect(
     page.getByTestId("nav-status-/data/genrac-integration"),
   ).toHaveText("Awaiting Access");
@@ -342,7 +348,6 @@ test("unfinished and compatibility routes use truthful non-operational status pa
     ["/compliance/policy-versions", "development"],
     ["/kpi/dashboard", "development"],
     ["/kpi/mapping", "development"],
-    ["/compliance/gaps", "development"],
     ["/audit-trail", "development"],
     ["/data/import", "development"],
     ["/reports", "development"],
@@ -454,6 +459,11 @@ test("every approved direct route remains reachable without horizontal overflow"
   test.setTimeout(150_000);
   await installMockApi(page, true);
   await page.goto("/dashboard");
+  // Auth restoration is asynchronous and may replace the document after the
+  // initial load event. Wait for the protected route to settle before using
+  // history.pushState in the direct-route loop.
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   for (const path of approvedPaths) {
     await navigateInApp(page, path);
     await expect(page.locator("main#page-content")).toBeVisible();
@@ -520,6 +530,7 @@ test("dashboard KPI metric cards reach their live routes by keyboard", async ({
     page,
     ".dashboard-cards a",
     [
+      "/kpi/approval",
       "/kpi/configuration",
       "/kpi/approval",
       "/kpi/approval",
@@ -527,7 +538,7 @@ test("dashboard KPI metric cards reach their live routes by keyboard", async ({
       "/kpi/approval",
     ],
     0,
-    10,
+    16,
   );
 });
 
@@ -548,8 +559,8 @@ test("dashboard Risk metric cards reach their live routes by keyboard", async ({
       "/compliance/risks",
       "/compliance/risks",
     ],
-    5,
-    10,
+    6,
+    16,
   );
 });
 

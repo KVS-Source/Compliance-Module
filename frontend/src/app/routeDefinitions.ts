@@ -114,6 +114,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "Dashboard",
     "Company-scoped KPI, risk, organisation and framework overview.",
     LayoutDashboard,
+    { permission: "dashboard:read", api: "GET /dashboard/summary" },
   ),
 
   live(
@@ -408,20 +409,14 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     },
   ),
 
-  development(
+  live(
     "/compliance/gaps",
     "#compliance/gaps",
     "Gap Register",
     "Gap & CAPA",
     "Compliance gaps, ownership and remediation state.",
     TriangleAlert,
-    {
-      plannedCapabilities: [
-        "Register compliance gaps",
-        "Assign remediation owners",
-        "Link gaps to evidence and controls",
-      ],
-    },
+    { permission: "gaps:read", api: "GET/POST /gaps · GET/PATCH /gaps/:id · owner and closure actions" },
   ),
   development(
     "/compliance/gaps/review",
@@ -438,20 +433,14 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       ],
     },
   ),
-  development(
+  live(
     "/compliance/capa",
     "#compliance/capa",
     "CAPA Register",
     "Gap & CAPA",
     "Corrective and preventive action records.",
     Wrench,
-    {
-      plannedCapabilities: [
-        "Register corrective and preventive actions",
-        "Assign owners and deadlines",
-        "Track verification to closure",
-      ],
-    },
+    { permission: "capa:read", api: "GET/POST /capas · GET/PATCH /capas/:id · owner and closure actions" },
   ),
   development(
     "/compliance/capa/review",
@@ -532,20 +521,14 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       dependency: "Reviewed template contracts and safe import transaction design.",
     },
   ),
-  development(
+  live(
     "/data/import-history",
     "#data/import-history",
     "Import History",
     "Data Management",
     "Auditable history of reviewed data imports.",
     FileClock,
-    {
-      plannedCapabilities: [
-        "Review prior import jobs",
-        "Inspect accepted and rejected counts",
-        "Navigate to import audit events",
-      ],
-    },
+    { permission: "imports:read", api: "GET /imports · GET /imports/:id · GET /imports/:id/errors" },
   ),
   development(
     "/data/upload-errors",
@@ -836,6 +819,9 @@ export const migratedPaths = new Set([
   "/compliance/policy-register",
   "/compliance/controls",
   "/compliance/checkpoints",
+  "/compliance/gaps",
+  "/compliance/capa",
+  "/data/import-history",
   "/evidence",
   "/evidence/new",
   "/evidence/review",

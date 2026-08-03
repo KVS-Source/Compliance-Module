@@ -349,6 +349,35 @@ describe("Operational registers, dashboard and CSV export", () => {
     expect(response.body.data.compliance).not.toBeNull();
   });
 
+  it("requires dashboard:read before returning any dashboard activity", async () => {
+    const role = await prisma.role.findUniqueOrThrow({
+      where: {
+        tenantId_code: { tenantId: companyOne, code: "COMPANY_USER" },
+      },
+      select: { id: true },
+    });
+    const permission = await prisma.permission.findUniqueOrThrow({
+      where: { code: "dashboard:read" },
+      select: { id: true },
+    });
+    await prisma.rolePermission.delete({
+      where: {
+        roleId_permissionId: { roleId: role.id, permissionId: permission.id },
+      },
+    });
+    try {
+      const revoked = await loginAs("user001@example.test", "User001!Secure");
+      await request(app)
+        .get("/api/v1/dashboard/summary")
+        .set("Authorization", `Bearer ${revoked.accessToken}`)
+        .expect(403);
+    } finally {
+      await prisma.rolePermission.create({
+        data: { roleId: role.id, permissionId: permission.id },
+      });
+    }
+  });
+
   it("returns stable empty-data shapes for a company with no records", async () => {
     const response = await request(app)
       .get("/api/v1/dashboard/summary")

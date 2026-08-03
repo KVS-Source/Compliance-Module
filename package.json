@@ -13,7 +13,7 @@
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
     "build": "npm run build --prefix backend && npm run build --prefix frontend",
-    "guard": "npm run guard:router --prefix frontend && npm run guard:boundaries --prefix frontend && npm run guard:routes --prefix frontend",
+    "guard": "npm run guard:router --prefix frontend && npm run guard:boundaries --prefix frontend && npm run guard:routes --prefix frontend && npm run guard:production-api --prefix frontend",
     "test:unit": "npm run test:unit --prefix backend",
     "test:integration": "npm run test:integration --prefix backend",
     "test:e2e": "npm run test:e2e --prefix frontend",
