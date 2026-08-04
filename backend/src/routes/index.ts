@@ -44,6 +44,10 @@ import { WorkbookImportService } from "../modules/imports/service.js";
 import { importRoutes } from "../modules/imports/routes.js";
 import { ExportService } from "../modules/exports/service.js";
 import { exportRoutes } from "../modules/exports/routes.js";
+import { AuditTrailService } from "../modules/audit/service.js";
+import { auditRoutes } from "../modules/audit/routes.js";
+import { GenracSyncService } from "../modules/genrac/service.js";
+import { genracRoutes } from "../modules/genrac/routes.js";
 import { PolicyRepository } from "../modules/policies/repository.js";
 import { PolicyService } from "../modules/policies/service.js";
 import {
@@ -91,6 +95,8 @@ export const apiRoutes = (
   const registers = new RegisterService(db);
   const workbookImports = new WorkbookImportService(db);
   const exports = new ExportService(db);
+  const auditTrail = new AuditTrailService(db);
+  const genrac = new GenracSyncService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
   const controls = new ControlService(new ControlRepository(db));
   const checkpoints = new CheckpointService(
@@ -174,5 +180,7 @@ export const apiRoutes = (
   router.use("/operational-registers", registerRoutes(registers));
   router.use("/imports", importRoutes(workbookImports));
   router.use("/exports", exportRoutes(exports));
+  router.use("/audit-events", auditRoutes(auditTrail));
+  router.use("/integrations/genrac", genracRoutes(genrac));
   return router;
 };
