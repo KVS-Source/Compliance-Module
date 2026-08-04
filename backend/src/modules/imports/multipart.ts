@@ -44,6 +44,9 @@ export const cleanupImportTemp = async (tempPath: string | null | undefined) => 
   const resolved = resolve(tempPath);
   if (!resolved.startsWith(root + sep)) return;
   await unlink(resolved).catch(() => undefined);
+  // Prune empty staging UUID / tenant dirs under .import-tmp only.
+  const { pruneEmptyImportTempParents } = await import("./preview-cleanup.js");
+  await pruneEmptyImportTempParents(resolved);
 };
 
 /**

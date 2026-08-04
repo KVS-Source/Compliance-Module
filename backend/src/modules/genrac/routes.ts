@@ -64,7 +64,11 @@ export const genracRoutes = (service: GenracSyncService) => {
     asyncHandler(async (req: Request, res: Response) =>
       ok(
         res,
-        await service.preview(req.auth!.tenantId, req.auth!.userId),
+        await service.preview(
+          req.auth!.tenantId,
+          req.auth!.userId,
+          typeof req.id === "string" ? req.id : undefined,
+        ),
       ),
     ),
   );
@@ -76,7 +80,11 @@ export const genracRoutes = (service: GenracSyncService) => {
     asyncHandler(async (req: Request, res: Response) =>
       ok(
         res,
-        await service.commit(req.auth!.tenantId, req.auth!.userId),
+        await service.commit(
+          req.auth!.tenantId,
+          req.auth!.userId,
+          typeof req.id === "string" ? req.id : undefined,
+        ),
       ),
     ),
   );

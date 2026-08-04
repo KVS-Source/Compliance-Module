@@ -1,4 +1,5 @@
-import { isAbsolute, resolve } from "node:path";
+import { access } from "node:fs/promises";
+import { basename, isAbsolute, resolve, sep } from "node:path";
 import type { PrismaClient } from "@prisma/client";
 import { AppError, notFound } from "../../common/errors/app-error.js";
 import { env } from "../../config/env.js";
@@ -10,6 +11,73 @@ import {
 } from "./connector.js";
 
 const SYSTEM_CODE = "GENRAC";
+
+/** GenRAC CSV files must live under `{LOCAL_UPLOAD_DIR}/.genrac`. */
+export const genracCsvRoot = () => resolve(env.LOCAL_UPLOAD_DIR, ".genrac");
+
+/**
+ * Validates a CSV filename for configure-csv. Rejects empty, `.`, `..`,
+ * absolute paths, traversal, and path separators. Resolved path must stay
+ * under the GenRAC CSV root with a root+sep boundary.
+ */
+export const assertSafeGenracCsvFilename = (filename: string): string => {
+  const trimmed = filename.trim();
+  if (!trimmed) {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "CSV filename must be a simple name under the GenRAC upload root",
+    );
+  }
+  if (
+    trimmed === "." ||
+    trimmed === ".." ||
+    trimmed.includes("/") ||
+    trimmed.includes("\\") ||
+    trimmed.includes("\0") ||
+    isAbsolute(trimmed) ||
+    basename(trimmed) !== trimmed
+  ) {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "CSV filename must be a simple name under the GenRAC upload root",
+    );
+  }
+  const safe = trimmed.replace(/[^a-zA-Z0-9._-]/g, "");
+  if (!safe || safe !== trimmed || safe === "." || safe === "..") {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "CSV filename must be a simple name under the GenRAC upload root",
+    );
+  }
+  return safe;
+};
+
+export const resolveGenracCsvPath = (
+  filename: string,
+  root = genracCsvRoot(),
+): string => {
+  const safe = assertSafeGenracCsvFilename(filename);
+  const resolvedRoot = resolve(root);
+  const absolute = resolve(resolvedRoot, safe);
+  if (absolute !== resolvedRoot && !absolute.startsWith(resolvedRoot + sep)) {
+    throw new AppError(
+      400,
+      "GENRAC_PATH_INVALID",
+      "CSV path must stay under the GenRAC upload root",
+    );
+  }
+  if (absolute === resolvedRoot) {
+    throw new AppError(
+      400,
+      "GENRAC_PATH_INVALID",
+      "CSV path must stay under the GenRAC upload root",
+    );
+  }
+  return absolute;
+};
 
 const publicConnection = (row: {
   id: string;
@@ -137,16 +205,8 @@ export class GenracSyncService {
           "CSV adapter path reference is missing",
         );
       }
-      // Only absolute paths under LOCAL_UPLOAD_DIR/.genrac are accepted.
-      const root = resolve(env.LOCAL_UPLOAD_DIR, ".genrac");
-      const absolute = isAbsolute(ref) ? resolve(ref) : resolve(root, ref);
-      if (!absolute.startsWith(root)) {
-        throw new AppError(
-          400,
-          "GENRAC_PATH_INVALID",
-          "CSV path must stay under the GenRAC upload root",
-        );
-      }
+      // Filename-only refs; never accept absolute or traversal paths from config.
+      const absolute = resolveGenracCsvPath(ref);
       return new GenracCsvAdapter(absolute);
     }
     if (connection.connectorType === "REST") {
@@ -206,15 +266,19 @@ export class GenracSyncService {
   /**
    * Enables the CSV adapter for local testing by registering a path reference
    * under LOCAL_UPLOAD_DIR/.genrac. Does not accept arbitrary filesystem paths
-   * from the browser — only a filename under the GenRAC root.
+   * from the browser — only a filename under the GenRAC root. Rejects before
+   * marking CONFIGURED when the path is unsafe or the file is missing.
    */
   async configureCsvAdapter(tenantId: string, filename: string) {
-    const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "");
-    if (!safe || safe !== filename) {
+    const safe = assertSafeGenracCsvFilename(filename);
+    const absolute = resolveGenracCsvPath(safe);
+    try {
+      await access(absolute);
+    } catch {
       throw new AppError(
         400,
-        "VALIDATION_ERROR",
-        "CSV filename must be a simple name under the GenRAC upload root",
+        "GENRAC_CSV_MISSING",
+        "CSV file was not found under the GenRAC upload root",
       );
     }
     const connection = await this.ensurePlaceholder(tenantId);
@@ -231,11 +295,54 @@ export class GenracSyncService {
     );
   }
 
-  async preview(tenantId: string, actorUserId: string) {
+  async preview(tenantId: string, actorUserId: string, requestId?: string) {
     const connection = await this.ensurePlaceholder(tenantId);
     const connector = this.resolveConnector(connection);
     const { changes } = await connector.fetchChanges();
     const { counts, validations } = await connector.preview(changes);
+
+    // Reclassify create → skip/update using existing external-record maps.
+    const adjusted = {
+      create: 0,
+      update: 0,
+      conflict: counts.conflict,
+      invalid: counts.invalid,
+      skip: counts.skip,
+    };
+    for (const item of validations) {
+      if (!item.ok) continue;
+      if (isProtectedLocalType(item.localEntityType)) {
+        adjusted.conflict += 1;
+        continue;
+      }
+      const existing = await this.db.externalRecordMap.findUnique({
+        where: {
+          tenantId_connectionId_sourceEntityType_externalRecordId: {
+            tenantId,
+            connectionId: connection.id,
+            sourceEntityType: item.change.sourceEntityType,
+            externalRecordId: item.change.externalRecordId,
+          },
+        },
+      });
+      if (existing?.status === "DEACTIVATED") {
+        adjusted.skip += 1;
+        continue;
+      }
+      if (existing && existing.syncHash === item.change.syncHash) {
+        adjusted.skip += 1;
+        continue;
+      }
+      if (
+        existing?.localEntityId &&
+        isProtectedLocalType(existing.localEntityType)
+      ) {
+        adjusted.conflict += 1;
+        continue;
+      }
+      if (existing) adjusted.update += 1;
+      else adjusted.create += 1;
+    }
 
     const run = await this.db.syncRun.create({
       data: {
@@ -243,11 +350,11 @@ export class GenracSyncService {
         connectionId: connection.id,
         status: "PREVIEWED",
         mode: "PREVIEW",
-        createCount: counts.create,
-        updateCount: counts.update,
-        conflictCount: counts.conflict,
-        invalidCount: counts.invalid,
-        skipCount: counts.skip,
+        createCount: adjusted.create,
+        updateCount: adjusted.update,
+        conflictCount: adjusted.conflict,
+        invalidCount: adjusted.invalid,
+        skipCount: adjusted.skip,
         errorSummary: validations
           .filter((item) => !item.ok)
           .slice(0, 50)
@@ -274,14 +381,17 @@ export class GenracSyncService {
         entityType: "SYNC_RUN",
         entityId: run.id,
         source: "EXTERNAL_SYNC",
-        metadata: { counts },
+        metadata: {
+          counts: adjusted,
+          ...(requestId ? { requestId } : {}),
+        },
       },
     });
 
-    return { syncRunId: run.id, counts, changeCount: changes.length };
+    return { syncRunId: run.id, counts: adjusted, changeCount: changes.length };
   }
 
-  async commit(tenantId: string, actorUserId: string) {
+  async commit(tenantId: string, actorUserId: string, requestId?: string) {
     const connection = await this.ensurePlaceholder(tenantId);
     const connector = this.resolveConnector(connection);
     const { changes } = await connector.fetchChanges();
@@ -407,7 +517,10 @@ export class GenracSyncService {
           entityType: "SYNC_RUN",
           entityId: run.id,
           source: "EXTERNAL_SYNC",
-          metadata: { counts },
+          metadata: {
+            counts,
+            ...(requestId ? { requestId } : {}),
+          },
         },
       });
 

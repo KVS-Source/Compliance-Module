@@ -123,6 +123,20 @@ export const environmentSchema = z
       .min(1_000)
       .max(120_000)
       .default(10_000),
+    /** Hours a browser import preview payload may be retained before TTL sweep. */
+    IMPORT_PREVIEW_TTL_HOURS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(168)
+      .default(24),
+    /** Interval for the import-temp sweeper; 0 disables the periodic timer. */
+    IMPORT_PREVIEW_CLEANUP_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(86_400_000)
+      .default(3_600_000),
     DATABASE_CONNECTION_LIMIT: z.coerce
       .number()
       .int()

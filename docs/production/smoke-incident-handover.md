@@ -18,7 +18,10 @@ The release operator additionally records:
 - encrypted backup filename/checksum and successful disposable restore;
 - request IDs in access logs and absence of password/token/cookie markers;
 - UI login, navigation, safe error states, logout and expired-session return to
-  login through the real stack.
+  login through the real stack;
+- NGINX workbook upload limit (`NGINX_CLIENT_MAX_BODY_SIZE` default **21m**) and
+  JSON **413** `UPLOAD_TOO_LARGE` for oversized bodies (never an HTML error page);
+- Evidence upload ceilings remaining independently enforced at 10 MiB.
 
 Do not perform mutating workflow checks against live client records. Use the
 already verified integration suite or a separately approved disposable tenant.

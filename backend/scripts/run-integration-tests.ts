@@ -89,6 +89,7 @@ run(
     "tests/workbook-import-api.test.ts",
     "tests/registers-dashboard-api.test.ts",
     "tests/final-client-completion.test.ts",
+    "tests/final-client-completion-http.test.ts",
     "tests/production-initializer.test.ts",
   ],
   true,

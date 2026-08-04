@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, rename, unlink } from "node:fs/promises";
+import { readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import type { ImportBatchStatus, PrismaClient } from "@prisma/client";
 import { AppError, notFound } from "../../common/errors/app-error.js";
@@ -42,8 +42,13 @@ import {
 } from "./importers/risk-gap-capa.js";
 import { auditTrailImporter, registerImporter } from "./importers/registers.js";
 import { cleanupImportTemp } from "./multipart.js";
+import {
+  previewExpiresAtFromReport,
+  removeRetainedPreview,
+} from "./preview-cleanup.js";
 import { csvToWorkbookBuffer } from "./csv-parser.js";
 import type { CsvImportType } from "./csv-templates.js";
+import { env } from "../../config/env.js";
 
 /** Upper bound for an accepted workbook, matching the documented API limit. */
 export const MAX_WORKBOOK_BYTES = 20 * 1024 * 1024;
@@ -326,7 +331,10 @@ export class WorkbookImportService {
     actorUserId: string,
     filename: string,
     buffer: Buffer,
-    options: { readonly idempotencyKey?: string } = {},
+    options: {
+      readonly idempotencyKey?: string;
+      readonly requestId?: string;
+    } = {},
   ): Promise<CommitReport> {
     const workbook = readWorkbook(buffer);
     const checksum = workbookChecksum(buffer);
@@ -492,6 +500,9 @@ export class WorkbookImportService {
                 updated: counts.updated,
                 skipped: counts.skipped,
                 errorRows: preview.totals.errorRows,
+                ...(options.requestId
+                  ? { requestId: options.requestId }
+                  : {}),
               },
             },
           });
@@ -602,6 +613,12 @@ export class WorkbookImportService {
     importId: string,
     query: { page: number; pageSize: number; sheet?: string | undefined },
   ) {
+    const batch = await this.db.importBatch.findFirst({
+      where: { tenantId, id: importId },
+      select: { id: true },
+    });
+    if (!batch) throw notFound("Import batch not found");
+
     const where = {
       tenantId,
       batchId: importId,
@@ -828,6 +845,9 @@ export class WorkbookImportService {
   ): Promise<{ importId: string; preview: PreviewReport; alreadyImported: boolean }> {
     const preview = this.preview(filename, buffer);
     const checksum = preview.workbook.checksum;
+    const previewExpiresAt = new Date(
+      Date.now() + env.IMPORT_PREVIEW_TTL_HOURS * 60 * 60 * 1000,
+    ).toISOString();
 
     const prior = await this.db.importBatch.findUnique({
       where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: checksum } },
@@ -845,6 +865,18 @@ export class WorkbookImportService {
       };
     }
 
+    // Supersede any previously retained payload for this checksum before retain.
+    if (prior?.id) {
+      await removeRetainedPreview(tenantId, prior.id);
+    }
+
+    const reportPayload = {
+      ...preview,
+      channel,
+      previewExpiresAt,
+      ...extra,
+    };
+
     const batch = await this.db.importBatch.upsert({
       where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: checksum } },
       update: {
@@ -855,9 +887,7 @@ export class WorkbookImportService {
         startedAt: new Date(),
         completedAt: null,
         errorCount: preview.totals.errorRows,
-        report: JSON.parse(
-          JSON.stringify({ ...preview, channel, ...extra }),
-        ) as object,
+        report: JSON.parse(JSON.stringify(reportPayload)) as object,
       },
       create: {
         tenantId,
@@ -867,9 +897,7 @@ export class WorkbookImportService {
         status: "PREVIEWED",
         uploadedById: actorUserId,
         errorCount: preview.totals.errorRows,
-        report: JSON.parse(
-          JSON.stringify({ ...preview, channel, ...extra }),
-        ) as object,
+        report: JSON.parse(JSON.stringify(reportPayload)) as object,
       },
       select: { id: true },
     });
@@ -933,6 +961,7 @@ export class WorkbookImportService {
     tenantId: string,
     actorUserId: string,
     importId: string,
+    options: { readonly requestId?: string } = {},
   ): Promise<CommitReport> {
     const batch = await this.db.importBatch.findFirst({
       where: { tenantId, id: importId },
@@ -947,6 +976,7 @@ export class WorkbookImportService {
     if (!batch) throw notFound("Import batch not found");
 
     if (batch.status === "COMPLETED" || batch.status === "PARTIAL") {
+      await removeRetainedPreview(tenantId, batch.id);
       return {
         ...(batch.report as unknown as CommitReport),
         batchId: batch.id,
@@ -982,6 +1012,21 @@ export class WorkbookImportService {
       );
     }
 
+    // Honour stored previewExpiresAt when present.
+    const expiresAt = previewExpiresAtFromReport(batch.report);
+    if (expiresAt && expiresAt.getTime() <= Date.now()) {
+      await removeRetainedPreview(tenantId, batch.id);
+      await this.db.importBatch.update({
+        where: { id: batch.id },
+        data: { status: "FAILED", completedAt: new Date() },
+      });
+      throw new AppError(
+        410,
+        "IMPORT_UPLOAD_EXPIRED",
+        "The preview upload is no longer available; upload again",
+      );
+    }
+
     try {
       const buffer = await readFile(retainedPath);
       return await this.commit(
@@ -989,10 +1034,13 @@ export class WorkbookImportService {
         actorUserId,
         batch.originalFilename,
         buffer,
-        { idempotencyKey: batch.fileChecksum },
+        {
+          idempotencyKey: batch.fileChecksum,
+          ...(options.requestId ? { requestId: options.requestId } : {}),
+        },
       );
     } finally {
-      await unlink(retainedPath).catch(() => undefined);
+      await removeRetainedPreview(tenantId, batch.id);
     }
   }
 }

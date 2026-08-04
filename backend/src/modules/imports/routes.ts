@@ -158,6 +158,7 @@ export const importRoutes = (service: WorkbookImportService) => {
         req.auth!.tenantId,
         req.auth!.userId,
         String(req.params.importId),
+        typeof req.id === "string" ? { requestId: req.id } : {},
       );
       return ok(res, report);
     }),

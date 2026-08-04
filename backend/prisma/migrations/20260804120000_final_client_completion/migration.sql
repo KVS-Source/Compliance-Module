@@ -88,10 +88,10 @@ CREATE UNIQUE INDEX "external_system_connections_tenant_id_id_key" ON "external_
 CREATE UNIQUE INDEX "external_system_connections_tenant_id_system_code_key" ON "external_system_connections"("tenant_id", "system_code");
 CREATE INDEX "external_system_connections_tenant_id_status_idx" ON "external_system_connections"("tenant_id", "status");
 
-CREATE UNIQUE INDEX "external_record_maps_tenant_id_id_key" ON "external_record_maps"("tenant_id", "id");
-CREATE UNIQUE INDEX "external_record_maps_tenant_id_connection_id_source_entity_type_external_record_id_key" ON "external_record_maps"("tenant_id", "connection_id", "source_entity_type", "external_record_id");
-CREATE INDEX "external_record_maps_tenant_id_local_entity_type_local_entity_id_idx" ON "external_record_maps"("tenant_id", "local_entity_type", "local_entity_id");
-CREATE INDEX "external_record_maps_tenant_id_status_idx" ON "external_record_maps"("tenant_id", "status");
+CREATE UNIQUE INDEX "erm_tenant_id_id_key" ON "external_record_maps"("tenant_id", "id");
+CREATE UNIQUE INDEX "erm_conn_src_ext_uidx" ON "external_record_maps"("tenant_id", "connection_id", "source_entity_type", "external_record_id");
+CREATE INDEX "erm_local_entity_idx" ON "external_record_maps"("tenant_id", "local_entity_type", "local_entity_id");
+CREATE INDEX "erm_tenant_status_idx" ON "external_record_maps"("tenant_id", "status");
 
 CREATE UNIQUE INDEX "sync_runs_tenant_id_id_key" ON "sync_runs"("tenant_id", "id");
 CREATE INDEX "sync_runs_tenant_id_connection_id_started_at_idx" ON "sync_runs"("tenant_id", "connection_id", "started_at");

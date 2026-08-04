@@ -137,6 +137,10 @@ describe("final client completion integration", () => {
   });
 
   it("reports GenRAC as not configured by default", async () => {
+    await prisma.externalSystemConnection.updateMany({
+      where: { tenantId, systemCode: "GENRAC" },
+      data: { status: "NOT_CONFIGURED", config: {}, secretRefKeys: [] },
+    });
     const status = await genrac.status(tenantId);
     expect(status.connection.status).toBe("NOT_CONFIGURED");
     expect(status.liveAccess).toBe(false);

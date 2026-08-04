@@ -1711,10 +1711,10 @@ model ExternalRecordMap {
   tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   connection         ExternalSystemConnection @relation(fields: [tenantId, connectionId], references: [tenantId, id], onDelete: Restrict)
 
-  @@unique([tenantId, id])
-  @@unique([tenantId, connectionId, sourceEntityType, externalRecordId])
-  @@index([tenantId, localEntityType, localEntityId])
-  @@index([tenantId, status])
+  @@unique([tenantId, id], map: "erm_tenant_id_id_key")
+  @@unique([tenantId, connectionId, sourceEntityType, externalRecordId], map: "erm_conn_src_ext_uidx")
+  @@index([tenantId, localEntityType, localEntityId], map: "erm_local_entity_idx")
+  @@index([tenantId, status], map: "erm_tenant_status_idx")
   @@map("external_record_maps")
 }
 
