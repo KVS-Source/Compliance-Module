@@ -2902,7 +2902,45 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Sync counts" },
+          "403": { description: "Missing integrations:write permission" },
           "409": { description: "Not configured" },
+        },
+      },
+    },
+    "/integrations/genrac/configure-csv": {
+      post: {
+        summary: "Configure the GenRAC CSV adapter",
+        description:
+          "Registers a simple filename under LOCAL_UPLOAD_DIR/.genrac. Rejects traversal, absolute paths, and missing files before marking CONFIGURED. Never accepts or returns credentials.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["filename"],
+                properties: {
+                  filename: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 200,
+                    description:
+                      "Basename only (for example genrac-export.csv). Path separators and traversal are rejected.",
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Updated connection status DTO (no secrets)" },
+          "400": {
+            description:
+              "Invalid filename, path escape, or CSV file missing under the GenRAC root",
+          },
+          "403": { description: "Missing integrations:write permission" },
         },
       },
     },
@@ -2912,6 +2950,26 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Paginated sync runs" },
+          "403": { description: "Missing integrations:read permission" },
+        },
+      },
+    },
+    "/integrations/genrac/history/{syncRunId}": {
+      get: {
+        summary: "Get one GenRAC sync run",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "syncRunId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Sync run detail" },
+          "403": { description: "Missing integrations:read permission" },
+          "404": { description: "Sync run not found in the active Company" },
         },
       },
     },

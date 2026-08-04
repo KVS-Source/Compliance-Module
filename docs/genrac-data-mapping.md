@@ -2,11 +2,17 @@
 
 ## Source dictionary
 
-- Expected client dictionary path (read-only when available):
-  `/Users/praneetsharma/Downloads/GRC_Data_Dictionary(3).xlsx`
-- Status at final-client-completion: **file not present in the local workspace**.
-- Mapping below follows repository documentation, operational ownership
-  boundaries, and the GenBioCa Prisma schema rather than guessed table names.
+- Authoritative client dictionary filename: `GRC_Data_Dictionary.xlsx`
+- SHA-256:
+  `208e3806d5d66d7e690280b1d0d86025c08a95444ac053ad11e316a3598c8358`
+- Catalogue size (from the authoritative dictionary): **3 sheets**, **46 tables**,
+  **408 columns**, **34 key relationships**, **8 domains**
+- Prefer the filename + checksum above over any absolute workstation path. The
+  workbook itself is **not** copied into Git; operators hold the client-supplied
+  file outside the repository and verify the SHA-256 before mapping work.
+- Mapping below follows the dictionary catalogue, repository documentation,
+  operational ownership boundaries, and the GenBioCa Prisma schema rather than
+  guessed table names.
 
 ## First-sync entities (GenRAC / shared source may own)
 
@@ -61,7 +67,9 @@ ImportBatch or AuditEvent rows.
 
 ## Connector configuration still required
 
-- CSV adapter: filename under `LOCAL_UPLOAD_DIR/.genrac`
+- CSV adapter: filename under `LOCAL_UPLOAD_DIR/.genrac` (basename only; path
+  traversal and absolute paths are rejected before the connection is marked
+  CONFIGURED; the file must already exist under that root)
 - REST adapter: base URL + secret env refs (configuration-ready only)
 - PostgreSQL read-only adapter: not enabled without reviewed access
 
@@ -69,7 +77,8 @@ ImportBatch or AuditEvent rows.
 
 - Live GenRAC REST credentials
 - Network allow-list / VPN as dictated by the client
-- Reviewed data-dictionary confirmation for the ~46-table / ~408-column catalogue
+- Operator verification of `GRC_Data_Dictionary.xlsx` against the published
+  SHA-256 before extending first-sync mappings beyond the approved entity set
 
 ## Deferred from initial sync
 
