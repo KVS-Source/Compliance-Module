@@ -42,7 +42,11 @@ const requiredLiveRoutes = [
   { path: "/compliance/checkpoints", component: "CheckpointRegisterPage" },
   { path: "/compliance/gaps", component: "GapRegisterPage" },
   { path: "/compliance/capa", component: "CapaRegisterPage" },
+  { path: "/compliance/operational-registers", component: "OperationalRegistersPage" },
+  { path: "/audit-trail", component: "AuditTrailPage" },
+  { path: "/data/import", component: "ImportCentrePage" },
   { path: "/data/import-history", component: "ImportHistoryPage" },
+  { path: "/data/genrac-integration", component: "GenracIntegrationPage" },
   { path: "/evidence", component: "EvidenceLibraryPage" },
   { path: "/evidence/new", component: "EvidenceCreatePage" },
   { path: "/evidence/review", component: "EvidenceReviewQueuePage" },
@@ -75,6 +79,14 @@ const requiredLiveChildRoutes = [
   { path: "compliance/gaps/:gapId", component: "GapDetailPage" },
   { path: "compliance/capa/:capaId", component: "CapaDetailPage" },
   { path: "data/import-history/:importId", component: "ImportDetailPage" },
+  {
+    path: "compliance/operational-registers/:registerCode",
+    component: "OperationalRegistersPage",
+  },
+  {
+    path: "compliance/operational-registers/:registerCode/records/:recordId",
+    component: "OperationalRegisterDetailPage",
+  },
 ];
 
 /**
@@ -217,15 +229,17 @@ const statusCounts = {
 };
 const protectedLivePatterns =
   statusCounts.LIVE + requiredLiveChildRoutes.length;
+// Final client completion: production navigation is LIVE-only (no In Development
+// or Awaiting Access badges). Deferred routes live outside navigation metadata.
 if (
-  protectedLivePatterns !== 32 ||
-  statusCounts.IN_DEVELOPMENT !== 18 ||
-  statusCounts.AWAITING_INTEGRATION !== 1 ||
+  protectedLivePatterns !== 38 ||
+  statusCounts.IN_DEVELOPMENT !== 0 ||
+  statusCounts.AWAITING_INTEGRATION !== 0 ||
   statusCounts.COMPATIBILITY !== 22 ||
-  visiblePaths.length !== 41
+  visiblePaths.length !== 26
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 32 protected LIVE route patterns, 18 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes and 41 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 38 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 22 hidden COMPATIBILITY routes and 26 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 
@@ -246,11 +260,11 @@ if (
   );
 }
 if (
-  !definitionsSource.includes('"AWAITING_INTEGRATION"') ||
-  !definitionsSource.includes("No live connection is configured")
+  !definitionsSource.includes("GenRAC Integration") ||
+  !definitionsSource.includes("not claimed when unconfigured")
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — GenRAC route must explicitly state that no live connection is configured`,
+    `${displayPath(routeDefinitionsPath)} — GenRAC route must remain truthful about unconfigured live access`,
   );
 }
 if (
@@ -327,6 +341,13 @@ for (const { path, target } of requiredCompatibilityRedirects) {
   }
 }
 
+// Production navigation must never surface development badges.
+if (visiblePaths.length > 0 && statusCounts.IN_DEVELOPMENT > 0) {
+  failures.push(
+    `${displayPath(routeDefinitionsPath)} — production navigation still contains IN_DEVELOPMENT routes`,
+  );
+}
+
 if (failures.length > 0) {
   console.error("Live-route guard failed:");
   for (const failure of failures) console.error(`- ${failure}`);
@@ -334,5 +355,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: 1 public login, 32 protected LIVE patterns, 18 visible IN_DEVELOPMENT routes, 1 AWAITING_INTEGRATION route, 22 hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
+  `Live-route guard passed: 1 public login, ${protectedLivePatterns} protected LIVE patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 22 hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
 );
