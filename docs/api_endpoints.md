@@ -27,7 +27,9 @@ routes require bearer authentication and active Company membership.
 | Gaps | `GET/POST /gaps`; `GET/PATCH /gaps/:gapId`; `PATCH /gaps/:gapId/owner`; `POST /gaps/:gapId/close`; `/reopen`; `POST /gaps/:gapId/evidence`; `DELETE /gaps/:gapId/evidence/:evidenceId` |
 | CAPAs | `GET/POST /capas`; `GET/PATCH /capas/:capaId`; `PATCH /capas/:capaId/owner`; `POST /capas/:capaId/close`; `/reopen`; `POST /capas/:capaId/evidence`; `DELETE /capas/:capaId/evidence/:evidenceId` |
 | Operational registers | `GET /operational-registers`; `GET/POST /operational-registers/:registerCode/records`; `GET/PATCH /operational-registers/:registerCode/records/:recordId` |
-| Workbook imports | `GET /imports`; `GET /imports/:importId`; `GET /imports/:importId/errors` (CLI owns preview/commit) |
+| Workbook imports | `GET /imports`; `GET /imports/:importId`; `GET /imports/:importId/errors`; `POST /imports/workbook/preview`; `POST /imports/csv/preview?type=`; `POST /imports/:importId/commit`; `GET /imports/csv/templates`; `GET /imports/csv/templates/:type` |
+| Audit trail | `GET /audit-events`; `GET /audit-events/:eventId`; `GET /audit-events/export.csv` |
+| GenRAC integration | `GET /integrations/genrac/status`; `POST /integrations/genrac/test-connection`; `POST /integrations/genrac/configure-csv`; `POST /integrations/genrac/preview`; `POST /integrations/genrac/sync`; `GET /integrations/genrac/history`; `GET /integrations/genrac/history/:syncRunId` |
 | CSV exports | `GET /exports/gaps.csv`; `/capas.csv`; `/kpi-actuals.csv`; `/risks.csv`; `/evidence.csv`; `/operational-registers/:registerCode.csv` |
 
 List endpoints use `page` and `pageSize` and return `meta.page`,

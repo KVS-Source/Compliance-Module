@@ -29,18 +29,18 @@ by UAT language or status-page presentation.
 
 - Policy, Control and Checkpoint REST APIs are operational. React Policy
   Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
-  Checkpoint Register/detail (Slice 7), Gap/CAPA registers and details, and
-  Import History/detail are operational. Evidence metadata,
+  Checkpoint Register/detail (Slice 7), Gap/CAPA registers and details,
+  Import Centre (browser XLSX/CSV preview+commit), Import History/detail,
+  Audit Trail, Operational Registers UI, and GenRAC integration status
+  (Not configured until credentials exist) are operational. Evidence metadata,
   local file upload/download/submit, DRAFT-only link APIs, approve/reject review,
   React Evidence routes (Library, Create, Detail, Review, link panels), and
   Evidence gates for Checkpoint, Policy Version and KPI actual approval are
-  operational (Milestone 5). The standalone Policy Versions navigation page,
-  dedicated operational-register UI, Tasks, Notifications, Reports, global
-  audit query/export and settings are not operational. Operational-register
-  data is available through the protected backend and dashboard summary. The
-  upload UI remains deliberately unavailable; authoritative workbook imports
-  use the reviewed operator CLI. Same-period Checkpoint Review correction
-  remains unsupported.
+  operational (Milestone 5). Tasks, Notifications, Reports, and tenant/settings
+  polish remain deferred and hidden from production navigation. Same-period
+  Checkpoint Review correction remains unsupported. Live GenRAC REST/database
+  sync remains unavailable until the client provides approved access; the CSV
+  adapter path is platform-ready under `LOCAL_UPLOAD_DIR/.genrac`.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Policy, Control and Checkpoint register filters are React state only
   (no URL query sync). Control Checkpoint panels keep counts and, when
