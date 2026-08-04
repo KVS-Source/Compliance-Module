@@ -148,6 +148,10 @@ async function main() {
           "Create and update Company operational register records",
         ],
         ["imports:read", "Read Company workbook import batches and row errors"],
+        ["imports:write", "Preview and commit Company workbook and CSV imports"],
+        ["audit:read", "Read Company audit trail events"],
+        ["integrations:read", "Read external integration status and sync history"],
+        ["integrations:write", "Test and run configured external integrations"],
         ["dashboard:read", "Read the Company compliance dashboard"],
         ["exports:read", "Export Company records as CSV"],
       ] as const

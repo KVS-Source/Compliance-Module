@@ -87,3 +87,32 @@ export const evidenceUploadRateLimiter = (): RequestHandler =>
       });
     },
   });
+
+/**
+ * Browser workbook/CSV preview and commit. Keys by authenticated user.
+ */
+export const importUploadRateLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: env.EVIDENCE_UPLOAD_RATE_WINDOW_MS,
+    limit: env.EVIDENCE_UPLOAD_RATE_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => env.RATE_LIMIT_DISABLED === "true",
+    keyGenerator: (req) => {
+      if (req.auth?.userId) return `import-upload:user:${req.auth.userId}`;
+      return `import-upload:ip:${req.ip || "unknown"}`;
+    },
+    validate: {
+      keyGeneratorIpFallback: false,
+    },
+    handler: (req, res) => {
+      req.log?.warn({ path: req.path }, "import upload rate limit exceeded");
+      res.status(429).json({
+        success: false,
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many import attempts. Try again later.",
+        },
+      });
+    },
+  });

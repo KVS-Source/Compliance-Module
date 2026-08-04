@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import { readFile, rename, unlink } from "node:fs/promises";
+import { join } from "node:path";
 import type { ImportBatchStatus, PrismaClient } from "@prisma/client";
-import { AppError } from "../../common/errors/app-error.js";
+import { AppError, notFound } from "../../common/errors/app-error.js";
 import { FrameworkResolver } from "./framework-resolver.js";
 import {
   IMPORT_ORDER,
@@ -39,6 +41,9 @@ import {
   riskImporter,
 } from "./importers/risk-gap-capa.js";
 import { auditTrailImporter, registerImporter } from "./importers/registers.js";
+import { cleanupImportTemp } from "./multipart.js";
+import { csvToWorkbookBuffer } from "./csv-parser.js";
+import type { CsvImportType } from "./csv-templates.js";
 
 /** Upper bound for an accepted workbook, matching the documented API limit. */
 export const MAX_WORKBOOK_BYTES = 20 * 1024 * 1024;
@@ -331,15 +336,27 @@ export class WorkbookImportService {
       where: { tenantId_idempotencyKey: { tenantId, idempotencyKey } },
       select: { id: true, status: true, report: true },
     });
-    if (previous && previous.status !== "FAILED") {
+    if (
+      previous &&
+      previous.status !== "FAILED" &&
+      previous.status !== "PREVIEWED" &&
+      previous.status !== "COMMITTING"
+    ) {
       // An identical workbook returns the recorded result instead of writing
-      // a second set of records.
+      // a second set of records. PREVIEWED batches remain commitable.
       return {
         ...(previous.report as unknown as CommitReport),
         batchId: previous.id,
         status: previous.status,
         alreadyImported: true,
       };
+    }
+    if (previous?.status === "COMMITTING") {
+      throw new AppError(
+        409,
+        "IMPORT_IN_PROGRESS",
+        "This import is already committing",
+      );
     }
 
     const { validations, unmappedSheets } = validateWorkbook(workbook);
@@ -754,5 +771,228 @@ export class WorkbookImportService {
         };
       }),
     });
+  }
+
+  private async retainUpload(
+    tenantId: string,
+    tempPath: string,
+    batchId: string,
+  ) {
+    const { mkdir } = await import("node:fs/promises");
+    const { resolve: resolvePath } = await import("node:path");
+    const { env } = await import("../../config/env.js");
+    const dir = resolvePath(
+      env.LOCAL_UPLOAD_DIR,
+      ".import-tmp",
+      tenantId,
+      batchId,
+    );
+    await mkdir(dir, { recursive: true });
+    const retained = join(dir, "payload.bin");
+    await rename(tempPath, retained);
+    return retained;
+  }
+
+  private async findRetainedUpload(tenantId: string, batchId: string) {
+    const { statSync } = await import("node:fs");
+    const { resolve: resolvePath } = await import("node:path");
+    const { env } = await import("../../config/env.js");
+    const candidate = resolvePath(
+      env.LOCAL_UPLOAD_DIR,
+      ".import-tmp",
+      tenantId,
+      batchId,
+      "payload.bin",
+    );
+    try {
+      if (statSync(candidate).isFile()) return candidate;
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  /**
+   * HTTP workbook preview: validates without writing domain tables, records a
+   * PREVIEWED batch keyed by checksum, and retains the upload for commit.
+   * The temp path is never returned to clients.
+   */
+  async previewUpload(
+    tenantId: string,
+    actorUserId: string,
+    filename: string,
+    tempPath: string,
+    buffer: Buffer,
+    channel: "BROWSER_XLSX" | "BROWSER_CSV" = "BROWSER_XLSX",
+    extra: Record<string, unknown> = {},
+  ): Promise<{ importId: string; preview: PreviewReport; alreadyImported: boolean }> {
+    const preview = this.preview(filename, buffer);
+    const checksum = preview.workbook.checksum;
+
+    const prior = await this.db.importBatch.findUnique({
+      where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: checksum } },
+      select: { id: true, status: true, report: true },
+    });
+    if (
+      prior &&
+      (prior.status === "COMPLETED" || prior.status === "PARTIAL")
+    ) {
+      await cleanupImportTemp(tempPath);
+      return {
+        importId: prior.id,
+        preview,
+        alreadyImported: true,
+      };
+    }
+
+    const batch = await this.db.importBatch.upsert({
+      where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: checksum } },
+      update: {
+        status: "PREVIEWED",
+        originalFilename: filename,
+        fileChecksum: checksum,
+        uploadedById: actorUserId,
+        startedAt: new Date(),
+        completedAt: null,
+        errorCount: preview.totals.errorRows,
+        report: JSON.parse(
+          JSON.stringify({ ...preview, channel, ...extra }),
+        ) as object,
+      },
+      create: {
+        tenantId,
+        originalFilename: filename,
+        fileChecksum: checksum,
+        idempotencyKey: checksum,
+        status: "PREVIEWED",
+        uploadedById: actorUserId,
+        errorCount: preview.totals.errorRows,
+        report: JSON.parse(
+          JSON.stringify({ ...preview, channel, ...extra }),
+        ) as object,
+      },
+      select: { id: true },
+    });
+
+    try {
+      await this.retainUpload(tenantId, tempPath, batch.id);
+    } catch {
+      await cleanupImportTemp(tempPath);
+      await this.db.importBatch.update({
+        where: { id: batch.id },
+        data: { status: "FAILED", completedAt: new Date() },
+      });
+      throw new AppError(
+        500,
+        "IMPORT_STORAGE_FAILED",
+        "Failed to retain import upload for commit",
+      );
+    }
+
+    return { importId: batch.id, preview, alreadyImported: false };
+  }
+
+  async previewCsvUpload(
+    tenantId: string,
+    actorUserId: string,
+    importType: CsvImportType,
+    filename: string,
+    tempPath: string,
+    csvBuffer: Buffer,
+  ): Promise<{
+    importId: string;
+    preview: PreviewReport;
+    alreadyImported: boolean;
+  }> {
+    let adapted;
+    try {
+      adapted = csvToWorkbookBuffer(importType, csvBuffer);
+    } catch (error) {
+      await cleanupImportTemp(tempPath);
+      throw error;
+    }
+    // Retain the adapted workbook bytes for commit (CSV itself is not replayed).
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(tempPath, adapted.workbookBuffer);
+    return this.previewUpload(
+      tenantId,
+      actorUserId,
+      filename,
+      tempPath,
+      adapted.workbookBuffer,
+      "BROWSER_CSV",
+      { csvImportType: importType, csvRowCount: adapted.rowCount },
+    );
+  }
+
+  /**
+   * Commits a previously previewed browser upload. Duplicate clicks against an
+   * already completed checksum return alreadyImported without rewriting.
+   */
+  async commitPreview(
+    tenantId: string,
+    actorUserId: string,
+    importId: string,
+  ): Promise<CommitReport> {
+    const batch = await this.db.importBatch.findFirst({
+      where: { tenantId, id: importId },
+      select: {
+        id: true,
+        status: true,
+        originalFilename: true,
+        fileChecksum: true,
+        report: true,
+      },
+    });
+    if (!batch) throw notFound("Import batch not found");
+
+    if (batch.status === "COMPLETED" || batch.status === "PARTIAL") {
+      return {
+        ...(batch.report as unknown as CommitReport),
+        batchId: batch.id,
+        status: batch.status,
+        alreadyImported: true,
+      };
+    }
+    if (batch.status === "COMMITTING") {
+      throw new AppError(
+        409,
+        "IMPORT_IN_PROGRESS",
+        "This import is already committing",
+      );
+    }
+    if (batch.status !== "PREVIEWED" && batch.status !== "FAILED") {
+      throw new AppError(
+        409,
+        "IMPORT_NOT_COMMITTABLE",
+        `Import batch status ${batch.status} cannot be committed`,
+      );
+    }
+
+    const retainedPath = await this.findRetainedUpload(tenantId, batch.id);
+    if (!retainedPath) {
+      await this.db.importBatch.update({
+        where: { id: batch.id },
+        data: { status: "FAILED", completedAt: new Date() },
+      });
+      throw new AppError(
+        410,
+        "IMPORT_UPLOAD_EXPIRED",
+        "The preview upload is no longer available; upload again",
+      );
+    }
+
+    try {
+      const buffer = await readFile(retainedPath);
+      return await this.commit(
+        tenantId,
+        actorUserId,
+        batch.originalFilename,
+        buffer,
+        { idempotencyKey: batch.fileChecksum },
+      );
+    } finally {
+      await unlink(retainedPath).catch(() => undefined);
+    }
   }
 }

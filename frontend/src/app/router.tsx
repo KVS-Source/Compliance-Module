@@ -41,6 +41,13 @@ import { CapaDetailPage } from "../features/capas/CapaDetailPage";
 import { CapaRegisterPage } from "../features/capas/CapaRegisterPage";
 import { ImportDetailPage } from "../features/imports/ImportDetailPage";
 import { ImportHistoryPage } from "../features/imports/ImportHistoryPage";
+import { ImportCentrePage } from "../features/imports/ImportCentrePage";
+import { AuditTrailPage } from "../features/audit/AuditTrailPage";
+import {
+  OperationalRegisterDetailPage,
+  OperationalRegistersPage,
+} from "../features/registers/OperationalRegistersPage";
+import { GenracIntegrationPage } from "../features/integrations/GenracIntegrationPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -249,8 +256,14 @@ const migratedRoutes: RouteObject[] = [
       </PermissionBoundary>
     ),
   },
+  { path: "data/import", element: <PermissionBoundary permission="imports:read"><ImportCentrePage /></PermissionBoundary> },
   { path: "data/import-history", element: <PermissionBoundary permission="imports:read"><ImportHistoryPage /></PermissionBoundary> },
   { path: "data/import-history/:importId", element: <PermissionBoundary permission="imports:read"><ImportDetailPage /></PermissionBoundary> },
+  { path: "data/genrac-integration", element: <PermissionBoundary permission="integrations:read"><GenracIntegrationPage /></PermissionBoundary> },
+  { path: "audit-trail", element: <PermissionBoundary permission="audit:read"><AuditTrailPage /></PermissionBoundary> },
+  { path: "compliance/operational-registers", element: <PermissionBoundary permission="registers:read"><OperationalRegistersPage /></PermissionBoundary> },
+  { path: "compliance/operational-registers/:registerCode", element: <PermissionBoundary permission="registers:read"><OperationalRegistersPage /></PermissionBoundary> },
+  { path: "compliance/operational-registers/:registerCode/records/:recordId", element: <PermissionBoundary permission="registers:read"><OperationalRegisterDetailPage /></PermissionBoundary> },
   {
     path: "compliance/policy-register",
     element: (
