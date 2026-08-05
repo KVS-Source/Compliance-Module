@@ -1,6 +1,6 @@
 # Current status and V1 scope
 
-Baseline date: 2026-08-05
+Baseline date: 2026-08-06
 
 ## Release classification
 
@@ -81,8 +81,6 @@ deferred scope):
   misses and import; treatment/close work on the Risk Register);
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
   place a file and configure via API);
-- self-service password change for the signed-in user (admin may set another
-  user’s password via user update when permitted);
 - Policy Version obsoletion and Policy `INACTIVE` transitions;
 - malware scanning, S3 object storage, inline file preview;
 - same-period Checkpoint Review correction.
@@ -99,8 +97,10 @@ bring-up still requires human infrastructure and secrets.
   revalidation, repository predicates, composite tenant foreign keys,
   constraints and triggers.
 - PostgreSQL row-level security is not implemented.
-- `COMPANY_ADMIN` still uses wildcard permission `"*"` as UAT-only technical
-  debt; removal is mandatory before production.
+- Development/test seed data may still assign `COMPANY_ADMIN` with wildcard
+  permission `"*"` (UAT-only technical debt). Production initialization uses
+  five explicit roles only; readiness refuses active wildcard assignments.
+  Seed wildcards must never be used for a production or client-demo load.
 - Access tokens are memory-only. Opaque refresh tokens are hashed at rest and
   transported only by an HTTP-only, `SameSite=Strict` cookie; production
   requires `Secure`.
@@ -109,9 +109,10 @@ bring-up still requires human infrastructure and secrets.
 
 ## Test boundary
 
-Backend integration tests use real disposable PostgreSQL and all fourteen
-migrations. Automated Playwright uses browser-intercepted API responses and is
-not browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
+Backend integration tests use real disposable PostgreSQL and all applied
+migrations (sixteen folders under `backend/prisma/migrations/`). Automated
+Playwright uses browser-intercepted API responses and is not
+browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
 required for each release candidate.
 
 See:
