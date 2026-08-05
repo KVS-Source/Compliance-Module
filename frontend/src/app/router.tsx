@@ -15,6 +15,7 @@ import {
   FrameworkRulesPage,
   FrameworksPage,
 } from "../features/frameworks/FrameworksPage";
+import { ChangePasswordPage } from "../features/auth/ChangePasswordPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { NotFoundPage } from "../features/migration/PendingPage";
 import { KpiActualEntryPage } from "../features/kpis/KpiActualEntryPage";
@@ -96,6 +97,8 @@ function LegacyHashRedirect() {
 }
 
 const migratedRoutes: RouteObject[] = [
+  // Available to every authenticated role, so it carries no PermissionBoundary.
+  { path: "account/change-password", element: <ChangePasswordPage /> },
   {
     path: "dashboard",
     element: (

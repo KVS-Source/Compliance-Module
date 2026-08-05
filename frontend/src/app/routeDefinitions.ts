@@ -16,6 +16,7 @@ import {
   Gauge,
   GitMerge,
   History,
+  KeyRound,
   Landmark,
   LayoutDashboard,
   ListChecks,
@@ -685,7 +686,26 @@ export const navigationGroups: NavigationGroup[] = groups.map(
 
 export const utilityRoutes: RouteDefinition[] = [];
 
+/**
+ * LIVE routes reached from the Topbar account menu rather than the sidebar.
+ * They are deliberately absent from `navigationGroups`, `clientNavigationPaths`
+ * and `utilityRoutes` (which the sidebar footer renders), so the sidebar
+ * contract asserted by the navigation specs is unchanged.
+ */
+export const accountRouteDefinitions: RouteDefinition[] = [
+  live(
+    "/account/change-password",
+    "#account/change-password",
+    "Change Password",
+    "Account",
+    "Change your own password. Signs every session out once it succeeds.",
+    KeyRound,
+    { api: "POST /api/v1/auth/change-password" },
+  ),
+];
+
 export const migratedPaths = new Set([
+  "/account/change-password",
   "/dashboard",
   "/admin/companies",
   "/admin/users",

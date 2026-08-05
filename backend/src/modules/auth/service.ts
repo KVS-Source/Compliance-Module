@@ -5,6 +5,10 @@ import {
   unauthorized,
 } from "../../common/errors/app-error.js";
 import {
+  hashPassword,
+  verifyPassword,
+} from "../../common/security/password.js";
+import {
   hashToken,
   newRefreshToken,
   signAccessToken,
@@ -167,6 +171,51 @@ export class AuthService {
       throw unauthorized();
     }
     return userDto(user, tenantId);
+  }
+
+  /**
+   * Self-service password change for the authenticated caller. The identity is
+   * taken from the verified token only — never from the request body — so a
+   * caller can never target another account. Every live session for that user
+   * is revoked, including the one making the request.
+   */
+  async changePassword(
+    userId: string,
+    tenantId: string,
+    currentPassword: string,
+    newPassword: string,
+    context: { ip?: string; userAgent?: string },
+  ) {
+    const user = await this.repository.findUserById(userId);
+    if (
+      !user ||
+      user.status !== "ACTIVE" ||
+      !activeMembership(user, tenantId)
+    ) {
+      throw unauthorized();
+    }
+
+    const valid = await verifyPassword(user.passwordHash, currentPassword);
+    if (!valid) throw unauthorized("Current password is incorrect");
+
+    const reused = await verifyPassword(user.passwordHash, newPassword);
+    if (reused) {
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        "New password must be different from the current password",
+      );
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await this.repository.changePasswordAndRevokeSessions({
+      userId: user.id,
+      tenantId,
+      passwordHash,
+      ...(context.ip ? { ipAddress: context.ip } : {}),
+      ...(context.userAgent ? { userAgent: context.userAgent } : {}),
+    });
+    return { passwordChanged: true as const };
   }
 
   async switchCompany(

@@ -1,19 +1,30 @@
 import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { GENBIOCA_LOGO } from "../../assets/branding";
 import { Modal } from "../../components/feedback/Modal";
 import { useAuth } from "../../context/AuthContext";
+import { takeAuthNotice } from "./authNotice";
 
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  // Set when arriving from a successful self-service password change. Read once
+  // on mount so a later sign-in does not resurface it.
+  const [notice, setNotice] = useState(() => takeAuthNotice());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
+
+  useEffect(() => {
+    if (!notice) return;
+    // Drop the banner once the user begins signing in.
+    if (email || password) setNotice("");
+  }, [email, notice, password]);
+
   if (user) return <Navigate to="/dashboard" replace />;
 
   const submit = async (event: FormEvent) => {
@@ -49,6 +60,12 @@ export function LoginPage() {
           <div className="login-card-logo-wrap"><img className="login-card-logo" src={GENBIOCA_LOGO} alt="GenBioCa" /></div>
           <h2>Welcome back</h2>
           <p className="muted">Sign in to your secure workspace</p>
+          {notice ? (
+            <div className="banner banner-info" data-testid="login-notice" role="status">
+              <ShieldCheck size={18} />
+              <span>{notice}</span>
+            </div>
+          ) : null}
           <form onSubmit={(event) => void submit(event)} noValidate>
             <div className="field"><label htmlFor="login-email">Email</label><input id="login-email" className="control" name="email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /><div className="error" /></div>
             <div className="field"><label htmlFor="login-password">Password</label><div className="password-wrap"><input id="login-password" className={`control ${error ? "invalid" : ""}`} name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby="login-error" /><button className="inside-btn" type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><div className="error" id="login-error" role="alert">{error}</div></div>

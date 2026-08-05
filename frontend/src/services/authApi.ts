@@ -23,6 +23,23 @@ export const authApi = {
     return (await apiRequest<AuthUser>("/auth/me")).data;
   },
 
+  /**
+   * Self-service password change. The server revokes every session for this
+   * user, so the local access token is dropped on success and the caller must
+   * sign in again. Failures propagate so the form can show the server message.
+   */
+  async changePassword(currentPassword: string, newPassword: string) {
+    await apiRequest<{ passwordChanged: boolean }>(
+      "/auth/change-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      },
+      false,
+    );
+    clearAccessToken();
+  },
+
   async logout() {
     try {
       await apiRequest<{ loggedOut: boolean }>(

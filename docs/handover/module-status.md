@@ -8,7 +8,8 @@ Access still depends on the user’s assigned permissions.
 | --- | --- | --- |
 | Dashboard | View a company-scoped overview of compliance activity (KPIs, risks, organisation and framework-related summary information). | No editing or configuration from this screen. |
 | Companies | Review the companies available to the signed-in user and switch context when membership allows. | Creating or editing companies is not offered in the product UI. |
-| Users | List company users; create users; update name, contact details, status, department and set a new password for a user (when the user has write access). | Users cannot change their **own** password through a self-service flow. Role administration is not a separate screen. |
+| Users | List company users; create users; update name, contact details, status, department and set a new password for a user (when the user has write access). | Role administration is not a separate screen. |
+| Change Password | Change your own password from the account menu (top-right profile menu), available to every signed-in user regardless of role. Requires the current password; signs you out of every device on success. | Not reachable from the sidebar. There is no “forgot password” self-service reset — a user who cannot sign in needs an administrator to set a new password. |
 | Departments | View, create and update company departments. | No bulk department import from this screen alone (imports are under Data Import). |
 | Locations | View, create and update company operating locations. | Same as departments for bulk load. |
 | Organisation Units | View, create and update organisation units. | Same as departments for bulk load. |
@@ -37,4 +38,4 @@ Access still depends on the user’s assigned permissions.
 
 - Exact actions depend on the user’s role (for example read-only viewers cannot write or approve).
 - Evidence-related approvals and some closures can return a clear “evidence required” result when coverage is incomplete.
-- Password reset for another user is an administrator function on Users, not a self-service profile feature.
+- Changing your **own** password is self-service via the account menu. Setting a password for **another** user remains an administrator function on Users.

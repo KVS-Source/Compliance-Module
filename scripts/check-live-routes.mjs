@@ -90,6 +90,21 @@ const requiredLiveChildRoutes = [
 ];
 
 /**
+ * LIVE routes reached from the account menu rather than the sidebar. They carry
+ * an `accountRouteDefinitions` entry instead of a navigation entry, so they
+ * never appear in `clientNavigationPaths` and leave the sidebar contract
+ * untouched. The checks below assert they stay out of `utilityRoutes` too,
+ * since the sidebar footer renders those.
+ */
+const requiredLiveAccountRoutes = [
+  {
+    path: "account/change-password",
+    component: "ChangePasswordPage",
+    definitionPath: "/account/change-password",
+  },
+];
+
+/**
  * Superseded Evidence URLs must keep resolving to a replace-navigation redirect
  * rather than the detail route or a status page.
  */
@@ -228,18 +243,20 @@ const statusCounts = {
   COMPATIBILITY: compatibilityPaths.length,
 };
 const protectedLivePatterns =
-  statusCounts.LIVE + requiredLiveChildRoutes.length;
+  statusCounts.LIVE +
+  requiredLiveChildRoutes.length +
+  requiredLiveAccountRoutes.length;
 // Final client completion: production navigation is LIVE-only (no In Development
 // or Awaiting Access badges). Deferred routes live outside navigation metadata.
 if (
-  protectedLivePatterns !== 38 ||
+  protectedLivePatterns !== 39 ||
   statusCounts.IN_DEVELOPMENT !== 0 ||
   statusCounts.AWAITING_INTEGRATION !== 0 ||
   statusCounts.COMPATIBILITY !== 22 ||
   visiblePaths.length !== 26
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 38 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 22 hidden COMPATIBILITY routes and 26 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 39 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 22 hidden COMPATIBILITY routes and 26 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 
@@ -303,6 +320,7 @@ for (const { path, component } of [
     component,
   })),
   ...requiredLiveChildRoutes,
+  ...requiredLiveAccountRoutes.map(({ path, component }) => ({ path, component })),
 ]) {
   const element = elementForPath(path);
   if (element === null) {
@@ -322,6 +340,43 @@ for (const { path, component } of [
   if (!element.includes(`<${component}`)) {
     failures.push(
       `${displayPath(routerPath)} — "${path}" no longer renders ${component}`,
+    );
+  }
+}
+
+const accountBlock = block(
+  "export const accountRouteDefinitions: RouteDefinition\\[\\] = \\[",
+  "\\n\\];",
+);
+const utilityBlock = block(
+  "export const utilityRoutes: RouteDefinition\\[\\] = \\[",
+  "\\];",
+);
+for (const { definitionPath } of requiredLiveAccountRoutes) {
+  if (!accountBlock || !accountBlock.includes(`"${definitionPath}"`)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — "${definitionPath}" must be declared in accountRouteDefinitions`,
+    );
+  } else if (!/\blive\(/.test(accountBlock)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — accountRouteDefinitions must declare LIVE routes via live()`,
+    );
+  }
+  if (visiblePaths.includes(definitionPath)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — account route "${definitionPath}" must stay out of sidebar navigation`,
+    );
+  }
+  // The sidebar footer renders utilityRoutes, so account-menu routes must not
+  // appear there either.
+  if (utilityBlock && utilityBlock.includes(`"${definitionPath}"`)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — account route "${definitionPath}" must not be rendered by the sidebar footer via utilityRoutes`,
+    );
+  }
+  if (!migratedPaths.includes(definitionPath)) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — "${definitionPath}" is missing from migratedPaths`,
     );
   }
 }

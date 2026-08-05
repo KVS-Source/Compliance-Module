@@ -72,12 +72,16 @@ not place access tokens, cookies, passwords or private row data in evidence.
 ### Dashboard and navigation truthfulness
 
 - [ ] Confirm dashboard metrics match direct database/API counts.
-- [ ] Exercise all 16 protected LIVE route patterns.
-- [ ] Confirm 29 visible unfinished routes show **In Development**, not fake
-      operational pages.
-- [ ] Confirm the GenRAC route shows **Awaiting Integration** and makes no
-      connectivity claim.
+- [ ] Exercise all 39 protected LIVE route patterns (26 visible sidebar
+      modules, plus child routes and the account-menu Change Password route).
+- [ ] Confirm no route in the client sidebar shows **In Development** or
+      **Awaiting Integration**; deferred scope is hidden, not badged.
+- [ ] Confirm the GenRAC route is LIVE for connector status/sync history and
+      makes no live-connectivity claim while unconfigured.
 - [ ] Confirm 22 compatibility routes remain hidden from navigation/search.
+- [ ] Change your own password from the account menu; confirm it is absent from
+      the sidebar, that every session is signed out, and that the new password
+      is required at the next sign-in.
 - [ ] Confirm dormant prototype components are not routed.
 
 ## Database and security observations

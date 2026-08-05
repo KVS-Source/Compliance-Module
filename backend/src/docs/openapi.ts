@@ -743,6 +743,55 @@ export const openApiDocument = {
         responses: { "200": { description: "Current identity" } },
       },
     },
+    "/auth/change-password": {
+      post: {
+        summary: "Change your own password",
+        description:
+          "Self-service password change for the authenticated caller. Available to every authenticated role — no permission code is required. The account changed is always taken from the bearer token, never from the request body. On success every refresh token for that user is revoked (including the caller's own session) and the refresh cookie is cleared, so the client must sign in again.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["currentPassword", "newPassword"],
+                properties: {
+                  currentPassword: {
+                    type: "string",
+                    minLength: 8,
+                    maxLength: 256,
+                    format: "password",
+                  },
+                  newPassword: {
+                    type: "string",
+                    minLength: 8,
+                    maxLength: 256,
+                    format: "password",
+                    description:
+                      "Must satisfy the same strength rule an administrator uses via PATCH /users/{id}, and must differ from the current password.",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "Password changed. All sessions revoked; sign in again.",
+          },
+          "400": {
+            description:
+              "Fails the shared password rule, or the new password matches the current one",
+          },
+          "401": {
+            description: "Not authenticated, or the current password is wrong",
+          },
+          "429": { description: "Authentication rate limit exceeded" },
+        },
+      },
+    },
     "/auth/tenant-context": {
       post: {
         summary: "Switch Company context",

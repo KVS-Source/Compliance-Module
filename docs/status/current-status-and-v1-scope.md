@@ -29,9 +29,11 @@ evidence status is
 | `DORMANT` | Source/reference material is not imported or routed by the active runtime. |
 
 Current totals: one public login; **26 protected LIVE** sidebar modules (all
-entries in `clientNavigationPaths`); deferred product routes are **hidden**
-`IN_DEVELOPMENT` deep links (not shown in the client sidebar); 22 hidden
-`COMPATIBILITY` legacy URLs. No sidebar item remains `AWAITING_INTEGRATION`.
+entries in `clientNavigationPaths`); one protected LIVE **account-menu** route
+(Change Password), reached from the Topbar profile menu and deliberately kept
+out of the sidebar; deferred product routes are **hidden** `IN_DEVELOPMENT`
+deep links (not shown in the client sidebar); 22 hidden `COMPATIBILITY` legacy
+URLs. No sidebar item remains `AWAITING_INTEGRATION`.
 
 Client-readable module capabilities: [handover module status](../handover/module-status.md).
 
@@ -40,6 +42,8 @@ Client-readable module capabilities: [handover module status](../handover/module
 - authentication, refresh rotation, logout and active Company selection;
 - Companies (read), users (create/update including admin password set), and
   organisation masters (departments, locations, units);
+- **self-service password change** for any authenticated role (no permission
+  code required), which revokes every session for that user on success;
 - frameworks and framework rules (read);
 - Policy, Control and Checkpoint registers with lifecycle, mappings, reviews
   and scoped audit/traceability;
