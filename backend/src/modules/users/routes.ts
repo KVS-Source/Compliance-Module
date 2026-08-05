@@ -1,4 +1,3 @@
-import argon2 from "argon2";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import {
@@ -8,6 +7,10 @@ import {
   validate,
 } from "../../common/middleware/http.js";
 import { AppError, notFound } from "../../common/errors/app-error.js";
+import {
+  hashPassword,
+  passwordSchema,
+} from "../../common/security/password.js";
 import { created, ok, pageMeta } from "../../common/responses/envelope.js";
 import {
   paginationSchema,
@@ -30,7 +33,7 @@ const createUserSchema = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(254).toLowerCase(),
   phone: z.string().trim().max(64).nullable().optional(),
-  password: z.string().min(8).max(256),
+  password: passwordSchema,
   status: statusSchema.default("ACTIVE"),
   departmentId: z.string().uuid().nullable().optional(),
 });
@@ -40,7 +43,7 @@ const updateUserSchema = z
     name: z.string().trim().min(1).max(200).optional(),
     email: z.string().trim().email().max(254).toLowerCase().optional(),
     phone: z.string().trim().max(64).nullable().optional(),
-    password: z.string().min(8).max(256).optional(),
+    password: passwordSchema.optional(),
     status: statusSchema.optional(),
     departmentId: z.string().uuid().nullable().optional(),
   })
@@ -137,9 +140,7 @@ export class UsersService {
       }
     }
 
-    const passwordHash = await argon2.hash(body.password, {
-      type: argon2.argon2id,
-    });
+    const passwordHash = await hashPassword(body.password);
     const user = await this.repository.createInTenant(
       tenantId,
       actorUserId,
@@ -182,7 +183,7 @@ export class UsersService {
     const passwordHash =
       body.password === undefined
         ? undefined
-        : await argon2.hash(body.password, { type: argon2.argon2id });
+        : await hashPassword(body.password);
 
     const user = await this.repository.updateInTenant(
       id,

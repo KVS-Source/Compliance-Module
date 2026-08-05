@@ -18,7 +18,10 @@ The release operator additionally records:
 - encrypted backup filename/checksum and successful disposable restore;
 - request IDs in access logs and absence of password/token/cookie markers;
 - UI login, navigation, safe error states, logout and expired-session return to
-  login through the real stack.
+  login through the real stack;
+- NGINX workbook upload limit (`NGINX_CLIENT_MAX_BODY_SIZE` default **21m**) and
+  JSON **413** `UPLOAD_TOO_LARGE` for oversized bodies (never an HTML error page);
+- Evidence upload ceilings remaining independently enforced at 10 MiB.
 
 Do not perform mutating workflow checks against live client records. Use the
 already verified integration suite or a separately approved disposable tenant.
@@ -58,8 +61,11 @@ already verified integration suite or a separately approved disposable tenant.
   malware scanning, content-disarm and signed URLs are not implemented.
 - At-rest volume encryption depends on the approved host/cloud disk control;
   the application does not implement its own Evidence encryption layer.
-- Password change is an operator-controlled immediate rotation because the
-  schema has no must-change-password flag.
+- Users change their own password from the account menu; the change is an
+  immediate rotation that revokes every session for that user. An administrator
+  can still set a password directly. Neither path can be *forced*: the schema
+  has no must-change-password flag, so first-login and periodic rotation remain
+  operator-driven by procedure rather than enforced by the application.
 - Real-stack browser smoke is human-operated; Playwright uses intercepted APIs.
 - GenRAC connectivity, public SaaS readiness, autoscaling, managed observability
   and a tested production RPO/RTO are not claimed.

@@ -10,6 +10,7 @@ import {
   refreshRateLimiter,
 } from "../../common/middleware/rate-limit.js";
 import { ok } from "../../common/responses/envelope.js";
+import { passwordSchema } from "../../common/security/password.js";
 import { env } from "../../config/env.js";
 import type { AuthService } from "./service.js";
 
@@ -18,6 +19,14 @@ const loginSchema = z.object({
   password: z.string().min(8).max(256),
 });
 const switchSchema = z.object({ companyId: z.string().uuid() });
+/**
+ * Unknown keys are stripped by Zod, so a body carrying `userId` (or any other
+ * identity field) cannot influence which account is changed.
+ */
+const changePasswordSchema = z.object({
+  currentPassword: passwordSchema,
+  newPassword: passwordSchema,
+});
 const REFRESH_COOKIE = "genbioca_refresh";
 
 type RefreshCookieConfiguration = Pick<
@@ -76,6 +85,23 @@ export class AuthController {
   me = async (req: Request, res: Response) =>
     ok(res, await this.service.me(req.auth!.userId, req.auth!.tenantId));
 
+  changePassword = async (req: Request, res: Response) => {
+    const userAgent = req.get("user-agent");
+    const result = await this.service.changePassword(
+      req.auth!.userId,
+      req.auth!.tenantId,
+      req.body.currentPassword as string,
+      req.body.newPassword as string,
+      {
+        ...(req.ip ? { ip: req.ip } : {}),
+        ...(userAgent ? { userAgent } : {}),
+      },
+    );
+    // Every session was revoked, so the stale refresh cookie must not survive.
+    res.clearCookie(REFRESH_COOKIE, cookieOptions);
+    return ok(res, result);
+  };
+
   switchCompany = async (req: Request, res: Response) => {
     const result = await this.service.switchCompany(
       req.auth!.userId,
@@ -103,6 +129,13 @@ export const authRoutes = (service: AuthService) => {
   );
   router.post("/logout", asyncHandler(controller.logout));
   router.get("/me", authenticate, asyncHandler(controller.me));
+  router.post(
+    "/change-password",
+    authRateLimiter(),
+    authenticate,
+    validate(changePasswordSchema),
+    asyncHandler(controller.changePassword),
+  );
   router.post(
     "/tenant-context",
     authRateLimiter(),

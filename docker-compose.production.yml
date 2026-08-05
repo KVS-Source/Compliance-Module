@@ -125,7 +125,7 @@ services:
     image: nginx:1.27-alpine
     environment:
       PRODUCTION_DOMAIN: ${PRODUCTION_DOMAIN:?PRODUCTION_DOMAIN is required}
-      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-11m}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-21m}
     ports:
       - "${HTTP_PORT:-80}:8080"
       - "${HTTPS_PORT:-443}:8443"

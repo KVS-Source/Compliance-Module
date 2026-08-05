@@ -16,6 +16,7 @@ import {
   Gauge,
   GitMerge,
   History,
+  KeyRound,
   Landmark,
   LayoutDashboard,
   ListChecks,
@@ -138,22 +139,6 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       api: "GET/POST /users · GET/PATCH /users/:id",
     },
   ),
-  development(
-    "/admin/roles",
-    "#admin/roles",
-    "Roles",
-    "Administration",
-    "Role and permission administration for the active Company.",
-    ShieldCheck,
-    {
-      plannedCapabilities: [
-        "Review role permissions",
-        "Assign approved permission sets",
-        "Audit access-control changes",
-      ],
-      dependency: "Reviewed role-management APIs and permission policy.",
-    },
-  ),
   live(
     "/admin/departments",
     "#admin/departments",
@@ -225,21 +210,6 @@ const navigationRouteDefinitions: RouteDefinition[] = [
       api: "GET/POST /policies · GET/PATCH /policies/:id · Version lifecycle",
     },
   ),
-  development(
-    "/compliance/policy-versions",
-    "#compliance/policy-versions",
-    "Policy Versions",
-    "Policies & Controls",
-    "Version history and approval state for governed policies.",
-    FileClock,
-    {
-      plannedCapabilities: [
-        "Create immutable policy versions",
-        "Review approval history",
-        "Compare superseded content",
-      ],
-    },
-  ),
   live(
     "/compliance/controls",
     "#compliance/controls",
@@ -265,22 +235,6 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     },
   ),
 
-  development(
-    "/master/kpis",
-    "#master/kpis",
-    "KPI Catalogue",
-    "KPI Management",
-    "The governed catalogue of KPI definitions.",
-    Gauge,
-    {
-      plannedCapabilities: [
-        "Browse governed KPI definitions",
-        "Maintain calculation metadata",
-        "Retire superseded definitions",
-      ],
-      dependency: "Reviewed KPI definition write workflow.",
-    },
-  ),
   live(
     "/kpi/configuration",
     "#kpi/configuration",
@@ -327,38 +281,6 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     {
       permission: "kpis:read",
       api: "GET /kpi-actuals · GET /kpi-actuals/:id · POST /kpi-actuals/:id/approve|reject|resubmit",
-    },
-  ),
-  development(
-    "/kpi/dashboard",
-    "#kpi/dashboard",
-    "KPI Dashboard",
-    "KPI Management",
-    "Detailed KPI trend and performance analysis.",
-    ChartLine,
-    {
-      plannedCapabilities: [
-        "Analyse KPI trends by period",
-        "Compare actuals with approved targets",
-        "Filter performance by organisation scope",
-      ],
-      dependency: "Reviewed analytical read models and reporting acceptance criteria.",
-    },
-  ),
-  development(
-    "/kpi/mapping",
-    "#kpi/mapping",
-    "KPI Mapping",
-    "KPI Management",
-    "Trace KPI definitions to compliance and risk records.",
-    GitMerge,
-    {
-      plannedCapabilities: [
-        "Map KPIs to frameworks and controls",
-        "Review traceability coverage",
-        "Audit mapping changes",
-      ],
-      dependency: "The reviewed KPI mapping domain is not yet implemented.",
     },
   ),
 
@@ -418,21 +340,6 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     TriangleAlert,
     { permission: "gaps:read", api: "GET/POST /gaps · GET/PATCH /gaps/:id · owner and closure actions" },
   ),
-  development(
-    "/compliance/gaps/review",
-    "#compliance/gaps/review",
-    "Gap Review",
-    "Gap & CAPA",
-    "Human review and disposition of compliance gaps.",
-    FileSearch,
-    {
-      plannedCapabilities: [
-        "Review gap severity",
-        "Record disposition decisions",
-        "Escalate accepted gaps to CAPA",
-      ],
-    },
-  ),
   live(
     "/compliance/capa",
     "#compliance/capa",
@@ -442,23 +349,8 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     Wrench,
     { permission: "capa:read", api: "GET/POST /capas · GET/PATCH /capas/:id · owner and closure actions" },
   ),
-  development(
-    "/compliance/capa/review",
-    "#compliance/capa/review",
-    "CAPA Review",
-    "Gap & CAPA",
-    "Human review of CAPA progress and closure evidence.",
-    ClipboardCheck,
-    {
-      plannedCapabilities: [
-        "Review CAPA completion",
-        "Verify closure evidence",
-        "Record append-only decisions",
-      ],
-    },
-  ),
 
-  development(
+  live(
     "/audit-trail",
     "#audit-trail",
     "Audit Trail",
@@ -466,59 +358,33 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "Searchable tenant-scoped history of governed activity.",
     History,
     {
-      plannedCapabilities: [
-        "Search immutable audit events",
-        "Filter by actor and record",
-        "Export reviewed audit history",
-      ],
-      dependency: "Reviewed audit-query API and export controls.",
+      permission: "audit:read",
+      api: "GET /audit-events · GET /audit-events/:id · GET /audit-events/export.csv",
     },
   ),
-  development(
-    "/tasks",
-    "#tasks",
-    "Tasks",
+  live(
+    "/compliance/operational-registers",
+    "#compliance/operational-registers",
+    "Operational Registers",
     "Audit & Operations",
-    "Assigned compliance work and due dates.",
+    "Audit schedule, findings, training, incidents, vendors, privacy, meetings and actions.",
     ClipboardList,
     {
-      plannedCapabilities: [
-        "Review assigned work",
-        "Track due dates and status",
-        "Navigate to governed source records",
-      ],
-    },
-  ),
-  development(
-    "/notifications",
-    "#notifications",
-    "Notifications",
-    "Audit & Operations",
-    "User notifications for assigned compliance events.",
-    Bell,
-    {
-      plannedCapabilities: [
-        "Review workflow notifications",
-        "Mark notifications as read",
-        "Configure delivery preferences",
-      ],
+      permission: "registers:read",
+      api: "GET /operational-registers · GET /operational-registers/:code/records",
     },
   ),
 
-  development(
+  live(
     "/data/import",
     "#data/import",
-    "CSV/XLSX Import",
+    "Data Import",
     "Data Management",
-    "Validated import of approved data templates.",
+    "Validated browser import of approved XLSX workbooks and CSV templates.",
     FileSpreadsheet,
     {
-      plannedCapabilities: [
-        "Upload approved CSV and XLSX templates",
-        "Validate records before import",
-        "Confirm reviewed imports",
-      ],
-      dependency: "Reviewed template contracts and safe import transaction design.",
+      permission: "imports:read",
+      api: "POST /imports/workbook/preview · POST /imports/csv/preview · POST /imports/:id/commit",
     },
   ),
   live(
@@ -530,138 +396,16 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     FileClock,
     { permission: "imports:read", api: "GET /imports · GET /imports/:id · GET /imports/:id/errors" },
   ),
-  development(
-    "/data/upload-errors",
-    "#data/upload-errors",
-    "Upload Errors",
-    "Data Management",
-    "Validation errors from reviewed import attempts.",
-    FileSearch,
-    {
-      plannedCapabilities: [
-        "Review row-level validation errors",
-        "Download correction reports",
-        "Retry corrected imports",
-      ],
-    },
-  ),
-  route(
+  live(
     "/data/genrac-integration",
     "#data/genrac-integration",
     "GenRAC Integration",
     "Data Management",
-    "Planned read-only access to selected GenRAC master data.",
+    "Configuration-driven GenRAC connector status. Live access is not claimed when unconfigured.",
     Database,
-    4,
-    "AWAITING_INTEGRATION",
     {
-      statusLabel: "Awaiting GenRAC Access",
-      plannedCapabilities: [
-        "Read selected master data from GenRAC",
-        "Keep the integration one-way and read-only",
-        "Support an independently reviewed manual or CSV path",
-      ],
-      dependency:
-        "Client access, interface documentation and connectivity approval are pending. No live connection is configured.",
-      targetMilestone: "After client GenRAC access is available and reviewed",
-    },
-  ),
-
-  development(
-    "/reports",
-    "#reports",
-    "Reports",
-    "Reports & Analytics",
-    "Governed report generation and export.",
-    BookOpenCheck,
-    {
-      plannedCapabilities: [
-        "Generate tenant-scoped reports",
-        "Apply reviewed filters",
-        "Export authorised report formats",
-      ],
-      dependency: "Reviewed report definitions and export controls.",
-    },
-  ),
-  development(
-    "/reports/kpi-performance",
-    "#reports/kpi-performance",
-    "KPI Performance",
-    "Reports & Analytics",
-    "Period-based KPI performance reporting.",
-    ChartLine,
-    {
-      plannedCapabilities: [
-        "Report target-versus-actual performance",
-        "Summarise RAG outcomes",
-        "Filter by period and organisation scope",
-      ],
-    },
-  ),
-  development(
-    "/reports/risk-summary",
-    "#reports/risk-summary",
-    "Risk Summary",
-    "Reports & Analytics",
-    "Tenant-scoped risk distribution and treatment reporting.",
-    ShieldAlert,
-    {
-      plannedCapabilities: [
-        "Summarise risk level and status",
-        "Report treatment progress",
-        "Trace KPI-linked risk sources",
-      ],
-    },
-  ),
-  development(
-    "/reports/compliance-summary",
-    "#reports/compliance-summary",
-    "Compliance Summary",
-    "Reports & Analytics",
-    "Framework, control, gap and evidence summary reporting.",
-    CircleGauge,
-    {
-      plannedCapabilities: [
-        "Summarise compliance coverage",
-        "Report open gaps and CAPAs",
-        "Trace supporting evidence",
-      ],
-      dependency:
-        "The underlying policies, controls, gaps, CAPA and evidence modules must be implemented first.",
-    },
-  ),
-
-  development(
-    "/settings/tenant",
-    "#settings/tenant",
-    "Tenant Settings",
-    "Settings",
-    "Company-scoped platform preferences and defaults.",
-    Settings,
-    {
-      plannedCapabilities: [
-        "Configure tenant defaults",
-        "Review security preferences",
-        "Audit settings changes",
-      ],
-      dependency: "Reviewed tenant-settings schema and permission policy.",
-    },
-  ),
-  development(
-    "/settings/integrations",
-    "#settings/integrations",
-    "Integration Settings",
-    "Settings",
-    "Administration of approved external-system connections.",
-    Settings2,
-    {
-      plannedCapabilities: [
-        "Review configured integrations",
-        "Manage non-secret connection metadata",
-        "Audit integration settings changes",
-      ],
-      dependency:
-        "Reviewed integration configuration and secret-management design.",
+      permission: "integrations:read",
+      api: "GET /integrations/genrac/status · POST test/preview/sync · GET history",
     },
   ),
 ];
@@ -723,8 +467,165 @@ const legacyStatusDefinitions: RouteDefinition[] = legacyStatusRoutes.map(
   ),
 );
 
+/** Deferred product routes retained for deep links; hidden from production navigation. */
+const deferredRouteDefinitions: RouteDefinition[] = [
+  development(
+    "/admin/roles",
+    "#admin/roles",
+    "Roles",
+    "Administration",
+    "Role and permission administration for the active Company.",
+    ShieldCheck,
+    {
+      hidden: true,
+      plannedCapabilities: [
+        "Review role permissions",
+        "Assign approved permission sets",
+        "Audit access-control changes",
+      ],
+      dependency: "Reviewed role-management APIs and permission policy.",
+    },
+  ),
+  development(
+    "/compliance/policy-versions",
+    "#compliance/policy-versions",
+    "Policy Versions",
+    "Policies & Controls",
+    "Version history and approval state for governed policies.",
+    FileClock,
+    { hidden: true },
+  ),
+  development(
+    "/master/kpis",
+    "#master/kpis",
+    "KPI Catalogue",
+    "KPI Management",
+    "The governed catalogue of KPI definitions.",
+    Gauge,
+    { hidden: true },
+  ),
+  development(
+    "/kpi/dashboard",
+    "#kpi/dashboard",
+    "KPI Dashboard",
+    "KPI Management",
+    "Detailed KPI trend and performance analysis.",
+    ChartLine,
+    { hidden: true },
+  ),
+  development(
+    "/kpi/mapping",
+    "#kpi/mapping",
+    "KPI Mapping",
+    "KPI Management",
+    "Trace KPI definitions to compliance and risk records.",
+    GitMerge,
+    { hidden: true },
+  ),
+  development(
+    "/compliance/gaps/review",
+    "#compliance/gaps/review",
+    "Gap Review",
+    "Gap & CAPA",
+    "Human review and disposition of compliance gaps.",
+    FileSearch,
+    { hidden: true },
+  ),
+  development(
+    "/compliance/capa/review",
+    "#compliance/capa/review",
+    "CAPA Review",
+    "Gap & CAPA",
+    "Human review of CAPA progress and closure evidence.",
+    ClipboardCheck,
+    { hidden: true },
+  ),
+  development(
+    "/tasks",
+    "#tasks",
+    "Tasks",
+    "Audit & Operations",
+    "Assigned compliance work and due dates.",
+    ClipboardList,
+    { hidden: true, dependency: "Deferred — no production Task model in this release." },
+  ),
+  development(
+    "/notifications",
+    "#notifications",
+    "Notifications",
+    "Audit & Operations",
+    "User notifications for assigned compliance events.",
+    Bell,
+    { hidden: true, dependency: "Deferred — no production notification channel in this release." },
+  ),
+  development(
+    "/data/upload-errors",
+    "#data/upload-errors",
+    "Upload Errors",
+    "Data Management",
+    "Validation errors from reviewed import attempts.",
+    FileSearch,
+    { hidden: true, dependency: "Errors are available from Import History batch detail." },
+  ),
+  development(
+    "/reports",
+    "#reports",
+    "Reports",
+    "Reports & Analytics",
+    "Governed report generation and export.",
+    BookOpenCheck,
+    { hidden: true },
+  ),
+  development(
+    "/reports/kpi-performance",
+    "#reports/kpi-performance",
+    "KPI Performance",
+    "Reports & Analytics",
+    "Period-based KPI performance reporting.",
+    ChartLine,
+    { hidden: true },
+  ),
+  development(
+    "/reports/risk-summary",
+    "#reports/risk-summary",
+    "Risk Summary",
+    "Reports & Analytics",
+    "Tenant-scoped risk distribution and treatment reporting.",
+    ShieldAlert,
+    { hidden: true },
+  ),
+  development(
+    "/reports/compliance-summary",
+    "#reports/compliance-summary",
+    "Compliance Summary",
+    "Reports & Analytics",
+    "Framework, control, gap and evidence summary reporting.",
+    CircleGauge,
+    { hidden: true },
+  ),
+  development(
+    "/settings/tenant",
+    "#settings/tenant",
+    "Tenant Settings",
+    "Settings",
+    "Company-scoped platform preferences and defaults.",
+    Settings,
+    { hidden: true, dependency: "Deferred — settings polish not completed in this release." },
+  ),
+  development(
+    "/settings/integrations",
+    "#settings/integrations",
+    "Integration Settings",
+    "Settings",
+    "Administration of approved external-system connections.",
+    Settings2,
+    { hidden: true, dependency: "Use GenRAC Integration under Data Management." },
+  ),
+];
+
 export const routeDefinitions: RouteDefinition[] = [
   ...navigationRouteDefinitions,
+  ...deferredRouteDefinitions,
   ...legacyStatusDefinitions,
 ];
 
@@ -739,52 +640,35 @@ const groups: Array<[string, string, LucideIcon]> = [
   ["gap-capa", "Gap & CAPA", TriangleAlert],
   ["audit-operations", "Audit & Operations", History],
   ["data", "Data Management", Database],
-  ["reports", "Reports & Analytics", ChartLine],
-  ["settings", "Settings", Settings],
 ];
 
 export const clientNavigationPaths = new Set([
   "/dashboard",
   "/admin/companies",
   "/admin/users",
-  "/admin/roles",
   "/admin/departments",
   "/admin/locations",
   "/admin/organisation-units",
   "/master/frameworks",
   "/master/framework-rules",
   "/compliance/policy-register",
-  "/compliance/policy-versions",
   "/compliance/controls",
   "/compliance/checkpoints",
-  "/master/kpis",
   "/kpi/configuration",
   "/kpi/targets",
   "/kpi/actual-entry",
   "/kpi/approval",
-  "/kpi/dashboard",
-  "/kpi/mapping",
   "/compliance/risks",
   "/evidence",
   "/evidence/new",
   "/evidence/review",
   "/compliance/gaps",
-  "/compliance/gaps/review",
   "/compliance/capa",
-  "/compliance/capa/review",
   "/audit-trail",
-  "/tasks",
-  "/notifications",
+  "/compliance/operational-registers",
   "/data/import",
   "/data/import-history",
-  "/data/upload-errors",
   "/data/genrac-integration",
-  "/reports",
-  "/reports/kpi-performance",
-  "/reports/risk-summary",
-  "/reports/compliance-summary",
-  "/settings/tenant",
-  "/settings/integrations",
 ]);
 
 export const navigationGroups: NavigationGroup[] = groups.map(
@@ -802,7 +686,26 @@ export const navigationGroups: NavigationGroup[] = groups.map(
 
 export const utilityRoutes: RouteDefinition[] = [];
 
+/**
+ * LIVE routes reached from the Topbar account menu rather than the sidebar.
+ * They are deliberately absent from `navigationGroups`, `clientNavigationPaths`
+ * and `utilityRoutes` (which the sidebar footer renders), so the sidebar
+ * contract asserted by the navigation specs is unchanged.
+ */
+export const accountRouteDefinitions: RouteDefinition[] = [
+  live(
+    "/account/change-password",
+    "#account/change-password",
+    "Change Password",
+    "Account",
+    "Change your own password. Signs every session out once it succeeds.",
+    KeyRound,
+    { api: "POST /api/v1/auth/change-password" },
+  ),
+];
+
 export const migratedPaths = new Set([
+  "/account/change-password",
   "/dashboard",
   "/admin/companies",
   "/admin/users",
@@ -821,7 +724,11 @@ export const migratedPaths = new Set([
   "/compliance/checkpoints",
   "/compliance/gaps",
   "/compliance/capa",
+  "/compliance/operational-registers",
+  "/audit-trail",
+  "/data/import",
   "/data/import-history",
+  "/data/genrac-integration",
   "/evidence",
   "/evidence/new",
   "/evidence/review",

@@ -110,8 +110,31 @@ async function installMockApi(
                         : path === "/api/v1/kpi-goals" ? []
                           : path === "/api/v1/kpi-configurations" ? []
                             : path === "/api/v1/kpi-targets" ? []
-                              : path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints" || path === "/api/v1/evidence" || path === "/api/v1/evidence/review-queue" || path === "/api/v1/gaps" || path === "/api/v1/capas" || path === "/api/v1/imports" ? []
-                                : null;
+                              : path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints" || path === "/api/v1/evidence" || path === "/api/v1/evidence/review-queue" || path === "/api/v1/gaps" || path === "/api/v1/capas" || path === "/api/v1/imports" || path === "/api/v1/audit-events" || path === "/api/v1/operational-registers" || path === "/api/v1/imports/csv/templates" ? []
+                                : path === "/api/v1/integrations/genrac/status" ? {
+                                  connection: {
+                                    id: "90000000-0000-4000-8000-000000000001",
+                                    systemCode: "GENRAC",
+                                    displayName: "GenRAC",
+                                    connectorType: "CSV_FILE",
+                                    status: "NOT_CONFIGURED",
+                                    secretRefKeys: [],
+                                    config: {},
+                                    lastTestedAt: null,
+                                    lastTestSuccess: null,
+                                    lastTestMessage: null,
+                                    lastSuccessfulSyncAt: null,
+                                    lastAttemptedSyncAt: null,
+                                    configurationExplanation:
+                                      "GenRAC credentials and connection settings are not configured. Live REST/database sync remains unavailable.",
+                                  },
+                                  mappingCount: 0,
+                                  lastSyncRun: null,
+                                  liveAccess: false,
+                                  adapters: { csvFile: false, rest: false, postgresReadonly: false },
+                                }
+                                  : path === "/api/v1/integrations/genrac/history" ? []
+                                    : null;
     if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
     if (
       path === "/api/v1/policies" ||
@@ -121,7 +144,11 @@ async function installMockApi(
       path === "/api/v1/evidence/review-queue" ||
       path === "/api/v1/gaps" ||
       path === "/api/v1/capas" ||
-      path === "/api/v1/imports"
+      path === "/api/v1/imports" ||
+      path === "/api/v1/audit-events" ||
+      path === "/api/v1/operational-registers" ||
+      path === "/api/v1/imports/csv/templates" ||
+      path === "/api/v1/integrations/genrac/history"
     ) {
       return route.fulfill({
         status: 200,
@@ -208,52 +235,36 @@ const approvedGroups = [
   "Gap & CAPA",
   "Audit & Operations",
   "Data Management",
-  "Reports & Analytics",
-  "Settings",
 ];
 
+/** Must match `clientNavigationPaths` in routeDefinitions.ts (26 LIVE nav paths). */
 const approvedPaths = [
   "/dashboard",
   "/admin/companies",
   "/admin/users",
-  "/admin/roles",
   "/admin/departments",
   "/admin/locations",
   "/admin/organisation-units",
   "/master/frameworks",
   "/master/framework-rules",
   "/compliance/policy-register",
-  "/compliance/policy-versions",
   "/compliance/controls",
   "/compliance/checkpoints",
-  "/master/kpis",
   "/kpi/configuration",
   "/kpi/targets",
   "/kpi/actual-entry",
   "/kpi/approval",
-  "/kpi/dashboard",
-  "/kpi/mapping",
   "/compliance/risks",
   "/evidence",
   "/evidence/new",
   "/evidence/review",
   "/compliance/gaps",
-  "/compliance/gaps/review",
   "/compliance/capa",
-  "/compliance/capa/review",
   "/audit-trail",
-  "/tasks",
-  "/notifications",
+  "/compliance/operational-registers",
   "/data/import",
   "/data/import-history",
-  "/data/upload-errors",
   "/data/genrac-integration",
-  "/reports",
-  "/reports/kpi-performance",
-  "/reports/risk-summary",
-  "/reports/compliance-summary",
-  "/settings/tenant",
-  "/settings/integrations",
 ];
 
 const livePaths = [
@@ -275,7 +286,11 @@ const livePaths = [
   ["/compliance/checkpoints", "Checkpoint Register"],
   ["/compliance/gaps", "Gap Register"],
   ["/compliance/capa", "CAPA Register"],
+  ["/audit-trail", "Audit Trail"],
+  ["/compliance/operational-registers", "Operational Registers"],
+  ["/data/import", "Data Import"],
   ["/data/import-history", "Import History"],
+  ["/data/genrac-integration", "GenRAC Integration"],
   ["/evidence", "Evidence Library"],
   ["/evidence/new", "Create Evidence"],
   ["/evidence/review", "Evidence Review"],
@@ -298,13 +313,21 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
       links.map((link) => link.getAttribute("href")).filter(Boolean),
     );
   expect(hrefs).toEqual(approvedPaths);
-  await expect(page.locator(".nav-status-badge")).toHaveCount(19);
-  await expect(
-    page.getByTestId("nav-status-/data/genrac-integration"),
-  ).toHaveText("Awaiting Access");
-  await expect(page.getByTestId("nav-status-/admin/roles")).toHaveText(
-    "In Development",
+  // Client navigation is LIVE-only — no In Development or Awaiting Access badges.
+  await expect(page.locator(".nav-status-badge")).toHaveCount(0);
+  await expect(page.getByTestId("nav-status-/data/genrac-integration")).toHaveCount(
+    0,
   );
+  await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/tasks"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/notifications"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/settings/tenant"]')).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Reports & Analytics", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Settings", exact: true }),
+  ).toHaveCount(0);
   await expect(page.locator('a[href="/dashboard"] .nav-status-badge')).toHaveCount(
     0,
   );
@@ -348,8 +371,6 @@ test("unfinished and compatibility routes use truthful non-operational status pa
     ["/compliance/policy-versions", "development"],
     ["/kpi/dashboard", "development"],
     ["/kpi/mapping", "development"],
-    ["/audit-trail", "development"],
-    ["/data/import", "development"],
     ["/reports", "development"],
     ["/settings/tenant", "development"],
     ["/upload/evidence-master", "compatibility"],
@@ -379,26 +400,29 @@ test("unfinished and compatibility routes use truthful non-operational status pa
   expect(consoleErrors).toEqual([]);
 });
 
-test("GenRAC is visibly awaiting a client-provided read-only connection", async ({
+test("GenRAC Integration shows Not configured without claiming live access", async ({
   page,
 }) => {
   await installMockApi(page, true);
   await page.goto("/data/genrac-integration");
 
-  await expect(
-    page
-      .getByTestId("module-status-page")
-      .getByText("Awaiting GenRAC Access", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByTestId("genrac-status-message")).toContainText(
-    "independent systems",
+  await expect(page.getByTestId("module-status-page")).toHaveCount(0);
+  await expect(page.getByTestId("genrac-status")).toBeVisible();
+  await expect(page.getByTestId("genrac-not-configured")).toContainText(
+    "Not configured",
   );
-  await expect(page.getByTestId("genrac-status-message")).toContainText(
-    "one-way, read-only",
+  await expect(page.getByText("Awaiting GenRAC Access")).toHaveCount(0);
+  await expect(page.getByText("Awaiting Access")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Preview Changes" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run Sync" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Preview Changes" })).toHaveAttribute(
+    "title",
+    /Not configured/,
   );
-  await expect(page.getByText(/Client access and interface details are still pending/)).toBeVisible();
-  await expect(page.getByText(/No live connection is configured/)).toBeVisible();
-  await expect(page.locator(".data-table")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Run Sync" })).toHaveAttribute(
+    "title",
+    /Not configured/,
+  );
 });
 
 test("sidebar groups, keyboard navigation and current-route highlighting work", async ({
@@ -421,11 +445,11 @@ test("sidebar groups, keyboard navigation and current-route highlighting work", 
   await page.keyboard.press("Enter");
   await expect(administration).toHaveAttribute("aria-expanded", "true");
 
-  const rolesLink = page.locator('.sidebar a[href="/admin/roles"]');
-  await rolesLink.focus();
+  const usersLink = page.locator('.sidebar a[href="/admin/users"]');
+  await usersLink.focus();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/admin\/roles$/);
-  await expect(rolesLink).toHaveClass(/active/);
+  await expect(page).toHaveURL(/\/admin\/users$/);
+  await expect(usersLink).toHaveClass(/active/);
   await expect(
     page.locator('.nav-group[data-group="administration"]'),
   ).toHaveClass(/active-group/);
@@ -447,9 +471,9 @@ test("mobile navigation contains the same approved modules and closes after use"
     );
   expect(hrefs).toEqual(approvedPaths);
 
-  await page.locator('.sidebar a[href="/admin/roles"]').click();
-  await expect(page).toHaveURL(/\/admin\/roles$/);
-  await expect(page.getByTestId("module-status-page")).toBeVisible();
+  await page.locator('.sidebar a[href="/admin/users"]').click();
+  await expect(page).toHaveURL(/\/admin\/users$/);
+  await expect(page.getByRole("heading", { name: "User Management" })).toBeVisible();
   await expect(page.locator(".sidebar")).toBeHidden();
 });
 
@@ -684,11 +708,13 @@ test("mobile route search opens, identifies status, navigates and closes", async
   const result = searchDialog.getByRole("option", {
     name: /GenRAC Integration/,
   });
-  await expect(result).toContainText("Awaiting GenRAC Access");
+  await expect(result).toContainText("Live");
+  await expect(result).not.toContainText("Awaiting");
   await result.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/data\/genrac-integration$/);
   await expect(searchDialog).toBeHidden();
+  await expect(page.getByTestId("genrac-not-configured")).toBeVisible();
 
   await page.getByRole("button", { name: "Open global search" }).click();
   await page.keyboard.press("Escape");

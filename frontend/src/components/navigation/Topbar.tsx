@@ -3,6 +3,7 @@ import {
   Bell,
   ChevronDown,
   ClipboardCheck,
+  KeyRound,
   LoaderCircle,
   LogOut,
   Menu,
@@ -423,6 +424,14 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
                 {user?.activeCompany.name}
               </small>
             </div>
+            <button
+              className="menu-item"
+              type="button"
+              data-testid="profile-change-password"
+              onClick={() => openRoute("/account/change-password")}
+            >
+              <KeyRound size={16} /> Change Password
+            </button>
             <button
               className="menu-item"
               type="button"

@@ -191,9 +191,11 @@ enum ImportRowResult {
 
 /// Separates history replayed from a client workbook from events this system
 /// observed. Imported rows are never presented as first-party audit evidence.
+/// EXTERNAL_SYNC records GenRAC connector activity without claiming live access.
 enum AuditEventSource {
   SYSTEM
   IMPORT
+  EXTERNAL_SYNC
 }
 
 model Tenant {
@@ -255,6 +257,9 @@ model Tenant {
   importBatchRows          ImportBatchRow[]
   auditEvents              AuditEvent[]
   refreshTokens            RefreshToken[]
+  externalConnections      ExternalSystemConnection[]
+  externalRecordMaps       ExternalRecordMap[]
+  syncRuns                 SyncRun[]
 
   @@map("tenants")
 }
@@ -1627,4 +1632,131 @@ model ImportBatchRow {
   @@index([tenantId, batchId, sheet, rowNumber])
   @@index([tenantId, batchId, importResult])
   @@map("import_batch_rows")
+}
+
+enum ExternalConnectorType {
+  CSV_FILE
+  REST
+  POSTGRES_READONLY
+}
+
+enum ExternalConnectionStatus {
+  NOT_CONFIGURED
+  CONFIGURED
+  ERROR
+  DISABLED
+}
+
+enum SyncRunStatus {
+  PREVIEWED
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum ExternalMapStatus {
+  ACTIVE
+  CONFLICT
+  DEACTIVATED
+  INVALID
+}
+
+/// Configuration-driven connector to an external system such as GenRAC.
+/// Secrets are referenced by environment key names — never stored here.
+model ExternalSystemConnection {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  tenantId             String                  @map("tenant_id") @db.Uuid
+  systemCode           String                  @map("system_code")
+  displayName          String                  @map("display_name")
+  connectorType        ExternalConnectorType   @map("connector_type")
+  status               ExternalConnectionStatus @default(NOT_CONFIGURED)
+  /// Non-secret configuration (base URL host, mapping profile id, CSV path ref).
+  config               Json                    @default("{}")
+  /// Environment variable names that hold secrets — values are never returned.
+  secretRefKeys        Json                    @default("[]") @map("secret_ref_keys")
+  lastTestedAt         DateTime?               @map("last_tested_at") @db.Timestamptz(6)
+  lastTestSuccess      Boolean?                @map("last_test_success")
+  lastTestMessage      String?                 @map("last_test_message")
+  lastSuccessfulSyncAt DateTime?               @map("last_successful_sync_at") @db.Timestamptz(6)
+  lastAttemptedSyncAt  DateTime?               @map("last_attempted_sync_at") @db.Timestamptz(6)
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant               Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  recordMaps           ExternalRecordMap[]
+  syncRuns             SyncRun[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, systemCode])
+  @@index([tenantId, status])
+  @@map("external_system_connections")
+}
+
+model ExternalRecordMap {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  tenantId           String                  @map("tenant_id") @db.Uuid
+  connectionId       String                  @map("connection_id") @db.Uuid
+  sourceEntityType   String                  @map("source_entity_type")
+  externalRecordId   String                  @map("external_record_id")
+  localEntityType    String                  @map("local_entity_type")
+  localEntityId      String?                 @map("local_entity_id")
+  sourceUpdatedAt    DateTime?               @map("source_updated_at") @db.Timestamptz(6)
+  syncHash           String?                 @map("sync_hash")
+  status             ExternalMapStatus       @default(ACTIVE)
+  conflictReason     String?                 @map("conflict_reason")
+  deactivatedAt      DateTime?               @map("deactivated_at") @db.Timestamptz(6)
+  lastSyncedAt       DateTime?               @map("last_synced_at") @db.Timestamptz(6)
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  connection         ExternalSystemConnection @relation(fields: [tenantId, connectionId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id], map: "erm_tenant_id_id_key")
+  @@unique([tenantId, connectionId, sourceEntityType, externalRecordId], map: "erm_conn_src_ext_uidx")
+  @@index([tenantId, localEntityType, localEntityId], map: "erm_local_entity_idx")
+  @@index([tenantId, status], map: "erm_tenant_status_idx")
+  @@map("external_record_maps")
+}
+
+model SyncRun {
+  id              String                  @id @default(uuid()) @db.Uuid
+  tenantId        String                  @map("tenant_id") @db.Uuid
+  connectionId    String                  @map("connection_id") @db.Uuid
+  status          SyncRunStatus           @default(PREVIEWED)
+  mode            String                  @default("PREVIEW")
+  cursor          String?
+  createCount     Int                     @default(0) @map("create_count")
+  updateCount     Int                     @default(0) @map("update_count")
+  conflictCount   Int                     @default(0) @map("conflict_count")
+  invalidCount    Int                     @default(0) @map("invalid_count")
+  skipCount       Int                     @default(0) @map("skip_count")
+  errorSummary    Json                    @default("[]") @map("error_summary")
+  report          Json                    @default("{}")
+  startedAt       DateTime                @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt     DateTime?               @map("completed_at") @db.Timestamptz(6)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  connection      ExternalSystemConnection @relation(fields: [tenantId, connectionId], references: [tenantId, id], onDelete: Restrict)
+  items           SyncRunItem[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, connectionId, startedAt])
+  @@index([tenantId, status, startedAt])
+  @@map("sync_runs")
+}
+
+model SyncRunItem {
+  id               String            @id @default(uuid()) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  syncRunId        String            @map("sync_run_id") @db.Uuid
+  sourceEntityType String            @map("source_entity_type")
+  externalRecordId String            @map("external_record_id")
+  outcome          String
+  message          String?
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  syncRun          SyncRun           @relation(fields: [tenantId, syncRunId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, syncRunId, outcome])
+  @@map("sync_run_items")
 }

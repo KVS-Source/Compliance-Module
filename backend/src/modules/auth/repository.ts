@@ -132,6 +132,43 @@ export class AuthRepository {
     });
   }
 
+  /**
+   * Applies a self-service password change atomically: the new hash, revocation
+   * of every live refresh token for that user (including the caller's own
+   * session), and one audit event. Metadata carries no password material.
+   */
+  changePasswordAndRevokeSessions(input: {
+    userId: string;
+    tenantId: string;
+    passwordHash: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    return this.db.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: input.userId },
+        data: { passwordHash: input.passwordHash },
+      });
+      const revoked = await transaction.refreshToken.updateMany({
+        where: { userId: input.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await transaction.auditEvent.create({
+        data: {
+          tenantId: input.tenantId,
+          userId: input.userId,
+          action: "PASSWORD_CHANGED",
+          entityType: "AUTH",
+          entityId: input.userId,
+          metadata: { sessionsRevoked: revoked.count, selfService: true },
+          ...(input.ipAddress ? { ipAddress: input.ipAddress } : {}),
+          ...(input.userAgent ? { userAgent: input.userAgent } : {}),
+        },
+      });
+      return revoked.count;
+    });
+  }
+
   membership(userId: string, tenantId: string) {
     return this.db.userCompany.findUnique({
       where: { userId_tenantId: { userId, tenantId } },

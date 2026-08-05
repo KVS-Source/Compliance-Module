@@ -743,6 +743,55 @@ export const openApiDocument = {
         responses: { "200": { description: "Current identity" } },
       },
     },
+    "/auth/change-password": {
+      post: {
+        summary: "Change your own password",
+        description:
+          "Self-service password change for the authenticated caller. Available to every authenticated role — no permission code is required. The account changed is always taken from the bearer token, never from the request body. On success every refresh token for that user is revoked (including the caller's own session) and the refresh cookie is cleared, so the client must sign in again.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["currentPassword", "newPassword"],
+                properties: {
+                  currentPassword: {
+                    type: "string",
+                    minLength: 8,
+                    maxLength: 256,
+                    format: "password",
+                  },
+                  newPassword: {
+                    type: "string",
+                    minLength: 8,
+                    maxLength: 256,
+                    format: "password",
+                    description:
+                      "Must satisfy the same strength rule an administrator uses via PATCH /users/{id}, and must differ from the current password.",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "Password changed. All sessions revoked; sign in again.",
+          },
+          "400": {
+            description:
+              "Fails the shared password rule, or the new password matches the current one",
+          },
+          "401": {
+            description: "Not authenticated, or the current password is wrong",
+          },
+          "429": { description: "Authentication rate limit exceeded" },
+        },
+      },
+    },
     "/auth/tenant-context": {
       post: {
         summary: "Switch Company context",
@@ -2741,13 +2790,72 @@ export const openApiDocument = {
     },
     "/imports": {
       get: {
-        summary: "List workbook import batches",
+        summary: "List workbook and CSV import batches",
         description:
-          "Read-only HTTP view over CLI-created batches, newest first. Workbook upload preview/commit APIs are not implemented in this slice.",
+          "Company-scoped import batches from CLI or browser preview/commit, newest first.",
         security: [{ bearerAuth: [] }],
         responses: {
           "200": { description: "Paginated Company import batches" },
           "403": { description: "Missing imports:read permission" },
+        },
+      },
+    },
+    "/imports/workbook/preview": {
+      post: {
+        summary: "Preview an uploaded XLSX workbook",
+        description:
+          "Multipart field `file`. Validates without writing compliance tables. Retains the upload for a subsequent commit.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Preview report with importId" },
+          "400": { description: "Invalid workbook or validation failure" },
+          "403": { description: "Missing imports:write permission" },
+        },
+      },
+    },
+    "/imports/csv/preview": {
+      post: {
+        summary: "Preview an approved CSV import type",
+        description:
+          "Query `type` must be an approved template. Multipart field `file`.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Preview report with importId" },
+          "400": { description: "Invalid CSV headers or type" },
+          "403": { description: "Missing imports:write permission" },
+        },
+      },
+    },
+    "/imports/csv/templates": {
+      get: {
+        summary: "List approved CSV import templates",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Template metadata list" },
+        },
+      },
+    },
+    "/imports/csv/templates/{type}": {
+      get: {
+        summary: "Download an approved CSV template",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "CSV template attachment" },
+          "404": { description: "Unknown template type" },
+        },
+      },
+    },
+    "/imports/{importId}/commit": {
+      post: {
+        summary: "Commit a previously previewed import",
+        description:
+          "Checksum idempotency returns alreadyImported for duplicate commits.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Commit report" },
+          "409": { description: "Import already committing or not committable" },
+          "410": { description: "Preview upload expired" },
+          "403": { description: "Missing imports:write permission" },
         },
       },
     },
@@ -2770,6 +2878,147 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Paginated ImportError DTOs" },
           "403": { description: "Missing imports:read permission" },
+        },
+      },
+    },
+    "/audit-events": {
+      get: {
+        summary: "List tenant-scoped audit events",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated redacted audit events" },
+          "403": { description: "Missing audit:read permission" },
+        },
+      },
+    },
+    "/audit-events/export.csv": {
+      get: {
+        summary: "Export filtered audit events as CSV",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "CSV attachment" },
+          "403": { description: "Missing audit:read or exports:read" },
+        },
+      },
+    },
+    "/audit-events/{eventId}": {
+      get: {
+        summary: "Get one audit event detail",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Redacted audit event" },
+          "404": { description: "Not found in active Company" },
+        },
+      },
+    },
+    "/integrations/genrac/status": {
+      get: {
+        summary: "GenRAC connector status",
+        description:
+          "Returns Not configured when credentials/config are absent. Never returns secret values.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Connection status DTO" },
+          "403": { description: "Missing integrations:read permission" },
+        },
+      },
+    },
+    "/integrations/genrac/test-connection": {
+      post: {
+        summary: "Test the configured GenRAC adapter",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Test result" },
+          "409": { description: "Not configured" },
+        },
+      },
+    },
+    "/integrations/genrac/preview": {
+      post: {
+        summary: "Preview GenRAC changes",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Preview counts" },
+          "409": { description: "Not configured" },
+        },
+      },
+    },
+    "/integrations/genrac/sync": {
+      post: {
+        summary: "Commit GenRAC sync mappings",
+        description:
+          "Never overwrites GenBioCa-authoritative compliance transactions.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Sync counts" },
+          "403": { description: "Missing integrations:write permission" },
+          "409": { description: "Not configured" },
+        },
+      },
+    },
+    "/integrations/genrac/configure-csv": {
+      post: {
+        summary: "Configure the GenRAC CSV adapter",
+        description:
+          "Registers a simple filename under LOCAL_UPLOAD_DIR/.genrac. Rejects traversal, absolute paths, and missing files before marking CONFIGURED. Never accepts or returns credentials.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["filename"],
+                properties: {
+                  filename: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 200,
+                    description:
+                      "Basename only (for example genrac-export.csv). Path separators and traversal are rejected.",
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Updated connection status DTO (no secrets)" },
+          "400": {
+            description:
+              "Invalid filename, path escape, or CSV file missing under the GenRAC root",
+          },
+          "403": { description: "Missing integrations:write permission" },
+        },
+      },
+    },
+    "/integrations/genrac/history": {
+      get: {
+        summary: "List GenRAC sync runs",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Paginated sync runs" },
+          "403": { description: "Missing integrations:read permission" },
+        },
+      },
+    },
+    "/integrations/genrac/history/{syncRunId}": {
+      get: {
+        summary: "Get one GenRAC sync run",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "syncRunId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Sync run detail" },
+          "403": { description: "Missing integrations:read permission" },
+          "404": { description: "Sync run not found in the active Company" },
         },
       },
     },

@@ -73,13 +73,20 @@ probe, and that no active production user is assigned a wildcard role.
 - Prisma uses configurable bounded connection, pool and connect timeouts.
 - CORS reflects only exact configured HTTPS origins and never `*`.
 - Request bodies and Evidence uploads have independent size ceilings.
+- Browser workbook imports are capped at 20 MiB in the API. NGINX
+  `client_max_body_size` defaults to **21m** (`NGINX_CLIENT_MAX_BODY_SIZE`) so
+  multipart framing still fits under the proxy; oversized uploads receive a
+  JSON **413** envelope with code `UPLOAD_TOO_LARGE` (not an HTML error page).
+- Abandoned browser import previews under `.import-tmp` expire after
+  `IMPORT_PREVIEW_TTL_HOURS` (default 24) and are swept on startup and on a
+  periodic timer.
 - API, login, refresh and Evidence upload rate limits remain enabled.
 - Request logs are structured JSON with request IDs, response duration and
   token/cookie/password redaction.
 - API documentation, prototype routes, Vite and API mocks are absent from the
   production runtime.
-- `SIGTERM`/`SIGINT` stop accepting requests and disconnect Prisma within the
-  configured shutdown deadline.
+- `SIGTERM`/`SIGINT` stop accepting requests, clear the import-temp sweeper, and
+  disconnect Prisma within the configured shutdown deadline.
 
 Docker JSON logs may be shipped by the approved host logging driver to
 CloudWatch or the client's collector. Log shipping, alert destinations and

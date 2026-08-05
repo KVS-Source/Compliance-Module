@@ -15,6 +15,7 @@ import {
   FrameworkRulesPage,
   FrameworksPage,
 } from "../features/frameworks/FrameworksPage";
+import { ChangePasswordPage } from "../features/auth/ChangePasswordPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { NotFoundPage } from "../features/migration/PendingPage";
 import { KpiActualEntryPage } from "../features/kpis/KpiActualEntryPage";
@@ -41,6 +42,13 @@ import { CapaDetailPage } from "../features/capas/CapaDetailPage";
 import { CapaRegisterPage } from "../features/capas/CapaRegisterPage";
 import { ImportDetailPage } from "../features/imports/ImportDetailPage";
 import { ImportHistoryPage } from "../features/imports/ImportHistoryPage";
+import { ImportCentrePage } from "../features/imports/ImportCentrePage";
+import { AuditTrailPage } from "../features/audit/AuditTrailPage";
+import {
+  OperationalRegisterDetailPage,
+  OperationalRegistersPage,
+} from "../features/registers/OperationalRegistersPage";
+import { GenracIntegrationPage } from "../features/integrations/GenracIntegrationPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -89,6 +97,8 @@ function LegacyHashRedirect() {
 }
 
 const migratedRoutes: RouteObject[] = [
+  // Available to every authenticated role, so it carries no PermissionBoundary.
+  { path: "account/change-password", element: <ChangePasswordPage /> },
   {
     path: "dashboard",
     element: (
@@ -249,8 +259,14 @@ const migratedRoutes: RouteObject[] = [
       </PermissionBoundary>
     ),
   },
+  { path: "data/import", element: <PermissionBoundary permission="imports:read"><ImportCentrePage /></PermissionBoundary> },
   { path: "data/import-history", element: <PermissionBoundary permission="imports:read"><ImportHistoryPage /></PermissionBoundary> },
   { path: "data/import-history/:importId", element: <PermissionBoundary permission="imports:read"><ImportDetailPage /></PermissionBoundary> },
+  { path: "data/genrac-integration", element: <PermissionBoundary permission="integrations:read"><GenracIntegrationPage /></PermissionBoundary> },
+  { path: "audit-trail", element: <PermissionBoundary permission="audit:read"><AuditTrailPage /></PermissionBoundary> },
+  { path: "compliance/operational-registers", element: <PermissionBoundary permission="registers:read"><OperationalRegistersPage /></PermissionBoundary> },
+  { path: "compliance/operational-registers/:registerCode", element: <PermissionBoundary permission="registers:read"><OperationalRegistersPage /></PermissionBoundary> },
+  { path: "compliance/operational-registers/:registerCode/records/:recordId", element: <PermissionBoundary permission="registers:read"><OperationalRegisterDetailPage /></PermissionBoundary> },
   {
     path: "compliance/policy-register",
     element: (

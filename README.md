@@ -22,37 +22,56 @@ exhaustive enforced inventory.
 
 ### Live (API-connected) routes
 
-These use the real backend and must **not** show the prototype banner:
+These use the real backend and must **not** show the prototype banner. The
+client sidebar ships **26 LIVE modules** (`clientNavigationPaths` in
+`frontend/src/app/routeDefinitions.ts`):
 
 | Path | Notes |
 |------|--------|
-| `/login` | Authentication |
+| `/login` | Authentication (public) |
 | `/dashboard` | Company-scoped PostgreSQL aggregates |
+| `/admin/companies` | Companies available to the signed-in user |
 | `/admin/users` | User management |
-| `/admin/companies` | Company list |
 | `/admin/departments` | Organisation masters |
 | `/admin/locations` | Organisation masters |
 | `/admin/organisation-units` | Organisation masters |
-| `/master/frameworks` | Framework master |
-| `/master/framework-rules` | Framework rule browser |
-| `/master/frameworks/:frameworkId/rules` | Framework rules |
+| `/master/frameworks` | Framework master (read) |
+| `/master/framework-rules` | Framework rule browser (read) |
+| `/master/frameworks/:frameworkId/rules` | Framework rules (detail) |
+| `/compliance/policy-register` | Policy Register |
+| `/compliance/controls` | Controls |
+| `/compliance/checkpoints` | Checkpoints |
 | `/kpi/configuration` | KPI configurations |
 | `/kpi/targets` | KPI target selection/lifecycle |
-| `/kpi/configuration/:configurationId/targets` | KPI target lifecycle |
+| `/kpi/configuration/:configurationId/targets` | KPI target lifecycle (detail) |
 | `/kpi/actual-entry` | Submit KPI actuals |
 | `/kpi/approval` | KPI actual approval lifecycle |
 | `/compliance/risks` | Risk Register |
-| `/compliance/risks/:riskId` | Risk review, treatment and closure workflow |
+| `/compliance/risks/:riskId` | Risk review, treatment and closure |
+| `/evidence` | Evidence Library |
+| `/evidence/new` | Create Evidence |
+| `/evidence/review` | Evidence Review queue |
+| `/compliance/gaps` | Gap Register |
+| `/compliance/capa` | CAPA Register |
+| `/audit-trail` | Audit Trail |
+| `/compliance/operational-registers` | Operational Registers (UI read-only) |
+| `/data/import` | Data Import (XLSX / CSV templates) |
+| `/data/import-history` | Import History |
+| `/data/genrac-integration` | GenRAC connector status (CSV adapter when configured; live REST/DB access not claimed) |
 
-Authoritative list: `migratedPaths` in
-`frontend/src/app/routeDefinitions.ts`, plus three child/detail patterns in
-`frontend/src/app/router.tsx`.
+Authoritative list: `clientNavigationPaths` / `migratedPaths` in
+`frontend/src/app/routeDefinitions.ts`, plus detail routes in
+`frontend/src/app/router.tsx`. Client-readable capabilities:
+[`docs/handover/module-status.md`](./docs/handover/module-status.md).
 
 ### Not operational
 
-The 29 visible unfinished routes are explicit **In Development** status pages.
-GenRAC is **Awaiting Integration** and has no live connection. Twenty-two older
-URLs are hidden **Compatibility** routes.
+Deferred product routes (Roles UI, Tasks, Notifications, Reports, Settings,
+standalone Policy Versions page, and similar) are **hidden** and render truthful
+**In Development** status pages — they are not in the client sidebar. Twenty-two
+older URLs are hidden **Compatibility** routes. GenRAC is a LIVE status page with
+optional CSV-adapter operations; live REST or database GenRAC access is not
+enabled without approved configuration.
 
 ---
 

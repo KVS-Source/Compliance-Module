@@ -2193,7 +2193,8 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     `;
     expect(migrationRows).toHaveLength(1);
     // 14 through Milestone 5, plus 20260802120000_deadline_backend_data, which
-    // adds the Gap, CAPA, operational register and workbook import schema.
-    expect(Number(migrationRows[0]?.count)).toBe(15);
+    // adds the Gap, CAPA, operational register and workbook import schema, plus
+    // 20260804120000_final_client_completion for GenRAC sync metadata.
+    expect(Number(migrationRows[0]?.count)).toBe(16);
   });
 });

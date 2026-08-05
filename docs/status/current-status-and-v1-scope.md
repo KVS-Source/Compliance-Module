@@ -1,15 +1,15 @@
 # Current status and V1 scope
 
-Baseline date: 2026-08-02
+Baseline date: 2026-08-06
 
 ## Release classification
 
-The remediated real-stack UAT passed before this Milestone 0 re-baseline.
-Production readiness has **not** passed. Milestone 5 closes Evidence metadata,
-file handling, linking, review, React UI, and Evidence gates for Checkpoint,
-Policy Version, and KPI actual approval. This baseline does not add deployment
-infrastructure or resolve production blockers listed in
-[known limitations](../known-limitations.md).
+The client navigation set is 26 protected **LIVE** modules (API-connected React
+pages backed by PostgreSQL), plus login. Production readiness still depends on
+operator provisioning (TLS, secrets, host, backup) and the blockers listed in
+[known limitations](../known-limitations.md). Authoritative route status is
+`frontend/src/app/routeDefinitions.ts` (`clientNavigationPaths`, `migratedPaths`)
+and `npm run guard:routes`.
 
 GitHub Settings evidence verifies that the default branch is `main`. Independent
 evidence for `main` protection/ruleset enforcement, reviews, required checks,
@@ -28,68 +28,68 @@ evidence status is
 | `COMPATIBILITY` | A previously published URL is retained but hidden and is not an operational authority. |
 | `DORMANT` | Source/reference material is not imported or routed by the active runtime. |
 
-Current route totals are one public login, 26 protected `LIVE` patterns, 21
-visible `IN_DEVELOPMENT` routes, one visible `AWAITING_INTEGRATION` route and 22
-hidden `COMPATIBILITY` routes. Authoritative counts come from
-`frontend/src/app/routeDefinitions.ts` and `npm run guard:routes`.
+Current totals: one public login; **26 protected LIVE** sidebar modules (all
+entries in `clientNavigationPaths`); one protected LIVE **account-menu** route
+(Change Password), reached from the Topbar profile menu and deliberately kept
+out of the sidebar; deferred product routes are **hidden** `IN_DEVELOPMENT`
+deep links (not shown in the client sidebar); 22 hidden `COMPATIBILITY` legacy
+URLs. No sidebar item remains `AWAITING_INTEGRATION`.
 
-## Implemented V1/UAT capability
+Client-readable module capabilities: [handover module status](../handover/module-status.md).
+
+## Implemented LIVE capability (shipped sidebar set)
 
 - authentication, refresh rotation, logout and active Company selection;
-- Companies, users and organisation masters;
-- frameworks and framework rules;
-- KPI configurations and versioned KPI Targets;
-- KPI actual entry, server-side calculation and append-only approval history;
-- automatic KPI-linked risks;
-- Risk Register, owner assignment, append-only review/treatment, residual
-  scoring, closure and reopening;
-- tenant-scoped database-backed dashboard;
-- append-only audit-event writes for active workflows;
-- Policy register, Policy Version, Framework mapping, submit/approve/reject,
-  Policy-scoped audit read and traceability APIs (Milestone 4 Slice 2);
-- React Policy Register and Policy detail workflows (Milestone 4 Slice 5),
-  including Version create/edit, Framework mapping, submit/approve/reject,
-  archive, traceability and Policy-scoped audit history;
-- React Control Register and Control detail workflows (Milestone 4 Slice 6),
-  including create/edit, activate/deactivate/archive, Policy Version / Framework /
-  Framework Rule mappings, Checkpoint counts, Control traceability and
-  Control-scoped audit history;
-- React Checkpoint Register and Checkpoint detail workflows (Milestone 4 Slice 7),
-  including create/edit, activate/deactivate/archive, Submit Review, latest
-  Review, Review history, Checkpoint traceability and Checkpoint-scoped audit
-  history;
-- Evidence metadata, local file upload/download/submit, DRAFT-only
-  Control/Checkpoint/KpiActual link APIs, approve/reject review, and React
-  Evidence Library / Create / Detail / Review / link panels (Milestone 5);
-- Checkpoint, Policy Version and KPI actual Evidence gates (HTTP 409
-  `EVIDENCE_REQUIRED` with safe configured reasons when coverage is incomplete).
+- Companies (read), users (create/update including admin password set), and
+  organisation masters (departments, locations, units);
+- **self-service password change** for any authenticated role (no permission
+  code required), which revokes every session for that user on success;
+- frameworks and framework rules (read);
+- Policy, Control and Checkpoint registers with lifecycle, mappings, reviews
+  and scoped audit/traceability;
+- KPI configuration, versioned targets, actual entry, approval, and automatic
+  KPI-linked risks (Major/Minor) with Risk Register treatment workflow;
+- Evidence library, create/upload, review queue, linking and gates for
+  Checkpoint, Policy Version and KPI actual approval;
+- **Gap Register and CAPA Register** (create, update, owner, close/reopen,
+  evidence linkage; closure is evidence-gated);
+- **Audit Trail** (searchable company history and CSV export);
+- **Operational Registers** (read company register types and records; write API
+  exists but the UI is read-only in this release);
+- **Data Import** (browser XLSX workbook and approved CSV template preview and
+  commit) and **Import History**;
+- **GenRAC Integration** page: connector status, sync history, and CSV-adapter
+  test/preview/sync when configured by operations. Live REST/database GenRAC
+  access is **not** claimed (`liveAccess` remains false until approved access
+  exists);
+- tenant-scoped dashboard and CSV exports where permitted;
+- append-only audit-event writes for active workflows.
 
 `KpiTarget`/`kpi_targets` is the active target authority. `KpiGoal`/
 `kpi_goals` is read-only compatibility data; the active backend has no mutation
 path for it.
 
-## Not operational
+## Not operational / deferred
 
-The standalone Policy Versions navigation page remains `IN_DEVELOPMENT` (Version
-management lives inside Policy detail). Gap, CAPA, Import, Tasks, Notifications,
-Reports, global audit search/export, settings and most broader operations
-modules are not operational. Their visible routes are status pages, not
-simulated business screens.
+The following are **not** client sidebar LIVE modules (hidden status pages or
+deferred scope):
 
-Policy Version obsoletion and Policy `INACTIVE` transitions are deferred.
-Malware scanning, S3, inline preview, reverse Control/Checkpoint Evidence list
-APIs and GenRAC live sync are not implemented. Policy and Evidence content
-render as plain text where applicable. Same-period Checkpoint Review correction
-remains unsupported.
+- standalone Policy Versions navigation page (versions live inside Policy detail);
+- Roles administration UI, Tasks, Notifications, Reports centre, tenant/settings
+  screens, KPI catalogue/dashboard/mapping deep links;
+- free-form manual risk **create** in the API (risks are auto-raised from KPI
+  misses and import; treatment/close work on the Risk Register);
+- GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
+  place a file and configure via API);
+- Policy Version obsoletion and Policy `INACTIVE` transitions;
+- malware scanning, S3 object storage, inline file preview;
+- same-period Checkpoint Review correction.
 
-This release is not a production deployment.
+S3 is not active. Local file storage is the only usable provider; selecting S3
+fails configuration closed.
 
-GenRAC is `AWAITING_INTEGRATION`. No connector, live sync, credentials or
-network access exists.
-
-S3 is not active. Local development file storage is the only usable provider;
-selecting S3 fails configuration closed. AWS is not configured and this
-baseline does not establish cloud deployment readiness.
+This documentation describes shipped software capability. Hosted production
+bring-up still requires human infrastructure and secrets.
 
 ## Security boundary
 
@@ -97,8 +97,10 @@ baseline does not establish cloud deployment readiness.
   revalidation, repository predicates, composite tenant foreign keys,
   constraints and triggers.
 - PostgreSQL row-level security is not implemented.
-- `COMPANY_ADMIN` still uses wildcard permission `"*"` as UAT-only technical
-  debt; removal is mandatory before production.
+- Development/test seed data may still assign `COMPANY_ADMIN` with wildcard
+  permission `"*"` (UAT-only technical debt). Production initialization uses
+  five explicit roles only; readiness refuses active wildcard assignments.
+  Seed wildcards must never be used for a production or client-demo load.
 - Access tokens are memory-only. Opaque refresh tokens are hashed at rest and
   transported only by an HTTP-only, `SameSite=Strict` cookie; production
   requires `Secure`.
@@ -107,9 +109,10 @@ baseline does not establish cloud deployment readiness.
 
 ## Test boundary
 
-Backend integration tests use real disposable PostgreSQL and all fourteen
-migrations. Automated Playwright uses browser-intercepted API responses and is
-not browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
+Backend integration tests use real disposable PostgreSQL and all applied
+migrations (sixteen folders under `backend/prisma/migrations/`). Automated
+Playwright uses browser-intercepted API responses and is not
+browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
 required for each release candidate.
 
 See:
