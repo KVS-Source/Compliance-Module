@@ -268,6 +268,163 @@ describe("submission modules", () => {
       }
     });
 
+    it.each(["CRITICAL", "MAJOR", "MINOR", "OBSERVATION", "OFI"] as const)(
+      "accepts Gap severity %s without a 500",
+      async (severity) => {
+        const admin = await login("admin001@example.test", "Admin001!Secure");
+        const response = await request(app)
+          .get(`/api/v1/reports/gaps?severity=${severity}`)
+          .set("Authorization", `Bearer ${admin.accessToken}`);
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.key).toBe("gaps");
+      },
+    );
+
+    it("rejects unsupported Gap severity MODERATE with 400", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const response = await request(app)
+        .get("/api/v1/reports/gaps?severity=MODERATE")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(400);
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
+      expect(JSON.stringify(response.body)).not.toMatch(
+        /prisma|PrismaClient|Invalid `prisma/i,
+      );
+    });
+
+    it.each(["OPEN", "IN_PROGRESS", "CLOSED", "CANCELLED"] as const)(
+      "accepts Gap status %s without a 500",
+      async (status) => {
+        const admin = await login("admin001@example.test", "Admin001!Secure");
+        const response = await request(app)
+          .get(`/api/v1/reports/gaps?status=${status}`)
+          .set("Authorization", `Bearer ${admin.accessToken}`);
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+      },
+    );
+
+    it("rejects unsupported Gap status RESOLVED with 400", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const response = await request(app)
+        .get("/api/v1/reports/gaps?status=RESOLVED")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(400);
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    });
+
+    it.each([
+      "OPEN",
+      "UNDER_REVIEW",
+      "TREATED",
+      "CLOSED",
+      "ARCHIVED",
+    ] as const)("accepts Risk status %s without a 500", async (status) => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const response = await request(app)
+        .get(`/api/v1/reports/risks?status=${status}`)
+        .set("Authorization", `Bearer ${admin.accessToken}`);
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it("rejects unsupported Risk status ASSESSED with 400", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const response = await request(app)
+        .get("/api/v1/reports/risks?status=ASSESSED")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(400);
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    });
+
+    it("applies the same enum validation to CSV export", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      await request(app)
+        .get("/api/v1/reports/gaps/export.csv?severity=OBSERVATION&status=OPEN")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(200);
+      const invalid = await request(app)
+        .get("/api/v1/reports/gaps/export.csv?severity=MODERATE")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(400);
+      expect(invalid.body.error.code).toBe("VALIDATION_ERROR");
+      const assessed = await request(app)
+        .get("/api/v1/reports/risks/export.csv?status=ASSESSED")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .expect(400);
+      expect(assessed.body.error.code).toBe("VALIDATION_ERROR");
+    });
+
+    it("keeps filtered Gap rows tenant-scoped", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const other = admin.user.companies.find(({ code }) => code === "COM-002");
+      if (!other) throw new Error("COM-002 fixture is unavailable");
+      const actor = await prisma.user.findFirstOrThrow({
+        where: { email: "admin001@example.test" },
+        select: { id: true },
+      });
+      const stamp = Date.now();
+      const codeA = `GAP_FILTER_A_${stamp}`;
+      const codeB = `GAP_FILTER_B_${stamp}`;
+      await prisma.gap.createMany({
+        data: [
+          {
+            tenantId: admin.user.activeCompany.id,
+            code: codeA,
+            title: "Filter isolation A",
+            severity: "MAJOR",
+            status: "OPEN",
+            createdById: actor.id,
+            updatedById: actor.id,
+          },
+          {
+            tenantId: other.id,
+            code: codeB,
+            title: "Filter isolation B",
+            severity: "MAJOR",
+            status: "OPEN",
+            createdById: actor.id,
+            updatedById: actor.id,
+          },
+        ],
+      });
+      const otherToken = await switchCompany(admin.accessToken, other.id);
+      const first = await get(
+        admin.accessToken,
+        "/reports/gaps?severity=MAJOR",
+      );
+      const second = await get(otherToken, "/reports/gaps?severity=MAJOR");
+      const codesA = (first.data.rows as Array<{ code: string }>).map(
+        (row) => row.code,
+      );
+      const codesB = (second.data.rows as Array<{ code: string }>).map(
+        (row) => row.code,
+      );
+      expect(codesA).toContain(codeA);
+      expect(codesA).not.toContain(codeB);
+      expect(codesB).toContain(codeB);
+      expect(codesB).not.toContain(codeA);
+      expect(first.data.rows.length).toBe(
+        await prisma.gap.count({
+          where: {
+            tenantId: admin.user.activeCompany.id,
+            deletedAt: null,
+            severity: "MAJOR",
+          },
+        }),
+      );
+      expect(second.data.rows.length).toBe(
+        await prisma.gap.count({
+          where: {
+            tenantId: other.id,
+            deletedAt: null,
+            severity: "MAJOR",
+          },
+        }),
+      );
+    });
+
     it("requires exports:read for the CSV even when the report is readable", async () => {
       const admin = await login("admin001@example.test", "Admin001!Secure");
       const reader = await login("user001@example.test", "User001!Secure");

@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import { z } from "zod";
 import {
   asyncHandler,
   permit,
@@ -14,53 +13,13 @@ import {
   type ReportFilters,
   type ReportService,
 } from "./service.js";
+import {
+  buildReportQuerySchema,
+  reportParamsSchema,
+  type ReportQuery,
+} from "./validators.js";
 
-const dateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must use YYYY-MM-DD")
-  .refine((value) => {
-    const date = new Date(`${value}T00:00:00.000Z`);
-    return (
-      !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
-    );
-  }, "Date must be valid");
-
-/**
- * Report filters. Company scope is never a parameter: it is read from the
- * authenticated token, so a caller cannot ask for another Company's rows.
- */
-const reportQuerySchema = z
-  .object({
-    from: dateSchema.optional(),
-    to: dateSchema.optional(),
-    frameworkId: z.string().uuid().optional(),
-    departmentId: z.string().uuid().optional(),
-    status: z.string().trim().min(1).max(48).optional(),
-    severity: z.string().trim().min(1).max(48).optional(),
-    priority: z.string().trim().min(1).max(48).optional(),
-    period: z.string().trim().min(1).max(48).optional(),
-    registerCode: z.string().trim().min(1).max(64).optional(),
-  })
-  .strict()
-  .superRefine((value, context) => {
-    if (
-      value.from !== undefined &&
-      value.to !== undefined &&
-      value.to < value.from
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["to"],
-        message: "to must not precede from",
-      });
-    }
-  });
-
-const reportParamsSchema = z
-  .object({ reportKey: z.string().trim().min(1).max(64) })
-  .strict();
-
-const toFilters = (query: z.infer<typeof reportQuerySchema>): ReportFilters => ({
+const toFilters = (query: ReportQuery): ReportFilters => ({
   ...(query.from ? { from: new Date(`${query.from}T00:00:00.000Z`) } : {}),
   ...(query.to ? { to: new Date(`${query.to}T23:59:59.999Z`) } : {}),
   ...(query.frameworkId ? { frameworkId: query.frameworkId } : {}),
@@ -96,10 +55,35 @@ const assertReportPermitted = (
   return definition;
 };
 
+/**
+ * Query validation depends on the report key (Gap severity is not Risk
+ * status). Params must be validated first so the key is available here.
+ */
+const validateReportQuery = (
+  req: Request,
+  _res: Response,
+  next: (error?: unknown) => void,
+) => {
+  const reportKey = String(req.params.reportKey ?? "");
+  const parsed = buildReportQuerySchema(reportKey).safeParse(req.query);
+  if (!parsed.success) return next(parsed.error);
+  Object.defineProperty(req, "query", {
+    configurable: true,
+    enumerable: true,
+    value: parsed.data,
+    writable: true,
+  });
+  return next();
+};
+
 export const reportRoutes = (service: ReportService) => {
   const router = Router();
 
-  /** The catalogue, filtered to what this caller may actually run. */
+  /**
+   * Catalogue of every report. Each entry carries an `available` flag for the
+   * caller's permissions; unavailable reports are still listed so the UI can
+   * explain which permission is missing rather than hide the report.
+   */
   router.get(
     "/",
     permit("dashboard:read"),
@@ -121,7 +105,7 @@ export const reportRoutes = (service: ReportService) => {
     "/:reportKey",
     permit("dashboard:read"),
     validate(reportParamsSchema, "params"),
-    validate(reportQuerySchema, "query"),
+    validateReportQuery,
     asyncHandler(async (req: Request, res: Response) => {
       const reportKey = String(req.params.reportKey);
       assertReportPermitted(reportKey, req.auth!.permissions);
@@ -131,7 +115,7 @@ export const reportRoutes = (service: ReportService) => {
         await service.run(
           reportKey,
           req.auth!.tenantId,
-          toFilters(req.query as z.infer<typeof reportQuerySchema>),
+          toFilters(req.query as ReportQuery),
         ),
       );
     }),
@@ -140,14 +124,15 @@ export const reportRoutes = (service: ReportService) => {
   /**
    * CSV for a report. `exports:read` is required in addition to the report's
    * own module permissions, so export can be withheld from a role that may
-   * still read the report on screen.
+   * still read the report on screen. Filter validation matches the on-screen
+   * report exactly.
    */
   router.get(
     "/:reportKey/export.csv",
     permit("dashboard:read"),
     permit("exports:read"),
     validate(reportParamsSchema, "params"),
-    validate(reportQuerySchema, "query"),
+    validateReportQuery,
     asyncHandler(async (req: Request, res: Response) => {
       const reportKey = String(req.params.reportKey);
       assertReportPermitted(reportKey, req.auth!.permissions);
@@ -155,7 +140,7 @@ export const reportRoutes = (service: ReportService) => {
       const body = await service.csv(
         reportKey,
         req.auth!.tenantId,
-        toFilters(req.query as z.infer<typeof reportQuerySchema>),
+        toFilters(req.query as ReportQuery),
       );
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader(

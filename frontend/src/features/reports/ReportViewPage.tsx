@@ -19,21 +19,54 @@ import { frameworkApi } from "../../services/frameworkApi";
 import { reportApi } from "../../services/submissionApi";
 import type { Department, Framework } from "../../types/api";
 
-/** Filter vocabularies. Values must match the API's enums exactly. */
-const STATUS_OPTIONS: Record<string, string[]> = {
-  "evidence-status": ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"],
-  risks: ["OPEN", "ASSESSED", "TREATED", "CLOSED", "ARCHIVED"],
-  gaps: ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "CANCELLED"],
-  "capa-aging": [
-    "OPEN",
-    "IN_PROGRESS",
-    "PENDING_VERIFICATION",
-    "CLOSED",
-    "CANCELLED",
-  ],
-};
-const SEVERITY_OPTIONS = ["CRITICAL", "MAJOR", "MODERATE", "MINOR"];
-const PRIORITY_OPTIONS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+/** Filter vocabularies. Values must match Prisma enums exactly. */
+const STATUS_OPTIONS: Record<string, ReadonlyArray<{ value: string; label: string }>> =
+  {
+    "evidence-status": [
+      { value: "DRAFT", label: "Draft" },
+      { value: "SUBMITTED", label: "Submitted" },
+      { value: "APPROVED", label: "Approved" },
+      { value: "REJECTED", label: "Rejected" },
+      { value: "ARCHIVED", label: "Archived" },
+    ],
+    risks: [
+      { value: "OPEN", label: "Open" },
+      { value: "UNDER_REVIEW", label: "Under Review" },
+      { value: "TREATED", label: "Treated" },
+      { value: "CLOSED", label: "Closed" },
+      { value: "ARCHIVED", label: "Archived" },
+    ],
+    gaps: [
+      { value: "OPEN", label: "Open" },
+      { value: "IN_PROGRESS", label: "In Progress" },
+      { value: "CLOSED", label: "Closed" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ],
+    "capa-aging": [
+      { value: "OPEN", label: "Open" },
+      { value: "IN_PROGRESS", label: "In Progress" },
+      { value: "PENDING_VERIFICATION", label: "Pending Verification" },
+      { value: "CLOSED", label: "Closed" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ],
+  };
+
+/** GapSeverity — no MODERATE; OBSERVATION and OFI are first-class. */
+const SEVERITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "CRITICAL", label: "Critical" },
+  { value: "MAJOR", label: "Major" },
+  { value: "MINOR", label: "Minor" },
+  { value: "OBSERVATION", label: "Observation" },
+  { value: "OFI", label: "OFI" },
+];
+
+/** CapaPriority from the workbook lookup. */
+const PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "CRITICAL", label: "Critical" },
+  { value: "HIGH", label: "High" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "LOW", label: "Low" },
+];
 
 const humanise = (code: string) =>
   code
@@ -238,8 +271,8 @@ export function ReportViewPage() {
               >
                 <option value="">All statuses</option>
                 {(STATUS_OPTIONS[reportKey] ?? []).map((option) => (
-                  <option key={option} value={option}>
-                    {humanise(option)}
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -256,8 +289,8 @@ export function ReportViewPage() {
               >
                 <option value="">All severities</option>
                 {SEVERITY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {humanise(option)}
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -274,8 +307,8 @@ export function ReportViewPage() {
               >
                 <option value="">All priorities</option>
                 {PRIORITY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {humanise(option)}
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>

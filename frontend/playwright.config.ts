@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: /.*\.e2e\.ts/,
   timeout: 45_000,
   fullyParallel: false,
-  retries: process.env.CI ? 1 : 1,
+  retries: 0,
   workers: process.env.CI ? 1 : 2,
   use: {
     baseURL: "http://127.0.0.1:5173",
