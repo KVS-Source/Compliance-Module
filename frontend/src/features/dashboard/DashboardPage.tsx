@@ -197,7 +197,7 @@ export function DashboardPage() {
             <MetricCard label="Open CAPAs" value={value(capas?.open)} note={capas ? "corrective actions active" : "permission restricted"} icon={Wrench} tone="blue" to="/compliance/capa" />
             <MetricCard label="Overdue CAPAs" value={value(capas?.overdue)} note={capas ? "past due and still open" : "permission restricted"} icon={Wrench} tone="red" to="/compliance/capa" />
             <MetricCard label="Pending Evidence Reviews" value={value(evidence?.pendingReview)} note={evidence ? "submitted for decision" : "permission restricted"} icon={FileSearch} tone="purple" to="/evidence" />
-            <MetricCard label="Operational Records" value={value(registerRecords)} note={resource.data.registers ? `across ${resource.data.registers.length} active registers` : "permission restricted"} icon={ClipboardCheck} tone="grey" />
+            <MetricCard label="Operational Records" value={value(registerRecords)} note={resource.data.registers ? `across ${resource.data.registers.length} active registers` : "permission restricted"} icon={ClipboardCheck} tone="grey" to="/compliance/operational-registers" />
           </div>
 
           <div className="grid-2 dashboard-secondary-grid">

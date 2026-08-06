@@ -36,6 +36,42 @@ test("Dashboard renders deadline aggregates from the API", async ({ page }) => {
 test("Dashboard gives stable zero-data values", async ({ page }) => { await mockDashboard(page, "zero"); await page.goto("/dashboard"); await expect(page.getByText("No compliance activity yet")).toBeVisible(); await expect(page.getByLabel(/Open Gaps: 0/)).toBeVisible(); await expect(page.getByLabel(/Open CAPAs: 0/)).toBeVisible(); });
 test("Dashboard shows its API failure state", async ({ page }) => { await mockDashboard(page, "error"); await page.goto("/dashboard"); await expect(page.getByRole("alert")).toContainText("Summary unavailable"); });
 test("Dashboard deadline cards collapse to one mobile column", async ({ page }) => { await page.setViewportSize({ width: 390, height: 844 }); await mockDashboard(page); await page.goto("/dashboard"); const columns = await page.locator(".dashboard-cards").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length); expect(columns).toBe(1); await expect(page.getByLabel(/Open Gaps: 4/)).toBeVisible(); });
+test("Dashboard links use a full blue hover state", async ({ page }) => {
+  await mockDashboard(page);
+  await page.goto("/dashboard");
+  const card = page.getByLabel(/Overall Compliance: 31%/);
+  await card.hover();
+  const hoverStyle = await card.evaluate((element) => {
+    const label = element.querySelector(".card-label");
+    return {
+      background: getComputedStyle(element).backgroundImage,
+      border: getComputedStyle(element).borderColor,
+      label: label ? getComputedStyle(label).color : "",
+    };
+  });
+  expect(hoverStyle.background).toContain("linear-gradient");
+  expect(hoverStyle.border).toBe("rgb(37, 99, 235)");
+  expect(hoverStyle.label).toBe("rgb(255, 255, 255)");
+});
+test("Operational Records is a full-width interactive card on narrow screens", async ({ page }) => {
+  await page.setViewportSize({ width: 424, height: 731 });
+  await mockDashboard(page);
+  await page.goto("/dashboard");
+  const card = page.getByLabel(/Operational Records: 106/);
+  await expect(card).toHaveAttribute("href", "/compliance/operational-registers");
+  const cardWidth = await card.evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  const gridWidth = await page
+    .locator(".dashboard-cards")
+    .evaluate((element) => element.getBoundingClientRect().width);
+  expect(cardWidth).toBeGreaterThan(gridWidth * 0.9);
+  await card.hover();
+  await expect(card).toHaveCSS(
+    "background-image",
+    /linear-gradient.*rgb\(37, 99, 235\)/,
+  );
+});
 test("Dashboard permission boundary prevents an unauthorised summary request", async ({ page }) => {
   let summaryRequests = 0;
   await mockDashboard(page, "data", ["kpis:read"], () => { summaryRequests += 1; });
