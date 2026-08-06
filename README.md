@@ -23,7 +23,7 @@ exhaustive enforced inventory.
 ### Live (API-connected) routes
 
 These use the real backend and must **not** show the prototype banner. The
-client sidebar ships **26 LIVE modules** (`clientNavigationPaths` in
+client sidebar ships **44 LIVE modules** (`clientNavigationPaths` in
 `frontend/src/app/routeDefinitions.ts`):
 
 | Path | Notes |
@@ -35,12 +35,22 @@ client sidebar ships **26 LIVE modules** (`clientNavigationPaths` in
 | `/admin/departments` | Organisation masters |
 | `/admin/locations` | Organisation masters |
 | `/admin/organisation-units` | Organisation masters |
+| `/admin/roles` | Role and permission profiles (read-only; production roles are not editable) |
+| `/master/users` | Master Data entry point for user management |
 | `/master/frameworks` | Framework master (read) |
-| `/master/framework-rules` | Framework rule browser (read) |
+| `/master/rules` | Framework rule browser (read) |
 | `/master/frameworks/:frameworkId/rules` | Framework rules (detail) |
+| `/master/frequencies` | Frequency master (read) |
+| `/master/targets` | Master Data entry point for KPI targets |
+| `/master/policies` | Master Data entry point for the Policy Register |
+| `/master/controls` | Master Data entry point for the Control Register |
+| `/master/kpis` | Master Data entry point for the KPI catalogue |
+| `/compliance/frameworks` | Framework compliance overview (read) |
 | `/compliance/policy-register` | Policy Register |
 | `/compliance/controls` | Controls |
 | `/compliance/checkpoints` | Checkpoints |
+| `/kpi/catalogue` | KPI catalogue (read) |
+| `/kpi/analytics` | KPI analytics and trend charts (read) |
 | `/kpi/configuration` | KPI configurations |
 | `/kpi/targets` | KPI target selection/lifecycle |
 | `/kpi/configuration/:configurationId/targets` | KPI target lifecycle (detail) |
@@ -51,6 +61,8 @@ client sidebar ships **26 LIVE modules** (`clientNavigationPaths` in
 | `/evidence` | Evidence Library |
 | `/evidence/new` | Create Evidence |
 | `/evidence/review` | Evidence Review queue |
+| `/evidence/approved` | Approved Evidence (read) |
+| `/evidence/rejected` | Rejected Evidence (read) |
 | `/compliance/gaps` | Gap Register |
 | `/compliance/capa` | CAPA Register |
 | `/audit-trail` | Audit Trail |
@@ -58,6 +70,13 @@ client sidebar ships **26 LIVE modules** (`clientNavigationPaths` in
 | `/data/import` | Data Import (XLSX / CSV templates) |
 | `/data/import-history` | Import History |
 | `/data/genrac-integration` | GenRAC connector status (CSV adapter when configured; live REST/DB access not claimed) |
+| `/reports` | Reports centre catalogue; each report carries an `available` flag and renders locked when the caller lacks its permissions |
+| `/reports/kpi-variance` | KPI variance report (read; CSV needs `exports:read`) |
+| `/reports/framework-compliance` | Framework compliance report (read; CSV needs `exports:read`) |
+| `/reports/evidence-status` | Evidence status report (read; CSV needs `exports:read`) |
+| `/reports/gaps` | Gap report (read; CSV needs `exports:read`) |
+| `/reports/audit-activity` | Audit activity report (read; CSV needs `exports:read`) |
+| `/reports/:reportKey` | One parameterised view serving all ten catalogue reports; the five above are the sidebar entries, and KPI target-versus-actual, risks, CAPA aging, policy review and Operational Registers open from the hub |
 
 Authoritative list: `clientNavigationPaths` / `migratedPaths` in
 `frontend/src/app/routeDefinitions.ts`, plus detail routes in
@@ -66,10 +85,15 @@ Authoritative list: `clientNavigationPaths` / `migratedPaths` in
 
 ### Not operational
 
-Deferred product routes (Roles UI, Tasks, Notifications, Reports, Settings,
-standalone Policy Versions page, and similar) are **hidden** and render truthful
-**In Development** status pages — they are not in the client sidebar. Twenty-two
-older URLs are hidden **Compatibility** routes. GenRAC is a LIVE status page with
+Deferred product routes (Tasks, Notifications, Settings, standalone Policy
+Versions page, KPI mapping deep links, and similar) are **hidden** and render
+truthful **In Development** status pages — they are not in the client sidebar.
+Fourteen older URLs, including `/master/framework-rules` (superseded by
+`/master/rules`), are hidden **Compatibility** routes.
+
+The Reports centre, KPI catalogue/analytics and role-access pages are read and
+export surfaces only; their APIs expose no mutation path, and the access profile
+response states `mutable: false` rather than leaving the UI to assert it. GenRAC is a LIVE status page with
 optional CSV-adapter operations; live REST or database GenRAC access is not
 enabled without approved configuration.
 

@@ -4,7 +4,7 @@ Baseline date: 2026-08-06
 
 ## Release classification
 
-The client navigation set is 26 protected **LIVE** modules (API-connected React
+The client navigation set is 44 protected **LIVE** modules (API-connected React
 pages backed by PostgreSQL), plus login. Production readiness still depends on
 operator provisioning (TLS, secrets, host, backup) and the blockers listed in
 [known limitations](../known-limitations.md). Authoritative route status is
@@ -28,12 +28,14 @@ evidence status is
 | `COMPATIBILITY` | A previously published URL is retained but hidden and is not an operational authority. |
 | `DORMANT` | Source/reference material is not imported or routed by the active runtime. |
 
-Current totals: one public login; **26 protected LIVE** sidebar modules (all
+Current totals: one public login; **44 protected LIVE** sidebar modules (all
 entries in `clientNavigationPaths`); one protected LIVE **account-menu** route
 (Change Password), reached from the Topbar profile menu and deliberately kept
 out of the sidebar; deferred product routes are **hidden** `IN_DEVELOPMENT`
-deep links (not shown in the client sidebar); 22 hidden `COMPATIBILITY` legacy
-URLs. No sidebar item remains `AWAITING_INTEGRATION`.
+deep links (not shown in the client sidebar); 14 hidden `COMPATIBILITY` legacy
+URLs. No sidebar item remains `AWAITING_INTEGRATION`. `npm run guard:routes`
+reports these totals as 58 protected LIVE route patterns, which counts detail
+and parameterised routes in addition to the 44 sidebar entries.
 
 Client-readable module capabilities: [handover module status](../handover/module-status.md).
 
@@ -62,7 +64,24 @@ Client-readable module capabilities: [handover module status](../handover/module
   test/preview/sync when configured by operations. Live REST/database GenRAC
   access is **not** claimed (`liveAccess` remains false until approved access
   exists);
-- tenant-scoped dashboard and CSV exports where permitted;
+- tenant-scoped dashboard and CSV exports where permitted, including dashboard
+  analytics (KPI trend, evidence status, framework compliance, risk heat map,
+  CAPA aging, policies due for review and the action queue). A section the API
+  withholds reads as restricted rather than as zero;
+- **Reports centre**: a catalogue of **ten** reports — KPI target versus actual,
+  KPI variance and achievement, framework compliance, evidence status and aging,
+  risks, gaps, CAPA aging and overdue, policy review schedule, audit activity and
+  Operational Registers. Five carry a sidebar entry; all ten run through the
+  parameterised `/reports/:reportKey` view. The catalogue lists every report and
+  marks one the caller may not run as locked rather than hiding it. These are **read-only**; CSV export additionally requires
+  `exports:read`, so export can be withheld from a role that may still read the
+  report on screen;
+- **KPI catalogue and KPI analytics** pages (read-only) and the **Frequency
+  master** (read-only);
+- **Role and access profiles** page (read-only). The API exposes no role
+  mutation path and states `mutable: false` in the response; production roles
+  are still provisioned by initialization, not by the UI;
+- **Approved and Rejected Evidence** views alongside the existing review queue;
 - append-only audit-event writes for active workflows.
 
 `KpiTarget`/`kpi_targets` is the active target authority. `KpiGoal`/
@@ -75,8 +94,12 @@ The following are **not** client sidebar LIVE modules (hidden status pages or
 deferred scope):
 
 - standalone Policy Versions navigation page (versions live inside Policy detail);
-- Roles administration UI, Tasks, Notifications, Reports centre, tenant/settings
-  screens, KPI catalogue/dashboard/mapping deep links;
+- Tasks, Notifications, tenant/settings screens and KPI mapping deep links;
+- **role and permission administration writes**: the role-access page reads
+  profiles only, so creating a role or changing a permission assignment is not
+  possible from the client;
+- **report scheduling, subscriptions and PDF output**: the Reports centre runs a
+  report on demand and exports CSV only;
 - free-form manual risk **create** in the API (risks are auto-raised from KPI
   misses and import; treatment/close work on the Risk Register);
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must

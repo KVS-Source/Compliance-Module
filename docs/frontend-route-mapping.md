@@ -1,16 +1,20 @@
 # Frontend route inventory
 
 Authority: `frontend/src/app/routeDefinitions.ts` and
-`frontend/src/app/router.tsx`
+`frontend/src/app/router.tsx`. Regenerate this file from those sources rather
+than editing counts by hand; `npm run guard:routes` fails the build when the
+two disagree.
 
 The route guard enforces unique paths and route IDs, navigation resolution,
 status/page consistency and these counts:
 
 - one public login;
-- 26 protected `LIVE` route patterns;
-- 21 visible `IN_DEVELOPMENT` routes;
-- one visible `AWAITING_INTEGRATION` route;
-- 22 hidden `COMPATIBILITY` routes.
+- 58 protected `LIVE` route patterns — 44 sidebar modules, 13 detail/child
+  patterns and one account-menu route;
+- 0 visible `IN_DEVELOPMENT` routes and 0 `AWAITING_INTEGRATION` routes: no
+  client-visible navigation entry may carry a non-live badge;
+- 14 hidden `COMPATIBILITY` routes;
+- two Evidence compatibility redirects.
 
 ## Public route
 
@@ -18,82 +22,190 @@ status/page consistency and these counts:
 | --- | --- | --- |
 | `/login` | `LoginPage` | real auth API; public |
 
-## Protected LIVE routes: 26
+## Protected LIVE sidebar modules: 44
 
 These render dedicated business pages and call real Express/PostgreSQL APIs.
-They must never render `ModuleStatusPage`.
+They must never render `ModuleStatusPage`. Permission is the code the route
+requires before it will load; a caller without it sees a permission boundary
+rather than an empty screen.
 
-| Path pattern | Page | Primary API |
+Several Master Data entries deliberately resolve to the same page as their
+operational counterpart under the name the client uses — Target Master is KPI
+Targets, Rule Master is Framework Rules, KPI Master is the KPI Catalogue.
+
+### Overview
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/dashboard` | Dashboard | `dashboard:read` | `GET /dashboard/summary` |
+
+### Administration
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/admin/companies` | Companies | `tenants:read` | `GET /tenants` |
+| `/admin/users` | Users | `users:read` | `GET/POST /users · GET/PATCH /users/:id` |
+| `/admin/roles` | Role & Access | `users:read` | `GET /access/profiles` |
+| `/admin/departments` | Departments | `organisation:read` | `GET/POST /organisation/departments · PATCH /organisation/departments/:id` |
+| `/admin/locations` | Locations | `organisation:read` | `GET/POST /organisation/locations · PATCH /organisation/locations/:id` |
+| `/admin/organisation-units` | Organisation Units | `organisation:read` | `GET/POST /organisation/units · PATCH /organisation/units/:id` |
+
+### Master Data
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/master/users` | User Master | `users:read` | `GET /users` |
+| `/master/frequencies` | Frequency Master | `kpis:read` | `GET /kpis/frequencies` |
+| `/master/targets` | Target Master | `kpis:read` | `GET /kpi-configurations · GET /kpi-targets` |
+| `/master/frameworks` | Framework Master | `frameworks:read` | `GET /frameworks` |
+| `/master/rules` | Rule Master | `frameworks:read` | `GET /frameworks · GET /frameworks/:id/rules` |
+| `/master/policies` | Policy Master | `policies:read` | `GET /policies` |
+| `/master/controls` | Control Master | `controls:read` | `GET /controls` |
+| `/master/kpis` | KPI Master | `kpis:read` | `GET /kpis/catalogue` |
+
+### KPI Management
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/kpi/catalogue` | KPI Catalogue | `kpis:read` | `GET /kpis/catalogue` |
+| `/kpi/configuration` | KPI Configuration | `kpis:read` | `GET/POST /kpi-configurations · PATCH/DELETE /kpi-configurations/:id` |
+| `/kpi/targets` | KPI Targets | `kpis:read` | `GET /kpi-configurations · GET/POST /kpi-targets · POST /kpi-targets/:id/submit|approve|reject|versions` |
+| `/kpi/actual-entry` | KPI Actual Entry | `kpis:read` | `GET /kpi-configurations · GET /kpi-targets · POST /kpi-actuals` |
+| `/kpi/approval` | KPI Approval | `kpis:read` | `GET /kpi-actuals · GET /kpi-actuals/:id · POST /kpi-actuals/:id/approve|reject|resubmit` |
+| `/kpi/analytics` | KPI Analytics | `kpis:read` | `GET /kpis/analytics` |
+
+### Compliance Management
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/compliance/frameworks` | Frameworks | `frameworks:read` | `GET /frameworks` |
+| `/compliance/controls` | Controls | `controls:read` | `GET/POST /controls · GET/PATCH /controls/:id · lifecycle and mappings` |
+| `/compliance/checkpoints` | Checkpoints | `checkpoints:read` | `GET/POST /checkpoints · GET/PATCH /checkpoints/:id · Reviews, lifecycle, traceability and audit` |
+| `/compliance/policy-register` | Policy Register | `policies:read` | `GET/POST /policies · GET/PATCH /policies/:id · Version lifecycle` |
+| `/compliance/risks` | Risk Register | `risk:read` | `GET /risks · GET /risks/:id` |
+| `/compliance/gaps` | Gap Register | `gaps:read` | `GET/POST /gaps · GET/PATCH /gaps/:id · owner and closure actions` |
+| `/compliance/capa` | CAPA Register | `capa:read` | `GET/POST /capas · GET/PATCH /capas/:id · owner and closure actions` |
+
+### Evidence Management
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/evidence` | Evidence Library | `evidence:read` | `GET /evidence · GET /evidence/:id · PATCH /evidence/:id · Lifecycle, file, review and audit` |
+| `/evidence/new` | Create Evidence | `evidence:write` | `POST /evidence · POST /evidence/:id/file` |
+| `/evidence/review` | Evidence Review | `evidence:review` | `GET /evidence/review-queue · POST /evidence/:id/approve|reject` |
+| `/evidence/approved` | Approved Evidence | `evidence:read` | `GET /evidence?lifecycleStatus=APPROVED` |
+| `/evidence/rejected` | Rejected Evidence | `evidence:read` | `GET /evidence?lifecycleStatus=REJECTED` |
+
+### Data Management
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/data/import` | Data Import | `imports:read` | `POST /imports/workbook/preview · POST /imports/csv/preview · POST /imports/:id/commit` |
+| `/data/import-history` | Import History | `imports:read` | `GET /imports · GET /imports/:id · GET /imports/:id/errors` |
+| `/data/genrac-integration` | GenRAC Integration | `integrations:read` | `GET /integrations/genrac/status · POST test/preview/sync · GET history` |
+
+### Audit & Reporting
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/audit-trail` | Audit Trail | `audit:read` | `GET /audit-events · GET /audit-events/:id · GET /audit-events/export.csv` |
+| `/compliance/operational-registers` | Operational Registers | `registers:read` | `GET /operational-registers · GET /operational-registers/:code/records` |
+| `/reports` | Report Hub | `dashboard:read` | `GET /reports` |
+| `/reports/kpi-variance` | KPI Reports | `kpis:read` | `GET /reports/kpi-variance` |
+| `/reports/framework-compliance` | Compliance Reports | `controls:read` | `GET /reports/framework-compliance` |
+| `/reports/evidence-status` | Evidence Reports | `evidence:read` | `GET /reports/evidence-status` |
+| `/reports/gaps` | Risk / Gap / CAPA Reports | `gaps:read` | `GET /reports/gaps · /reports/risks · /reports/capa-aging` |
+| `/reports/audit-activity` | Audit Reports | `audit:read` | `GET /reports/audit-activity` |
+
+
+The five `/reports/*` sidebar entries are not the whole Reports centre: the
+catalogue holds ten reports and every one of them renders through the
+parameterised `/reports/:reportKey` route listed below. KPI target-versus-actual,
+risks, CAPA aging, policy review and Operational Registers are reachable from the
+hub without a sidebar entry of their own.
+
+## Protected LIVE detail and child patterns: 13
+
+Declared directly in the router, so they carry no `routeDefinitions` entry and
+never appear in `migratedPaths`. The guard asserts them separately.
+
+
+| Path pattern | Page |
+| --- | --- |
+| `/kpi/configuration/:configurationId/targets` | `KpiTargetsPage` |
+| `/compliance/risks/:riskId` | `RiskDetailPage` |
+| `/compliance/policies/:policyId` | `PolicyDetailPage` |
+| `/compliance/controls/:controlId` | `ControlDetailPage` |
+| `/compliance/checkpoints/:checkpointId` | `CheckpointDetailPage` |
+| `/master/frameworks/:frameworkId/rules` | `FrameworkRulesPage` |
+| `/evidence/:evidenceId` | `EvidenceDetailPage` |
+| `/compliance/gaps/:gapId` | `GapDetailPage` |
+| `/compliance/capa/:capaId` | `CapaDetailPage` |
+| `/data/import-history/:importId` | `ImportDetailPage` |
+| `/reports/:reportKey` | `ReportViewPage` |
+| `/compliance/operational-registers/:registerCode` | `OperationalRegistersPage` |
+| `/compliance/operational-registers/:registerCode/records/:recordId` | `OperationalRegisterDetailPage` |
+
+## Protected LIVE account route: 1
+
+| Path | Page | Notes |
 | --- | --- | --- |
-| `/dashboard` | `DashboardPage` | `GET /dashboard/summary` |
-| `/admin/companies` | `CompaniesPage` | `GET /tenants` |
-| `/admin/users` | `UsersPage` | user read/write API |
-| `/admin/departments` | `OrganisationPage` | department read/write API |
-| `/admin/locations` | `OrganisationPage` | location read/write API |
-| `/admin/organisation-units` | `OrganisationPage` | unit read/write API |
-| `/master/frameworks` | `FrameworksPage` | `GET /frameworks` |
-| `/master/framework-rules` | `FrameworksPage` | framework/rule reads |
-| `/master/frameworks/:frameworkId/rules` | `FrameworkRulesPage` | framework/rule reads |
-| `/kpi/configuration` | `KpiConfigurationPage` | KPI configuration API |
-| `/kpi/targets` | `KpiConfigurationPage` target mode | KPI configuration/target APIs |
-| `/kpi/configuration/:configurationId/targets` | `KpiTargetsPage` | KPI target lifecycle |
-| `/kpi/actual-entry` | `KpiActualEntryPage` | target/configuration reads and actual submission |
-| `/kpi/approval` | `KpiApprovalPage` | actual read/approve/reject/resubmit |
-| `/compliance/risks` | `RiskRegisterPage` | risk reads |
-| `/compliance/risks/:riskId` | `RiskDetailPage` | risk review/treatment/owner/close/reopen |
-| `/compliance/policy-register` | `PolicyRegisterPage` | Policy list/create |
-| `/compliance/policies/:policyId` | `PolicyDetailPage` | Policy detail, Versions, decisions |
-| `/compliance/controls` | `ControlRegisterPage` | Control list/create |
-| `/compliance/controls/:controlId` | `ControlDetailPage` | Control detail, lifecycle, mappings |
-| `/compliance/checkpoints` | `CheckpointRegisterPage` | Checkpoint list/create |
-| `/compliance/checkpoints/:checkpointId` | `CheckpointDetailPage` | Checkpoint detail, Review, lifecycle |
-| `/evidence` | `EvidenceLibraryPage` | Evidence list/read |
-| `/evidence/new` | `EvidenceCreatePage` | Evidence create and file upload |
-| `/evidence/review` | `EvidenceReviewQueuePage` | Evidence review queue |
-| `/evidence/:evidenceId` | `EvidenceDetailPage` | Evidence detail, links, lifecycle |
+| `/account/change-password` | `ChangePasswordPage` | Reached from the Topbar profile menu. Held out of `clientNavigationPaths` and `utilityRoutes` so the sidebar contract stays untouched. |
 
-The 19 top-level paths are in `migratedPaths`; seven child/detail patterns are
-declared directly in the router and separately asserted by the guard.
+## Hidden IN DEVELOPMENT deep links: 9
 
-## Visible IN DEVELOPMENT routes: 21
+Not in the client sidebar. Each resolves to `ModuleStatusPage` and states
+plainly that the module is not operational:
 
-Each path resolves to `ModuleStatusPage` and explicitly states that the module
-is not operational:
-
-| Area | Paths |
+| Path | Module |
 | --- | --- |
-| Administration | `/admin/roles` |
-| Policies & Controls | `/compliance/policy-versions` |
-| KPI | `/master/kpis`, `/kpi/dashboard`, `/kpi/mapping` |
-| Gap & CAPA | `/compliance/gaps`, `/compliance/gaps/review`, `/compliance/capa`, `/compliance/capa/review` |
-| Audit & Operations | `/audit-trail`, `/tasks`, `/notifications` |
-| Data Management | `/data/import`, `/data/import-history`, `/data/upload-errors` |
-| Reports | `/reports`, `/reports/kpi-performance`, `/reports/risk-summary`, `/reports/compliance-summary` |
-| Settings | `/settings/tenant`, `/settings/integrations` |
+| `/kpi/dashboard` | KPI Dashboard |
+| `/kpi/mapping` | KPI Mapping |
+| `/compliance/gaps/review` | Gap Review |
+| `/compliance/capa/review` | CAPA Review |
+| `/tasks` | Tasks |
+| `/notifications` | Notifications |
+| `/data/upload-errors` | Upload Errors |
+| `/settings/tenant` | Tenant Settings |
+| `/settings/integrations` | Integration Settings |
 
-Legacy Evidence URLs (`/evidence/register`, `/evidence/upload`, etc.) redirect
-to the live Evidence routes; they are not listed as `IN_DEVELOPMENT`.
+## Hidden COMPATIBILITY routes: 14
 
-## AWAITING INTEGRATION route: 1
-
-| Path | Status page contract |
-| --- | --- |
-| `/data/genrac-integration` | **Awaiting GenRAC Access**; no live connection is configured; client access and interface review are pending; a manual/CSV path is not represented as working integration |
-
-## Hidden COMPATIBILITY routes: 22
-
-These published URLs remain routable to a compatibility status page. They are
+Published URLs that stay routable to a compatibility status page. They are
 excluded from sidebar navigation and global search and are not operational
 authorities:
 
-`/master/users`, `/master/frequencies`, `/master/targets`,
-`/master/customers`, `/master/controls`, `/master/policies`, `/master/rules`,
-`/compliance/frameworks`, `/upload/policy-master`,
-`/upload/evidence-master`, `/upload/kpi-data`, `/upload/customer-data`,
-`/upload/audit-reports`, `/analytics/customers`, `/analytics/kpis`,
-`/reports/compliance`, `/reports/evidence`, `/reports/audit`,
-`/reports/attribution`, `/reports/deals`, `/reports/customer-outcomes`, and
-`/settings`.
+| Path | Retained name | Superseded by |
+| --- | --- | --- |
+| `/master/customers` | Customer Master | — (prototype-only concept) |
+| `/master/framework-rules` | Framework Rules | `/master/rules` |
+| `/compliance/policy-versions` | Policy Versions | Version work inside Policy detail |
+| `/upload/policy-master` | Policy Master Upload | `/data/import` |
+| `/upload/evidence-master` | Evidence Master Upload | `/data/import` |
+| `/upload/kpi-data` | KPI Data Upload | `/data/import` |
+| `/upload/customer-data` | Customer Data Upload | — (prototype-only concept) |
+| `/upload/audit-reports` | Audit Reports Upload | `/data/import` |
+| `/analytics/customers` | Customer Analytics | — (prototype-only concept) |
+| `/analytics/kpis` | KPI Analytics | `/kpi/analytics` |
+| `/reports/attribution` | Attribution Reports | — (prototype-only concept) |
+| `/reports/deals` | Deals Won / Lost | — (prototype-only concept) |
+| `/reports/customer-outcomes` | Customer Won / Lost | — (prototype-only concept) |
+| `/settings` | Settings | — (deferred) |
+
+The guard also rejects any attempt to surface `/master/customers`,
+`/analytics/customers` or `/reports/attribution` in visible navigation:
+these are prototype-only concepts with no durable model behind them, so a
+visible route would claim something the platform cannot honour.
+
+## Evidence compatibility redirects: 2
+
+| Path | Redirects to |
+| --- | --- |
+| `/evidence/register` | `/evidence/new` |
+| `/evidence/upload` | `/evidence/new` |
+
+These must keep resolving to a replace-navigation redirect rather than to the
+Evidence detail route or a status page.
 
 ## Dormant prototype boundary
 
