@@ -12,7 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
@@ -541,18 +541,66 @@ export function ControlRegisterPage() {
           <ErrorState error={resource.error} />
         </div>
       ) : rows.length === 0 ? (
-        <section className="card empty-state" id="page-content">
+        <section
+          className="card empty-state guided-empty"
+          id="page-content"
+          data-testid="control-register-empty"
+        >
           <Inbox size={28} aria-hidden />
           <h3>
             {hasFilters
               ? "No Controls match these filters"
               : "No Controls yet"}
           </h3>
-          <p>
-            {hasFilters
-              ? "Server-side filters returned no rows for the active Company. Adjust search or filters and try again."
-              : `No Control Register records were returned for ${user?.activeCompany.name ?? "the active Company"}.`}
-          </p>
+          {hasFilters ? (
+            <p>
+              Server-side filters returned no rows for the active Company.
+              Adjust search or filters and try again.
+            </p>
+          ) : (
+            <>
+              {/* The distinction clients most often ask about: an imported
+                  workbook carries the regulator's requirements, not this
+                  company's implementation of them. */}
+              <p data-testid="control-empty-explainer">
+                Framework Rules are regulatory requirements. Controls are the
+                company&rsquo;s implementation of those requirements.
+              </p>
+              <p>
+                No Control Register records were returned for{" "}
+                {user?.activeCompany.name ?? "the active Company"}. Start from a
+                Framework Rule, create the Control that implements it, then add
+                the Checkpoint that verifies it.
+              </p>
+              <ol className="guided-steps" data-testid="control-empty-steps">
+                <li>
+                  <Link to="/master/rules">Framework Rule</Link>
+                  <span>Find the requirement this Company must satisfy.</span>
+                </li>
+                <li>
+                  {canWrite ? (
+                    <button
+                      className="link-button"
+                      type="button"
+                      onClick={() => setCreating(true)}
+                      data-testid="control-empty-create"
+                    >
+                      Create Control
+                    </button>
+                  ) : (
+                    <span className="guided-step-locked">
+                      Create Control — requires controls:write
+                    </span>
+                  )}
+                  <span>Record how this Company implements it, and who owns it.</span>
+                </li>
+                <li>
+                  <Link to="/compliance/checkpoints">Create Checkpoint</Link>
+                  <span>Schedule the recurring verification of that Control.</span>
+                </li>
+              </ol>
+            </>
+          )}
         </section>
       ) : (
         <>

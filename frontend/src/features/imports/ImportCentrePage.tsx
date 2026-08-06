@@ -17,6 +17,31 @@ import {
 import { getAccessToken } from "../../services/apiClient";
 
 type Mode = "XLSX" | "CSV";
+
+/**
+ * CSV import types offered as one-click shortcuts. Every entry must be an
+ * approved template the API already serves; a shortcut for a type the backend
+ * does not accept would be a dead button.
+ */
+const SHORTCUT_CSV_TYPES = [
+  "KPI_ACTUALS",
+  "GAPS",
+  "CAPAS",
+  "TRAINING_RECORDS",
+  "INCIDENTS",
+  "VENDOR_COMPLIANCE",
+  "ACTION_ITEMS",
+] as const;
+
+const CSV_SHORTCUT_LABEL: Record<string, string> = {
+  KPI_ACTUALS: "KPI Actuals CSV",
+  GAPS: "Gaps CSV",
+  CAPAS: "CAPAs CSV",
+  TRAINING_RECORDS: "Training Records CSV",
+  INCIDENTS: "Incidents CSV",
+  VENDOR_COMPLIANCE: "Vendor Compliance CSV",
+  ACTION_ITEMS: "Action Items CSV",
+};
 type Phase =
   | "empty"
   | "uploading"
@@ -75,6 +100,22 @@ export function ImportCentrePage() {
       cancelled = true;
     };
   }, [contextVersion, user?.activeCompany.id]);
+
+  /**
+   * Preselects the format and CSV type on the form below. Any file already
+   * chosen and any preview already produced are discarded, so a shortcut can
+   * never leave a preview from one import type paired with another.
+   */
+  const selectShortcut = (nextMode: Mode, nextCsvType = "") => {
+    if (busy) return;
+    setMode(nextMode);
+    setCsvType(nextCsvType);
+    setFile(null);
+    setPreview(null);
+    setCommit(null);
+    setError(null);
+    setPhase("empty");
+  };
 
   const runPreview = async () => {
     if (!file || !canWrite || busy) return;
@@ -178,6 +219,65 @@ export function ImportCentrePage() {
         </section>
       ) : (
         <>
+          {/* Shortcuts only preselect the format and type on the form below.
+              They reuse the same preview/commit pipeline — there is no second
+              upload path, so validation and checksums cannot diverge. */}
+          <section className="card" data-testid="import-shortcuts">
+            <header className="card-head">
+              <div>
+                <h2>Import shortcuts</h2>
+                <p>
+                  Choose what you are importing. Each shortcut preselects the
+                  approved format below; the review and commit steps are
+                  unchanged.
+                </p>
+              </div>
+            </header>
+            <div className="report-grid">
+              <button
+                className={`report-tile import-shortcut ${mode === "XLSX" ? "is-selected" : ""}`}
+                type="button"
+                disabled={busy}
+                data-testid="import-shortcut-XLSX"
+                onClick={() => selectShortcut("XLSX")}
+              >
+                <span className="feature-icon tone-blue">
+                  <FileSpreadsheet size={18} />
+                </span>
+                <strong>Full XLSX Workbook</strong>
+                <span>
+                  The complete approved workbook. Every sheet is validated and
+                  checksummed before anything is committed.
+                </span>
+              </button>
+              {SHORTCUT_CSV_TYPES.map((type) => {
+                const template = templates.find(
+                  (candidate) => candidate.type === type,
+                );
+                return (
+                  <button
+                    className={`report-tile import-shortcut ${mode === "CSV" && csvType === type ? "is-selected" : ""}`}
+                    type="button"
+                    key={type}
+                    disabled={busy || !template}
+                    data-testid={`import-shortcut-${type}`}
+                    onClick={() => selectShortcut("CSV", type)}
+                  >
+                    <span className="feature-icon tone-blue">
+                      <Upload size={18} />
+                    </span>
+                    <strong>{template?.label ?? CSV_SHORTCUT_LABEL[type]}</strong>
+                    <span>
+                      {template
+                        ? `${template.headers.length} approved columns · CSV`
+                        : "This import type is not available on this deployment."}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="card card-pad" data-testid="import-centre-form">
             <div className="filter-bar deadline-filter-bar">
               <label className="toolbar-select">

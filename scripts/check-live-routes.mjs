@@ -27,11 +27,22 @@ const requiredLiveRoutes = [
   { path: "/dashboard", component: "DashboardPage" },
   { path: "/admin/users", component: "UsersPage" },
   { path: "/admin/companies", component: "CompaniesPage" },
+  { path: "/admin/roles", component: "RoleAccessPage" },
   { path: "/admin/departments", component: "OrganisationPage" },
   { path: "/admin/locations", component: "OrganisationPage" },
   { path: "/admin/organisation-units", component: "OrganisationPage" },
+  // Master Data entries reuse the operational page rather than duplicating it.
+  { path: "/master/users", component: "UsersPage" },
+  { path: "/master/frequencies", component: "FrequencyMasterPage" },
+  { path: "/master/targets", component: "KpiConfigurationPage" },
+  { path: "/master/policies", component: "PolicyRegisterPage" },
+  { path: "/master/controls", component: "ControlRegisterPage" },
+  { path: "/master/kpis", component: "KpiCataloguePage" },
   { path: "/master/frameworks", component: "FrameworksPage" },
-  { path: "/master/framework-rules", component: "FrameworksPage" },
+  { path: "/master/rules", component: "FrameworksPage" },
+  { path: "/compliance/frameworks", component: "FrameworksPage" },
+  { path: "/kpi/catalogue", component: "KpiCataloguePage" },
+  { path: "/kpi/analytics", component: "KpiAnalyticsPage" },
   { path: "/kpi/configuration", component: "KpiConfigurationPage" },
   { path: "/kpi/targets", component: "KpiConfigurationPage" },
   { path: "/kpi/actual-entry", component: "KpiActualEntryPage" },
@@ -50,6 +61,9 @@ const requiredLiveRoutes = [
   { path: "/evidence", component: "EvidenceLibraryPage" },
   { path: "/evidence/new", component: "EvidenceCreatePage" },
   { path: "/evidence/review", component: "EvidenceReviewQueuePage" },
+  { path: "/evidence/approved", component: "EvidenceLibraryPage" },
+  { path: "/evidence/rejected", component: "EvidenceLibraryPage" },
+  { path: "/reports", component: "ReportHubPage" },
 ];
 
 /**
@@ -79,6 +93,8 @@ const requiredLiveChildRoutes = [
   { path: "compliance/gaps/:gapId", component: "GapDetailPage" },
   { path: "compliance/capa/:capaId", component: "CapaDetailPage" },
   { path: "data/import-history/:importId", component: "ImportDetailPage" },
+  // Every domain report renders through one parameterised view.
+  { path: "reports/:reportKey", component: "ReportViewPage" },
   {
     path: "compliance/operational-registers/:registerCode",
     component: "OperationalRegistersPage",
@@ -111,8 +127,22 @@ const requiredLiveAccountRoutes = [
 const requiredCompatibilityRedirects = [
   { path: "evidence/register", target: "/evidence/new" },
   { path: "evidence/upload", target: "/evidence/new" },
-  { path: "evidence/approved", target: "/evidence?lifecycleStatus=APPROVED" },
-  { path: "evidence/rejected", target: "/evidence?lifecycleStatus=REJECTED" },
+];
+
+/**
+ * Navigation entries the submission tree must never surface. These are
+ * prototype-only concepts with no durable model behind them, so a visible
+ * route would be a claim the platform cannot honour.
+ */
+const forbiddenVisibleFragments = [
+  "/master/customers",
+  "/analytics/customers",
+  "/reports/attribution",
+  "/reports/deals",
+  "/reports/customer-outcomes",
+  "/tasks",
+  "/notifications",
+  "/settings",
 ];
 
 const failures = [];
@@ -246,18 +276,26 @@ const protectedLivePatterns =
   statusCounts.LIVE +
   requiredLiveChildRoutes.length +
   requiredLiveAccountRoutes.length;
-// Final client completion: production navigation is LIVE-only (no In Development
-// or Awaiting Access badges). Deferred routes live outside navigation metadata.
+// Submission navigation is LIVE-only: no In Development or Awaiting Access
+// badge may reach a client. Deferred routes live outside navigation metadata.
 if (
-  protectedLivePatterns !== 39 ||
+  protectedLivePatterns !== 58 ||
   statusCounts.IN_DEVELOPMENT !== 0 ||
   statusCounts.AWAITING_INTEGRATION !== 0 ||
-  statusCounts.COMPATIBILITY !== 22 ||
-  visiblePaths.length !== 26
+  statusCounts.COMPATIBILITY !== 14 ||
+  visiblePaths.length !== 44
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 39 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 22 hidden COMPATIBILITY routes and 26 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 58 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 14 hidden COMPATIBILITY routes and 44 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
+}
+
+for (const fragment of forbiddenVisibleFragments) {
+  if (visiblePaths.some((path) => path === fragment || path.startsWith(`${fragment}/`))) {
+    failures.push(
+      `${displayPath(routeDefinitionsPath)} — unsupported prototype route "${fragment}" must stay out of client navigation`,
+    );
+  }
 }
 
 for (const path of compatibilityPaths) {
@@ -410,5 +448,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Live-route guard passed: 1 public login, ${protectedLivePatterns} protected LIVE patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 22 hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
+  `Live-route guard passed: 1 public login, ${protectedLivePatterns} protected LIVE patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, ${statusCounts.COMPATIBILITY} hidden COMPATIBILITY routes, and ${requiredCompatibilityRedirects.length} Evidence compatibility redirects.`,
 );

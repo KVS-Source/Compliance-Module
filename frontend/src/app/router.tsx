@@ -49,6 +49,12 @@ import {
   OperationalRegistersPage,
 } from "../features/registers/OperationalRegistersPage";
 import { GenracIntegrationPage } from "../features/integrations/GenracIntegrationPage";
+import { RoleAccessPage } from "../features/access/RoleAccessPage";
+import { FrequencyMasterPage } from "../features/kpis/FrequencyMasterPage";
+import { KpiAnalyticsPage } from "../features/kpis/KpiAnalyticsPage";
+import { KpiCataloguePage } from "../features/kpis/KpiCataloguePage";
+import { ReportHubPage } from "../features/reports/ReportHubPage";
+import { ReportViewPage } from "../features/reports/ReportViewPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -124,6 +130,14 @@ const migratedRoutes: RouteObject[] = [
     ),
   },
   {
+    path: "admin/roles",
+    element: (
+      <PermissionBoundary permission="users:read">
+        <RoleAccessPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
     path: "admin/departments",
     element: (
       <PermissionBoundary permission="organisation:read">
@@ -147,6 +161,56 @@ const migratedRoutes: RouteObject[] = [
       </PermissionBoundary>
     ),
   },
+  // Master Data entries the client names differently. Each renders the same
+  // page as its operational counterpart rather than a second implementation.
+  {
+    path: "master/users",
+    element: (
+      <PermissionBoundary permission="users:read">
+        <UsersPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/frequencies",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <FrequencyMasterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/targets",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiConfigurationPage mode="targets" />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/policies",
+    element: (
+      <PermissionBoundary permission="policies:read">
+        <PolicyRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/controls",
+    element: (
+      <PermissionBoundary permission="controls:read">
+        <ControlRegisterPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "master/kpis",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiCataloguePage />
+      </PermissionBoundary>
+    ),
+  },
   {
     path: "master/frameworks",
     element: (
@@ -156,10 +220,18 @@ const migratedRoutes: RouteObject[] = [
     ),
   },
   {
-    path: "master/framework-rules",
+    path: "master/rules",
     element: (
       <PermissionBoundary permission="frameworks:read">
         <FrameworksPage mode="rules" />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "compliance/frameworks",
+    element: (
+      <PermissionBoundary permission="frameworks:read">
+        <FrameworksPage />
       </PermissionBoundary>
     ),
   },
@@ -168,6 +240,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="frameworks:read">
         <FrameworkRulesPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "kpi/catalogue",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiCataloguePage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "kpi/analytics",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiAnalyticsPage />
       </PermissionBoundary>
     ),
   },
@@ -319,8 +407,30 @@ const migratedRoutes: RouteObject[] = [
   // route so a reserved segment can never be read as an Evidence ID.
   { path: "evidence/register", element: <Navigate to="/evidence/new" replace /> },
   { path: "evidence/upload", element: <Navigate to="/evidence/new" replace /> },
-  { path: "evidence/approved", element: <Navigate to="/evidence?lifecycleStatus=APPROVED" replace /> },
-  { path: "evidence/rejected", element: <Navigate to="/evidence?lifecycleStatus=REJECTED" replace /> },
+  {
+    path: "evidence/approved",
+    element: (
+      <PermissionBoundary permission="evidence:read">
+        <EvidenceLibraryPage
+          fixedStatus="APPROVED"
+          title="Approved Evidence"
+          description="The Evidence Library with the Approved lifecycle status pinned. Same records, same permissions."
+        />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "evidence/rejected",
+    element: (
+      <PermissionBoundary permission="evidence:read">
+        <EvidenceLibraryPage
+          fixedStatus="REJECTED"
+          title="Rejected Evidence"
+          description="The Evidence Library with the Rejected lifecycle status pinned. Same records, same permissions."
+        />
+      </PermissionBoundary>
+    ),
+  },
   {
     path: "evidence",
     element: (
@@ -342,6 +452,22 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="evidence:review">
         <EvidenceReviewQueuePage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "reports",
+    element: (
+      <PermissionBoundary permission="dashboard:read">
+        <ReportHubPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "reports/:reportKey",
+    element: (
+      <PermissionBoundary permission="dashboard:read">
+        <ReportViewPage />
       </PermissionBoundary>
     ),
   },
