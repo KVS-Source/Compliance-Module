@@ -117,6 +117,12 @@ export function Sidebar({
                   </span>
                   <span className="nav-group-label">{group.label}</span>
                   <ChevronDown className="nav-chevron" size={14} />
+                  {/* Rendered only while collapsed, where the label is hidden. */}
+                  {preferences.collapsed ? (
+                    <span className="nav-tooltip" role="presentation">
+                      {group.label}
+                    </span>
+                  ) : null}
                 </button>
                 <div className="nav-children">
                   {group.routes.map((route) => {
@@ -130,12 +136,19 @@ export function Sidebar({
                         to={route.path}
                         key={route.path}
                         title={route.title}
+                        // Selecting a route closes the mobile drawer, so the
+                        // page it opened is not hidden behind the overlay.
                         onClick={onCloseMobile}
                       >
                         <span className="nav-icon">
                           <Icon size={16} />
                         </span>
                         <span className="nav-label">{route.title}</span>
+                        {preferences.collapsed ? (
+                          <span className="nav-tooltip" role="presentation">
+                            {route.title}
+                          </span>
+                        ) : null}
                         {route.status !== "LIVE" ? (
                           <span
                             className={`nav-status-badge ${

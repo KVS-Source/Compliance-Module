@@ -36,8 +36,12 @@ by UAT language or status-page presentation.
   local file upload/download/submit, DRAFT-only link APIs, approve/reject review,
   React Evidence routes (Library, Create, Detail, Review, link panels), and
   Evidence gates for Checkpoint, Policy Version and KPI actual approval are
-  operational (Milestone 5). Tasks, Notifications, Reports, and tenant/settings
-  polish remain deferred and hidden from production navigation. Same-period
+  operational (Milestone 5). The Reports centre, KPI catalogue/analytics,
+  Frequency master and Role & Access pages are operational but **read-only**:
+  their APIs expose GET routes only, so role administration writes, report
+  scheduling/subscriptions and PDF output remain deferred. Tasks, Notifications
+  and tenant/settings polish remain deferred and hidden from production
+  navigation. Same-period
   Checkpoint Review correction remains unsupported. Live GenRAC REST/database
   sync remains unavailable until the client provides approved access; the CSV
   adapter path is platform-ready under `LOCAL_UPLOAD_DIR/.genrac`.

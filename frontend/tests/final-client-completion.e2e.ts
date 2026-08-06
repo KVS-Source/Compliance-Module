@@ -435,9 +435,14 @@ test("desktop and mobile nav hide unfinished modules", async ({ page }) => {
       await page.getByRole("button", { name: "Open navigation" }).click();
     }
     await expect(page.locator(".nav-status-badge")).toHaveCount(0);
-    await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(0);
+    // Role & Access is now a real read-only page, so it belongs in navigation.
+    // Tasks, Settings and the Customer/Deal prototype routes do not.
+    await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(1);
     await expect(page.locator('a[href="/tasks"]')).toHaveCount(0);
     await expect(page.locator('a[href="/settings/tenant"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/master/customers"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/reports/deals"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/reports/attribution"]')).toHaveCount(0);
     await expect(page.locator('a[href="/data/import"]')).toHaveCount(1);
     const dataGroup = page.getByRole("button", {
       name: "Data Management",

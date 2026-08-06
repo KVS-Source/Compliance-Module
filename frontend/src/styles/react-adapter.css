@@ -788,10 +788,15 @@
   }
 }
 
-@media (max-width: 420px) {
+/* Large phones (424-430px logical) leave summary cards too narrow to read at
+   two columns, so the grid collapses before the 420px small-phone rules. */
+@media (max-width: 480px) {
   .dashboard-cards {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 420px) {
   .top-approvals {
     display: none;
   }
@@ -1199,4 +1204,698 @@
   .evidence-review-mobile {
     display: grid;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Dashboard analytics primitives.
+   Plain CSS and SVG marks: no charting dependency is added for these.
+   --------------------------------------------------------------------------- */
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.chart-empty {
+  margin: 0;
+  padding: 22px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--grey-50);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+.chart-source {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chart-legend-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  min-width: 160px;
+}
+.chart-legend-stacked li {
+  justify-content: flex-start;
+}
+.chart-legend-stacked .legend-label {
+  flex: 1;
+  color: var(--text-primary);
+}
+.chart-legend-stacked strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.legend-swatch {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border-radius: 3px;
+}
+
+/* Grouped bars ------------------------------------------------------------ */
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.grouped-bars {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.grouped-bar-column {
+  flex: 1 0 66px;
+  min-width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.grouped-bar-pair {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 100%;
+  height: 132px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+.grouped-bar {
+  flex: 1;
+  min-width: 8px;
+  border-radius: 4px 4px 0 0;
+}
+.grouped-bar-value {
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.grouped-bar-label {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.grouped-bar-caption {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* Donut ------------------------------------------------------------------- */
+.chart-donut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+.chart-donut svg {
+  width: 150px;
+  height: 150px;
+  flex: none;
+}
+.donut-total {
+  fill: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+}
+.donut-caption {
+  fill: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Horizontal bars --------------------------------------------------------- */
+.chart-hbars {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hbar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hbar-label {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.hbar-label em {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 400;
+}
+.hbar-value {
+  flex: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.hbar-track {
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 4px;
+  background: var(--grey-100);
+  overflow: hidden;
+}
+.hbar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Heat map ---------------------------------------------------------------- */
+.chart-heatmap {
+  overflow-x: auto;
+}
+.heatmap-grid {
+  display: grid;
+  gap: 2px;
+  min-width: 280px;
+}
+.heatmap-axis-label {
+  display: grid;
+  place-items: center;
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.heatmap-cell {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Lists ------------------------------------------------------------------- */
+.chart-list {
+  display: flex;
+  flex-direction: column;
+}
+.chart-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--grey-100);
+  color: inherit;
+  text-decoration: none;
+}
+.chart-list-row:last-child {
+  border-bottom: 0;
+}
+a.chart-list-row:hover {
+  background: var(--blue-50);
+}
+.list-row-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.list-row-copy strong {
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-row-copy span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.list-row-trailing {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Action queue ------------------------------------------------------------ */
+.action-queue {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+.action-queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue-500);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: inherit;
+  text-decoration: none;
+}
+.action-queue-item:hover {
+  box-shadow: var(--shadow-sm);
+}
+.action-queue-item.tone-red {
+  border-left-color: var(--red-600);
+}
+.action-queue-item.tone-amber {
+  border-left-color: var(--amber-600);
+}
+.action-queue-item strong {
+  color: var(--text-primary);
+  font-size: 24px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.action-queue-label {
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.action-queue-note {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+/* GenRAC + fact lists ----------------------------------------------------- */
+.genrac-status {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.genrac-state {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: var(--text-primary);
+}
+.genrac-state strong {
+  font-size: 15px;
+}
+.genrac-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 11px;
+  margin: 0;
+}
+.genrac-facts div {
+  min-width: 0;
+}
+.genrac-facts dt {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.genrac-facts dd {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+.dashboard-generated {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.dashboard-generated a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--blue-700);
+}
+.toolbar-fixed-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+}
+.toolbar-fixed-filter a {
+  color: var(--blue-700);
+}
+
+/* ---------------------------------------------------------------------------
+   Compact submission sidebar.
+   Declared last so it wins over the prototype stylesheet it tightens:
+   264px expanded, 72px collapsed, 40–44px rows, and no card chrome around
+   a group. The amber panel the prototype drew around each open group made
+   every section read as a separate widget and pushed the taller groups off
+   screen; a left rule carries the same grouping in a fraction of the space.
+   --------------------------------------------------------------------------- */
+:root {
+  --sidebar-width: 264px;
+  --sidebar-collapsed: 72px;
+}
+.app-shell.collapsed {
+  --sidebar-width: var(--sidebar-collapsed);
+}
+.sidebar {
+  width: 100%;
+}
+.side-scroll {
+  /* The sidebar scrolls on its own so a long tree never moves the page. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 8px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.side-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.side-scroll::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.nav-group {
+  margin-bottom: 2px;
+}
+.nav-group-btn {
+  min-height: 30px;
+  margin-top: 6px;
+  padding: 6px 9px;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+}
+.nav-group.open > .nav-group-btn {
+  margin-bottom: 2px;
+}
+/* No card, no fill, no shadow: a hairline rule is enough to group. */
+.nav-group .nav-children,
+.nav-group.open > .nav-children {
+  margin: 0 0 4px 16px;
+  padding: 0 0 0 8px;
+  border: 0;
+  border-left: 1px solid rgba(148, 175, 214, 0.24);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.nav-children .nav-link,
+.nav-group.open > .nav-children .nav-link {
+  min-height: 40px;
+  margin: 1px 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.nav-group-btn,
+.nav-link {
+  min-height: 40px;
+  gap: 8px;
+}
+/* Titles wrap to a second line instead of being cut off mid-word. */
+.nav-label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.nav-group-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-head {
+  height: 60px;
+  flex: none;
+}
+.sidebar-foot {
+  flex: none;
+  padding: 9px 8px;
+}
+.sidebar-user {
+  padding: 6px 7px;
+}
+.sidebar-user .avatar {
+  width: 30px;
+  height: 30px;
+}
+
+/* Collapsed rail: icons only, centred, with a tooltip on hover/focus. */
+.sidebar.collapsed .side-scroll {
+  padding-inline: 6px;
+}
+.sidebar.collapsed .nav-group-btn,
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+.sidebar.collapsed .nav-group .nav-children,
+.sidebar.collapsed .nav-group.open > .nav-children {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+.sidebar.collapsed .nav-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  z-index: 80;
+  padding: 5px 9px;
+  transform: translateY(-50%);
+  border-radius: 6px;
+  background: var(--navy-900);
+  box-shadow: var(--shadow-md);
+  color: #fff;
+  font-size: 11.5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.sidebar.collapsed .nav-link:hover .nav-tooltip,
+.sidebar.collapsed .nav-link:focus-visible .nav-tooltip,
+.sidebar.collapsed .nav-group-btn:hover .nav-tooltip,
+.sidebar.collapsed .nav-group-btn:focus-visible .nav-tooltip {
+  opacity: 1;
+}
+.sidebar:not(.collapsed) .nav-tooltip {
+  display: none;
+}
+
+/* Active route indicator: a solid rail on the left edge of the row. */
+.nav-children .nav-link.active,
+.nav-group.open > .nav-children .nav-link.active {
+  background: rgba(59, 130, 246, 0.2);
+  box-shadow: inset 3px 0 0 var(--blue-400);
+  color: #fff;
+}
+.sidebar.collapsed .nav-link.active {
+  box-shadow: inset 3px 0 0 var(--blue-400);
+}
+
+@media (max-width: 900px) {
+  .sidebar,
+  .sidebar.collapsed {
+    width: min(264px, 86vw);
+  }
+  /* A narrow drawer keeps the indent minimal so long titles still fit. */
+  .nav-group .nav-children,
+  .nav-group.open > .nav-children {
+    margin-left: 4px;
+    padding-left: 4px;
+  }
+  /* A collapsed preference must not produce an icon-only mobile drawer. */
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .nav-group-label,
+  .sidebar.collapsed .nav-chevron,
+  .sidebar.collapsed .sidebar-user-copy,
+  .sidebar.collapsed .brand-copy {
+    display: block;
+  }
+  .sidebar.collapsed .nav-group-btn,
+  .sidebar.collapsed .nav-link {
+    justify-content: flex-start;
+    padding-inline: 10px;
+  }
+  .sidebar.collapsed .nav-group .nav-children,
+  .sidebar.collapsed .nav-group.open > .nav-children {
+    margin-left: 4px;
+    padding-left: 4px;
+    border-left: 1px solid rgba(148, 175, 214, 0.24);
+  }
+  .sidebar.collapsed .nav-tooltip {
+    display: none;
+  }
+  .mobile-backdrop.hidden {
+    display: none;
+  }
+}
+
+/* Guided empty states for Controls and Checkpoints -------------------------- */
+.guided-empty {
+  text-align: left;
+}
+.guided-steps {
+  display: grid;
+  gap: 10px;
+  max-width: 640px;
+  margin: 16px 0 0;
+  padding-left: 20px;
+}
+.guided-steps li {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.guided-steps li > :first-child {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--blue-700);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.guided-steps .guided-step-locked {
+  color: var(--text-muted);
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue-700);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* Report Hub tiles ---------------------------------------------------------- */
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  gap: 14px;
+}
+.report-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: inherit;
+  text-decoration: none;
+}
+a.report-tile:hover {
+  border-color: var(--blue-400);
+  box-shadow: var(--shadow-sm);
+}
+.report-tile strong {
+  color: var(--text-primary);
+  font-size: 13.5px;
+}
+.report-tile span:not(.feature-icon) {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.report-tile em {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-style: normal;
+}
+.report-tile-locked {
+  background: var(--grey-50);
+}
+
+/* Role & Access matrix ------------------------------------------------------ */
+.access-matrix th[scope="row"] {
+  min-width: 210px;
+  text-align: left;
+  font-weight: 600;
+}
+.access-permission-note {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 400;
+}
+.access-role-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+}
+.access-role-head em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-style: normal;
+}
+.access-cell {
+  text-align: center;
+}
+.access-granted {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--green-100);
+  color: var(--green-700);
+}
+.access-denied {
+  color: var(--grey-400);
+}
+.data-table td.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.import-shortcut {
+  align-items: flex-start;
+  text-align: left;
+  cursor: pointer;
+}
+.import-shortcut:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.import-shortcut.is-selected {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
 }

@@ -9,7 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
@@ -71,7 +71,23 @@ const isLifecycleStatus = (
 const isIsoDate = (value: string | null): value is string =>
   value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
-export function EvidenceLibraryPage() {
+/**
+ * The Evidence Library.
+ *
+ * `fixedStatus` powers the Approved and Rejected navigation entries: they are
+ * this same page with one filter pinned, not a second implementation. The
+ * pinned value overrides the URL, so a shared link cannot smuggle a different
+ * status into a page whose heading promises one.
+ */
+export function EvidenceLibraryPage({
+  fixedStatus,
+  title,
+  description,
+}: {
+  fixedStatus?: EvidenceLifecycleStatus;
+  title?: string;
+  description?: string;
+} = {}) {
   const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
   const navigate = useNavigate();
@@ -87,9 +103,8 @@ export function EvidenceLibraryPage() {
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
   const appliedSearch = searchParams.get("q") ?? "";
   const lifecycleParam = searchParams.get("lifecycleStatus");
-  const lifecycleStatus = isLifecycleStatus(lifecycleParam)
-    ? lifecycleParam
-    : "";
+  const lifecycleStatus =
+    fixedStatus ?? (isLifecycleStatus(lifecycleParam) ? lifecycleParam : "");
   const ownerId = searchParams.get("ownerId") ?? "";
   const departmentId = searchParams.get("departmentId") ?? "";
   const expiresAfterParam = searchParams.get("expiresAfter");
@@ -233,9 +248,12 @@ export function EvidenceLibraryPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Evidence Library"
+        title={title ?? "Evidence Library"}
         section="Evidence Management"
-        description="Company-scoped compliance Evidence. Reads use evidence:read; the API stays authoritative for lifecycle and permissions."
+        description={
+          description ??
+          "Company-scoped compliance Evidence. Reads use evidence:read; the API stays authoritative for lifecycle and permissions."
+        }
         connected
         actions={
           <>
@@ -296,24 +314,33 @@ export function EvidenceLibraryPage() {
             aria-label="Search Evidence by code or title"
           />
         </label>
-        <label className="toolbar-select">
-          <span className="sr-only">Lifecycle status</span>
-          <select
-            className="control"
-            value={lifecycleStatus}
-            aria-label="Filter by lifecycle status"
-            onChange={(event) =>
-              updateParams({ lifecycleStatus: event.target.value })
-            }
-          >
-            <option value="">All statuses</option>
-            {EVIDENCE_LIFECYCLE_OPTIONS.map((entry) => (
-              <option key={entry} value={entry}>
-                {evidenceStatusLabel(entry)}
-              </option>
-            ))}
-          </select>
-        </label>
+        {fixedStatus ? (
+          <span className="toolbar-fixed-filter" data-testid="evidence-fixed-status">
+            <Badge tone={evidenceStatusTone(fixedStatus)}>
+              {evidenceStatusLabel(fixedStatus)}
+            </Badge>
+            <Link to="/evidence">Show all statuses</Link>
+          </span>
+        ) : (
+          <label className="toolbar-select">
+            <span className="sr-only">Lifecycle status</span>
+            <select
+              className="control"
+              value={lifecycleStatus}
+              aria-label="Filter by lifecycle status"
+              onChange={(event) =>
+                updateParams({ lifecycleStatus: event.target.value })
+              }
+            >
+              <option value="">All statuses</option>
+              {EVIDENCE_LIFECYCLE_OPTIONS.map((entry) => (
+                <option key={entry} value={entry}>
+                  {evidenceStatusLabel(entry)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="toolbar-select">
           <span className="sr-only">Owner</span>
           <select

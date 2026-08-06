@@ -98,6 +98,147 @@ export interface DashboardSummary {
     withoutFile: number;
   } | null;
   registers?: Array<{ code: string; name: string; recordCount: number }> | null;
+  recentActivity?: DashboardActivityEvent[] | null;
+  latestImport?: {
+    id: string;
+    originalFilename: string;
+    status: string;
+    createdCount: number;
+    updatedCount: number;
+    skippedCount: number;
+    errorCount: number;
+    startedAt: string;
+    completedAt: string | null;
+  } | null;
+  analytics?: DashboardAnalytics | null;
+}
+
+export interface DashboardActivityEvent {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  at: string;
+  actor: { id: string; code: string; name: string } | null;
+}
+
+/**
+ * Live dashboard analytics. Every member is nullable because the API returns
+ * `null` for a section whose source module the signed-in user may not read —
+ * which the UI must show as restricted, never as zero.
+ */
+export interface DashboardAnalytics {
+  cards: {
+    kpiDefinitions: number | null;
+    activeKpiConfigurations: number | null;
+    measuredKpis: number | null;
+    kpisMeetingTarget: number | null;
+    kpisMissingTarget: number | null;
+    pendingEvidence: number | null;
+    openRisks: number | null;
+    openGaps: number | null;
+    openCapas: number | null;
+    policiesDueForReview: number | null;
+  };
+  kpiTrend: Array<{
+    period: string;
+    periodStart: string | null;
+    measured: number;
+    meetingTarget: number;
+    targetTotal: number | null;
+    actualTotal: number | null;
+  }> | null;
+  evidenceStatus: Array<{ status: string; count: number }> | null;
+  frameworkCompliance: Array<{
+    id: string;
+    code: string;
+    name: string;
+    version: string;
+    scopeStatus: string | null;
+    ruleCount: number;
+    mappedControls: number;
+    implementedControls: number;
+    openGaps: number;
+    compliancePercentage: number | null;
+  }> | null;
+  riskHeatMap: {
+    cells: Array<{ likelihood: number; impact: number; count: number }>;
+    maxLikelihood: number;
+    maxImpact: number;
+    total: number;
+  } | null;
+  capaAging: Array<{ key: string; label: string; count: number }> | null;
+  recentKpiRisks: Array<{
+    id: string;
+    code: string;
+    title: string;
+    kpiRiskClass: string | null;
+    status: string;
+    inherentScore: number;
+    raisedAt: string;
+    kpi: {
+      actualCode: string;
+      period: string;
+      ragStatus: string | null;
+      definitionCode: string;
+      definitionName: string;
+    } | null;
+  }> | null;
+  capasDueSoon: Array<{
+    id: string;
+    code: string;
+    title: string;
+    priority: string;
+    status: string;
+    dueDate: string | null;
+    completionPercentage: number;
+    ownerName: string | null;
+  }> | null;
+  policiesDueForReview: {
+    total: number;
+    overdue: number;
+    horizonDays: number;
+    items: Array<{
+      policyId: string;
+      code: string;
+      title: string;
+      lifecycleStatus: string;
+      version: string;
+      reviewDate: string | null;
+      ownerName: string | null;
+    }>;
+  } | null;
+  actionQueue: Array<{
+    key: string;
+    label: string;
+    description: string;
+    count: number;
+    to: string;
+    tone: "red" | "amber" | "blue";
+  }>;
+  genrac: {
+    configured: boolean;
+    status: string;
+    systemCode: string | null;
+    displayName: string | null;
+    connectorType: string | null;
+    lastTestedAt: string | null;
+    lastAttemptedSyncAt: string | null;
+    lastSuccessfulSyncAt: string | null;
+    mappingCount: number;
+    lastSyncRun: {
+      id: string;
+      status: string;
+      mode: string;
+      createCount: number;
+      updateCount: number;
+      conflictCount: number;
+      invalidCount: number;
+      startedAt: string;
+      completedAt: string | null;
+    } | null;
+    liveAccess: boolean;
+  } | null;
 }
 
 export interface Company {
@@ -1777,3 +1918,130 @@ export interface ImportBatch { id: string; originalFilename: string; fileChecksu
 export interface ImportBatchListResult { data: ImportBatch[]; meta: PageMeta; }
 export interface ImportBatchError { id: string; sheet: string; rowNumber: number; businessKey: string | null; validationErrors: unknown; importResult: "FAILED"; }
 export interface ImportBatchErrorListResult { data: ImportBatchError[]; meta: PageMeta; }
+
+/** Read-only Role & Access matrix. The API states `mutable: false` itself. */
+export interface AccessProfileResponse {
+  profiles: Array<{
+    code: string;
+    name: string;
+    description: string;
+    provisioned: boolean;
+    enabled: boolean;
+    userCount: number;
+    permissions: string[];
+    permissionCount: number;
+  }>;
+  additionalRoles: Array<{
+    code: string;
+    name: string;
+    description: string;
+    provisioned: boolean;
+    enabled: boolean;
+    userCount: number;
+    permissions: string[];
+    permissionCount: number;
+    holdsWildcard: boolean;
+  }>;
+  permissions: Array<{ code: string; description: string; module: string }>;
+  mutable: boolean;
+}
+
+export interface KpiCatalogueEntry {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  unit: string;
+  direction: string;
+  frequency: string;
+  status: string;
+  /** Null where the schema carries no such field — printed as "—". */
+  perspective: string | null;
+  framework: string | null;
+  configurationCount: number;
+  activeConfigurationCount: number;
+  configurationStatus: "ACTIVE" | "CONFIGURED_INACTIVE" | "NOT_CONFIGURED";
+  owners: string[];
+  departments: string[];
+}
+
+export interface KpiFrequencyEntry {
+  code: string;
+  definitionCount: number;
+  configurationCount: number;
+  activeConfigurationCount: number;
+}
+
+export interface KpiAnalytics {
+  generatedAt: string;
+  filters: {
+    frequency: string | null;
+    ownerId: string | null;
+    departmentId: string | null;
+    period: string | null;
+  };
+  summary: {
+    measured: number;
+    meetingTarget: number;
+    missingTarget: number;
+    achievementRate: number | null;
+  };
+  ragDistribution: Array<{ status: string; count: number }>;
+  trend: Array<{
+    period: string;
+    periodStart: string | null;
+    measured: number;
+    meetingTarget: number;
+    achievementRate: number | null;
+  }>;
+  departmentDistribution: Array<{
+    id: string | null;
+    code: string | null;
+    name: string;
+    measured: number;
+  }>;
+  missedKpis: Array<{
+    id: string;
+    code: string;
+    period: string;
+    ragStatus: string | null;
+    approvalStatus: string;
+    definitionCode: string;
+    definitionName: string;
+    unit: string;
+    direction: string;
+    frequency: string;
+    ownerName: string | null;
+    departmentName: string | null;
+    targetValue: number | null;
+    actualValue: number | null;
+    variance: number | null;
+    variancePercentage: number | null;
+  }>;
+}
+
+export interface ReportCatalogueEntry {
+  key: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  filters: string[];
+  available: boolean;
+}
+
+export interface ReportResult {
+  key: string;
+  name: string;
+  generatedAt: string;
+  filters: Record<string, string | null>;
+  columns: Array<{ key: string; header: string; numeric?: boolean }>;
+  rows: Array<Record<string, unknown>>;
+  chart?: {
+    kind: "bars" | "donut" | "grouped-bars";
+    series: Array<{ label: string; value: number | null; caption?: string }>;
+    valueSuffix?: string;
+  };
+  rowLimit: number;
+  truncated: boolean;
+  summary: Array<{ label: string; value: string }>;
+}

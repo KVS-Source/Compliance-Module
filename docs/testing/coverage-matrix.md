@@ -18,8 +18,10 @@
 | Control APIs | `controls-unit.test.ts` | `controls-api.test.ts` tenant isolation, concurrency, lifecycle, archive protection, mapping replace, audit metadata safety | `control-register.e2e.ts`, `control-workflow.e2e.ts` (mocked HTTP only; not PostgreSQL E2E) | Postman Control collection + pgAdmin inspection guide; backend suites remain DB authority |
 | Checkpoint APIs | `checkpoints-unit.test.ts` | `checkpoints-api.test.ts` tenant isolation, concurrent codes/reviews, lifecycle, frequency freeze, latest-review ties, reciprocal archive/activation, audit metadata safety | `checkpoint-register.e2e.ts`, `checkpoint-workflow.e2e.ts` (mocked HTTP only; not PostgreSQL E2E) | Postman Checkpoint collection + pgAdmin inspection guide; backend suites remain DB authority |
 | Dashboard | — | `dashboard.test.ts` | dashboard fixture flows | compare API/database counts |
+| Dashboard analytics | `dashboard-analytics-unit.test.ts` | `dashboard-analytics-api.test.ts` | `dashboard-deadline.e2e.ts`, including withheld-section and unmapped-framework cases | compare charted figures against the database |
+| Read-only submission modules (Reports, KPI catalogue/analytics, Frequency master, Role & Access) | — | `submission-modules-api.test.ts` permission gating and tenant scope | `milestone1.e2e.ts` navigation, page identity and no-status-page assertions | confirm no mutation path is reachable for a client role |
 | Route truthfulness | route/router/boundary scripts | — | navigation/status assertions | visible route review |
-| Migration history | — | runner deploys fourteen migrations | — | empty history and upgrade drills |
+| Migration history | — | runner deploys sixteen migrations | — | empty history and upgrade drills |
 | Trigger/constraint/index catalogue | — | Milestone 4 in `governance-foundation.test.ts`; Milestone 5 Evidence in `evidence-foundation.test.ts` | — | PostgreSQL catalogue reconciliation |
 | Backup/restore | — | — | — | custom-format disposable drill |
 | Secrets/SAST | — | — | — | Gitleaks and Semgrep CI/local scans |
@@ -58,7 +60,7 @@ rejected; it does not claim a correction workflow exists.
 ## Interpretation
 
 Backend integration means real Express/Prisma behavior against an isolated
-PostgreSQL service migrated from the authoritative fourteen migrations. Playwright
+PostgreSQL service migrated from the authoritative sixteen migrations. Playwright
 uses `page.route`/browser interception for `/api/v1/**`; it verifies frontend
 behavior but does not prove the browser, Express and PostgreSQL together.
 

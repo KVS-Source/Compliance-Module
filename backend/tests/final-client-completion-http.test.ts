@@ -317,8 +317,22 @@ describe("final client completion HTTP coverage", () => {
         fieldConfiguration: [{ key: "Owner", label: "Owner", type: "string" }],
       },
     });
+    // Detail lookup is authoritative: the list endpoint is paginated and a
+    // long-lived test database can hide a fresh code on later pages.
+    const detailA = await request(app)
+      .get(`/api/v1/operational-registers/${encodeURIComponent(code)}/records`)
+      .set(auth(adminToken))
+      .expect(200);
+    expect(detailA.body.success).toBe(true);
+
+    const detailB = await request(app)
+      .get(`/api/v1/operational-registers/${encodeURIComponent(code)}/records`)
+      .set(auth(companyTwoToken))
+      .expect(404);
+    expect(detailB.body.success).toBe(false);
+
     const listA = await request(app)
-      .get("/api/v1/operational-registers")
+      .get("/api/v1/operational-registers?pageSize=100")
       .set(auth(adminToken))
       .expect(200);
     const codesA = (listA.body.data as Array<{ code: string }>).map(
@@ -327,7 +341,7 @@ describe("final client completion HTTP coverage", () => {
     expect(codesA).toContain(code);
 
     const listB = await request(app)
-      .get("/api/v1/operational-registers")
+      .get("/api/v1/operational-registers?pageSize=100")
       .set(auth(companyTwoToken))
       .expect(200);
     const codesB = (listB.body.data as Array<{ code: string }>).map(

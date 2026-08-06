@@ -18,7 +18,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
@@ -508,18 +508,63 @@ export function CheckpointRegisterPage() {
           <ErrorState error={resource.error} />
         </div>
       ) : rows.length === 0 ? (
-        <section className="card empty-state" id="page-content">
+        <section
+          className="card empty-state guided-empty"
+          id="page-content"
+          data-testid="checkpoint-register-empty"
+        >
           <Inbox size={28} aria-hidden />
           <h3>
             {hasFilters
               ? "No Checkpoints match these filters"
               : "No Checkpoints yet"}
           </h3>
-          <p>
-            {hasFilters
-              ? "Server-side filters returned no rows for the active Company. Adjust search or filters and try again."
-              : `No Checkpoint Register records were returned for ${user?.activeCompany.name ?? "the active Company"}.`}
-          </p>
+          {hasFilters ? (
+            <p>
+              Server-side filters returned no rows for the active Company.
+              Adjust search or filters and try again.
+            </p>
+          ) : (
+            <>
+              <p>
+                No Checkpoint Register records were returned for{" "}
+                {user?.activeCompany.name ?? "the active Company"}. A Checkpoint
+                verifies a Control on a recurring schedule, so a Control has to
+                exist before one can be created.
+              </p>
+              <ol className="guided-steps" data-testid="checkpoint-empty-steps">
+                <li>
+                  <Link to="/master/rules">Framework Rules</Link>
+                  <span>The regulatory requirements in scope.</span>
+                </li>
+                <li>
+                  <Link to="/compliance/controls">Controls</Link>
+                  <span>This Company&rsquo;s implementation of those requirements.</span>
+                </li>
+                <li>
+                  <Link to="/compliance/controls">Create Control</Link>
+                  <span>Record an implementation if none exists yet.</span>
+                </li>
+                <li>
+                  {canWrite ? (
+                    <button
+                      className="link-button"
+                      type="button"
+                      onClick={() => setCreating(true)}
+                      data-testid="checkpoint-empty-create"
+                    >
+                      Create Checkpoint
+                    </button>
+                  ) : (
+                    <span className="guided-step-locked">
+                      Create Checkpoint — requires checkpoints:write
+                    </span>
+                  )}
+                  <span>Schedule the recurring verification.</span>
+                </li>
+              </ol>
+            </>
+          )}
         </section>
       ) : (
         <>
