@@ -801,10 +801,33 @@ test.describe("Evidence workflow (Slice 5.6A)", () => {
     await installEvidenceMock(page);
     await page.goto("/evidence/register");
     await expect(page).toHaveURL("/evidence/new");
+    await page.goto("/evidence/upload");
+    await expect(page).toHaveURL("/evidence/new");
+  });
+
+  // Approved and Rejected are now navigation entries in their own right: the
+  // Evidence Library with one lifecycle status pinned, rather than a redirect
+  // that dropped the user on a page whose heading said something else.
+  test("26b. Approved and Rejected Evidence pin their lifecycle status", async ({
+    page,
+  }) => {
+    await installEvidenceMock(page);
     await page.goto("/evidence/approved");
-    await expect(page).toHaveURL("/evidence?lifecycleStatus=APPROVED");
+    await expect(page).toHaveURL("/evidence/approved");
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Approved Evidence/ }),
+    ).toBeVisible();
+    await expect(page.getByTestId("evidence-fixed-status")).toContainText(
+      /Approved/i,
+    );
     await page.goto("/evidence/rejected");
-    await expect(page).toHaveURL("/evidence?lifecycleStatus=REJECTED");
+    await expect(page).toHaveURL("/evidence/rejected");
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Rejected Evidence/ }),
+    ).toBeVisible();
+    await expect(page.getByTestId("evidence-fixed-status")).toContainText(
+      /Rejected/i,
+    );
   });
 
   test("27. Mobile cards render", async ({ page }) => {
