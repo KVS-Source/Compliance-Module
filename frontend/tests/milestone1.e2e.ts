@@ -343,6 +343,10 @@ test("live navigation remains API-backed and never shows development status", as
   for (const [path, heading] of livePaths) {
     await navigateInApp(page, path);
     await expect(page.locator(".page-head h1")).toContainText(heading);
+    await expect(page.locator(".sidebar nav a.active")).toHaveCount(1);
+    await expect(page.locator(`.sidebar nav a[href="${path}"]`)).toHaveClass(
+      /active/,
+    );
     await expect(page.getByTestId("module-status-page")).toHaveCount(0);
     await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
   }
@@ -463,6 +467,25 @@ test("mobile navigation contains the same approved modules and closes after use"
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.locator(".sidebar")).toBeVisible();
+  await expect(page.getByText("PERN · React", { exact: true })).toHaveCount(0);
+
+  const mobileGeometry = await page.locator(".sidebar").evaluate((sidebar) => {
+    const group = sidebar.querySelector(".nav-group-btn");
+    const icon = group?.querySelector(".nav-icon");
+    const label = group?.querySelector(".nav-group-label");
+    const link = sidebar.querySelector(".nav-children .nav-link");
+    const rect = (element: Element | null | undefined) =>
+      element?.getBoundingClientRect();
+    return {
+      width: rect(sidebar)?.width ?? 0,
+      iconLabelGap:
+        icon && label ? (rect(label)?.left ?? 0) - (rect(icon)?.right ?? 0) : 0,
+      linkInset: link ? (rect(link)?.left ?? 0) - (rect(sidebar)?.left ?? 0) : 0,
+    };
+  });
+  expect(mobileGeometry.width).toBeLessThanOrEqual(264.5);
+  expect(mobileGeometry.iconLabelGap).toBeLessThanOrEqual(8.5);
+  expect(mobileGeometry.linkInset).toBeLessThanOrEqual(18);
 
   const hrefs = await page
     .locator(".sidebar nav a")

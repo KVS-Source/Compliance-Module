@@ -123,6 +123,7 @@ export function Sidebar({
                     const Icon = route.icon;
                     return (
                       <NavLink
+                        end
                         className={({ isActive }) =>
                           `nav-link ${isActive ? "active" : ""}`
                         }
@@ -162,6 +163,7 @@ export function Sidebar({
             const Icon = route.icon;
             return (
               <NavLink
+                end
                 className={({ isActive }) =>
                   `nav-link ${isActive ? "active" : ""}`
                 }
@@ -176,7 +178,6 @@ export function Sidebar({
               </NavLink>
             );
           })}
-          <span className="env-badge">PERN · React</span>
           <div className="sidebar-user">
             <div className="avatar">{initials}</div>
             <div className="sidebar-user-copy">
