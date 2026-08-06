@@ -29,6 +29,7 @@ import { RiskService } from "../modules/risks/service.js";
 import { riskRoutes } from "../modules/risks/routes.js";
 import { EvidenceGateService } from "../modules/evidence/evidence-gate-service.js";
 import { DashboardRepository } from "../modules/dashboard/repository.js";
+import { DashboardAnalyticsRepository } from "../modules/dashboard/analytics-repository.js";
 import { DashboardSummaryRepository } from "../modules/dashboard/summary-repository.js";
 import { DashboardSummaryService } from "../modules/dashboard/summary-service.js";
 import { dashboardRoutes } from "../modules/dashboard/routes.js";
@@ -42,6 +43,11 @@ import { RegisterService } from "../modules/registers/service.js";
 import { registerRoutes } from "../modules/registers/routes.js";
 import { WorkbookImportService } from "../modules/imports/service.js";
 import { importRoutes } from "../modules/imports/routes.js";
+import { AccessProfileService, accessRoutes } from "../modules/access/routes.js";
+import { KpiCatalogueService } from "../modules/kpis/catalogue-service.js";
+import { kpiCatalogueRoutes } from "../modules/kpis/catalogue-routes.js";
+import { ReportService } from "../modules/reports/service.js";
+import { reportRoutes } from "../modules/reports/routes.js";
 import { ExportService } from "../modules/exports/service.js";
 import { exportRoutes } from "../modules/exports/routes.js";
 import { AuditTrailService } from "../modules/audit/service.js";
@@ -88,6 +94,7 @@ export const apiRoutes = (
   const dashboard = new DashboardSummaryService(
     new DashboardSummaryRepository(db),
     new DashboardRepository(db),
+    new DashboardAnalyticsRepository(db),
   );
   const evidenceGate = new EvidenceGateService(db);
   const gaps = new GapService(new GapRepository(db), evidenceGate);
@@ -95,6 +102,9 @@ export const apiRoutes = (
   const registers = new RegisterService(db);
   const workbookImports = new WorkbookImportService(db);
   const exports = new ExportService(db);
+  const reports = new ReportService(db);
+  const kpiCatalogue = new KpiCatalogueService(db);
+  const accessProfiles = new AccessProfileService(db);
   const auditTrail = new AuditTrailService(db);
   const genrac = new GenracSyncService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
@@ -164,6 +174,9 @@ export const apiRoutes = (
     "/frameworks",
     frameworksRoutes(provider, new FrameworksRepository(db)),
   );
+  router.use("/access", accessRoutes(accessProfiles));
+  router.use("/kpis", kpiCatalogueRoutes(kpiCatalogue));
+  router.use("/reports", reportRoutes(reports));
   router.use("/kpi-definitions", kpiDefinitionRoutes(provider));
   router.use("/kpi-goals", kpiGoalRoutes(provider));
   router.use("/kpi-configurations", kpiConfigurationRoutes(kpiManagement));
