@@ -334,7 +334,10 @@ export class CheckpointRepository {
         include: checkpointDetailInclude,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
-        orderBy: [{ code: "asc" }, { id: "asc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ code: "asc" }, { id: "asc" }]
+            : [{ [query.orderBy]: query.order ?? "asc" }, { id: "asc" }],
       }),
       this.db.checkpoint.count({ where }),
     ]);

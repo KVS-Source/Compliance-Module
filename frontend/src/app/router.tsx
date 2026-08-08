@@ -11,6 +11,7 @@ import { PermissionBoundary } from "../components/feedback/PermissionBoundary";
 import { useAuth } from "../context/AuthContext";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
+import { MyWorkPage } from "../features/work/MyWorkPage";
 import {
   FrameworkRulesPage,
   FrameworksPage,
@@ -110,6 +111,14 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="dashboard:read">
         <DashboardPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "my-work",
+    element: (
+      <PermissionBoundary permission="dashboard:read">
+        <MyWorkPage />
       </PermissionBoundary>
     ),
   },

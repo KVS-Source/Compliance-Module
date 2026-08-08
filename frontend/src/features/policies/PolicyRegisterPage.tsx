@@ -10,15 +10,20 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
 import { ApiError } from "../../services/apiClient";
 import { frameworkApi } from "../../services/frameworkApi";
 import { masterDataApi } from "../../services/masterDataApi";
@@ -74,22 +79,35 @@ export function PolicyRegisterPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const canWrite = hasPermission("policies:write");
-
-  const [draftSearch, setDraftSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [lifecycleStatus, setLifecycleStatus] = useState<
-    PolicyLifecycleStatus | ""
-  >("");
-  const [versionStatus, setVersionStatus] = useState<PolicyVersionStatus | "">(
-    "",
-  );
-  const [ownerId, setOwnerId] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [frameworkId, setFrameworkId] = useState("");
-  const [reviewDueFrom, setReviewDueFrom] = useState("");
-  const [reviewDueTo, setReviewDueTo] = useState("");
-  const [page, setPage] = useState(1);
   const [listVersion, setListVersion] = useState(0);
+
+  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
+    useRegisterQueryState({
+      keys: [
+        "q",
+        "lifecycleStatus",
+        "versionStatus",
+        "ownerId",
+        "departmentId",
+        "frameworkId",
+        "reviewDueFrom",
+        "reviewDueTo",
+      ],
+    });
+  const appliedSearch = values.q ?? "";
+  const lifecycleStatus = (values.lifecycleStatus ?? "") as
+    | PolicyLifecycleStatus
+    | "";
+  const versionStatus = (values.versionStatus ?? "") as PolicyVersionStatus | "";
+  const ownerId = values.ownerId ?? "";
+  const departmentId = values.departmentId ?? "";
+  const frameworkId = values.frameworkId ?? "";
+  const reviewDueFrom = values.reviewDueFrom ?? "";
+  const reviewDueTo = values.reviewDueTo ?? "";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    appliedSearch,
+    updateParams,
+  );
 
   const [users, setUsers] = useState<MasterState<CompanyUser>>({
     status: "loading",
@@ -108,16 +126,6 @@ export function PolicyRegisterPage() {
   const [archiving, setArchiving] = useState<Policy | null>(null);
 
   useEffect(() => {
-    setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycleStatus("");
-    setVersionStatus("");
-    setOwnerId("");
-    setDepartmentId("");
-    setFrameworkId("");
-    setReviewDueFrom("");
-    setReviewDueTo("");
-    setPage(1);
     setCreating(false);
     setEditing(null);
     setCreatingVersionFor(null);
@@ -154,6 +162,8 @@ export function PolicyRegisterPage() {
         frameworkId: frameworkId || undefined,
         reviewDueFrom: reviewDueFrom || undefined,
         reviewDueTo: reviewDueTo || undefined,
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
       }),
     [
       contextVersion,
@@ -167,38 +177,31 @@ export function PolicyRegisterPage() {
       frameworkId,
       reviewDueFrom,
       reviewDueTo,
+      orderBy,
+      order,
       listVersion,
     ],
   );
 
-  const applySearch = () => {
-    setPage(1);
-    setAppliedSearch(draftSearch.trim());
-  };
-
   const resetFilters = () => {
     setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycleStatus("");
-    setVersionStatus("");
-    setOwnerId("");
-    setDepartmentId("");
-    setFrameworkId("");
-    setReviewDueFrom("");
-    setReviewDueTo("");
-    setPage(1);
+    updateParams({
+      q: "",
+      lifecycleStatus: "",
+      versionStatus: "",
+      ownerId: "",
+      departmentId: "",
+      frameworkId: "",
+      reviewDueFrom: "",
+      reviewDueTo: "",
+      orderBy: "",
+      order: "",
+    });
   };
 
   const onSearchSubmit = (event: FormEvent) => {
     event.preventDefault();
-    applySearch();
-  };
-
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      applySearch();
-    }
+    updateParams({ q: draftSearch.trim() });
   };
 
   const openEdit = async (policy: Policy) => {
@@ -284,7 +287,6 @@ export function PolicyRegisterPage() {
             type="search"
             value={draftSearch}
             onChange={(event) => setDraftSearch(event.target.value)}
-            onKeyDown={onSearchKeyDown}
             placeholder="Search code or title…"
             maxLength={100}
             aria-label="Search policies by code or title"
@@ -296,12 +298,9 @@ export function PolicyRegisterPage() {
             className="control"
             value={lifecycleStatus}
             aria-label="Filter by lifecycle status"
-            onChange={(event) => {
-              setLifecycleStatus(
-                event.target.value as PolicyLifecycleStatus | "",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ lifecycleStatus: event.target.value })
+            }
           >
             <option value="">All lifecycles</option>
             <option value="ACTIVE">ACTIVE</option>
@@ -315,10 +314,9 @@ export function PolicyRegisterPage() {
             className="control"
             value={versionStatus}
             aria-label="Filter by latest Version status"
-            onChange={(event) => {
-              setVersionStatus(event.target.value as PolicyVersionStatus | "");
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ versionStatus: event.target.value })
+            }
           >
             <option value="">All Version statuses</option>
             <option value="DRAFT">DRAFT</option>
@@ -336,10 +334,7 @@ export function PolicyRegisterPage() {
             value={ownerId}
             aria-label="Filter by owner"
             disabled={users.status !== "ready"}
-            onChange={(event) => {
-              setOwnerId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => updateParams({ ownerId: event.target.value })}
           >
             <option value="">
               {users.status === "forbidden"
@@ -362,10 +357,9 @@ export function PolicyRegisterPage() {
             value={departmentId}
             aria-label="Filter by department"
             disabled={departments.status !== "ready"}
-            onChange={(event) => {
-              setDepartmentId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ departmentId: event.target.value })
+            }
           >
             <option value="">
               {departments.status === "forbidden"
@@ -388,10 +382,9 @@ export function PolicyRegisterPage() {
             value={frameworkId}
             aria-label="Filter by Framework"
             disabled={frameworks.status !== "ready"}
-            onChange={(event) => {
-              setFrameworkId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ frameworkId: event.target.value })
+            }
           >
             <option value="">
               {frameworks.status === "forbidden"
@@ -414,10 +407,9 @@ export function PolicyRegisterPage() {
             type="date"
             value={reviewDueFrom}
             aria-label="Review due from"
-            onChange={(event) => {
-              setReviewDueFrom(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ reviewDueFrom: event.target.value })
+            }
           />
         </label>
         <label className="toolbar-select">
@@ -427,10 +419,9 @@ export function PolicyRegisterPage() {
             type="date"
             value={reviewDueTo}
             aria-label="Review due to"
-            onChange={(event) => {
-              setReviewDueTo(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ reviewDueTo: event.target.value })
+            }
           />
         </label>
         <button className="btn btn-secondary" type="submit">
@@ -492,8 +483,20 @@ export function PolicyRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Policy</th>
-                    <th scope="col">Lifecycle</th>
+                    <SortableTh
+                      column="title"
+                      label="Policy"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="lifecycleStatus"
+                      label="Lifecycle"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Owner</th>
                     <th scope="col">Department</th>
                     <th scope="col">Latest Version</th>

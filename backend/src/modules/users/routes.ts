@@ -12,14 +12,26 @@ import {
   passwordSchema,
 } from "../../common/security/password.js";
 import { created, ok, pageMeta } from "../../common/responses/envelope.js";
-import {
-  paginationSchema,
-  type Pagination,
-} from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
+import { paginationSchema } from "../../common/responses/pagination.js";
 import type { SharedMasterProvider } from "../../providers/shared-master/provider.js";
 import type { UsersRepository } from "./repository.js";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
+
+const userListSchema = paginationSchema
+  .extend({
+    ...listOrderFields([
+      "code",
+      "fullName",
+      "email",
+      "status",
+      "createdAt",
+    ] as const).shape,
+  })
+  .strict();
+
+type UserListQuery = z.infer<typeof userListSchema>;
 
 const statusSchema = z.enum(["ACTIVE", "DISABLED", "INVITED", "LOCKED"]);
 
@@ -106,11 +118,16 @@ export class UsersService {
     private readonly repository: UsersRepository,
   ) {}
 
-  async list(tenantId: string, pagination: Pagination) {
-    const result = await this.provider.listUsers(tenantId, pagination);
+  async list(tenantId: string, query: UserListQuery) {
+    const result = await this.provider.listUsers(tenantId, {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.orderBy ? { orderBy: query.orderBy } : {}),
+      ...(query.order ? { order: query.order } : {}),
+    });
     return {
       data: result.items.map(dto),
-      meta: pageMeta(pagination.page, pagination.pageSize, result.total),
+      meta: pageMeta(query.page, query.pageSize, result.total),
     };
   }
 
@@ -212,7 +229,7 @@ export class UsersController {
   list = async (req: Request, res: Response) => {
     const result = await this.service.list(
       req.auth!.tenantId,
-      req.query as unknown as Pagination,
+      req.query as unknown as UserListQuery,
     );
     return ok(res, result.data, result.meta);
   };
@@ -262,7 +279,7 @@ export const usersRoutes = (
   router.get(
     "/",
     permit("users:read"),
-    validate(paginationSchema, "query"),
+    validate(userListSchema, "query"),
     asyncHandler(controller.list),
   );
   router.get(

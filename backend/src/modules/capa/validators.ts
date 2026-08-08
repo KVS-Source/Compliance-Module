@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const CAPA_TITLE_MAX_LENGTH = 300;
 export const CAPA_TEXT_MAX_LENGTH = 5_000;
@@ -66,6 +67,14 @@ export const capaListSchema = paginationSchema
       .optional(),
     dueFrom: dateSchema.optional(),
     dueTo: dateSchema.optional(),
+    ...listOrderFields([
+      "code",
+      "title",
+      "status",
+      "priority",
+      "dueDate",
+      "createdAt",
+    ] as const).shape,
   })
   .strict()
   .superRefine((value, context) => {

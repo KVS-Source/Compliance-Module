@@ -1,15 +1,33 @@
-import { ChevronLeft, ChevronRight, Eye, Inbox, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Inbox,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
+import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
-import { registerApi, type RegisterRecord, type RegisterType } from "../../services/registerApi";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
+import {
+  registerApi,
+  type RegisterRecord,
+  type RegisterType,
+} from "../../services/registerApi";
 import { RegisterRecordFormModal } from "./RegisterRecordFormModal";
 
 const PAGE_SIZE = 20;
@@ -21,28 +39,42 @@ export function OperationalRegistersPage() {
   const navigate = useNavigate();
   const { registerCode: routeCode } = useParams();
   const [registerCode, setRegisterCode] = useState(routeCode ?? "");
-  const [draftSearch, setDraftSearch] = useState("");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [overdue, setOverdue] = useState(false);
-  const [page, setPage] = useState(1);
   const [version, setVersion] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<RegisterRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<RegisterRecord | null>(
+    null,
+  );
 
+  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
+    useRegisterQueryState({
+      keys: ["q", "status", "overdue"],
+    });
+  const search = values.q ?? "";
+  const status = values.status ?? "";
+  const overdue = values.overdue === "true";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    search,
+    updateParams,
+  );
+
+  // Switching register type clears list filters so they do not carry across.
   useEffect(() => {
     setDraftSearch("");
-    setSearch("");
-    setStatus("");
-    setOverdue(false);
-    setPage(1);
+    updateParams({ q: "", status: "", overdue: "", orderBy: "", order: "" });
     setFormOpen(false);
     setEditingRecord(null);
-  }, [contextVersion, user?.activeCompany.id, registerCode]);
+    // registerCode is intentional; company switch is handled by useRegisterQueryState.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when register selection changes
+  }, [registerCode]);
 
   useEffect(() => {
     if (routeCode) setRegisterCode(routeCode);
   }, [routeCode]);
+
+  useEffect(() => {
+    setFormOpen(false);
+    setEditingRecord(null);
+  }, [contextVersion, user?.activeCompany.id]);
 
   const typesResource = useApiResource(
     () => registerApi.listTypes(1, 50),
@@ -65,15 +97,38 @@ export function OperationalRegistersPage() {
             q: search || undefined,
             status: status || undefined,
             overdue: overdue || undefined,
+            orderBy: orderBy || undefined,
+            order: orderBy ? order : undefined,
           })
-        : Promise.resolve({ data: [] as RegisterRecord[], meta: { page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 0 } }),
-    [registerCode, page, search, status, overdue, version, contextVersion, user?.activeCompany.id],
+        : Promise.resolve({
+            data: [] as RegisterRecord[],
+            meta: {
+              page: 1,
+              pageSize: PAGE_SIZE,
+              total: 0,
+              totalPages: 0,
+            },
+          }),
+    [
+      registerCode,
+      page,
+      search,
+      status,
+      overdue,
+      orderBy,
+      order,
+      version,
+      contextVersion,
+      user?.activeCompany.id,
+    ],
   );
 
   const rows = recordsResource.data?.data ?? [];
   const total = recordsResource.data?.meta.total ?? 0;
   const totalPages = recordsResource.data?.meta.totalPages ?? 1;
-  const selectedType: RegisterType | undefined = types.find((item) => item.code === registerCode);
+  const selectedType: RegisterType | undefined = types.find(
+    (item) => item.code === registerCode,
+  );
 
   return (
     <div className="page">
@@ -99,7 +154,11 @@ export function OperationalRegistersPage() {
             {hasPermission("exports:read") && registerCode ? (
               <CsvExportButton registerCode={registerCode} />
             ) : null}
-            <button className="btn btn-secondary" type="button" onClick={() => setVersion((value) => value + 1)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setVersion((value) => value + 1)}
+            >
               <RefreshCw size={15} /> Refresh
             </button>
           </>
@@ -110,8 +169,7 @@ export function OperationalRegistersPage() {
         className="filter-bar deadline-filter-bar"
         onSubmit={(event: FormEvent) => {
           event.preventDefault();
-          setPage(1);
-          setSearch(draftSearch.trim());
+          updateParams({ q: draftSearch.trim() });
         }}
       >
         <label className="toolbar-select">
@@ -121,7 +179,10 @@ export function OperationalRegistersPage() {
             value={registerCode}
             onChange={(event) => {
               setRegisterCode(event.target.value);
-              navigate(`/compliance/operational-registers/${event.target.value}`, { replace: true });
+              navigate(
+                `/compliance/operational-registers/${event.target.value}`,
+                { replace: true },
+              );
             }}
           >
             {types.length === 0 ? <option value="">No registers</option> : null}
@@ -135,16 +196,38 @@ export function OperationalRegistersPage() {
         <label className="filter-search">
           <span className="sr-only">Search</span>
           <Search className="icon" size={16} aria-hidden />
-          <input className="control" type="search" value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} placeholder="Search code or title…" maxLength={100} />
+          <input
+            className="control"
+            type="search"
+            value={draftSearch}
+            onChange={(event) => setDraftSearch(event.target.value)}
+            placeholder="Search code or title…"
+            maxLength={100}
+          />
         </label>
         <label className="toolbar-select">
           <span className="sr-only">Status</span>
-          <input className="control" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} placeholder="Status" maxLength={120} />
+          <input
+            className="control"
+            value={status}
+            onChange={(event) => updateParams({ status: event.target.value })}
+            placeholder="Status"
+            maxLength={120}
+          />
         </label>
         <label className="deadline-check">
-          <input type="checkbox" checked={overdue} onChange={(event) => { setOverdue(event.target.checked); setPage(1); }} /> Overdue only
+          <input
+            type="checkbox"
+            checked={overdue}
+            onChange={(event) =>
+              updateParams({ overdue: event.target.checked ? "true" : "" })
+            }
+          />{" "}
+          Overdue only
         </label>
-        <button className="btn btn-secondary" type="submit">Search</button>
+        <button className="btn btn-secondary" type="submit">
+          Search
+        </button>
       </form>
 
       {typesResource.loading || recordsResource.loading ? (
@@ -154,23 +237,56 @@ export function OperationalRegistersPage() {
       ) : rows.length === 0 ? (
         <section className="card empty-state" id="page-content">
           <Inbox size={28} />
-          <h3>{selectedType ? `No ${selectedType.name} records` : "No registers"}</h3>
-          <p>No records were returned for {user?.activeCompany.name ?? "the active Company"}.</p>
+          <h3>
+            {selectedType
+              ? `No ${selectedType.name} records`
+              : "No registers"}
+          </h3>
+          <p>
+            No records were returned for{" "}
+            {user?.activeCompany.name ?? "the active Company"}.
+          </p>
         </section>
       ) : (
         <>
-          <section className="card table-card deadline-register-desktop" data-testid="operational-registers-table">
+          <section
+            className="card table-card deadline-register-desktop"
+            data-testid="operational-registers-table"
+          >
             <div className="table-wrap">
               <table className="data-table">
-                <caption>{selectedType?.name ?? "Register"} — {total} result{total === 1 ? "" : "s"}</caption>
+                <caption>
+                  {selectedType?.name ?? "Register"} — {total} result
+                  {total === 1 ? "" : "s"}
+                </caption>
                 <thead>
                   <tr>
-                    <th>Record</th>
-                    <th>Status</th>
+                    <SortableTh
+                      column="title"
+                      label="Record"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="status"
+                      label="Status"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th>Owner</th>
                     <th>Department</th>
-                    <th>Due date</th>
-                    <th><span className="sr-only">Open</span></th>
+                    <SortableTh
+                      column="dueDate"
+                      label="Due date"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <th>
+                      <span className="sr-only">Open</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -179,18 +295,33 @@ export function OperationalRegistersPage() {
                       <td>
                         <div className="cell-title">
                           <strong>{record.title}</strong>
-                          <small className="mono">{record.businessRecordCode}</small>
+                          <small className="mono">
+                            {record.businessRecordCode}
+                          </small>
                         </div>
                       </td>
-                      <td><Badge>{record.status ?? "—"}</Badge></td>
-                      <td>{record.owner?.name ?? record.sourceOwnerRef ?? "Unassigned"}</td>
+                      <td>
+                        <Badge>{record.status ?? "—"}</Badge>
+                      </td>
+                      <td>
+                        {record.owner?.name ??
+                          record.sourceOwnerRef ??
+                          "Unassigned"}
+                      </td>
                       <td>{record.department?.name ?? "—"}</td>
                       <td>
                         {record.dueDate ? (
-                          <span className={record.overdue ? "deadline-overdue" : ""}>
-                            {record.dueDate}{record.overdue ? " · Overdue" : ""}
+                          <span
+                            className={
+                              record.overdue ? "deadline-overdue" : ""
+                            }
+                          >
+                            {record.dueDate}
+                            {record.overdue ? " · Overdue" : ""}
                           </span>
-                        ) : "—"}
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td>
                         {hasPermission("registers:write") ? (
@@ -210,7 +341,11 @@ export function OperationalRegistersPage() {
                           className="tiny-btn"
                           type="button"
                           aria-label={`View ${record.businessRecordCode}`}
-                          onClick={() => navigate(`/compliance/operational-registers/${registerCode}/records/${record.id}`)}
+                          onClick={() =>
+                            navigate(
+                              `/compliance/operational-registers/${registerCode}/records/${record.id}`,
+                            )
+                          }
                         >
                           <Eye size={15} />
                         </button>
@@ -221,15 +356,37 @@ export function OperationalRegistersPage() {
               </table>
             </div>
             <div className="table-foot">
-              <span>Showing {total ? (page - 1) * PAGE_SIZE + 1 : 0}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
+              <span>
+                Showing {total ? (page - 1) * PAGE_SIZE + 1 : 0}–
+                {Math.min(page * PAGE_SIZE, total)} of {total}
+              </span>
               <div className="pagination">
-                <button className="page-btn" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft size={15} /></button>
-                <span>Page {page} of {Math.max(1, totalPages)}</span>
-                <button className="page-btn" type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={15} /></button>
+                <button
+                  className="page-btn"
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                <span>
+                  Page {page} of {Math.max(1, totalPages)}
+                </span>
+                <button
+                  className="page-btn"
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  <ChevronRight size={15} />
+                </button>
               </div>
             </div>
           </section>
-          <section className="deadline-register-mobile" data-testid="operational-registers-cards">
+          <section
+            className="deadline-register-mobile"
+            data-testid="operational-registers-cards"
+          >
             {rows.map((record) => (
               <article className="card deadline-register-card" key={record.id}>
                 <header className="card-head">
@@ -240,9 +397,24 @@ export function OperationalRegistersPage() {
                   <Badge>{record.status ?? "—"}</Badge>
                 </header>
                 <div className="card-pad">
-                  <p>{record.owner?.name ?? record.sourceOwnerRef ?? "Unassigned"}</p>
-                  <p className={record.overdue ? "deadline-overdue" : ""}>{record.dueDate ?? "No due date"}{record.overdue ? " · Overdue" : ""}</p>
-                  <button className="btn btn-secondary" type="button" onClick={() => navigate(`/compliance/operational-registers/${registerCode}/records/${record.id}`)}>
+                  <p>
+                    {record.owner?.name ??
+                      record.sourceOwnerRef ??
+                      "Unassigned"}
+                  </p>
+                  <p className={record.overdue ? "deadline-overdue" : ""}>
+                    {record.dueDate ?? "No due date"}
+                    {record.overdue ? " · Overdue" : ""}
+                  </p>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/compliance/operational-registers/${registerCode}/records/${record.id}`,
+                      )
+                    }
+                  >
                     <Eye size={15} /> View detail
                   </button>
                   {hasPermission("registers:write") ? (
@@ -275,7 +447,9 @@ export function OperationalRegistersPage() {
           onSaved={(saved) => {
             showToast(
               "success",
-              editingRecord ? "Register record updated" : "Register record created",
+              editingRecord
+                ? "Register record updated"
+                : "Register record created",
               `${saved.businessRecordCode} was saved in ${selectedType.name}.`,
             );
             setFormOpen(false);
@@ -308,7 +482,13 @@ export function OperationalRegisterDetailPage() {
         description="Structured operational-register payload for the selected record."
         connected
         actions={
-          <button className="btn btn-secondary" type="button" onClick={() => navigate(`/compliance/operational-registers/${registerCode}`)}>
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={() =>
+              navigate(`/compliance/operational-registers/${registerCode}`)
+            }
+          >
             Back to register
           </button>
         }
@@ -318,14 +498,30 @@ export function OperationalRegisterDetailPage() {
       ) : resource.error ? (
         <ErrorState error={resource.error} />
       ) : record ? (
-        <section className="card card-pad" data-testid="operational-register-detail">
-          <p><strong>Code:</strong> <span className="mono">{record.businessRecordCode}</span></p>
-          <p><strong>Register:</strong> {record.register.name}</p>
-          <p><strong>Status:</strong> {record.status ?? "—"}</p>
-          <p><strong>Owner:</strong> {record.owner?.name ?? record.sourceOwnerRef ?? "Unassigned"}</p>
-          <p><strong>Department:</strong> {record.department?.name ?? "—"}</p>
+        <section
+          className="card card-pad"
+          data-testid="operational-register-detail"
+        >
+          <p>
+            <strong>Code:</strong>{" "}
+            <span className="mono">{record.businessRecordCode}</span>
+          </p>
+          <p>
+            <strong>Register:</strong> {record.register.name}
+          </p>
+          <p>
+            <strong>Status:</strong> {record.status ?? "—"}
+          </p>
+          <p>
+            <strong>Owner:</strong>{" "}
+            {record.owner?.name ?? record.sourceOwnerRef ?? "Unassigned"}
+          </p>
+          <p>
+            <strong>Department:</strong> {record.department?.name ?? "—"}
+          </p>
           <p className={record.overdue ? "deadline-overdue" : ""}>
-            <strong>Due:</strong> {record.dueDate ?? "—"}{record.overdue ? " · Overdue" : ""}
+            <strong>Due:</strong> {record.dueDate ?? "—"}
+            {record.overdue ? " · Overdue" : ""}
           </p>
           <h3>Fields</h3>
           <dl>

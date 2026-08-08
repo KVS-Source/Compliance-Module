@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const CONTROL_SEARCH_MAX_LENGTH = 100;
 export const CONTROL_TITLE_MAX_LENGTH = 300;
@@ -111,6 +112,14 @@ export const controlListSchema = paginationSchema
     requiresEvidence: booleanQuerySchema,
     reviewDueFrom: dateSchema.optional(),
     reviewDueTo: dateSchema.optional(),
+    ...listOrderFields([
+      "code",
+      "title",
+      "lifecycleStatus",
+      "implementationStatus",
+      "nextReviewDate",
+      "createdAt",
+    ] as const).shape,
   })
   .strict()
   .superRefine((value, context) => {

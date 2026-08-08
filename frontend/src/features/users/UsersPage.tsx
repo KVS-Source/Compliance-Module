@@ -10,6 +10,10 @@ import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
 import { ApiError } from "../../services/apiClient";
 import { masterDataApi } from "../../services/masterDataApi";
 import type { CompanyUser } from "../../types/api";
@@ -24,8 +28,6 @@ export function UsersPage() {
   const { showToast } = useToast();
   const canWrite = hasPermission("users:write");
   const canAssignRole = hasPermission("roles:assign");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All Statuses");
   const [listVersion, setListVersion] = useState(0);
   const [detail, setDetail] = useState<CompanyUser | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -33,11 +35,26 @@ export function UsersPage() {
     null | { mode: "create" } | { mode: "edit"; user: CompanyUser }
   >(null);
 
-  const resource = useApiResource(masterDataApi.listUsers, [
-    contextVersion,
-    user?.activeCompany.id,
-    listVersion,
-  ]);
+  const { values, orderBy, order, updateParams, toggleSort } =
+    useRegisterQueryState({
+      keys: ["q", "status"],
+    });
+  const search = values.q ?? "";
+  // Map empty → "All Statuses" for the existing SearchToolbar control.
+  const status = values.status || "All Statuses";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    search,
+    updateParams,
+  );
+
+  const resource = useApiResource(
+    () =>
+      masterDataApi.listUsers({
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
+      }),
+    [contextVersion, user?.activeCompany.id, listVersion, orderBy, order],
+  );
 
   const rows = useMemo(
     () =>
@@ -53,15 +70,18 @@ export function UsersPage() {
     [resource.data, search, status],
   );
 
+  // Server allowlist: code | fullName | email | status | createdAt.
   const columns: Column<CompanyUser>[] = [
     {
       key: "code",
       label: "User ID",
+      sortColumn: "code",
       render: (row) => <span className="mono link-text">{row.code}</span>,
     },
     {
       key: "name",
       label: "User Name",
+      sortColumn: "fullName",
       render: (row) => (
         <div className="cell-title">
           <strong>{row.name}</strong>
@@ -83,6 +103,7 @@ export function UsersPage() {
     {
       key: "status",
       label: "Status",
+      sortColumn: "status",
       render: (row) => <Badge>{row.status}</Badge>,
     },
     {
@@ -164,11 +185,15 @@ export function UsersPage() {
         }
       />
       <SearchToolbar
-        value={search}
-        onChange={setSearch}
+        value={draftSearch}
+        onChange={setDraftSearch}
         placeholder="Search users, roles or departments…"
         status={status}
-        onStatusChange={setStatus}
+        onStatusChange={(value) =>
+          updateParams({
+            status: value === "All Statuses" ? "" : value,
+          })
+        }
       />
       {resource.loading ? (
         <LoadingState label="Loading Company users…" />
@@ -180,6 +205,9 @@ export function UsersPage() {
           columns={columns}
           caption="User Management"
           companyName={user?.activeCompany.name}
+          orderBy={orderBy}
+          order={order}
+          onSort={toggleSort}
           onView={(row) => void openDetail(row)}
           onEdit={canWrite ? (row) => void openEdit(row) : undefined}
         />

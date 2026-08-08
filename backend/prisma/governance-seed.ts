@@ -136,25 +136,32 @@ export async function seedGovernanceFoundation(
     },
   });
 
-  await db.policyFramework.upsert({
-    where: {
-      tenantId_policyVersionId_frameworkId: {
-        tenantId: input.tenantId,
-        policyVersionId: version.id,
-        frameworkId: input.frameworkId,
+  // Framework lineage becomes immutable once a version leaves DRAFT/REJECTED.
+  // Only attach (or re-attach) while the version can still accept mapping writes.
+  if (version.status === "DRAFT" || version.status === "REJECTED") {
+    const existingMapping = await db.policyFramework.findUnique({
+      where: {
+        tenantId_policyVersionId_frameworkId: {
+          tenantId: input.tenantId,
+          policyVersionId: version.id,
+          frameworkId: input.frameworkId,
+        },
       },
-    },
-    update: {},
-    create: {
-      tenantId: input.tenantId,
-      policyId: policy.id,
-      policyVersionId: version.id,
-      frameworkId: input.frameworkId,
-      isActive: true,
-      createdById: input.ownerId,
-      updatedById: input.ownerId,
-    },
-  });
+    });
+    if (!existingMapping) {
+      await db.policyFramework.create({
+        data: {
+          tenantId: input.tenantId,
+          policyId: policy.id,
+          policyVersionId: version.id,
+          frameworkId: input.frameworkId,
+          isActive: true,
+          createdById: input.ownerId,
+          updatedById: input.ownerId,
+        },
+      });
+    }
+  }
 
   if (version.status === "DRAFT" || version.status === "REJECTED") {
     const wasRejected = version.status === "REJECTED";
@@ -449,7 +456,7 @@ const POLICY_SHOWCASE = [
     code: "DEMO-POL-001",
     title: "Synthetic Governance Policy",
     description: "Synthetic Policy used only for deterministic verification.",
-    frameworkCode: "DEMO-FRM-001",
+    frameworkCode: "ISO 9001",
     desiredStatus: "APPROVED" as PolicyVersionStatus,
   },
   {
@@ -457,7 +464,7 @@ const POLICY_SHOWCASE = [
     title: "Information Security and Access Policy",
     description:
       "Defines the synthetic organisation's access-control expectations.",
-    frameworkCode: "DEMO-FRM-002",
+    frameworkCode: "ISO 27001",
     desiredStatus: "DRAFT" as PolicyVersionStatus,
   },
   {
@@ -465,14 +472,14 @@ const POLICY_SHOWCASE = [
     title: "Environmental Management Policy",
     description:
       "Sets environmental objectives for the demonstration workspace.",
-    frameworkCode: "DEMO-FRM-003",
+    frameworkCode: "ISO 14001",
     desiredStatus: "SUBMITTED" as PolicyVersionStatus,
   },
   {
     code: "DEMO-POL-004",
     title: "Occupational Health and Safety Policy",
     description: "Governs workplace hazard identification and response.",
-    frameworkCode: "DEMO-FRM-004",
+    frameworkCode: "ISO 45001",
     desiredStatus: "APPROVED" as PolicyVersionStatus,
   },
   {
@@ -480,14 +487,14 @@ const POLICY_SHOWCASE = [
     title: "Business Continuity Policy",
     description:
       "Defines resilience, recovery and continuity responsibilities.",
-    frameworkCode: "DEMO-FRM-005",
+    frameworkCode: "ISO 22301",
     desiredStatus: "APPROVED" as PolicyVersionStatus,
   },
   {
     code: "DEMO-POL-006",
     title: "Responsible Workplace Policy",
     description: "Documents fair-work and ethical labour commitments.",
-    frameworkCode: "DEMO-FRM-006",
+    frameworkCode: "SA 8000",
     desiredStatus: "DRAFT" as PolicyVersionStatus,
   },
 ] as const;
@@ -521,7 +528,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod: "Review the synthetic Checkpoint result.",
     requiresEvidence: false,
     policyCode: "DEMO-POL-001",
-    frameworkCode: "DEMO-FRM-001",
+    frameworkCode: "ISO 9001",
     inactive: false,
   },
   {
@@ -540,7 +547,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
       "Inspect reviewer sign-off and sampled entitlement evidence.",
     requiresEvidence: true,
     policyCode: "DEMO-POL-001",
-    frameworkCode: "DEMO-FRM-002",
+    frameworkCode: "ISO 27001",
     inactive: false,
   },
   {
@@ -560,7 +567,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
       "Compare the aspect register with action closure evidence.",
     requiresEvidence: true,
     policyCode: "DEMO-POL-004",
-    frameworkCode: "DEMO-FRM-003",
+    frameworkCode: "ISO 14001",
     inactive: false,
   },
   {
@@ -578,7 +585,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
       "Review completed inspection checklists and action logs.",
     requiresEvidence: true,
     policyCode: "DEMO-POL-004",
-    frameworkCode: "DEMO-FRM-004",
+    frameworkCode: "ISO 45001",
     inactive: false,
   },
   {
@@ -598,7 +605,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
       "Inspect exercise results, exceptions and approved remediation.",
     requiresEvidence: true,
     policyCode: "DEMO-POL-005",
-    frameworkCode: "DEMO-FRM-005",
+    frameworkCode: "ISO 22301",
     inactive: false,
   },
   {
@@ -616,7 +623,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
       "Sample due-diligence packs and remediation commitments.",
     requiresEvidence: true,
     policyCode: "DEMO-POL-005",
-    frameworkCode: "DEMO-FRM-006",
+    frameworkCode: "SA 8000",
     inactive: false,
   },
   {
@@ -635,7 +642,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
       "Inspect the final manual log review before deactivation.",
     requiresEvidence: false,
     policyCode: "DEMO-POL-001",
-    frameworkCode: "DEMO-FRM-002",
+    frameworkCode: "ISO 27001",
     inactive: true,
   },
   {
@@ -652,7 +659,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod: "Review the final migration reconciliation.",
     requiresEvidence: false,
     policyCode: "DEMO-POL-001",
-    frameworkCode: "DEMO-FRM-001",
+    frameworkCode: "ISO 9001",
     inactive: true,
   },
 ];
@@ -907,7 +914,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "OPEN",
     controlCode: "DEMO-CTL-003",
     checkpointCode: "DEMO-CHK-003",
-    frameworkCode: "DEMO-FRM-003",
+    frameworkCode: "ISO 14001",
     evidenceCode: "DEMO-EVD-003",
   },
   {
@@ -918,7 +925,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "IN_PROGRESS",
     controlCode: "DEMO-CTL-002",
     checkpointCode: null,
-    frameworkCode: "DEMO-FRM-002",
+    frameworkCode: "ISO 27001",
     evidenceCode: "DEMO-EVD-002",
   },
   {
@@ -929,7 +936,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "CLOSED",
     controlCode: "DEMO-CTL-004",
     checkpointCode: "DEMO-CHK-004",
-    frameworkCode: "DEMO-FRM-004",
+    frameworkCode: "ISO 45001",
     evidenceCode: "DEMO-EVD-004",
   },
   {
@@ -940,7 +947,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "OPEN",
     controlCode: "DEMO-CTL-006",
     checkpointCode: "DEMO-CHK-007",
-    frameworkCode: "DEMO-FRM-006",
+    frameworkCode: "SA 8000",
     evidenceCode: "DEMO-EVD-006",
   },
   {
@@ -951,7 +958,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "IN_PROGRESS",
     controlCode: "DEMO-CTL-005",
     checkpointCode: null,
-    frameworkCode: "DEMO-FRM-005",
+    frameworkCode: "ISO 22301",
     evidenceCode: null,
   },
   {
@@ -962,7 +969,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "CLOSED",
     controlCode: "DEMO-CTL-001",
     checkpointCode: "DEMO-CHK-001",
-    frameworkCode: "DEMO-FRM-001",
+    frameworkCode: "ISO 9001",
     evidenceCode: "DEMO-EVD-001",
   },
   {
@@ -973,7 +980,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "OPEN",
     controlCode: "DEMO-CTL-004",
     checkpointCode: "DEMO-CHK-005",
-    frameworkCode: "DEMO-FRM-004",
+    frameworkCode: "ISO 45001",
     evidenceCode: null,
   },
   {
@@ -984,7 +991,7 @@ const GAP_SHOWCASE: ReadonlyArray<{
     desiredStatus: "IN_PROGRESS",
     controlCode: "DEMO-CTL-006",
     checkpointCode: "DEMO-CHK-008",
-    frameworkCode: "DEMO-FRM-006",
+    frameworkCode: "SA 8000",
     evidenceCode: null,
   },
 ];
@@ -1008,7 +1015,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "HIGH",
     desiredStatus: "OPEN",
     gapCode: "DEMO-GAP-001",
-    frameworkCode: "DEMO-FRM-003",
+    frameworkCode: "ISO 14001",
     dueDate: "2026-07-15",
     completionPercentage: 20,
     evidenceCode: null,
@@ -1020,7 +1027,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "CRITICAL",
     desiredStatus: "IN_PROGRESS",
     gapCode: "DEMO-GAP-002",
-    frameworkCode: "DEMO-FRM-002",
+    frameworkCode: "ISO 27001",
     dueDate: "2026-07-25",
     completionPercentage: 55,
     evidenceCode: null,
@@ -1032,7 +1039,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "HIGH",
     desiredStatus: "PENDING_VERIFICATION",
     gapCode: "DEMO-GAP-005",
-    frameworkCode: "DEMO-FRM-005",
+    frameworkCode: "ISO 22301",
     dueDate: "2026-09-15",
     completionPercentage: 90,
     evidenceCode: "DEMO-EVD-001",
@@ -1044,7 +1051,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "MEDIUM",
     desiredStatus: "CLOSED",
     gapCode: null,
-    frameworkCode: "DEMO-FRM-004",
+    frameworkCode: "ISO 45001",
     dueDate: "2026-07-30",
     completionPercentage: 80,
     evidenceCode: "DEMO-EVD-004",
@@ -1056,7 +1063,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "MEDIUM",
     desiredStatus: "OPEN",
     gapCode: "DEMO-GAP-007",
-    frameworkCode: "DEMO-FRM-004",
+    frameworkCode: "ISO 45001",
     dueDate: "2026-09-30",
     completionPercentage: 10,
     evidenceCode: null,
@@ -1068,7 +1075,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "LOW",
     desiredStatus: "IN_PROGRESS",
     gapCode: "DEMO-GAP-008",
-    frameworkCode: "DEMO-FRM-006",
+    frameworkCode: "SA 8000",
     dueDate: "2026-10-15",
     completionPercentage: 45,
     evidenceCode: null,
@@ -1080,7 +1087,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "MEDIUM",
     desiredStatus: "PENDING_VERIFICATION",
     gapCode: "DEMO-GAP-002",
-    frameworkCode: "DEMO-FRM-002",
+    frameworkCode: "ISO 27001",
     dueDate: "2026-09-10",
     completionPercentage: 85,
     evidenceCode: "DEMO-EVD-002",
@@ -1092,7 +1099,7 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     priority: "LOW",
     desiredStatus: "CLOSED",
     gapCode: null,
-    frameworkCode: "DEMO-FRM-001",
+    frameworkCode: "ISO 9001",
     dueDate: "2026-07-20",
     completionPercentage: 75,
     evidenceCode: "DEMO-EVD-001",
@@ -1179,13 +1186,19 @@ export async function seedDemoGovernanceShowcase(
     (
       await db.frameworkRule.findMany({
         where: {
-          code: {
-            in: POLICY_SHOWCASE.map((item) => `${item.frameworkCode}-R1`),
+          code: "DEMO-R1",
+          framework: {
+            code: { in: POLICY_SHOWCASE.map((item) => item.frameworkCode) },
           },
         },
-        select: { id: true, code: true, frameworkId: true },
+        select: {
+          id: true,
+          code: true,
+          frameworkId: true,
+          framework: { select: { code: true } },
+        },
       })
-    ).map((rule) => [rule.code, rule]),
+    ).map((rule) => [rule.framework.code, rule]),
   );
   const frameworkFor = (code: string): { id: string; code: string } => {
     const framework = frameworks.get(code);
@@ -1195,8 +1208,8 @@ export async function seedDemoGovernanceShowcase(
   const ruleFor = (
     frameworkCode: string,
   ): { id: string; code: string; frameworkId: string } => {
-    const rule = frameworkRules.get(`${frameworkCode}-R1`);
-    if (!rule) showcaseConflict(`${frameworkCode}-R1 is missing`);
+    const rule = frameworkRules.get(frameworkCode);
+    if (!rule) showcaseConflict(`DEMO-R1 for ${frameworkCode} is missing`);
     return rule!;
   };
 
@@ -1361,9 +1374,35 @@ export async function seedDemoGovernanceShowcase(
       },
     });
     if (!policyFramework?.isActive) {
-      showcaseConflict(
-        `${definition.code} framework mapping is missing or inactive`,
-      );
+      if (version.status === "DRAFT" || version.status === "REJECTED") {
+        await db.policyFramework.create({
+          data: {
+            tenantId: input.tenantId,
+            policyId: policy.id,
+            policyVersionId: version.id,
+            frameworkId: framework.id,
+            isActive: true,
+            createdById: actor.userId,
+            updatedById: actor.userId,
+          },
+        });
+      } else {
+        // Submitted/approved lineage cannot gain a new framework id. Accept an
+        // existing active mapping (historical DEMO-FRM-* ids) so re-seeds after
+        // the catalogue consolidation do not fail.
+        const historical = await db.policyFramework.findFirst({
+          where: {
+            tenantId: input.tenantId,
+            policyVersionId: version.id,
+            isActive: true,
+          },
+        });
+        if (!historical) {
+          showcaseConflict(
+            `${definition.code} framework mapping is missing or inactive`,
+          );
+        }
+      }
     }
 
     if (
@@ -1946,7 +1985,7 @@ export async function seedDemoGovernanceShowcase(
           frameworkRuleId: frameworkRule.id,
           controlId: control.id,
           checkpointId: checkpoint?.id ?? null,
-          clauseRef: `${definition.frameworkCode}-R1`,
+          clauseRef: "DEMO-R1",
           recommendedAction:
             "Complete the assigned remediation and retain approval evidence.",
           severity: definition.severity,

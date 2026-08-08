@@ -112,6 +112,7 @@ export const buildRiskListWhere = (
     deletedAt: null,
     ...(query.kpiRiskClass ? { kpiRiskClass: query.kpiRiskClass } : {}),
     ...(query.generalLevel ? { generalLevel: query.generalLevel } : {}),
+    ...(query.ownerId ? { ownerId: query.ownerId } : {}),
   };
 
   if (query.status) {
@@ -270,7 +271,10 @@ export class RiskRepository {
         include: riskInclude,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
-        orderBy: [{ createdAt: "desc" }, { code: "asc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ createdAt: "desc" }, { code: "asc" }]
+            : [{ [query.orderBy]: query.order ?? "asc" }, { code: "asc" }],
       }),
       this.db.risk.count({ where }),
     ]);

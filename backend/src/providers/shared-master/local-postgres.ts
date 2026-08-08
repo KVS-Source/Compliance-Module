@@ -37,11 +37,16 @@ export class LocalPostgresSharedMasterProvider implements SharedMasterProvider {
     const where = {
       memberships: { some: { tenantId, status: "ACTIVE" as const } },
     };
+    const direction = page.order ?? "asc";
+    const orderBy =
+      page.orderBy === undefined
+        ? ({ code: "asc" as const })
+        : ({ [page.orderBy]: direction } as const);
     const [items, total] = await this.db.$transaction([
       this.db.user.findMany({
         where,
         ...bounds(page),
-        orderBy: { code: "asc" },
+        orderBy,
       }),
       this.db.user.count({ where }),
     ]);
@@ -57,7 +62,7 @@ export class LocalPostgresSharedMasterProvider implements SharedMasterProvider {
           include: { role: true },
         },
       },
-      orderBy: { code: "asc" },
+      orderBy,
     });
     return {
       items: enriched.map(({ memberships, roles, ...user }) => ({
@@ -82,9 +87,17 @@ export class LocalPostgresSharedMasterProvider implements SharedMasterProvider {
   }
 
   async listFrameworks(page: PageInput) {
+    // Operational lists show only ACTIVE catalogue rows. DISABLED legacy
+    // DEMO-FRM-* duplicates stay in the database for remapping history but
+    // must not appear beside workbook-named frameworks in filters.
+    const where = { status: "ACTIVE" as const };
     const [items, total] = await this.db.$transaction([
-      this.db.framework.findMany({ ...bounds(page), orderBy: { code: "asc" } }),
-      this.db.framework.count(),
+      this.db.framework.findMany({
+        where,
+        ...bounds(page),
+        orderBy: { code: "asc" },
+      }),
+      this.db.framework.count({ where }),
     ]);
     return { items, total };
   }

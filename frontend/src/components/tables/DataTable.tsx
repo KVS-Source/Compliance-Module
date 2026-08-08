@@ -7,12 +7,16 @@ import {
   Pencil,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import type { SortOrder } from "../../hooks/useRegisterQueryState";
+import { SortableTh } from "./SortableTh";
 
 export interface Column<T> {
   key: string;
   label: string;
   render: (row: T) => ReactNode;
   searchable?: (row: T) => string;
+  /** When set with sort props, renders a SortableTh using this server column key. */
+  sortColumn?: string;
 }
 
 interface DataTableProps<T extends { id: string }> {
@@ -25,6 +29,9 @@ interface DataTableProps<T extends { id: string }> {
   onMore?: (row: T) => void;
   selectable?: boolean;
   pageSize?: number;
+  orderBy?: string;
+  order?: SortOrder;
+  onSort?: (column: string) => void;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -37,6 +44,9 @@ export function DataTable<T extends { id: string }>({
   onMore,
   selectable = false,
   pageSize = 10,
+  orderBy = "",
+  order = "asc",
+  onSort,
 }: DataTableProps<T>) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -60,9 +70,20 @@ export function DataTable<T extends { id: string }>({
                   <input type="checkbox" aria-label="Select all rows" />
                 </th>
               ) : null}
-              {columns.map((column) => (
-                <th key={column.key}>{column.label}</th>
-              ))}
+              {columns.map((column) =>
+                column.sortColumn && onSort ? (
+                  <SortableTh
+                    key={column.key}
+                    column={column.sortColumn}
+                    label={column.label}
+                    orderBy={orderBy}
+                    order={order}
+                    onSort={onSort}
+                  />
+                ) : (
+                  <th key={column.key}>{column.label}</th>
+                ),
+              )}
               {onView || onEdit || onMore ? <th>Actions</th> : null}
             </tr>
           </thead>

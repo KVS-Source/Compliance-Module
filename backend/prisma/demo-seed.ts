@@ -12,6 +12,7 @@ import { RiskRepository } from "../src/modules/risks/repository.js";
 import { RiskService } from "../src/modules/risks/service.js";
 import {
   DEMO_DEPARTMENTS,
+  DEMO_FRAMEWORK_RULE_CODE,
   DEMO_FRAMEWORKS,
   DEMO_KPIS,
   DEMO_LOCATIONS,
@@ -252,28 +253,46 @@ async function seedAccess(
   return { roles: users, byCode };
 }
 
+/**
+ * Seeds the shared framework catalogue using workbook-shaped codes so demo
+ * controls and workbook-imported rules share one row per standard. Legacy
+ * DEMO-FRM-* rows from earlier seeds are remapped and disabled.
+ */
 async function seedFrameworks() {
+  const canonicalByName = new Map<string, string>();
+
   for (const [code, name, version] of DEMO_FRAMEWORKS) {
-    const framework = await db.framework.upsert({
-      where: { code_version: { code, version } },
-      update: {
-        name,
-        description: "Synthetic UAT framework catalogue entry.",
-        status: "ACTIVE",
-      },
-      create: {
-        code,
-        name,
-        version,
-        description: "Synthetic UAT framework catalogue entry.",
-        status: "ACTIVE",
-      },
+    // Prefer an existing ACTIVE row with this workbook code (any version) so a
+    // prior workbook import with richer scopeStatus/rules is not duplicated.
+    let framework = await db.framework.findFirst({
+      where: { code, status: "ACTIVE" },
+      orderBy: [{ version: "asc" }],
     });
+    if (!framework) {
+      framework = await db.framework.create({
+        data: {
+          code,
+          name,
+          version,
+          description: "Synthetic UAT framework catalogue entry.",
+          status: "ACTIVE",
+          // Demo-only environments need the dashboard widget without a
+          // workbook import; workbook imports overwrite scopeStatus later.
+          scopeStatus: "Active – In Scope",
+        },
+      });
+    } else if (framework.scopeStatus == null) {
+      await db.framework.update({
+        where: { id: framework.id },
+        data: { scopeStatus: "Active – In Scope", status: "ACTIVE" },
+      });
+    }
+
     await db.frameworkRule.upsert({
       where: {
         frameworkId_code: {
           frameworkId: framework.id,
-          code: `${code}-R1`,
+          code: DEMO_FRAMEWORK_RULE_CODE,
         },
       },
       update: {
@@ -284,13 +303,101 @@ async function seedFrameworks() {
       },
       create: {
         frameworkId: framework.id,
-        code: `${code}-R1`,
+        code: DEMO_FRAMEWORK_RULE_CODE,
         title: "Demonstration compliance requirement",
         description:
           "Synthetic requirement for navigation and catalogue demonstration.",
         status: "ACTIVE",
       },
     });
+    canonicalByName.set(name, framework.id);
+    // Also index by code for remapping names that equal codes.
+    canonicalByName.set(code, framework.id);
+  }
+
+  const legacy = await db.framework.findMany({
+    where: { code: { startsWith: "DEMO-FRM-" } },
+  });
+  for (const old of legacy) {
+    const targetId = canonicalByName.get(old.name);
+    if (targetId && targetId !== old.id) {
+      // Mapping tables are append/soft-replace only — deactivate legacy links
+      // so the showcase can re-attach controls to the canonical workbook row.
+      await db.ruleControl.updateMany({
+        where: { frameworkId: old.id, isActive: true },
+        data: { isActive: false },
+      });
+      await db.controlFramework.updateMany({
+        where: { frameworkId: old.id, isActive: true },
+        data: { isActive: false },
+      });
+      // Policy↔framework lineage is immutable after submission; leave those
+      // rows on the disabled DEMO-FRM id. Showcase re-maps draft/submitted
+      // versions via PolicyService; approved lineage stays historical.
+
+      const targetRule = await db.frameworkRule.findUnique({
+        where: {
+          frameworkId_code: {
+            frameworkId: targetId,
+            code: DEMO_FRAMEWORK_RULE_CODE,
+          },
+        },
+      });
+      await db.gap.updateMany({
+        where: { frameworkId: old.id },
+        data: {
+          frameworkId: targetId,
+          ...(targetRule ? { frameworkRuleId: targetRule.id } : {}),
+        },
+      });
+      await db.capa.updateMany({
+        where: { frameworkId: old.id },
+        data: { frameworkId: targetId },
+      });
+    }
+
+    await db.framework.update({
+      where: { id: old.id },
+      data: { status: "DISABLED" },
+    });
+  }
+
+  // Gaps remapped in an earlier partial seed may already point at the
+  // canonical framework id while still holding the old DEMO-FRM rule id.
+  const mismatchedGaps = await db.gap.findMany({
+    where: {
+      frameworkId: { not: null },
+      frameworkRuleId: { not: null },
+    },
+    select: {
+      id: true,
+      frameworkId: true,
+      frameworkRuleId: true,
+      frameworkRule: { select: { frameworkId: true } },
+    },
+  });
+  for (const gap of mismatchedGaps) {
+    if (
+      !gap.frameworkId ||
+      !gap.frameworkRuleId ||
+      gap.frameworkRule?.frameworkId === gap.frameworkId
+    ) {
+      continue;
+    }
+    const targetRule = await db.frameworkRule.findUnique({
+      where: {
+        frameworkId_code: {
+          frameworkId: gap.frameworkId,
+          code: DEMO_FRAMEWORK_RULE_CODE,
+        },
+      },
+    });
+    if (targetRule) {
+      await db.gap.update({
+        where: { id: gap.id },
+        data: { frameworkRuleId: targetRule.id },
+      });
+    }
   }
 }
 
@@ -901,7 +1008,14 @@ async function counts(tenantId: string) {
     db.orgDepartment.count({ where: { tenantId, status: "ACTIVE" } }),
     db.orgLocation.count({ where: { tenantId, status: "ACTIVE" } }),
     db.orgUnit.count({ where: { tenantId, status: "ACTIVE" } }),
-    db.framework.count({ where: { code: { startsWith: "DEMO-FRM-" } } }),
+    db.framework.count({
+      where: {
+        status: "ACTIVE",
+        code: {
+          in: DEMO_FRAMEWORKS.map(([code]) => code),
+        },
+      },
+    }),
     db.kpiDefinition.count({ where: { code: { startsWith: "DEMO-KPI-" } } }),
     db.kpiConfiguration.count({ where: { tenantId, deletedAt: null } }),
     db.kpiTarget.count({ where: { tenantId, deletedAt: null } }),
@@ -984,16 +1098,15 @@ async function main() {
       "Demo seed conflict: governance actors or scope are missing",
     );
   }
-  const governanceFramework = await db.framework.findUniqueOrThrow({
-    where: {
-      code_version: { code: "DEMO-FRM-001", version: "2015" },
-    },
+  const governanceFramework = await db.framework.findFirstOrThrow({
+    where: { code: "ISO 9001", status: "ACTIVE" },
+    orderBy: { version: "asc" },
   });
   const governanceRule = await db.frameworkRule.findUniqueOrThrow({
     where: {
       frameworkId_code: {
         frameworkId: governanceFramework.id,
-        code: "DEMO-FRM-001-R1",
+        code: DEMO_FRAMEWORK_RULE_CODE,
       },
     },
   });

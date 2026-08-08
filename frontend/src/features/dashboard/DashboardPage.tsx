@@ -199,6 +199,17 @@ export function DashboardPage() {
               tone="amber"
               to="/compliance/policy-register"
             />
+            <MetricCard
+              label="Evidence expiring"
+              value={value(cards?.evidenceExpiringSoon)}
+              note={note(
+                cards?.evidenceExpiringSoon,
+                "expires within 90 days",
+              )}
+              icon={Archive}
+              tone="amber"
+              to="/evidence?expiringSoon=true"
+            />
           </div>
 
           <ChartSection

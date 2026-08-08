@@ -11,21 +11,20 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type KeyboardEvent,
-} from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
 import { ApiError } from "../../services/apiClient";
 import { checkpointApi } from "../../services/checkpointApi";
 import { masterDataApi } from "../../services/masterDataApi";
@@ -98,26 +97,42 @@ export function CheckpointRegisterPage() {
     contextVersion,
   };
 
-  const [draftSearch, setDraftSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [lifecycleStatus, setLifecycleStatus] = useState<
-    CheckpointLifecycleStatus | ""
-  >("");
-  const [verificationFrequency, setVerificationFrequency] = useState<
-    CheckpointVerificationFrequency | ""
-  >("");
-  const [latestOutcome, setLatestOutcome] = useState<CheckpointOutcome | "">(
-    "",
-  );
-  const [ownerId, setOwnerId] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [evidenceRequired, setEvidenceRequired] = useState<
-    "" | "true" | "false"
-  >("");
-  const [dueFrom, setDueFrom] = useState("");
-  const [dueTo, setDueTo] = useState("");
-  const [page, setPage] = useState(1);
   const [listVersion, setListVersion] = useState(0);
+
+  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
+    useRegisterQueryState({
+      keys: [
+        "q",
+        "lifecycleStatus",
+        "verificationFrequency",
+        "latestOutcome",
+        "ownerId",
+        "departmentId",
+        "evidenceRequired",
+        "dueFrom",
+        "dueTo",
+      ],
+    });
+  const appliedSearch = values.q ?? "";
+  const lifecycleStatus = (values.lifecycleStatus ?? "") as
+    | CheckpointLifecycleStatus
+    | "";
+  const verificationFrequency = (values.verificationFrequency ?? "") as
+    | CheckpointVerificationFrequency
+    | "";
+  const latestOutcome = (values.latestOutcome ?? "") as CheckpointOutcome | "";
+  const ownerId = values.ownerId ?? "";
+  const departmentId = values.departmentId ?? "";
+  const evidenceRequired = (values.evidenceRequired ?? "") as
+    | ""
+    | "true"
+    | "false";
+  const dueFrom = values.dueFrom ?? "";
+  const dueTo = values.dueTo ?? "";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    appliedSearch,
+    updateParams,
+  );
 
   const [users, setUsers] = useState<MasterState<CompanyUser>>({
     status: "loading",
@@ -134,17 +149,6 @@ export function CheckpointRegisterPage() {
   } | null>(null);
 
   useEffect(() => {
-    setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycleStatus("");
-    setVerificationFrequency("");
-    setLatestOutcome("");
-    setOwnerId("");
-    setDepartmentId("");
-    setEvidenceRequired("");
-    setDueFrom("");
-    setDueTo("");
-    setPage(1);
     setCreating(false);
     setEditing(null);
     setLifecycle(null);
@@ -182,6 +186,8 @@ export function CheckpointRegisterPage() {
             : evidenceRequired === "true",
         dueFrom: dueFrom || undefined,
         dueTo: dueTo || undefined,
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
       }),
     [
       contextVersion,
@@ -196,39 +202,32 @@ export function CheckpointRegisterPage() {
       evidenceRequired,
       dueFrom,
       dueTo,
+      orderBy,
+      order,
       listVersion,
     ],
   );
 
-  const applySearch = () => {
-    setPage(1);
-    setAppliedSearch(draftSearch.trim());
-  };
-
   const resetFilters = () => {
     setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycleStatus("");
-    setVerificationFrequency("");
-    setLatestOutcome("");
-    setOwnerId("");
-    setDepartmentId("");
-    setEvidenceRequired("");
-    setDueFrom("");
-    setDueTo("");
-    setPage(1);
+    updateParams({
+      q: "",
+      lifecycleStatus: "",
+      verificationFrequency: "",
+      latestOutcome: "",
+      ownerId: "",
+      departmentId: "",
+      evidenceRequired: "",
+      dueFrom: "",
+      dueTo: "",
+      orderBy: "",
+      order: "",
+    });
   };
 
   const onSearchSubmit = (event: FormEvent) => {
     event.preventDefault();
-    applySearch();
-  };
-
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      applySearch();
-    }
+    updateParams({ q: draftSearch.trim() });
   };
 
   const openEdit = async (checkpoint: Checkpoint) => {
@@ -318,7 +317,6 @@ export function CheckpointRegisterPage() {
             type="search"
             value={draftSearch}
             onChange={(event) => setDraftSearch(event.target.value)}
-            onKeyDown={onSearchKeyDown}
             placeholder="Search code or title…"
             maxLength={100}
             aria-label="Search checkpoints by code or title"
@@ -330,12 +328,9 @@ export function CheckpointRegisterPage() {
             className="control"
             value={lifecycleStatus}
             aria-label="Filter by lifecycle status"
-            onChange={(event) => {
-              setLifecycleStatus(
-                event.target.value as CheckpointLifecycleStatus | "",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ lifecycleStatus: event.target.value })
+            }
           >
             <option value="">All lifecycles</option>
             <option value="ACTIVE">ACTIVE</option>
@@ -349,12 +344,9 @@ export function CheckpointRegisterPage() {
             className="control"
             value={verificationFrequency}
             aria-label="Filter by verification frequency"
-            onChange={(event) => {
-              setVerificationFrequency(
-                event.target.value as CheckpointVerificationFrequency | "",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ verificationFrequency: event.target.value })
+            }
           >
             <option value="">All frequencies</option>
             {VERIFICATION_FREQUENCY_OPTIONS.map((entry) => (
@@ -370,10 +362,9 @@ export function CheckpointRegisterPage() {
             className="control"
             value={latestOutcome}
             aria-label="Filter by latest outcome"
-            onChange={(event) => {
-              setLatestOutcome(event.target.value as CheckpointOutcome | "");
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ latestOutcome: event.target.value })
+            }
           >
             <option value="">All outcomes</option>
             {OUTCOME_OPTIONS.map((entry) => (
@@ -390,10 +381,7 @@ export function CheckpointRegisterPage() {
             value={ownerId}
             aria-label="Filter by owner"
             disabled={users.status !== "ready"}
-            onChange={(event) => {
-              setOwnerId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => updateParams({ ownerId: event.target.value })}
           >
             <option value="">
               {users.status === "forbidden"
@@ -416,10 +404,9 @@ export function CheckpointRegisterPage() {
             value={departmentId}
             aria-label="Filter by department"
             disabled={departments.status !== "ready"}
-            onChange={(event) => {
-              setDepartmentId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ departmentId: event.target.value })
+            }
           >
             <option value="">
               {departments.status === "forbidden"
@@ -441,12 +428,9 @@ export function CheckpointRegisterPage() {
             className="control"
             value={evidenceRequired}
             aria-label="Filter by Evidence requirement"
-            onChange={(event) => {
-              setEvidenceRequired(
-                event.target.value as "" | "true" | "false",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ evidenceRequired: event.target.value })
+            }
           >
             <option value="">Evidence: any</option>
             <option value="true">Evidence required</option>
@@ -460,10 +444,7 @@ export function CheckpointRegisterPage() {
             type="date"
             value={dueFrom}
             aria-label="Due from"
-            onChange={(event) => {
-              setDueFrom(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => updateParams({ dueFrom: event.target.value })}
           />
         </label>
         <label className="toolbar-select">
@@ -473,10 +454,7 @@ export function CheckpointRegisterPage() {
             type="date"
             value={dueTo}
             aria-label="Due to"
-            onChange={(event) => {
-              setDueTo(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => updateParams({ dueTo: event.target.value })}
           />
         </label>
         <button className="btn btn-secondary" type="submit">
@@ -584,13 +562,31 @@ export function CheckpointRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Checkpoint</th>
-                    <th scope="col">Lifecycle</th>
+                    <SortableTh
+                      column="title"
+                      label="Checkpoint"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="lifecycleStatus"
+                      label="Lifecycle"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Control</th>
                     <th scope="col">Frequency</th>
                     <th scope="col">Owner</th>
                     <th scope="col">Department</th>
-                    <th scope="col">Next review</th>
+                    <SortableTh
+                      column="nextReviewDate"
+                      label="Next review"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Latest outcome</th>
                     <th scope="col">Reviews</th>
                     <th scope="col">Evidence</th>

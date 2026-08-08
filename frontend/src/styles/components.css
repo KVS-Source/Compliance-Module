@@ -304,3 +304,88 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Sortable register headers */
+.data-table th .sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.data-table th .sort-btn:hover,
+.data-table th .sort-btn:focus-visible {
+  color: var(--blue-700, #1d4ed8);
+}
+.data-table tr.row-expiring td,
+.data-table tr.row-expired td {
+  background: #fffbeb;
+}
+.data-table tr.row-expired td {
+  background: #fef2f2;
+}
+.expiry-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.expiry-marker.expired { color: #b91c1c; }
+.expiry-marker.expiring { color: #b45309; }
+
+.my-work-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.my-work-section .card-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+.my-work-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.my-work-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+}
+.my-work-item:hover {
+  border-color: var(--blue-300, #93c5fd);
+  background: #f8fbff;
+}
+.my-work-item strong { display: block; }
+.my-work-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 11px;
+}
+.empty-state.compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--grey-600, #4b5563);
+  padding: 8px 0;
+}

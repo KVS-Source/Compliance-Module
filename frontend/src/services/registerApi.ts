@@ -75,6 +75,8 @@ export const registerApi = {
       ownerId?: string;
       departmentId?: string;
       overdue?: boolean;
+      orderBy?: string;
+      order?: "asc" | "desc";
     } = {},
   ) {
     const params = new URLSearchParams();
@@ -85,6 +87,8 @@ export const registerApi = {
     if (query.ownerId) params.set("ownerId", query.ownerId);
     if (query.departmentId) params.set("departmentId", query.departmentId);
     if (query.overdue) params.set("overdue", "true");
+    if (query.orderBy) params.set("orderBy", query.orderBy);
+    if (query.order) params.set("order", query.order);
     const response = await apiRequest<RegisterRecord[]>(
       `/operational-registers/${encodeURIComponent(registerCode)}/records?${params}`,
     );

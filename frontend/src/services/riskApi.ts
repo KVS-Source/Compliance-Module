@@ -18,6 +18,9 @@ const buildListQuery = (query: RiskListQuery) => {
   if (query.kpiRiskClass) params.set("kpiRiskClass", query.kpiRiskClass);
   if (query.generalLevel) params.set("generalLevel", query.generalLevel);
   if (query.q?.trim()) params.set("q", query.q.trim());
+  if (query.ownerId) params.set("ownerId", query.ownerId);
+  if (query.orderBy) params.set("orderBy", query.orderBy);
+  if (query.order) params.set("order", query.order);
   return params.toString();
 };
 

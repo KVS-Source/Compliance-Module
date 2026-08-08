@@ -16,6 +16,9 @@ const queryString = (query: CapaListQuery) => {
   if (query.priority) params.set("priority", query.priority);
   if (query.gapId) params.set("gapId", query.gapId);
   if (query.overdue !== undefined) params.set("overdue", String(query.overdue));
+  if (query.ownerId) params.set("ownerId", query.ownerId);
+  if (query.orderBy) params.set("orderBy", query.orderBy);
+  if (query.order) params.set("order", query.order);
   return params.toString();
 };
 

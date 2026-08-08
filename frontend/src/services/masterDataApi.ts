@@ -17,8 +17,20 @@ import type {
 } from "../types/api";
 
 export const masterDataApi = {
-  async listUsers() {
-    return (await apiRequest<CompanyUser[]>(`/users${pageQuery()}`)).data;
+  async listUsers(query: {
+    page?: number;
+    pageSize?: number;
+    orderBy?: string;
+    order?: "asc" | "desc";
+  } = {}) {
+    const params = new URLSearchParams();
+    params.set("page", String(query.page ?? 1));
+    params.set("pageSize", String(query.pageSize ?? 100));
+    if (query.orderBy) params.set("orderBy", query.orderBy);
+    if (query.order) params.set("order", query.order);
+    return (
+      await apiRequest<CompanyUser[]>(`/users?${params.toString()}`)
+    ).data;
   },
   async getUser(id: string) {
     return (await apiRequest<CompanyUser>(`/users/${encodeURIComponent(id)}`)).data;

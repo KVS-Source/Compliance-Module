@@ -13,6 +13,9 @@ import type {
 export interface PageInput {
   page: number;
   pageSize: number;
+  /** Allowlisted column only; never a free-form client string. */
+  orderBy?: "code" | "fullName" | "email" | "status" | "createdAt";
+  order?: "asc" | "desc";
 }
 
 export interface PageResult<T> {

@@ -46,8 +46,8 @@ by UAT language or status-page presentation.
   sync remains unavailable until the client provides approved access; the CSV
   adapter path is platform-ready under `LOCAL_UPLOAD_DIR/.genrac`.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
-  deferred. Policy, Control and Checkpoint register filters are React state only
-  (no URL query sync). Control Checkpoint panels keep counts and, when
+  deferred. Register filter and sort state is URL-synced for Gaps, CAPAs, Risks,
+  Evidence, Controls, Checkpoints, Policies, Operational Registers and Users. Control Checkpoint panels keep counts and, when
   `checkpoints:read` is present, an Open Checkpoints link to
   `/compliance/checkpoints` without controlId query or `location.state`.
 - Checkpoint reviews with `evidenceRequired=true` require qualifying APPROVED

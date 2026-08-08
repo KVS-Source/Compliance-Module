@@ -162,7 +162,13 @@ export class RegisterService {
       this.db.operationalRegisterRecord.findMany({
         where,
         include: recordInclude,
-        orderBy: [{ businessRecordCode: "asc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ businessRecordCode: "asc" }]
+            : [
+                { [query.orderBy]: query.order ?? "asc" },
+                { businessRecordCode: "asc" },
+              ],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

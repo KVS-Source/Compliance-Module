@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const RISK_SEARCH_MAX_LENGTH = 100;
 
@@ -31,6 +32,7 @@ export const riskListSchema = paginationSchema.extend({
   lifecycle: z.enum(["active", "closed", "all"]).optional(),
   kpiRiskClass: z.enum(["MAJOR", "MINOR"]).optional(),
   generalLevel: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional(),
+  ownerId: z.string().uuid().optional(),
   q: z
     .string()
     .optional()
@@ -40,6 +42,14 @@ export const riskListSchema = paginationSchema.extend({
       return trimmed.length === 0 ? undefined : trimmed;
     })
     .pipe(z.string().max(RISK_SEARCH_MAX_LENGTH).optional()),
+  ...listOrderFields([
+    "code",
+    "title",
+    "status",
+    "generalLevel",
+    "createdAt",
+    "reviewDate",
+  ] as const).shape,
 });
 
 export type RiskListQuery = z.infer<typeof riskListSchema>;

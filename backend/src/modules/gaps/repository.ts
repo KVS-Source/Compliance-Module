@@ -137,11 +137,19 @@ export class GapRepository {
 
   async list(tenantId: string, query: GapListQuery) {
     const where = this.scope(tenantId, query);
+    const direction = query.order ?? "asc";
+    const orderBy =
+      query.orderBy === undefined
+        ? ([{ createdAt: "desc" }, { code: "asc" }] as const)
+        : ([
+            { [query.orderBy]: direction },
+            { code: "asc" },
+          ] as const);
     const [items, total] = await this.db.$transaction([
       this.db.gap.findMany({
         where,
         include: gapInclude,
-        orderBy: [{ createdAt: "desc" }, { code: "asc" }],
+        orderBy: [...orderBy],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

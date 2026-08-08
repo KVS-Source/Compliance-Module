@@ -243,18 +243,27 @@ export class EvidenceRepository {
         : {}),
       ...(query.ownerId ? { ownerId: query.ownerId } : {}),
       ...(query.departmentId ? { departmentId: query.departmentId } : {}),
-      ...(query.expiresBefore || query.expiresAfter
+
+      ...(query.expiringSoon
         ? {
+            lifecycleStatus: { not: "ARCHIVED" as const },
             expiresAt: {
-              ...(query.expiresAfter
-                ? { gte: new Date(`${query.expiresAfter}T00:00:00.000Z`) }
-                : {}),
-              ...(query.expiresBefore
-                ? { lte: new Date(`${query.expiresBefore}T00:00:00.000Z`) }
-                : {}),
+              gte: new Date(),
+              lte: new Date(Date.now() + 90 * 86_400_000),
             },
           }
-        : {}),
+        : query.expiresBefore || query.expiresAfter
+          ? {
+              expiresAt: {
+                ...(query.expiresAfter
+                  ? { gte: new Date(`${query.expiresAfter}T00:00:00.000Z`) }
+                  : {}),
+                ...(query.expiresBefore
+                  ? { lte: new Date(`${query.expiresBefore}T00:00:00.000Z`) }
+                  : {}),
+              },
+            }
+          : {}),
       ...(query.q
         ? {
             OR: [
@@ -269,7 +278,10 @@ export class EvidenceRepository {
       this.db.evidence.findMany({
         where,
         include: evidenceDetailInclude,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ createdAt: "desc" }, { id: "desc" }]
+            : [{ [query.orderBy]: query.order ?? "asc" }, { id: "desc" }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

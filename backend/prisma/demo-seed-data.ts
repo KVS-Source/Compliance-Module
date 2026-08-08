@@ -259,20 +259,35 @@ export const DEMO_LOCATIONS = [
   },
 ] as const;
 
+/**
+ * Canonical framework catalogue for the demo seed.
+ *
+ * Codes match the client workbook importer (`code === Framework label`) so a
+ * workspace that already imported ISO 27001 / GDPR / HIPAA reuses those rows
+ * instead of minting a parallel DEMO-FRM-* catalogue. The dashboard framework
+ * compliance widget and Control Register filter then see a single set.
+ *
+ * Tuple: `[code, name, preferredVersion]`. When a row with the same code
+ * already exists (any version), the seed reuses it and does not invent a
+ * second version.
+ */
 export const DEMO_FRAMEWORKS = [
-  ["DEMO-FRM-001", "ISO 9001", "2015"],
-  ["DEMO-FRM-002", "ISO 27001", "2022"],
-  ["DEMO-FRM-003", "ISO 14001", "2015"],
-  ["DEMO-FRM-004", "ISO 45001", "2018"],
-  ["DEMO-FRM-005", "ISO 22301", "2019"],
-  ["DEMO-FRM-006", "SA 8000", "2014"],
-  ["DEMO-FRM-007", "HIPAA", "Current"],
-  ["DEMO-FRM-008", "CMMI-SVC", "2.2"],
-  ["DEMO-FRM-009", "DPDPA", "2023"],
-  ["DEMO-FRM-010", "GDPR", "2016/679"],
-  ["DEMO-FRM-011", "SOC 1 / SOC 2", "Current"],
-  ["DEMO-FRM-012", "ADA / WCAG", "2.2"],
+  ["ISO 9001", "ISO 9001", "2015"],
+  ["ISO 27001", "ISO 27001", "2022"],
+  ["ISO 14001", "ISO 14001", "2015"],
+  ["ISO 45001", "ISO 45001", "2018"],
+  ["ISO 22301", "ISO 22301", "2019"],
+  ["SA 8000", "SA 8000", "2014"],
+  ["HIPAA", "HIPAA", "2013 Omnibus"],
+  ["CMMI-SVC", "CMMI-SVC", "V2.0 L3"],
+  ["DPDPA", "DPDPA", "2023/2025"],
+  ["GDPR", "GDPR", "2016/679"],
+  ["SOC 1 & SOC 2", "SOC 1 & SOC 2", "SSAE 18 / TSC 2017"],
+  ["ADA / WCAG", "ADA / WCAG", "2.1 AA"],
 ] as const;
+
+/** Synthetic rule code attached to every demo framework for control mapping. */
+export const DEMO_FRAMEWORK_RULE_CODE = "DEMO-R1";
 
 export type DemoRiskScenario =
   | "OPEN"

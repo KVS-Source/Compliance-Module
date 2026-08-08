@@ -139,6 +139,8 @@ export interface DashboardAnalytics {
     openGaps: number | null;
     openCapas: number | null;
     policiesDueForReview: number | null;
+    evidenceExpiringSoon: number | null;
+    evidenceExpired: number | null;
   };
   kpiTrend: Array<{
     period: string;
@@ -810,6 +812,9 @@ export interface RiskListQuery {
   lifecycle?: RiskLifecycle;
   kpiRiskClass?: KpiRiskClass | "";
   generalLevel?: GeneralRiskLevel | "";
+  ownerId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface RiskListResult {
@@ -931,6 +936,8 @@ export interface PolicyListQuery {
   frameworkId?: string;
   reviewDueFrom?: string;
   reviewDueTo?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface PolicyListResult {
@@ -1113,6 +1120,8 @@ export interface ControlListQuery {
   requiresEvidence?: boolean;
   reviewDueFrom?: string;
   reviewDueTo?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface ControlListResult {
@@ -1330,6 +1339,8 @@ export interface CheckpointListQuery {
   reviewPeriod?: string;
   frameworkId?: string;
   policyId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface CheckpointListResult {
@@ -1623,6 +1634,9 @@ export interface EvidenceListQuery {
   departmentId?: string;
   expiresBefore?: string;
   expiresAfter?: string;
+  expiringSoon?: boolean;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface EvidenceListResult {
@@ -1782,6 +1796,9 @@ export interface GapListQuery {
   severity?: GapSeverity;
   status?: GapStatus;
   overdue?: boolean;
+  ownerId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface GapListResult {
@@ -1869,6 +1886,9 @@ export interface CapaListQuery {
   priority?: CapaPriority;
   gapId?: string;
   overdue?: boolean;
+  ownerId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface CapaListResult {

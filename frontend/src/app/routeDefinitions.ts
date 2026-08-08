@@ -132,6 +132,19 @@ const navigationRouteDefinitions: RouteDefinition[] = [
   ),
 
   live(
+    "/my-work",
+    "#my-work",
+    "My work",
+    "Overview",
+    "Your open gaps, CAPAs, risks, evidence review and KPI approvals.",
+    ListChecks,
+    {
+      permission: "dashboard:read",
+      api: "GET /gaps · GET /capas · GET /risks · GET /evidence/review-queue · GET /kpi-actuals",
+    },
+  ),
+
+  live(
     "/admin/companies",
     "#admin/companies",
     "Companies",
@@ -764,6 +777,7 @@ const groups: Array<[string, string, LucideIcon]> = [
 
 export const clientNavigationPaths = new Set([
   "/dashboard",
+  "/my-work",
   "/admin/companies",
   "/admin/users",
   "/admin/roles",
@@ -845,6 +859,7 @@ export const accountRouteDefinitions: RouteDefinition[] = [
 export const migratedPaths = new Set([
   "/account/change-password",
   "/dashboard",
+  "/my-work",
   "/admin/companies",
   "/admin/users",
   "/admin/roles",
