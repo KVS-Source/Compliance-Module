@@ -178,14 +178,12 @@ async function seedAccess(
         status: "ACTIVE",
       },
     });
-    if (definition.roleCode !== "COMPANY_ADMIN") {
-      await db.rolePermission.deleteMany({
-        where: {
-          roleId: role.id,
-          permission: { code: { notIn: [...definition.permissions] } },
-        },
-      });
-    }
+    await db.rolePermission.deleteMany({
+      where: {
+        roleId: role.id,
+        permission: { code: { notIn: [...definition.permissions] } },
+      },
+    });
     for (const permissionCode of definition.permissions) {
       const permissionId = permissionIds.get(permissionCode);
       if (permissionId === undefined) {
@@ -692,9 +690,9 @@ async function seedKpiWorkflow(
   locations: ReadonlyMap<string, string>,
   users: ReadonlyMap<string, { id: string; email: string }>,
 ) {
-  const ownerId = users.get("KPI_OWNER")?.id;
-  const approverId = users.get("KPI_APPROVER")?.id;
-  const riskManagerId = users.get("RISK_MANAGER")?.id;
+  const ownerId = users.get("DEPARTMENT_OWNER")?.id;
+  const approverId = users.get("REVIEWER_APPROVER")?.id;
+  const riskManagerId = users.get("COMPLIANCE_MANAGER")?.id;
   const locationId = locations.get("DEMO-LOC-001");
   if (
     ownerId === undefined ||
@@ -889,7 +887,7 @@ async function main() {
   const users = await seedAccess(tenant.id, organisation.departments);
   await seedFrameworks();
   const governanceOwnerId = users.get("COMPLIANCE_MANAGER")?.id;
-  const governanceApproverId = users.get("KPI_APPROVER")?.id;
+  const governanceApproverId = users.get("REVIEWER_APPROVER")?.id;
   const governanceDepartmentId =
     organisation.departments.get("DEMO-DEP-001");
   if (

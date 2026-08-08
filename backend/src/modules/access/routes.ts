@@ -1,23 +1,35 @@
 import { Router, type Request, type Response } from "express";
-import type { PrismaClient } from "@prisma/client";
-import { asyncHandler, permit } from "../../common/middleware/http.js";
+import type { Prisma, PrismaClient } from "@prisma/client";
+import { z } from "zod";
+import { AppError, notFound } from "../../common/errors/app-error.js";
+import {
+  asyncHandler,
+  permit,
+  validate,
+} from "../../common/middleware/http.js";
 import { ok } from "../../common/responses/envelope.js";
 import {
   PRODUCTION_ACCESS_PROFILES,
   PRODUCTION_PERMISSIONS,
+  isProductionRoleCode,
 } from "../../production/access-profile.js";
+import { RoleAssignmentService } from "./role-assignment-service.js";
+
+const userParamsSchema = z.object({ userId: z.string().uuid() });
+const assignmentSchema = z.object({
+  roleCode: z.string().trim().min(1).max(64),
+});
 
 /**
- * Read-only Role & Access.
+ * Production-profile Role & Access.
  *
  * The production access profiles are the authority on what a role may do, so
- * this endpoint reports them rather than a mutable copy. There is deliberately
- * no write path: role mutation is not in this release, and an endpoint that
- * only pretended to save would be worse than its absence.
+ * the profile catalogue reports them rather than a mutable copy. Profile and
+ * permission mutation remain unavailable; the only write binds a user to one
+ * sanctioned profile and synchronises its Company-local Role row.
  *
- * The wildcard `*` permission is never published here. It exists for the
- * bootstrap fixture only and production readiness fails when it is assigned,
- * so listing it as an option would advertise a state the platform rejects.
+ * The wildcard `*` permission is never published or assignable here because
+ * production readiness rejects active assignments that hold it.
  */
 export class AccessProfileService {
   constructor(private readonly db: PrismaClient) {}
@@ -111,6 +123,152 @@ export class AccessProfileService {
       mutable: false,
     };
   }
+
+  async userRoles(userId: string, tenantId: string) {
+    const membership = await this.db.userCompany.findUnique({
+      where: { userId_tenantId: { userId, tenantId } },
+      select: { id: true },
+    });
+    if (!membership) throw notFound("User not found");
+
+    const assignments = await this.db.userRole.findMany({
+      where: { userId, tenantId },
+      include: {
+        role: { select: { id: true, code: true, name: true, status: true } },
+      },
+      orderBy: { assignedAt: "desc" },
+    });
+    return assignments.map((assignment) => ({
+      id: assignment.id,
+      userId: assignment.userId,
+      status: assignment.status,
+      assignedBy: assignment.assignedBy,
+      assignedAt: assignment.assignedAt,
+      role: assignment.role,
+    }));
+  }
+
+  async assignUserRole(
+    userId: string,
+    tenantId: string,
+    actorUserId: string,
+    roleCode: string,
+    context: { ip?: string; userAgent?: string },
+  ) {
+    if (userId === actorUserId) {
+      throw new AppError(
+        403,
+        "SELF_ROLE_ASSIGNMENT_FORBIDDEN",
+        "Users cannot assign their own Company role",
+      );
+    }
+    if (roleCode === "*" || !isProductionRoleCode(roleCode)) {
+      throw new AppError(
+        400,
+        "INVALID_ROLE_CODE",
+        "Role code must identify a sanctioned production access profile",
+      );
+    }
+
+    const profile = PRODUCTION_ACCESS_PROFILES[roleCode];
+    return this.db.$transaction(async (transaction) => {
+      const permissionIds = new Map<string, string>();
+      for (const [code, description] of PRODUCTION_PERMISSIONS) {
+        const permission = await transaction.permission.upsert({
+          where: { code },
+          update: { name: description },
+          create: { code, name: description },
+        });
+        permissionIds.set(code, permission.id);
+      }
+
+      const role = await transaction.role.upsert({
+        where: { tenantId_code: { tenantId, code: roleCode } },
+        update: {
+          name: profile.name,
+          description: profile.description,
+          status: "ACTIVE",
+        },
+        create: {
+          tenantId,
+          code: roleCode,
+          name: profile.name,
+          description: profile.description,
+          status: "ACTIVE",
+        },
+      });
+
+      await transaction.rolePermission.deleteMany({
+        where: {
+          roleId: role.id,
+          permission: { code: { notIn: [...profile.permissions] } },
+        },
+      });
+      for (const permissionCode of profile.permissions) {
+        const permissionId = permissionIds.get(permissionCode);
+        if (!permissionId) {
+          throw new Error(
+            `Permission catalogue is incomplete: ${permissionCode}`,
+          );
+        }
+        await transaction.rolePermission.upsert({
+          where: { roleId_permissionId: { roleId: role.id, permissionId } },
+          update: {},
+          create: { roleId: role.id, permissionId },
+        });
+      }
+
+      const disabled = await transaction.userRole.updateMany({
+        where: {
+          userId,
+          tenantId,
+          roleId: { not: role.id },
+          status: "ACTIVE",
+        },
+        data: { status: "DISABLED" },
+      });
+      const assignment = await new RoleAssignmentService(
+        transaction,
+      ).upsertActive({
+        userId,
+        roleId: role.id,
+        tenantId,
+        assignedBy: actorUserId,
+      });
+
+      await transaction.auditEvent.create({
+        data: {
+          tenantId,
+          userId: actorUserId,
+          action: "USER_ROLE_ASSIGN",
+          entityType: "USER",
+          entityId: userId,
+          metadata: {
+            assignmentId: assignment.id,
+            roleCode,
+            roleId: role.id,
+            disabledAssignmentCount: disabled.count,
+          } as Prisma.InputJsonValue,
+          ...(context.ip ? { ipAddress: context.ip } : {}),
+          ...(context.userAgent ? { userAgent: context.userAgent } : {}),
+        },
+      });
+
+      return {
+        id: assignment.id,
+        userId: assignment.userId,
+        status: assignment.status,
+        assignedBy: assignment.assignedBy,
+        assignedAt: assignment.assignedAt,
+        role: {
+          id: role.id,
+          code: role.code,
+          name: role.name,
+          status: role.status,
+        },
+      };
+    });
+  }
 }
 
 export const accessRoutes = (service: AccessProfileService) => {
@@ -121,6 +279,39 @@ export const accessRoutes = (service: AccessProfileService) => {
     asyncHandler(async (req: Request, res: Response) =>
       ok(res, await service.profiles(req.auth!.tenantId)),
     ),
+  );
+  router.get(
+    "/users/:userId/roles",
+    permit("users:read"),
+    validate(userParamsSchema, "params"),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.userRoles(String(req.params.userId), req.auth!.tenantId),
+      ),
+    ),
+  );
+  router.put(
+    "/users/:userId/roles",
+    permit("roles:assign"),
+    validate(userParamsSchema, "params"),
+    validate(assignmentSchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const userAgent = req.get("user-agent");
+      return ok(
+        res,
+        await service.assignUserRole(
+          String(req.params.userId),
+          req.auth!.tenantId,
+          req.auth!.userId,
+          String(req.body.roleCode),
+          {
+            ...(req.ip ? { ip: req.ip } : {}),
+            ...(userAgent ? { userAgent } : {}),
+          },
+        ),
+      );
+    }),
   );
   return router;
 };

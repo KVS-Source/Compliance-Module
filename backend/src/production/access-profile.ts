@@ -2,6 +2,7 @@ export const PRODUCTION_PERMISSIONS = [
   ["tenants:read", "Read Companies"],
   ["users:read", "Read Company users"],
   ["users:write", "Create and update Company users"],
+  ["roles:assign", "Assign sanctioned roles to Company users"],
   ["organisation:read", "Read organisation master data"],
   ["departments:write", "Create and update Company departments"],
   ["locations:write", "Create and update Company locations"],
@@ -69,7 +70,9 @@ export const PRODUCTION_ACCESS_PROFILES = {
   COMPLIANCE_MANAGER: {
     name: "Compliance Manager",
     description: "Compliance configuration, workflow and reporting permissions",
-    permissions: all.filter((code) => code !== "users:write"),
+    permissions: all.filter(
+      (code) => code !== "users:write" && code !== "roles:assign",
+    ),
   },
   DEPARTMENT_OWNER: {
     name: "Department Owner",

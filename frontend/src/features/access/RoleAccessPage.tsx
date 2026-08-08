@@ -9,12 +9,12 @@ import { useApiResource } from "../../hooks/useApiResource";
 import { accessApi } from "../../services/submissionApi";
 
 /**
- * Role & Access, read-only.
+ * Role & Access profile matrix, read-only.
  *
  * The production access profiles are the authority on what each role may do,
- * and this release has no role-mutation API. Rather than render disabled
- * buttons that imply a missing feature, the page states plainly that the
- * matrix is read-only and where changes are made instead.
+ * and cannot be edited here. Sanctioned profile assignments are managed from
+ * `frontend/src/features/users/UsersPage.tsx` without making this catalogue
+ * mutable.
  */
 export function RoleAccessPage() {
   const { user } = useAuth();
@@ -28,7 +28,9 @@ export function RoleAccessPage() {
 
   const modules = useMemo(
     () =>
-      [...new Set((data?.permissions ?? []).map((entry) => entry.module))].sort(),
+      [
+        ...new Set((data?.permissions ?? []).map((entry) => entry.module)),
+      ].sort(),
     [data],
   );
   const permissions = useMemo(
@@ -58,7 +60,10 @@ export function RoleAccessPage() {
         <ErrorState error={resource.error} />
       ) : data ? (
         <>
-          <section className="card information-card" data-testid="role-access-readonly">
+          <section
+            className="card information-card"
+            data-testid="role-access-readonly"
+          >
             <span className="feature-icon tone-blue">
               <Lock size={19} />
             </span>

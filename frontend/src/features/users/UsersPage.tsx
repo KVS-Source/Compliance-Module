@@ -23,6 +23,7 @@ export function UsersPage() {
   const { contextVersion } = useTenant();
   const { showToast } = useToast();
   const canWrite = hasPermission("users:write");
+  const canAssignRole = hasPermission("roles:assign");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All Statuses");
   const [listVersion, setListVersion] = useState(0);
@@ -77,8 +78,7 @@ export function UsersPage() {
     {
       key: "roles",
       label: "Role",
-      render: (row) =>
-        row.roles.map(roleName).join(" · ") || "Company User",
+      render: (row) => row.roles.map(roleName).join(" · ") || "Company User",
     },
     {
       key: "status",
@@ -257,6 +257,7 @@ export function UsersPage() {
         <UserFormModal
           mode={editor.mode}
           user={editor.mode === "edit" ? editor.user : null}
+          canAssignRole={canAssignRole}
           onClose={() => setEditor(null)}
           onSaved={(saved) => {
             setEditor(null);

@@ -894,6 +894,71 @@ export const openApiDocument = {
         },
       },
     },
+    "/access/profiles": {
+      get: {
+        summary: "List sanctioned production access profiles",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Immutable production access profile matrix" },
+          "403": { description: "Missing users:read permission" },
+        },
+      },
+    },
+    "/access/users/{userId}/roles": {
+      get: {
+        summary: "List active and disabled Company role assignments for a user",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "userId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Company-scoped role assignments" },
+          "403": { description: "Missing users:read permission" },
+          "404": { description: "User not in active Company context" },
+        },
+      },
+      put: {
+        summary: "Assign one sanctioned production profile to a Company user",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "userId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["roleCode"],
+                properties: { roleCode: { type: "string" } },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Role assigned and audit event written" },
+          "400": { description: "Wildcard or non-profile role code" },
+          "403": {
+            description:
+              "Missing roles:assign permission or attempted self-assignment",
+          },
+          "409": {
+            description: "Inactive membership or cross-Company role assignment",
+          },
+        },
+      },
+    },
     "/organisation/departments": {
       get: {
         summary: "List departments",

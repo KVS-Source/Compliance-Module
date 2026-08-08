@@ -1,6 +1,11 @@
 import type { PrismaClient } from "@prisma/client";
 import { AppError } from "../../common/errors/app-error.js";
 
+type RoleAssignmentDatabase = Pick<
+  PrismaClient,
+  "userCompany" | "role" | "userRole"
+>;
+
 interface ActiveRoleAssignmentInput {
   userId: string;
   roleId: string;
@@ -9,7 +14,7 @@ interface ActiveRoleAssignmentInput {
 }
 
 export class RoleAssignmentService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: RoleAssignmentDatabase) {}
 
   async upsertActive({
     userId,
