@@ -16,6 +16,8 @@ import {
   DEMO_KPIS,
   DEMO_LOCATIONS,
   DEMO_PERMISSIONS,
+  DEMO_RISK_MANAGER_CODE,
+  DEMO_ROLES,
   DEMO_TENANT,
   DEMO_UNITS,
   DEMO_USERS,
@@ -23,7 +25,10 @@ import {
   type DemoRiskScenario,
 } from "./demo-seed-data.js";
 import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
-import { seedGovernanceFoundation } from "./governance-seed.js";
+import {
+  seedDemoGovernanceShowcase,
+  seedGovernanceFoundation,
+} from "./governance-seed.js";
 
 const { password } = assertDemoSeedExecutionAllowed();
 const db = new PrismaClient();
@@ -68,15 +73,15 @@ const conflict = (message: string): never => {
 
 async function seedOrganisation(tenantId: string) {
   const departments = new Map<string, string>();
-  for (const [code, name] of DEMO_DEPARTMENTS) {
+  for (const [code, name, headName] of DEMO_DEPARTMENTS) {
     const row = await db.orgDepartment.upsert({
       where: { tenantId_code: { tenantId, code } },
-      update: { name, headName: null, status: "ACTIVE" },
+      update: { name, headName, status: "ACTIVE" },
       create: {
         tenantId,
         code,
         name,
-        headName: null,
+        headName,
         status: "ACTIVE",
       },
     });
@@ -119,62 +124,22 @@ async function seedAccess(
     permissionIds.set(code, permission.id);
   }
 
-  const passwordHash = await argon2.hash(password);
-  const users = new Map<string, { id: string; email: string }>();
-  for (const definition of DEMO_USERS) {
-    const departmentId = departments.get(definition.departmentCode);
-    if (departmentId === undefined) {
-      throw new Error(
-        `Demo seed conflict: missing ${definition.departmentCode}`,
-      );
-    }
-    const user = await db.user.upsert({
-      where: { email: definition.email },
-      update: {
-        code: definition.code,
-        fullName: definition.name,
-        phone: null,
-        passwordHash,
-        status: "ACTIVE",
-        defaultTenantId: tenantId,
-        failedLoginCount: 0,
-        lockedUntil: null,
-      },
-      create: {
-        code: definition.code,
-        email: definition.email,
-        fullName: definition.name,
-        phone: null,
-        passwordHash,
-        status: "ACTIVE",
-        defaultTenantId: tenantId,
-      },
-    });
-    await db.userCompany.upsert({
-      where: { userId_tenantId: { userId: user.id, tenantId } },
-      update: { departmentId, status: "ACTIVE" },
-      create: {
-        userId: user.id,
-        tenantId,
-        departmentId,
-        status: "ACTIVE",
-      },
-    });
-
+  const roleIds = new Map<string, string>();
+  for (const definition of DEMO_ROLES) {
     const role = await db.role.upsert({
       where: {
-        tenantId_code: { tenantId, code: definition.roleCode },
+        tenantId_code: { tenantId, code: definition.code },
       },
       update: {
-        name: definition.roleName,
-        description: "Synthetic UAT demonstration role",
+        name: definition.name,
+        description: definition.description,
         status: "ACTIVE",
       },
       create: {
         tenantId,
-        code: definition.roleCode,
-        name: definition.roleName,
-        description: "Synthetic UAT demonstration role",
+        code: definition.code,
+        name: definition.name,
+        description: definition.description,
         status: "ACTIVE",
       },
     });
@@ -202,24 +167,89 @@ async function seedAccess(
         create: { roleId: role.id, permissionId },
       });
     }
+    roleIds.set(definition.code, role.id);
+  }
+
+  const passwordHash = await argon2.hash(password);
+  const seededAt = Date.now();
+  const users = new Map<string, { id: string; email: string }>();
+  const byCode = new Map<string, string>();
+  for (const definition of DEMO_USERS) {
+    const departmentId = departments.get(definition.departmentCode);
+    if (departmentId === undefined) {
+      throw new Error(
+        `Demo seed conflict: missing ${definition.departmentCode}`,
+      );
+    }
+    const roleId = roleIds.get(definition.roleCode);
+    if (roleId === undefined) {
+      throw new Error(
+        `Demo seed conflict: missing role ${definition.roleCode}`,
+      );
+    }
+    const lastLoginAt = new Date(
+      seededAt - definition.lastLoginMinutesAgo * 60_000,
+    );
+    // Keyed on the business code, not the address: a workspace seeded before
+    // the roster gained person-based mailboxes then migrates in place instead
+    // of colliding on the unique code with a second row.
+    const user = await db.user.upsert({
+      where: { code: definition.code },
+      update: {
+        email: definition.email,
+        fullName: definition.name,
+        phone: definition.phone,
+        passwordHash,
+        status: "ACTIVE",
+        defaultTenantId: tenantId,
+        failedLoginCount: 0,
+        lockedUntil: null,
+        lastLoginAt,
+      },
+      create: {
+        code: definition.code,
+        email: definition.email,
+        fullName: definition.name,
+        phone: definition.phone,
+        passwordHash,
+        status: "ACTIVE",
+        defaultTenantId: tenantId,
+        lastLoginAt,
+      },
+    });
+    await db.userCompany.upsert({
+      where: { userId_tenantId: { userId: user.id, tenantId } },
+      update: { departmentId, status: "ACTIVE" },
+      create: {
+        userId: user.id,
+        tenantId,
+        departmentId,
+        status: "ACTIVE",
+      },
+    });
+
     await db.userRole.updateMany({
       where: {
         userId: user.id,
         tenantId,
-        roleId: { not: role.id },
+        roleId: { not: roleId },
         status: "ACTIVE",
       },
       data: { status: "DISABLED" },
     });
     await roleAssignments.upsertActive({
       userId: user.id,
-      roleId: role.id,
+      roleId,
       tenantId,
       assignedBy: user.id,
     });
-    users.set(definition.roleCode, { id: user.id, email: user.email });
+    // First holder of a role code is the fallback actor for workflow seeding.
+    if (!users.has(definition.roleCode)) {
+      users.set(definition.roleCode, { id: user.id, email: user.email });
+    }
+    byCode.set(definition.code, user.id);
   }
-  return users;
+  return { roles: users, byCode };
 }
 
 async function seedFrameworks() {
@@ -688,11 +718,20 @@ async function seedKpiWorkflow(
   departments: ReadonlyMap<string, string>,
   units: ReadonlyMap<string, string>,
   locations: ReadonlyMap<string, string>,
-  users: ReadonlyMap<string, { id: string; email: string }>,
+  access: {
+    roles: ReadonlyMap<string, { id: string; email: string }>;
+    byCode: ReadonlyMap<string, string>;
+  },
 ) {
-  const ownerId = users.get("DEPARTMENT_OWNER")?.id;
-  const approverId = users.get("REVIEWER_APPROVER")?.id;
-  const riskManagerId = users.get("COMPLIANCE_MANAGER")?.id;
+  const ownerId = access.roles.get("DEPARTMENT_OWNER")?.id;
+  const approverId = access.roles.get("REVIEWER_APPROVER")?.id;
+  /**
+   * Named rather than resolved from a role code. Three people now hold
+   * COMPLIANCE_MANAGER, so "first holder of the role" is ambiguous and would
+   * silently move risk ownership whenever the roster is reordered — which a
+   * workspace seeded earlier then rejects at `ensureOwner`.
+   */
+  const riskManagerId = access.byCode.get(DEMO_RISK_MANAGER_CODE);
   const locationId = locations.get("DEMO-LOC-001");
   if (
     ownerId === undefined ||
@@ -705,7 +744,37 @@ async function seedKpiWorkflow(
     );
   }
 
+  /**
+   * A KPI is owned and approved inside its own department wherever that
+   * department has somebody in the role, and falls back to the central role
+   * holder where it does not. That spreads the catalogue across the roster the
+   * way a live workspace does instead of parking every record on one person.
+   */
+  const actorFor = (
+    roleCode: string,
+    departmentCode: string,
+    fallbackId: string,
+  ) => {
+    const match = DEMO_USERS.find(
+      (user) =>
+        user.roleCode === roleCode && user.departmentCode === departmentCode,
+    );
+    return match === undefined
+      ? fallbackId
+      : (access.byCode.get(match.code) ?? fallbackId);
+  };
+
   for (const kpi of DEMO_KPIS) {
+    const kpiOwnerId = actorFor(
+      "DEPARTMENT_OWNER",
+      kpi.departmentCode,
+      ownerId,
+    );
+    const kpiApproverId = actorFor(
+      "REVIEWER_APPROVER",
+      kpi.departmentCode,
+      approverId,
+    );
     const departmentId = departments.get(kpi.departmentCode);
     const unitId = units.get(kpi.unitCode);
     if (departmentId === undefined || unitId === undefined) {
@@ -737,8 +806,8 @@ async function seedKpiWorkflow(
       tenantId,
       kpi,
       definition.id,
-      ownerId,
-      approverId,
+      kpiOwnerId,
+      kpiApproverId,
       departmentId,
       unitId,
       locationId,
@@ -747,24 +816,24 @@ async function seedKpiWorkflow(
       tenantId,
       kpi,
       configuration.id,
-      ownerId,
-      approverId,
+      kpiOwnerId,
+      kpiApproverId,
     );
     const actual = await ensureActual(
       tenantId,
       kpi,
       configuration.id,
       target.id,
-      ownerId,
-      approverId,
+      kpiOwnerId,
+      kpiApproverId,
     );
     if (kpi.code === "DEMO-KPI-001" || kpi.code === "DEMO-KPI-003") {
       await ensureApprovedTarget(
         tenantId,
         kpi,
         configuration.id,
-        ownerId,
-        approverId,
+        kpiOwnerId,
+        kpiApproverId,
         uatEntryPeriod,
         `${kpi.code.replace("DEMO-KPI-", "DEMO-KTG-")}-Q4`,
       );
@@ -822,6 +891,11 @@ async function counts(tenantId: string) {
     controlPolicyVersions,
     checkpoints,
     checkpointReviews,
+    evidence,
+    gaps,
+    capas,
+    operationalRegisterTypes,
+    operationalRegisterRecords,
   ] = await Promise.all([
     db.userCompany.count({ where: { tenantId, status: "ACTIVE" } }),
     db.orgDepartment.count({ where: { tenantId, status: "ACTIVE" } }),
@@ -841,6 +915,13 @@ async function counts(tenantId: string) {
     db.controlPolicyVersion.count({ where: { tenantId } }),
     db.checkpoint.count({ where: { tenantId } }),
     db.checkpointReview.count({ where: { tenantId } }),
+    db.evidence.count({ where: { tenantId } }),
+    db.gap.count({ where: { tenantId, deletedAt: null } }),
+    db.capa.count({ where: { tenantId, deletedAt: null } }),
+    db.operationalRegisterType.count({ where: { tenantId } }),
+    db.operationalRegisterRecord.count({
+      where: { tenantId, deletedAt: null },
+    }),
   ]);
   return {
     tenants: 1,
@@ -862,6 +943,11 @@ async function counts(tenantId: string) {
     controlPolicyVersions,
     checkpoints,
     checkpointReviews,
+    evidence,
+    gaps,
+    capas,
+    operationalRegisterTypes,
+    operationalRegisterRecords,
   };
 }
 
@@ -884,18 +970,19 @@ async function main() {
     },
   });
   const organisation = await seedOrganisation(tenant.id);
-  const users = await seedAccess(tenant.id, organisation.departments);
+  const access = await seedAccess(tenant.id, organisation.departments);
   await seedFrameworks();
-  const governanceOwnerId = users.get("COMPLIANCE_MANAGER")?.id;
-  const governanceApproverId = users.get("REVIEWER_APPROVER")?.id;
-  const governanceDepartmentId =
-    organisation.departments.get("DEMO-DEP-001");
+  const governanceOwnerId = access.roles.get("COMPLIANCE_MANAGER")?.id;
+  const governanceApproverId = access.roles.get("REVIEWER_APPROVER")?.id;
+  const governanceDepartmentId = organisation.departments.get("DEMO-DEP-001");
   if (
     governanceOwnerId === undefined ||
     governanceApproverId === undefined ||
     governanceDepartmentId === undefined
   ) {
-    throw new Error("Demo seed conflict: governance actors or scope are missing");
+    throw new Error(
+      "Demo seed conflict: governance actors or scope are missing",
+    );
   }
   const governanceFramework = await db.framework.findUniqueOrThrow({
     where: {
@@ -924,13 +1011,27 @@ async function main() {
     organisation.departments,
     organisation.units,
     organisation.locations,
-    users,
+    access,
   );
+  await seedDemoGovernanceShowcase(db, {
+    tenantId: tenant.id,
+    actors: DEMO_USERS.map((user) => {
+      const userId = access.byCode.get(user.code);
+      const departmentId = organisation.departments.get(user.departmentCode);
+      if (!userId || !departmentId) {
+        throw new Error(
+          `Demo seed conflict: showcase actor ${user.code} is incomplete`,
+        );
+      }
+      return { userId, departmentId };
+    }),
+  });
   console.log("Deterministic UAT demo seed complete");
   console.log(JSON.stringify(await counts(tenant.id), null, 2));
-  console.log(
-    `Login identities: ${DEMO_USERS.map(({ email }) => email).join(", ")}`,
-  );
+  console.log("Login identities:");
+  for (const { name, email, roleCode } of DEMO_USERS) {
+    console.log(`  ${name} <${email}> — ${roleCode}`);
+  }
   console.log(
     "Passwords are not printed; use the runtime DEMO_SEED_PASSWORD value.",
   );

@@ -61,61 +61,156 @@ export const DEMO_PERMISSIONS = [
   ["exports:read", "Export Company records as CSV"],
 ] as const;
 
+/**
+ * Roles are declared once, separately from the people who hold them, so that
+ * several demo users can share a role without the seed re-deriving a different
+ * permission set per person.
+ */
+export const DEMO_ROLES = [
+  {
+    code: "CLIENT_COMPANY_ADMINISTRATOR",
+    ...PRODUCTION_ACCESS_PROFILES.CLIENT_COMPANY_ADMINISTRATOR,
+  },
+  {
+    code: "COMPLIANCE_MANAGER",
+    ...PRODUCTION_ACCESS_PROFILES.COMPLIANCE_MANAGER,
+  },
+  {
+    code: "DEPARTMENT_OWNER",
+    ...PRODUCTION_ACCESS_PROFILES.DEPARTMENT_OWNER,
+  },
+  {
+    code: "REVIEWER_APPROVER",
+    ...PRODUCTION_ACCESS_PROFILES.REVIEWER_APPROVER,
+  },
+  {
+    code: "MANAGEMENT_VIEWER",
+    ...PRODUCTION_ACCESS_PROFILES.MANAGEMENT_VIEWER,
+  },
+] as const;
+
+/**
+ * Invented personas for the demo workspace. The names are fictional and every
+ * address stays on the non-routable `.test` domain, so no real customer or
+ * employee identity enters the repository.
+ *
+ * `lastLoginMinutesAgo` is applied relative to seed time. A freshly seeded
+ * workspace therefore opens on a roster that has been signing in all week
+ * rather than one that has never been touched.
+ *
+ * The first user carrying each role code is the one the KPI and governance
+ * workflows attribute their records to. Risk ownership is named explicitly by
+ * `DEMO_RISK_MANAGER_CODE` below, because several people share
+ * `COMPLIANCE_MANAGER` and "first holder" would move with roster order.
+ */
 export const DEMO_USERS = [
   {
     code: "DEMO-USR-001",
-    email: "demo-admin@example.test",
-    name: "User 001",
+    email: "aarav.deshmukh@example.test",
+    name: "Aarav Deshmukh",
+    phone: "+91 98765 40001",
     roleCode: "CLIENT_COMPANY_ADMINISTRATOR",
-    roleName: PRODUCTION_ACCESS_PROFILES.CLIENT_COMPANY_ADMINISTRATOR.name,
-    permissions:
-      PRODUCTION_ACCESS_PROFILES.CLIENT_COMPANY_ADMINISTRATOR.permissions,
     departmentCode: "DEMO-DEP-001",
+    lastLoginMinutesAgo: 35,
   },
   {
     code: "DEMO-USR-002",
-    email: "demo-compliance@example.test",
-    name: "User 002",
+    email: "priya.nair@example.test",
+    name: "Priya Nair",
+    phone: "+91 98765 40002",
     roleCode: "COMPLIANCE_MANAGER",
-    roleName: PRODUCTION_ACCESS_PROFILES.COMPLIANCE_MANAGER.name,
-    permissions: PRODUCTION_ACCESS_PROFILES.COMPLIANCE_MANAGER.permissions,
     departmentCode: "DEMO-DEP-001",
+    lastLoginMinutesAgo: 95,
   },
   {
     code: "DEMO-USR-003",
-    email: "demo-kpi-owner@example.test",
-    name: "User 003",
+    email: "rohan.iyer@example.test",
+    name: "Rohan Iyer",
+    phone: "+91 98765 40003",
     roleCode: "DEPARTMENT_OWNER",
-    roleName: PRODUCTION_ACCESS_PROFILES.DEPARTMENT_OWNER.name,
-    permissions: PRODUCTION_ACCESS_PROFILES.DEPARTMENT_OWNER.permissions,
     departmentCode: "DEMO-DEP-002",
+    lastLoginMinutesAgo: 210,
   },
   {
     code: "DEMO-USR-004",
-    email: "demo-kpi-approver@example.test",
-    name: "User 004",
+    email: "ananya.verma@example.test",
+    name: "Ananya Verma",
+    phone: "+91 98765 40004",
     roleCode: "REVIEWER_APPROVER",
-    roleName: PRODUCTION_ACCESS_PROFILES.REVIEWER_APPROVER.name,
-    permissions: PRODUCTION_ACCESS_PROFILES.REVIEWER_APPROVER.permissions,
     departmentCode: "DEMO-DEP-001",
+    lastLoginMinutesAgo: 400,
   },
   {
     code: "DEMO-USR-005",
-    email: "demo-risk-manager@example.test",
-    name: "User 005",
+    email: "vikram.chandran@example.test",
+    name: "Vikram Chandran",
+    phone: "+91 98765 40005",
     roleCode: "COMPLIANCE_MANAGER",
-    roleName: PRODUCTION_ACCESS_PROFILES.COMPLIANCE_MANAGER.name,
-    permissions: PRODUCTION_ACCESS_PROFILES.COMPLIANCE_MANAGER.permissions,
     departmentCode: "DEMO-DEP-001",
+    lastLoginMinutesAgo: 1500,
   },
   {
     code: "DEMO-USR-006",
-    email: "demo-viewer@example.test",
-    name: "User 006",
+    email: "meera.joshi@example.test",
+    name: "Meera Joshi",
+    phone: "+91 98765 40006",
     roleCode: "MANAGEMENT_VIEWER",
-    roleName: PRODUCTION_ACCESS_PROFILES.MANAGEMENT_VIEWER.name,
-    permissions: PRODUCTION_ACCESS_PROFILES.MANAGEMENT_VIEWER.permissions,
     departmentCode: "DEMO-DEP-008",
+    lastLoginMinutesAgo: 2600,
+  },
+  {
+    code: "DEMO-USR-007",
+    email: "karthik.reddy@example.test",
+    name: "Karthik Reddy",
+    phone: "+91 98765 40007",
+    roleCode: "DEPARTMENT_OWNER",
+    departmentCode: "DEMO-DEP-007",
+    lastLoginMinutesAgo: 150,
+  },
+  {
+    code: "DEMO-USR-008",
+    email: "sneha.kulkarni@example.test",
+    name: "Sneha Kulkarni",
+    phone: "+91 98765 40008",
+    roleCode: "DEPARTMENT_OWNER",
+    departmentCode: "DEMO-DEP-003",
+    lastLoginMinutesAgo: 320,
+  },
+  {
+    code: "DEMO-USR-009",
+    email: "arjun.malhotra@example.test",
+    name: "Arjun Malhotra",
+    phone: "+91 98765 40009",
+    roleCode: "REVIEWER_APPROVER",
+    departmentCode: "DEMO-DEP-004",
+    lastLoginMinutesAgo: 1180,
+  },
+  {
+    code: "DEMO-USR-010",
+    email: "divya.rangarajan@example.test",
+    name: "Divya Rangarajan",
+    phone: "+91 98765 40010",
+    roleCode: "DEPARTMENT_OWNER",
+    departmentCode: "DEMO-DEP-006",
+    lastLoginMinutesAgo: 60,
+  },
+  {
+    code: "DEMO-USR-011",
+    email: "imran.shaikh@example.test",
+    name: "Imran Shaikh",
+    phone: "+91 98765 40011",
+    roleCode: "MANAGEMENT_VIEWER",
+    departmentCode: "DEMO-DEP-005",
+    lastLoginMinutesAgo: 4300,
+  },
+  {
+    code: "DEMO-USR-012",
+    email: "neha.bhattacharya@example.test",
+    name: "Neha Bhattacharya",
+    phone: "+91 98765 40012",
+    roleCode: "COMPLIANCE_MANAGER",
+    departmentCode: "DEMO-DEP-002",
+    lastLoginMinutesAgo: 700,
   },
 ] as const;
 
@@ -126,15 +221,23 @@ export const DEMO_UNITS = [
   ["DEMO-UNIT-004", "Digital Transformation"],
 ] as const;
 
+/**
+ * The persona who owns every demo risk. Held separate from the role lookup so
+ * that reordering or re-roling the roster never reassigns risks that a seeded
+ * workspace has already recorded.
+ */
+export const DEMO_RISK_MANAGER_CODE = "DEMO-USR-005";
+
+/** `[code, name, headName]` — heads are drawn from `DEMO_USERS` above. */
 export const DEMO_DEPARTMENTS = [
-  ["DEMO-DEP-001", "Compliance"],
-  ["DEMO-DEP-002", "Quality / QMS"],
-  ["DEMO-DEP-003", "Human Resources"],
-  ["DEMO-DEP-004", "Finance"],
-  ["DEMO-DEP-005", "Sales"],
-  ["DEMO-DEP-006", "Customer Support"],
-  ["DEMO-DEP-007", "Information Technology"],
-  ["DEMO-DEP-008", "Operations"],
+  ["DEMO-DEP-001", "Compliance", "Priya Nair"],
+  ["DEMO-DEP-002", "Quality / QMS", "Neha Bhattacharya"],
+  ["DEMO-DEP-003", "Human Resources", "Sneha Kulkarni"],
+  ["DEMO-DEP-004", "Finance", "Arjun Malhotra"],
+  ["DEMO-DEP-005", "Sales", "Imran Shaikh"],
+  ["DEMO-DEP-006", "Customer Support", "Divya Rangarajan"],
+  ["DEMO-DEP-007", "Information Technology", "Karthik Reddy"],
+  ["DEMO-DEP-008", "Operations", "Meera Joshi"],
 ] as const;
 
 export const DEMO_LOCATIONS = [
