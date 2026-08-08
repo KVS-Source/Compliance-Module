@@ -11,7 +11,7 @@ import {
   Search,
   ShieldAlert,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { routeDefinitions } from "../../app/routeDefinitions";
 import { useAuth } from "../../context/AuthContext";
@@ -28,7 +28,7 @@ const routeStatus = (status: ModuleStatus, label?: string) => {
 };
 
 export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { switching, switchCompany, contextVersion } = useTenant();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -42,6 +42,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const [notificationError, setNotificationError] = useState<string | null>(
     null,
   );
+  const [notificationVersion, setNotificationVersion] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
@@ -83,12 +84,12 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     setMobileSearchOpen(false);
     setNotificationsOpen(false);
     setNotificationSummary(null);
+    setNotificationLoading(false);
     setNotificationError(null);
     setProfileOpen(false);
   }, [contextVersion]);
 
-  useEffect(() => {
-    if (!notificationsOpen) return;
+  const loadNotificationSummary = useCallback(() => {
     let active = true;
     setNotificationLoading(true);
     setNotificationError(null);
@@ -113,7 +114,18 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     return () => {
       active = false;
     };
-  }, [contextVersion, notificationsOpen, user?.activeCompany.id]);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.activeCompany.id || !hasPermission("dashboard:read")) return;
+    return loadNotificationSummary();
+  }, [
+    contextVersion,
+    hasPermission,
+    loadNotificationSummary,
+    notificationVersion,
+    user?.activeCompany.id,
+  ]);
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -126,6 +138,69 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
       )
       .slice(0, 6);
   }, [search]);
+
+  const workQueue = useMemo(() => {
+    const queue = notificationSummary?.analytics?.actionQueue ?? [];
+    const supported = queue.filter((item) =>
+      ["kpi-approval", "gap-open", "capa-overdue"].includes(item.key),
+    );
+    const present = new Set(supported.map((item) => item.key));
+    if (
+      !present.has("kpi-approval") &&
+      (notificationSummary?.kpis?.pendingApprovals ?? 0) > 0
+    ) {
+      supported.push({
+        key: "kpi-approval",
+        label: "KPI actuals awaiting approval",
+        description: "Submitted KPI actuals with no approval decision.",
+        count: notificationSummary!.kpis!.pendingApprovals,
+        to: "/kpi/approval",
+        tone: "blue",
+      });
+    }
+    if (
+      !present.has("gap-open") &&
+      (notificationSummary?.gaps?.open ?? 0) > 0
+    ) {
+      supported.push({
+        key: "gap-open",
+        label: "Open Gaps",
+        description: "Compliance gaps still awaiting remediation.",
+        count: notificationSummary!.gaps!.open,
+        to: "/compliance/gaps",
+        tone: "amber",
+      });
+    }
+    if (
+      !present.has("capa-overdue") &&
+      (notificationSummary?.capas?.overdue ?? 0) > 0
+    ) {
+      supported.push({
+        key: "capa-overdue",
+        label: "Overdue CAPAs",
+        description: "Open corrective actions past their recorded due date.",
+        count: notificationSummary!.capas!.overdue,
+        to: "/compliance/capa",
+        tone: "red",
+      });
+    }
+    return supported.sort(
+      (left, right) =>
+        right.count - left.count || left.key.localeCompare(right.key),
+    );
+  }, [notificationSummary]);
+  const workQueueCount = workQueue.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
+  const hasVisibleWorkQueueSource = Boolean(
+    notificationSummary &&
+      [
+        notificationSummary.kpis,
+        notificationSummary.gaps,
+        notificationSummary.capas,
+      ].some((source) => source !== undefined && source !== null),
+  );
 
   const initials = (user?.name ?? "User")
     .split(/\s+/)
@@ -279,6 +354,9 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           aria-expanded={notificationsOpen}
           aria-controls="notification-summary"
           onClick={() => {
+            if (!notificationsOpen) {
+              setNotificationVersion((value) => value + 1);
+            }
             setNotificationsOpen((value) => !value);
             setMobileSearchOpen(false);
             setProfileOpen(false);
@@ -286,6 +364,11 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           }}
         >
           <Bell size={17} />
+          {!notificationLoading && notificationSummary ? (
+            <span className="counter" aria-hidden>
+              {workQueueCount > 99 ? "99+" : workQueueCount}
+            </span>
+          ) : null}
         </button>
         <div className="datetime">
           <span>{date}</span>
@@ -339,77 +422,84 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             role="dialog"
             aria-label="Notifications"
           >
-            <h3>Notification summary</h3>
+            <h3>Work queue</h3>
             {notificationLoading ? (
               <div className="notification-state" role="status">
                 <LoaderCircle className="spin" size={17} />
-                Loading live Company summary…
+                Loading live Company work queue…
               </div>
             ) : notificationError ? (
               <div className="notification-state state-error" role="alert">
                 <AlertTriangle size={17} />
                 {notificationError}
               </div>
-            ) : notificationSummary?.kpis || notificationSummary?.risks ? (
+            ) : workQueue.length > 0 ? (
               <div className="notification-summary">
-                {notificationSummary.kpis ? (
+                {workQueue.map((item) => (
                   <button
+                    key={item.key}
                     className="notification-item"
                     type="button"
-                    onClick={() => openRoute("/kpi/approval")}
+                    onClick={() => openRoute(item.to)}
                   >
-                    <ClipboardCheck size={18} />
+                    {item.key === "kpi-approval" ? (
+                      <ClipboardCheck size={18} />
+                    ) : item.key === "gap-open" ? (
+                      <ShieldAlert size={18} />
+                    ) : (
+                      <AlertTriangle size={18} />
+                    )}
                     <span>
                       <strong>
-                        {notificationSummary.kpis.pendingApprovals} pending KPI{" "}
-                        {notificationSummary.kpis.pendingApprovals === 1
-                          ? "approval"
-                          : "approvals"}
+                        {item.count}{" "}
+                        {item.count === 1
+                          ? item.key === "kpi-approval"
+                            ? "KPI actual awaiting approval"
+                            : item.key === "gap-open"
+                              ? "Open Gap"
+                              : "Overdue CAPA"
+                          : item.label}
                       </strong>
-                      <small>Open the database-backed KPI Approval queue</small>
+                      <small>{item.description}</small>
                     </span>
                   </button>
-                ) : null}
-                {notificationSummary.risks ? (
-                  <button
-                    className="notification-item"
-                    type="button"
-                    onClick={() => openRoute("/compliance/risks")}
-                  >
-                    <ShieldAlert size={18} />
-                    <span>
-                      <strong>
-                        {notificationSummary.risks.openRisks} open ·{" "}
-                        {notificationSummary.risks.majorRisks} major{" "}
-                        {notificationSummary.risks.majorRisks === 1
-                          ? "risk"
-                          : "risks"}
-                      </strong>
-                      <small>Open the database-backed Risk Register</small>
-                    </span>
-                  </button>
-                ) : null}
+                ))}
               </div>
             ) : (
               <p className="notification-empty">
-                No notification feed is configured for this UAT release.
+                {hasVisibleWorkQueueSource
+                  ? "No pending KPI approvals, open gaps, or overdue CAPAs."
+                  : "No work-queue sources are visible with your current permissions."}
               </p>
             )}
             <div className="notification-actions">
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => openRoute("/kpi/approval")}
-              >
-                KPI Approval
-              </button>
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => openRoute("/compliance/risks")}
-              >
-                Risk Register
-              </button>
+              {hasPermission("kpis:read") ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/kpi/approval")}
+                >
+                  KPI Approval
+                </button>
+              ) : null}
+              {hasPermission("gaps:read") ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/compliance/gaps")}
+                >
+                  Gap Register
+                </button>
+              ) : null}
+              {hasPermission("capa:read") ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/compliance/capa")}
+                >
+                  CAPA Register
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

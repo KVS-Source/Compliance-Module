@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Eye,
   Inbox,
+  Plus,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
+import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
 import { riskApi } from "../../services/riskApi";
 import type {
@@ -23,6 +25,7 @@ import type {
   RiskLifecycle,
   RiskStatus,
 } from "../../types/api";
+import { RiskCreateModal } from "./RiskCreateModal";
 
 const PAGE_SIZE = 20;
 
@@ -39,6 +42,7 @@ const named = (
 export function RiskRegisterPage() {
   const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [draftSearch, setDraftSearch] = useState("");
@@ -49,6 +53,7 @@ export function RiskRegisterPage() {
   const [generalLevel, setGeneralLevel] = useState<GeneralRiskLevel | "">("");
   const [page, setPage] = useState(1);
   const [listVersion, setListVersion] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     setDraftSearch("");
@@ -58,6 +63,7 @@ export function RiskRegisterPage() {
     setKpiRiskClass("");
     setGeneralLevel("");
     setPage(1);
+    setCreateOpen(false);
   }, [contextVersion, user?.activeCompany.id]);
 
   const resource = useApiResource(
@@ -118,10 +124,15 @@ export function RiskRegisterPage() {
       <PageHeader
         title="Risk Register"
         section="Compliance Management"
-        description="Company-scoped risks raised from KPI misses and enterprise assessment. Reads use risk:read only."
+        description="Company-scoped risks raised from KPI misses or recorded manually after enterprise assessment."
         connected
         actions={
           <>
+          {hasPermission("risk:write") ? (
+            <button className="btn btn-primary" type="button" onClick={() => setCreateOpen(true)}>
+              <Plus size={15} /> Add risk
+            </button>
+          ) : null}
           {hasPermission("exports:read") ? <CsvExportButton module="risks" /> : null}
           <button
             className="btn btn-secondary"
@@ -342,6 +353,27 @@ export function RiskRegisterPage() {
           </section>
         </>
       )}
+      {createOpen ? (
+        <RiskCreateModal
+          onClose={() => setCreateOpen(false)}
+          onSaved={(risk) => {
+            showToast(
+              "success",
+              "Risk created",
+              `${risk.code} was added to the Risk Register.`,
+            );
+            setCreateOpen(false);
+            setDraftSearch("");
+            setAppliedSearch("");
+            setLifecycle("active");
+            setStatus("");
+            setKpiRiskClass("");
+            setGeneralLevel("");
+            setPage(1);
+            setListVersion((value) => value + 1);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

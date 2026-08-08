@@ -49,6 +49,21 @@ const assessmentValue = z.coerce.number().int().min(1).max(5);
 const requiredText = (maximum: number) =>
   z.string().trim().min(1).max(maximum);
 
+/**
+ * Manual risks have no KPI linkage. Code and general level are deliberately
+ * absent: the server allocates the shared RSK sequence and derives the score.
+ */
+export const createManualRiskSchema = z
+  .object({
+    title: requiredText(300),
+    description: requiredText(5_000),
+    category: requiredText(200),
+    inherentLikelihood: assessmentValue,
+    inherentImpact: assessmentValue,
+    ownerId: z.string().uuid().nullable().optional(),
+  })
+  .strict();
+
 const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must use YYYY-MM-DD")
@@ -122,6 +137,7 @@ export const riskTreatmentParamsSchema = z.object({
 });
 
 export type CreateRiskReviewBody = z.infer<typeof createRiskReviewSchema>;
+export type CreateManualRiskBody = z.infer<typeof createManualRiskSchema>;
 export type CreateRiskTreatmentBody = z.infer<typeof createRiskTreatmentSchema>;
 export type CompleteRiskTreatmentBody = z.infer<
   typeof completeRiskTreatmentSchema

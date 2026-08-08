@@ -859,8 +859,9 @@ test("desktop header controls are truthful, close correctly and do not write", a
   await notificationButton.click();
   const notifications = page.getByRole("dialog", { name: "Notifications" });
   await expect(notifications).toBeVisible();
-  await expect(notifications).toContainText("1 pending KPI approval");
-  await expect(notifications).toContainText("1 open · 2 major risks");
+  await expect(notifications).toContainText("1 KPI actual awaiting approval");
+  await expect(notifications).toContainText("4 Open Gaps");
+  await expect(notificationButton.locator(".counter")).toHaveText("5");
   expect(undeclaredWrites).toEqual([]);
 
   await page.keyboard.press("Escape");
@@ -916,7 +917,7 @@ test("notification fallback is explicit when no supported summary is available",
   const notifications = page.getByRole("dialog", { name: "Notifications" });
   await expect(
     notifications.getByText(
-      "No notification feed is configured for this UAT release.",
+      "No work-queue sources are visible with your current permissions.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -924,7 +925,10 @@ test("notification fallback is explicit when no supported summary is available",
     notifications.getByRole("button", { name: "KPI Approval" }),
   ).toBeVisible();
   await expect(
-    notifications.getByRole("button", { name: "Risk Register" }),
+    notifications.getByRole("button", { name: "Gap Register" }),
+  ).toBeVisible();
+  await expect(
+    notifications.getByRole("button", { name: "CAPA Register" }),
   ).toBeVisible();
   expect(undeclaredWrites).toEqual([]);
 });

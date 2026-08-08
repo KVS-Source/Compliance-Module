@@ -219,6 +219,21 @@ async function installRiskMock(
       });
     }
 
+    if (path === "/api/v1/dashboard/summary" && method === "GET") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            kpis: null,
+            gaps: null,
+            capas: null,
+            analytics: { actionQueue: [] },
+          }),
+        ),
+      });
+    }
+
     if (path === "/api/v1/risks" && method === "GET") {
       listUrls.push(request.url());
       if (!canRead) {

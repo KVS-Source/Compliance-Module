@@ -385,12 +385,12 @@ test("Audit Trail lists and filters company events", async ({ page }) => {
   await expect(page.getByTestId("audit-trail-table")).toContainText("IMPORT");
 });
 
-test("Operational Registers selector, list, detail and read-only copy", async ({
+test("Operational Registers selector, list, detail and write control", async ({
   page,
 }) => {
   await installFinalMock(page);
   await page.goto("/compliance/operational-registers");
-  await expect(page.getByText(/read-only/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add record" })).toBeVisible();
   await expect(page.getByTestId("operational-registers-table")).toContainText(
     "AUD-001",
   );

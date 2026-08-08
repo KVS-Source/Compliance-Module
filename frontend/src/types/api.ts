@@ -779,6 +779,15 @@ export interface RiskDetail extends Risk {
   treatments: RiskTreatmentEntry[];
 }
 
+export interface CreateManualRiskInput {
+  title: string;
+  description: string;
+  category: string;
+  inherentLikelihood: number;
+  inherentImpact: number;
+  ownerId?: string | null;
+}
+
 export interface CreateRiskReviewInput {
   comments: string;
   likelihoodAtReview?: number | null;

@@ -1538,6 +1538,60 @@ export const openApiDocument = {
           "403": { description: "Missing risk:read permission" },
         },
       },
+      post: {
+        summary: "Create a manual Company risk",
+        description:
+          "Allocates the next code from the shared Company RSK sequence. " +
+          "Manual risks have null KPI actual, configuration, target and KPI risk class fields; " +
+          "generalLevel is derived from inherentLikelihood × inherentImpact.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "title",
+                  "description",
+                  "category",
+                  "inherentLikelihood",
+                  "inherentImpact",
+                ],
+                properties: {
+                  title: { type: "string", maxLength: 300 },
+                  description: { type: "string", maxLength: 5_000 },
+                  category: { type: "string", maxLength: 200 },
+                  inherentLikelihood: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 5,
+                  },
+                  inherentImpact: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 5,
+                  },
+                  ownerId: {
+                    type: "string",
+                    format: "uuid",
+                    nullable: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Manual risk created and audited" },
+          "400": {
+            description:
+              "Invalid input or owner not active in the current Company",
+          },
+          "403": { description: "Missing risk:write permission" },
+        },
+      },
     },
     "/risks/{id}": {
       get: {

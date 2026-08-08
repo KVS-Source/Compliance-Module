@@ -1,5 +1,6 @@
 import { apiRequest } from "./apiClient";
 import type {
+  CreateManualRiskInput,
   CreateRiskReviewInput,
   CreateRiskTreatmentInput,
   Risk,
@@ -37,6 +38,15 @@ export const riskApi = {
   async get(id: string) {
     return (await apiRequest<RiskDetail>(`/risks/${encodeURIComponent(id)}`))
       .data;
+  },
+
+  async create(input: CreateManualRiskInput) {
+    return (
+      await apiRequest<Risk>("/risks", {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+    ).data;
   },
 
   async recordReview(id: string, input: CreateRiskReviewInput) {

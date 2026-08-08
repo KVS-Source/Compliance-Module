@@ -52,8 +52,8 @@ describe("Risk review, treatment and closure Slice E", () => {
   };
 
   /**
-   * Creates a standalone risk directly. Slice E adds no risk-create route and
-   * must not change automatic creation, so fixtures are built in the database.
+   * Creates a standalone workflow fixture directly so each test can target a
+   * precise lifecycle state without consuming the Company risk sequence.
    */
   const seedRisk = async (
     tenantId: string,

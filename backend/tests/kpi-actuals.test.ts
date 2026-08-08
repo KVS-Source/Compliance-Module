@@ -223,6 +223,137 @@ describe("KPI actual submission and automatic risk creation Slice D", () => {
       .expect(403);
   });
 
+  it("creates manual risks from the shared RSK sequence without KPI linkage", async () => {
+    const admin = await loginAs("admin001@example.test", "Admin001!Secure");
+    const configuration = await createConfiguration(
+      admin.accessToken,
+      admin.user.id,
+    );
+    expect(configuration.status).toBe(201);
+    await createApprovedTarget(
+      admin.accessToken,
+      configuration.body.data.id,
+      "100",
+    );
+    const submitted = await submitActual(
+      admin.accessToken,
+      configuration.body.data.id,
+      "80",
+    ).expect(201);
+    const automaticRisk = await prisma.risk.findFirstOrThrow({
+      where: {
+        tenantId: admin.user.activeCompany.id,
+        kpiActualId: submitted.body.data.id as string,
+      },
+    });
+
+    const created = await request(app)
+      .post("/api/v1/risks")
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        title: "Manual review meeting risk",
+        description: "Risk identified during the quarterly review meeting.",
+        category: "Operations",
+        inherentLikelihood: 3,
+        inherentImpact: 3,
+        ownerId: admin.user.id,
+      })
+      .expect(201);
+
+    const automaticNumber = Number(automaticRisk.code.slice("RSK-".length));
+    expect(created.body.data).toMatchObject({
+      code: `RSK-${String(automaticNumber + 1).padStart(3, "0")}`,
+      title: "Manual review meeting risk",
+      category: "Operations",
+      kpiRiskClass: null,
+      generalLevel: "MEDIUM",
+      inherentLikelihood: 3,
+      inherentImpact: 3,
+      inherentScore: 9,
+      status: "OPEN",
+      source: { actual: null, configuration: null, target: null },
+      owner: { id: admin.user.id },
+    });
+
+    const stored = await prisma.risk.findUniqueOrThrow({
+      where: { id: created.body.data.id as string },
+    });
+    expect(stored.kpiActualId).toBeNull();
+    expect(stored.kpiConfigurationId).toBeNull();
+    expect(stored.kpiTargetId).toBeNull();
+    expect(stored.kpiRiskClass).toBeNull();
+    expect(
+      await prisma.risk.count({
+        where: {
+          tenantId: admin.user.activeCompany.id,
+          kpiActualId: submitted.body.data.id as string,
+        },
+      }),
+    ).toBe(1);
+
+    const audit = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        tenantId: admin.user.activeCompany.id,
+        entityId: stored.id,
+        action: "RISK_CREATED",
+      },
+    });
+    expect(audit.metadata).toEqual(
+      expect.objectContaining({
+        code: stored.code,
+        kpiActualId: null,
+        kpiRiskClass: null,
+        generalLevel: "MEDIUM",
+        automatic: false,
+      }),
+    );
+  });
+
+  it("requires risk:write and rejects an owner from another Company", async () => {
+    const [admin, regular, company002] = await Promise.all([
+      loginAs("admin001@example.test", "Admin001!Secure"),
+      loginAs("user001@example.test", "User001!Secure"),
+      prisma.tenant.findUniqueOrThrow({ where: { code: "COM-002" } }),
+    ]);
+    const input = {
+      title: "Manual permission test risk",
+      description: "Anonymized integration fixture.",
+      category: "Operations",
+      inherentLikelihood: 2,
+      inherentImpact: 4,
+    };
+
+    await request(app)
+      .post("/api/v1/risks")
+      .set("Authorization", `Bearer ${regular.accessToken}`)
+      .send(input)
+      .expect(403);
+
+    const foreignOwner = await prisma.user.create({
+      data: {
+        code: `USR-RISK-${randomUUID().slice(0, 8)}`,
+        email: `user-risk-${randomUUID()}@example.test`,
+        fullName: "User 098",
+        passwordHash: "not-used-in-this-test",
+        status: "ACTIVE",
+        memberships: {
+          create: { tenantId: company002.id, status: "ACTIVE" },
+        },
+      },
+    });
+    try {
+      const rejected = await request(app)
+        .post("/api/v1/risks")
+        .set("Authorization", `Bearer ${admin.accessToken}`)
+        .send({ ...input, ownerId: foreignOwner.id })
+        .expect(400);
+      expect(rejected.body.error.code).toBe("RELATED_RECORD_INVALID");
+      expect(rejected.body.error.message).not.toContain(company002.id);
+    } finally {
+      await prisma.user.delete({ where: { id: foreignOwner.id } });
+    }
+  });
+
   it("rejects body-derived identity, codes, calculations, approval fields and Risk fields", async () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const configuration = await createConfiguration(

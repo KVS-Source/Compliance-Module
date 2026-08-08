@@ -129,6 +129,14 @@ describe("Operational registers, dashboard and CSV export", () => {
       .send({ status: "Closed" })
       .expect(200);
     expect(updated.body.data.status).toBe("Closed");
+
+    await request(app)
+      .patch(
+        `/api/v1/operational-registers/${registerCode}/records/${recordId}`,
+      )
+      .set("Authorization", `Bearer ${readerToken}`)
+      .send({ status: "Reopened" })
+      .expect(403);
   });
 
   it("rejects a duplicate business code within one register", async () => {

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Eye, Inbox, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Inbox, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
@@ -7,14 +7,17 @@ import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
+import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
 import { registerApi, type RegisterRecord, type RegisterType } from "../../services/registerApi";
+import { RegisterRecordFormModal } from "./RegisterRecordFormModal";
 
 const PAGE_SIZE = 20;
 
 export function OperationalRegistersPage() {
   const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const { registerCode: routeCode } = useParams();
   const [registerCode, setRegisterCode] = useState(routeCode ?? "");
@@ -24,6 +27,8 @@ export function OperationalRegistersPage() {
   const [overdue, setOverdue] = useState(false);
   const [page, setPage] = useState(1);
   const [version, setVersion] = useState(0);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<RegisterRecord | null>(null);
 
   useEffect(() => {
     setDraftSearch("");
@@ -31,6 +36,8 @@ export function OperationalRegistersPage() {
     setStatus("");
     setOverdue(false);
     setPage(1);
+    setFormOpen(false);
+    setEditingRecord(null);
   }, [contextVersion, user?.activeCompany.id, registerCode]);
 
   useEffect(() => {
@@ -73,10 +80,22 @@ export function OperationalRegistersPage() {
       <PageHeader
         title="Operational Registers"
         section="Audit & Operations"
-        description="Company operational registers imported from approved workbooks. Records are read-only in this release unless a validated write path is configured."
+        description="Company operational registers imported from approved workbooks and maintained through the validated register record workflow."
         connected
         actions={
           <>
+            {hasPermission("registers:write") && selectedType ? (
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => {
+                  setEditingRecord(null);
+                  setFormOpen(true);
+                }}
+              >
+                <Plus size={15} /> Add record
+              </button>
+            ) : null}
             {hasPermission("exports:read") && registerCode ? (
               <CsvExportButton registerCode={registerCode} />
             ) : null}
@@ -174,6 +193,19 @@ export function OperationalRegistersPage() {
                         ) : "—"}
                       </td>
                       <td>
+                        {hasPermission("registers:write") ? (
+                          <button
+                            className="tiny-btn"
+                            type="button"
+                            aria-label={`Edit ${record.businessRecordCode}`}
+                            onClick={() => {
+                              setEditingRecord(record);
+                              setFormOpen(true);
+                            }}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        ) : null}
                         <button
                           className="tiny-btn"
                           type="button"
@@ -213,12 +245,46 @@ export function OperationalRegistersPage() {
                   <button className="btn btn-secondary" type="button" onClick={() => navigate(`/compliance/operational-registers/${registerCode}/records/${record.id}`)}>
                     <Eye size={15} /> View detail
                   </button>
+                  {hasPermission("registers:write") ? (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      aria-label={`Edit ${record.businessRecordCode}`}
+                      onClick={() => {
+                        setEditingRecord(record);
+                        setFormOpen(true);
+                      }}
+                    >
+                      <Pencil size={15} /> Edit record
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
           </section>
         </>
       )}
+      {formOpen && selectedType ? (
+        <RegisterRecordFormModal
+          register={selectedType}
+          record={editingRecord}
+          onClose={() => {
+            setFormOpen(false);
+            setEditingRecord(null);
+          }}
+          onSaved={(saved) => {
+            showToast(
+              "success",
+              editingRecord ? "Register record updated" : "Register record created",
+              `${saved.businessRecordCode} was saved in ${selectedType.name}.`,
+            );
+            setFormOpen(false);
+            setEditingRecord(null);
+            setPage(1);
+            setVersion((value) => value + 1);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
