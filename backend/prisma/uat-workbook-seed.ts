@@ -2,6 +2,10 @@ import "dotenv/config";
 import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
 import { RoleAssignmentService } from "../src/modules/access/role-assignment-service.js";
+import {
+  PRODUCTION_ACCESS_PROFILES,
+  PRODUCTION_PERMISSIONS,
+} from "../src/production/access-profile.js";
 import { DEMO_PERMISSIONS } from "./demo-seed-data.js";
 import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
 
@@ -35,23 +39,41 @@ export const GENBIOCA_TENANT = {
 } as const;
 
 /**
- * Three roles covering the demo's authorisation story: an administrator with
- * unrestricted access, a permission-limited Compliance Manager, and a
- * read-mostly Department User.
+ * Three controlled-validation roles: an administrator, a permission-limited
+ * Compliance Manager, and a read-mostly KPI Owner.
+ *
+ * The administrator holds the explicit `CLIENT_COMPANY_ADMINISTRATOR` profile
+ * rather than the `*` wildcard. The wildcard is refused by the production
+ * readiness probe in `src/routes/index.ts`, so seeding it here would leave the
+ * client workspace unable to report itself ready.
+ *
+ * The personas are invented and their addresses stay on the non-routable
+ * `.test` domain, so no real employee identity is embedded in source control
+ * or submission fixtures. The mailbox names are unchanged because they are the
+ * documented login identities and the `--actor` value for workbook imports.
+ *
+ * `lastLoginMinutesAgo` is applied relative to seed time so a freshly seeded
+ * workspace reads as one in active use rather than one never signed into.
  */
 const UAT_USERS = [
   {
     code: "GBC-UAT-001",
     email: "uat-admin@genbioca.test",
-    name: "UAT Administrator",
-    roleCode: "COMPANY_ADMIN",
-    roleName: "Company Administrator",
-    permissions: ["*"] as readonly string[],
+    name: "Rajesh Menon",
+    phone: "+91 98765 41001",
+    lastLoginMinutesAgo: 40,
+    roleCode: "CLIENT_COMPANY_ADMINISTRATOR",
+    roleName: PRODUCTION_ACCESS_PROFILES.CLIENT_COMPANY_ADMINISTRATOR.name,
+    permissions: [
+      ...PRODUCTION_ACCESS_PROFILES.CLIENT_COMPANY_ADMINISTRATOR.permissions,
+    ] as readonly string[],
   },
   {
     code: "GBC-UAT-002",
     email: "uat-compliance@genbioca.test",
-    name: "UAT Compliance Manager",
+    name: "Kavita Rao",
+    phone: "+91 98765 41002",
+    lastLoginMinutesAgo: 165,
     roleCode: "COMPLIANCE_MANAGER",
     roleName: "Compliance Manager",
     permissions: [
@@ -92,7 +114,9 @@ const UAT_USERS = [
   {
     code: "GBC-UAT-003",
     email: "uat-department@genbioca.test",
-    name: "UAT Department User",
+    name: "Siddharth Pillai",
+    phone: "+91 98765 41003",
+    lastLoginMinutesAgo: 610,
     roleCode: "DEPARTMENT_USER",
     roleName: "Department User",
     permissions: [
@@ -141,7 +165,13 @@ const main = async () => {
   });
 
   const permissionIds = new Map<string, string>();
-  for (const [code, name] of [...DEMO_PERMISSIONS, ...NEW_PERMISSIONS]) {
+  // PRODUCTION_PERMISSIONS is included so every code the administrator profile
+  // declares — `roles:assign` among them — exists before it is granted.
+  for (const [code, name] of [
+    ...DEMO_PERMISSIONS,
+    ...NEW_PERMISSIONS,
+    ...PRODUCTION_PERMISSIONS,
+  ]) {
     const permission = await db.permission.upsert({
       where: { code },
       update: { name },
@@ -151,25 +181,33 @@ const main = async () => {
   }
 
   const passwordHash = await argon2.hash(password);
+  const seededAt = Date.now();
   for (const definition of UAT_USERS) {
+    const lastLoginAt = new Date(
+      seededAt - definition.lastLoginMinutesAgo * 60_000,
+    );
     const user = await db.user.upsert({
       where: { email: definition.email },
       update: {
         code: definition.code,
         fullName: definition.name,
+        phone: definition.phone,
         passwordHash,
         status: "ACTIVE",
         defaultTenantId: tenant.id,
         failedLoginCount: 0,
         lockedUntil: null,
+        lastLoginAt,
       },
       create: {
         code: definition.code,
         email: definition.email,
         fullName: definition.name,
+        phone: definition.phone,
         passwordHash,
         status: "ACTIVE",
         defaultTenantId: tenant.id,
+        lastLoginAt,
       },
     });
     await db.userCompany.upsert({
@@ -184,14 +222,14 @@ const main = async () => {
       },
       update: {
         name: definition.roleName,
-        description: "Synthetic UAT role for the GenBioCa workbook demo",
+        description: "Controlled validation role for the GenBioCa workspace",
         status: "ACTIVE",
       },
       create: {
         tenantId: tenant.id,
         code: definition.roleCode,
         name: definition.roleName,
-        description: "Synthetic UAT role for the GenBioCa workbook demo",
+        description: "Controlled validation role for the GenBioCa workspace",
         status: "ACTIVE",
       },
     });
@@ -231,9 +269,10 @@ const main = async () => {
   }
 
   console.log(`Company ready: ${tenant.code} (${tenant.name})`);
-  console.log(
-    `Login identities: ${UAT_USERS.map((user) => user.email).join(", ")}`,
-  );
+  console.log("Login identities:");
+  for (const { name, email, roleName } of UAT_USERS) {
+    console.log(`  ${name} <${email}> — ${roleName}`);
+  }
   console.log(
     "Passwords are not printed; use the runtime DEMO_SEED_PASSWORD value.",
   );

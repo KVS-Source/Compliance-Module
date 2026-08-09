@@ -258,8 +258,49 @@ async function seedAccess(
  * controls and workbook-imported rules share one row per standard. Legacy
  * DEMO-FRM-* rows from earlier seeds are remapped and disabled.
  */
+/**
+ * The rule the showcase anchors its Controls, Gaps and CAPAs to.
+ *
+ * An imported framework already carries its real clauses — ISO 27001 has 116 —
+ * so the demo adopts the first of them rather than writing a synthetic rule
+ * into it. Frameworks are global rather than tenant-scoped, so a rule invented
+ * here would surface inside every Company that shares the framework, including
+ * one holding real client data.
+ *
+ * `DEMO-R1` is created only for a framework with no rules at all, which is the
+ * demo-only case where nothing has been imported.
+ */
+async function resolveAnchorRuleId(frameworkId: string) {
+  const existing = await db.frameworkRule.findFirst({
+    where: {
+      frameworkId,
+      status: "ACTIVE",
+      code: { not: DEMO_FRAMEWORK_RULE_CODE },
+    },
+    orderBy: { code: "asc" },
+  });
+  if (existing) return existing.id;
+
+  const fallback = await db.frameworkRule.upsert({
+    where: {
+      frameworkId_code: { frameworkId, code: DEMO_FRAMEWORK_RULE_CODE },
+    },
+    update: { status: "ACTIVE" },
+    create: {
+      frameworkId,
+      code: DEMO_FRAMEWORK_RULE_CODE,
+      title: "Demonstration compliance requirement",
+      description:
+        "Synthetic requirement for navigation and catalogue demonstration.",
+      status: "ACTIVE",
+    },
+  });
+  return fallback.id;
+}
+
 async function seedFrameworks() {
   const canonicalByName = new Map<string, string>();
+  const anchorRuleByFramework = new Map<string, string>();
 
   for (const [code, name, version] of DEMO_FRAMEWORKS) {
     // Prefer an existing ACTIVE row with this workbook code (any version) so a
@@ -288,28 +329,10 @@ async function seedFrameworks() {
       });
     }
 
-    await db.frameworkRule.upsert({
-      where: {
-        frameworkId_code: {
-          frameworkId: framework.id,
-          code: DEMO_FRAMEWORK_RULE_CODE,
-        },
-      },
-      update: {
-        title: "Demonstration compliance requirement",
-        description:
-          "Synthetic requirement for navigation and catalogue demonstration.",
-        status: "ACTIVE",
-      },
-      create: {
-        frameworkId: framework.id,
-        code: DEMO_FRAMEWORK_RULE_CODE,
-        title: "Demonstration compliance requirement",
-        description:
-          "Synthetic requirement for navigation and catalogue demonstration.",
-        status: "ACTIVE",
-      },
-    });
+    anchorRuleByFramework.set(
+      framework.id,
+      await resolveAnchorRuleId(framework.id),
+    );
     canonicalByName.set(name, framework.id);
     // Also index by code for remapping names that equal codes.
     canonicalByName.set(code, framework.id);
@@ -335,20 +358,12 @@ async function seedFrameworks() {
       // rows on the disabled DEMO-FRM id. Showcase re-maps draft/submitted
       // versions via PolicyService; approved lineage stays historical.
 
-      const targetRule = await db.frameworkRule.findUnique({
-        where: {
-          frameworkId_code: {
-            frameworkId: targetId,
-            code: DEMO_FRAMEWORK_RULE_CODE,
-          },
-        },
-      });
+      const targetRuleId =
+        anchorRuleByFramework.get(targetId) ??
+        (await resolveAnchorRuleId(targetId));
       await db.gap.updateMany({
         where: { frameworkId: old.id },
-        data: {
-          frameworkId: targetId,
-          ...(targetRule ? { frameworkRuleId: targetRule.id } : {}),
-        },
+        data: { frameworkId: targetId, frameworkRuleId: targetRuleId },
       });
       await db.capa.updateMany({
         where: { frameworkId: old.id },
@@ -384,21 +399,16 @@ async function seedFrameworks() {
     ) {
       continue;
     }
-    const targetRule = await db.frameworkRule.findUnique({
-      where: {
-        frameworkId_code: {
-          frameworkId: gap.frameworkId,
-          code: DEMO_FRAMEWORK_RULE_CODE,
-        },
-      },
+    const targetRuleId =
+      anchorRuleByFramework.get(gap.frameworkId) ??
+      (await resolveAnchorRuleId(gap.frameworkId));
+    await db.gap.update({
+      where: { id: gap.id },
+      data: { frameworkRuleId: targetRuleId },
     });
-    if (targetRule) {
-      await db.gap.update({
-        where: { id: gap.id },
-        data: { frameworkRuleId: targetRule.id },
-      });
-    }
   }
+
+  return anchorRuleByFramework;
 }
 
 async function ensureConfiguration(
@@ -1085,7 +1095,7 @@ async function main() {
   });
   const organisation = await seedOrganisation(tenant.id);
   const access = await seedAccess(tenant.id, organisation.departments);
-  await seedFrameworks();
+  const anchorRuleByFramework = await seedFrameworks();
   const governanceOwnerId = access.roles.get("COMPLIANCE_MANAGER")?.id;
   const governanceApproverId = access.roles.get("REVIEWER_APPROVER")?.id;
   const governanceDepartmentId = organisation.departments.get("DEMO-DEP-001");
@@ -1102,21 +1112,19 @@ async function main() {
     where: { code: "ISO 9001", status: "ACTIVE" },
     orderBy: { version: "asc" },
   });
-  const governanceRule = await db.frameworkRule.findUniqueOrThrow({
-    where: {
-      frameworkId_code: {
-        frameworkId: governanceFramework.id,
-        code: DEMO_FRAMEWORK_RULE_CODE,
-      },
-    },
-  });
+  const governanceRuleId = anchorRuleByFramework.get(governanceFramework.id);
+  if (governanceRuleId === undefined) {
+    throw new Error(
+      "Demo seed conflict: the governance framework has no anchor rule",
+    );
+  }
   await seedGovernanceFoundation(db, {
     tenantId: tenant.id,
     ownerId: governanceOwnerId,
     approverId: governanceApproverId,
     departmentId: governanceDepartmentId,
     frameworkId: governanceFramework.id,
-    frameworkRuleId: governanceRule.id,
+    frameworkRuleId: governanceRuleId,
     codePrefix: "DEMO-",
   });
   await seedKpiWorkflow(

@@ -49,6 +49,14 @@ async function main() {
       passwordHash,
       status: "ACTIVE",
       defaultTenantId: company001.id,
+      // The suite deliberately fails a login for this account, and
+      // `failedLoginCount` only clears on a successful sign-in. Left to
+      // accumulate across runs it reaches the five-failure lockout, after
+      // which every later file gets 429 on login, no token, and 401s in
+      // whichever test happens to run next. A fixture must not inherit auth
+      // lockout state from a previous run.
+      failedLoginCount: 0,
+      lockedUntil: null,
     },
     create: {
       code: "USR-001",
@@ -67,6 +75,8 @@ async function main() {
       passwordHash: userPasswordHash,
       status: "ACTIVE",
       defaultTenantId: company001.id,
+      failedLoginCount: 0,
+      lockedUntil: null,
     },
     create: {
       code: "USR-002",
@@ -148,9 +158,15 @@ async function main() {
           "Create and update Company operational register records",
         ],
         ["imports:read", "Read Company workbook import batches and row errors"],
-        ["imports:write", "Preview and commit Company workbook and CSV imports"],
+        [
+          "imports:write",
+          "Preview and commit Company workbook and CSV imports",
+        ],
         ["audit:read", "Read Company audit trail events"],
-        ["integrations:read", "Read external integration status and sync history"],
+        [
+          "integrations:read",
+          "Read external integration status and sync history",
+        ],
         ["integrations:write", "Test and run configured external integrations"],
         ["dashboard:read", "Read the Company compliance dashboard"],
         ["exports:read", "Export Company records as CSV"],

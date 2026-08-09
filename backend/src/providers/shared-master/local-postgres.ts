@@ -40,7 +40,7 @@ export class LocalPostgresSharedMasterProvider implements SharedMasterProvider {
     const direction = page.order ?? "asc";
     const orderBy =
       page.orderBy === undefined
-        ? ({ code: "asc" as const })
+        ? { code: "asc" as const }
         : ({ [page.orderBy]: direction } as const);
     const [items, total] = await this.db.$transaction([
       this.db.user.findMany({
@@ -103,7 +103,11 @@ export class LocalPostgresSharedMasterProvider implements SharedMasterProvider {
   }
 
   async getFrameworkRules(frameworkId: string, page: PageInput) {
-    const where = { frameworkId };
+    // Matches `listFrameworks`: operational lists show only ACTIVE catalogue
+    // rows. A retired rule stays in the database because governance mappings
+    // reference it and cannot be repointed or deleted, but it must not appear
+    // among a framework's live clauses.
+    const where = { frameworkId, status: "ACTIVE" as const };
     const [items, total] = await this.db.$transaction([
       this.db.frameworkRule.findMany({
         where,

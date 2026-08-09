@@ -1182,24 +1182,40 @@ export async function seedDemoGovernanceShowcase(
       })
     ).map((framework) => [framework.code, framework]),
   );
-  const frameworkRules = new Map(
-    (
-      await db.frameworkRule.findMany({
-        where: {
-          code: "DEMO-R1",
-          framework: {
-            code: { in: POLICY_SHOWCASE.map((item) => item.frameworkCode) },
-          },
-        },
-        select: {
-          id: true,
-          code: true,
-          frameworkId: true,
-          framework: { select: { code: true } },
-        },
-      })
-    ).map((rule) => [rule.framework.code, rule]),
-  );
+  /**
+   * The showcase anchors to each framework's first real clause rather than to
+   * a synthetic `DEMO-R1`. Frameworks are global, so a rule invented for the
+   * demo would appear inside every Company sharing that framework — including
+   * one holding real client data. `DEMO-R1` is still accepted as a fallback
+   * for a demo-only database where nothing has been imported.
+   */
+  const candidateRules = await db.frameworkRule.findMany({
+    where: {
+      status: "ACTIVE",
+      framework: {
+        code: { in: POLICY_SHOWCASE.map((item) => item.frameworkCode) },
+      },
+    },
+    orderBy: [{ code: "asc" }],
+    select: {
+      id: true,
+      code: true,
+      frameworkId: true,
+      framework: { select: { code: true } },
+    },
+  });
+  const frameworkRules = new Map<string, (typeof candidateRules)[number]>();
+  for (const rule of candidateRules) {
+    const chosen = frameworkRules.get(rule.framework.code);
+    // First real clause by code wins; DEMO-R1 is only kept when a framework
+    // has nothing else, which is the demo-only database case.
+    if (
+      chosen === undefined ||
+      (chosen.code === "DEMO-R1" && rule.code !== "DEMO-R1")
+    ) {
+      frameworkRules.set(rule.framework.code, rule);
+    }
+  }
   const frameworkFor = (code: string): { id: string; code: string } => {
     const framework = frameworks.get(code);
     if (!framework) showcaseConflict(`${code} is missing`);
@@ -1209,7 +1225,7 @@ export async function seedDemoGovernanceShowcase(
     frameworkCode: string,
   ): { id: string; code: string; frameworkId: string } => {
     const rule = frameworkRules.get(frameworkCode);
-    if (!rule) showcaseConflict(`DEMO-R1 for ${frameworkCode} is missing`);
+    if (!rule) showcaseConflict(`no active rule for ${frameworkCode}`);
     return rule!;
   };
 
