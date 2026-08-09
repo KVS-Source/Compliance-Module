@@ -758,6 +758,7 @@ const approvedGroups = [
 /** Primary navigation paths; Settings is the separate sidebar utility route. */
 const approvedPaths = [
   "/dashboard",
+  "/my-work",
   "/admin/companies",
   "/admin/users",
   "/admin/roles",
@@ -1226,9 +1227,8 @@ async function assertDashboardKeyboardDestinations(
       await expect(link).toBeVisible();
       await link.focus();
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(
-        new RegExp(`${destination.replaceAll("/", "\\/")}$`),
-      );
+      const escaped = destination.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      await expect(page).toHaveURL(new RegExp(`${escaped}$`));
       await page.goto("/dashboard");
       await expect(page.getByTestId("dashboard-cards")).toBeVisible();
       await expect(page.locator(selector)).toHaveCount(expectedControlCount);
@@ -1262,9 +1262,10 @@ test("dashboard summary cards reach their live routes by keyboard", async ({
       "/compliance/gaps",
       "/compliance/capa",
       "/compliance/policy-register",
+      "/evidence?expiringSoon=true",
     ],
     0,
-    11,
+    12,
   );
 });
 

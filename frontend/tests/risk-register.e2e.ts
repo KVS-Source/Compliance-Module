@@ -496,6 +496,9 @@ test.describe("Risk Register UI (mocked browser APIs)", () => {
     });
     await page.goto("/compliance/risks");
     await page.getByLabel("Filter by KPI risk class").selectOption("MINOR");
+    await expect
+      .poll(() => listUrls.some((url) => url.includes("kpiRiskClass=MINOR")))
+      .toBeTruthy();
     await page.getByLabel("Filter by general risk level").selectOption("LOW");
     await expect
       .poll(() =>

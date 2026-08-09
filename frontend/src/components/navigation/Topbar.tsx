@@ -51,6 +51,7 @@ export function Topbar({
   );
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export function Topbar({
         setMobileSearchOpen(false);
         setNotificationsOpen(false);
         setProfileOpen(false);
+        setQuickAddOpen(false);
       }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -76,6 +78,7 @@ export function Topbar({
         setMobileSearchOpen(false);
         setNotificationsOpen(false);
         setProfileOpen(false);
+        setQuickAddOpen(false);
       }
     };
     document.addEventListener("pointerdown", closePopovers);
@@ -94,6 +97,7 @@ export function Topbar({
     setNotificationLoading(false);
     setNotificationError(null);
     setProfileOpen(false);
+    setQuickAddOpen(false);
   }, [contextVersion]);
 
   const loadNotificationSummary = useCallback(() => {
@@ -133,6 +137,114 @@ export function Topbar({
     notificationVersion,
     user?.activeCompany.id,
   ]);
+
+  /**
+   * Quick Add offers only records this build can actually create, each gated on
+   * the same permission the underlying API enforces, so the menu never shows an
+   * action that would fail on arrival.
+   *
+   * Companies are deliberately absent: `tenants` exposes no POST route, and a
+   * Company is provisioned by `npm run client:initialize`. Listing it here would
+   * be a dead entry.
+   */
+  const quickAddGroups = useMemo(
+    () =>
+      [
+        {
+          heading: "Compliance",
+          items: [
+            {
+              label: "Risk",
+              to: "/compliance/risks",
+              permission: "risk:write",
+            },
+            {
+              label: "Gap",
+              to: "/compliance/gaps",
+              permission: "gaps:write",
+            },
+            { label: "CAPA", to: "/compliance/capa", permission: "capa:write" },
+            {
+              label: "Policy",
+              to: "/compliance/policy-register",
+              permission: "policies:write",
+            },
+            {
+              label: "Control",
+              to: "/compliance/controls",
+              permission: "controls:write",
+            },
+            {
+              label: "Checkpoint",
+              to: "/compliance/checkpoints",
+              permission: "checkpoints:write",
+            },
+            {
+              label: "Register record",
+              to: "/compliance/operational-registers",
+              permission: "registers:write",
+            },
+          ],
+        },
+        {
+          heading: "Evidence & KPI",
+          items: [
+            {
+              label: "Evidence",
+              to: "/evidence/new",
+              permission: "evidence:write",
+            },
+            {
+              label: "KPI actual",
+              to: "/kpi/actual-entry",
+              permission: "kpi-actual:write",
+            },
+            {
+              label: "KPI configuration",
+              to: "/kpi/configuration",
+              permission: "kpi-config:write",
+            },
+            {
+              label: "KPI target",
+              to: "/kpi/targets",
+              permission: "kpi-target:write",
+            },
+            {
+              label: "Workbook import",
+              to: "/data/import",
+              permission: "imports:write",
+            },
+          ],
+        },
+        {
+          heading: "Administration",
+          items: [
+            { label: "User", to: "/admin/users", permission: "users:write" },
+            {
+              label: "Department",
+              to: "/admin/departments",
+              permission: "departments:write",
+            },
+            {
+              label: "Location",
+              to: "/admin/locations",
+              permission: "locations:write",
+            },
+            {
+              label: "Organisation unit",
+              to: "/admin/organisation-units",
+              permission: "units:write",
+            },
+          ],
+        },
+      ]
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => hasPermission(item.permission)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [hasPermission],
+  );
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -192,17 +304,21 @@ export function Topbar({
       });
     }
     return supported.sort(
-      (left, right) => right.count - left.count || left.key.localeCompare(right.key),
+      (left, right) =>
+        right.count - left.count || left.key.localeCompare(right.key),
     );
   }, [notificationSummary]);
-  const workQueueCount = workQueue.reduce((total, item) => total + item.count, 0);
+  const workQueueCount = workQueue.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
   const hasVisibleWorkQueueSource = Boolean(
     notificationSummary &&
-      [
-        notificationSummary.kpis,
-        notificationSummary.gaps,
-        notificationSummary.capas,
-      ].some((source) => source !== undefined && source !== null),
+    [
+      notificationSummary.kpis,
+      notificationSummary.gaps,
+      notificationSummary.capas,
+    ].some((source) => source !== undefined && source !== null),
   );
 
   const initials = (user?.name ?? "User")
@@ -231,8 +347,8 @@ export function Topbar({
     .toLocaleTimeString(
       preferences.timeFormat === "12-hour" ? "en-GB" : "en-GB",
       {
-      hour: "2-digit",
-      minute: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
         hour12: preferences.timeFormat === "12-hour",
         timeZone: preferences.timeZone,
       },
@@ -268,6 +384,7 @@ export function Topbar({
     setMobileSearchOpen(false);
     setNotificationsOpen(false);
     setProfileOpen(false);
+    setQuickAddOpen(false);
   };
 
   const searchResults = (
@@ -336,14 +453,50 @@ export function Topbar({
         >
           <Search size={17} />
         </button>
-        <button
-          className="btn btn-primary quick-add"
-          type="button"
-          onClick={() => openRoute("/master/kpis")}
-        >
-          <Plus size={16} />
-          <span>Quick Add</span>
-        </button>
+        {quickAddGroups.length > 0 ? (
+          <div className="quick-add-wrap">
+            <button
+              className="btn btn-primary quick-add"
+              type="button"
+              data-testid="quick-add-trigger"
+              aria-haspopup="menu"
+              aria-expanded={quickAddOpen}
+              onClick={() => {
+                setQuickAddOpen((open) => !open);
+                setNotificationsOpen(false);
+                setProfileOpen(false);
+              }}
+            >
+              <Plus size={16} />
+              <span>Quick Add</span>
+            </button>
+            {quickAddOpen ? (
+              <div
+                className="popover quick-add-menu"
+                role="menu"
+                data-testid="quick-add-menu"
+              >
+                {quickAddGroups.map((group) => (
+                  <div className="quick-add-group" key={group.heading}>
+                    <p className="quick-add-heading">{group.heading}</p>
+                    {group.items.map((item) => (
+                      <button
+                        className="menu-item"
+                        type="button"
+                        role="menuitem"
+                        key={item.to + item.label}
+                        data-testid={`quick-add-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        onClick={() => openRoute(item.to)}
+                      >
+                        <Plus size={14} /> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <label className="company-switch">
           <span className="sr-only">Company Switcher</span>
           <select
@@ -394,7 +547,9 @@ export function Topbar({
         <div className="datetime">
           <span>{date}</span>
           <br />
-          <span>{time} · {workingLocation?.name ?? "All locations"}</span>
+          <span>
+            {time} · {workingLocation?.name ?? "All locations"}
+          </span>
         </div>
         <button
           className="profile-btn"
@@ -419,7 +574,9 @@ export function Topbar({
             role="dialog"
             aria-label="Search pages and modules"
           >
-            <label htmlFor="mobile-global-search">Search pages and modules</label>
+            <label htmlFor="mobile-global-search">
+              Search pages and modules
+            </label>
             <div className="search-input-wrap">
               <Search className="icon" size={18} />
               <input
@@ -495,17 +652,29 @@ export function Topbar({
             )}
             <div className="notification-actions">
               {hasPermission("kpis:read") ? (
-                <button className="btn btn-secondary" type="button" onClick={() => openRoute("/kpi/approval")}>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/kpi/approval")}
+                >
                   KPI Approval
                 </button>
               ) : null}
               {hasPermission("gaps:read") ? (
-                <button className="btn btn-secondary" type="button" onClick={() => openRoute("/compliance/gaps")}>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/compliance/gaps")}
+                >
                   Gap Register
                 </button>
               ) : null}
               {hasPermission("capa:read") ? (
-                <button className="btn btn-secondary" type="button" onClick={() => openRoute("/compliance/capa")}>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/compliance/capa")}
+                >
                   CAPA Register
                 </button>
               ) : null}

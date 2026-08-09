@@ -376,13 +376,14 @@ test("Dashboard renders every required summary card from the API", async ({
     ["Open Gaps", "4"],
     ["Open CAPAs", "5"],
     ["Policies Due for Review", "2"],
+    ["Evidence expiring", "—"],
   ] as const) {
     await expect(
       page.getByLabel(new RegExp(`${label}: ${value}`)),
       label,
     ).toBeVisible();
   }
-  await expect(page.getByTestId("dashboard-cards").locator("a")).toHaveCount(11);
+  await expect(page.getByTestId("dashboard-cards").locator("a")).toHaveCount(12);
   await expect(
     page.getByLabel("Overall Compliance: 31%. Open Overall Compliance"),
   ).toContainText("9 of 29 measured KPIs met target");
@@ -541,7 +542,7 @@ test("Dashboard has no horizontal overflow on a narrow screen", async ({
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test("Dashboard links use a full blue hover state", async ({ page }) => {
+test("Dashboard links use a calm hover state", async ({ page }) => {
   await mockDashboard(page);
   await page.goto("/dashboard");
   const card = page.getByLabel(/Open Gaps: 4/);
@@ -550,13 +551,18 @@ test("Dashboard links use a full blue hover state", async ({ page }) => {
     const label = element.querySelector(".card-label");
     return {
       background: getComputedStyle(element).backgroundImage,
+      backgroundColor: getComputedStyle(element).backgroundColor,
       border: getComputedStyle(element).borderColor,
+      boxShadow: getComputedStyle(element).boxShadow,
       label: label ? getComputedStyle(label).color : "",
     };
   });
-  expect(hoverStyle.background).toContain("linear-gradient");
-  expect(hoverStyle.border).toBe("rgb(37, 99, 235)");
-  expect(hoverStyle.label).toBe("rgb(255, 255, 255)");
+  // Calm enterprise hover: no blue fill gradient; border + light shadow only.
+  expect(hoverStyle.background === "none" || hoverStyle.background === "initial").toBeTruthy();
+  expect(hoverStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(hoverStyle.border).not.toBe("rgb(37, 99, 235)");
+  expect(hoverStyle.boxShadow).not.toBe("none");
+  expect(hoverStyle.label).not.toBe("rgb(255, 255, 255)");
 });
 
 test("Summary cards stay full-width and interactive on narrow screens", async ({
@@ -575,10 +581,9 @@ test("Summary cards stay full-width and interactive on narrow screens", async ({
     .evaluate((element) => element.getBoundingClientRect().width);
   expect(cardWidth).toBeGreaterThan(gridWidth * 0.9);
   await card.hover();
-  await expect(card).toHaveCSS(
-    "background-image",
-    /linear-gradient.*rgb\(37, 99, 235\)/,
-  );
+  await expect(card).toHaveCSS("background-image", "none");
+  const border = await card.evaluate((el) => getComputedStyle(el).borderColor);
+  expect(border).not.toBe("rgb(37, 99, 235)");
 });
 
 test("Dashboard permission boundary prevents an unauthorised summary request", async ({

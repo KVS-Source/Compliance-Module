@@ -78,7 +78,10 @@ export function DashboardPage() {
     evidenceStatus?.reduce((sum, row) => sum + row.count, 0) ?? 0;
   const capaAgingTotal =
     capaAging?.reduce((sum, row) => sum + row.count, 0) ?? 0;
-  const capaAgingMax = Math.max(1, ...(capaAging ?? []).map((row) => row.count));
+  const capaAgingMax = Math.max(
+    1,
+    ...(capaAging ?? []).map((row) => row.count),
+  );
 
   return (
     <div className="page">
@@ -204,7 +207,10 @@ export function DashboardPage() {
             <MetricCard
               label="KPIs Missing Target"
               value={value(cards?.kpisMissingTarget)}
-              note={note(cards?.kpisMissingTarget, "measured but target missed")}
+              note={note(
+                cards?.kpisMissingTarget,
+                "measured but target missed",
+              )}
               icon={TriangleAlert}
               tone="red"
               to="/kpi/analytics"
@@ -255,10 +261,7 @@ export function DashboardPage() {
             <MetricCard
               label="Evidence expiring"
               value={value(cards?.evidenceExpiringSoon)}
-              note={note(
-                cards?.evidenceExpiringSoon,
-                "expires within 90 days",
-              )}
+              note={note(cards?.evidenceExpiringSoon, "expires within 90 days")}
               icon={Archive}
               tone="amber"
               to="/evidence?expiringSoon=true"
@@ -339,7 +342,7 @@ export function DashboardPage() {
                   count:
                     (evidenceStatus ?? []).find((row) => row.status === status)
                       ?.count ?? 0,
-                  colour: STATUS_COLOURS[status] ?? "#6b7280",
+                  colour: STATUS_COLOURS[status] ?? "var(--grey-500)",
                 }))}
               />
             </ChartSection>
@@ -374,10 +377,10 @@ export function DashboardPage() {
                     row.compliancePercentage === null
                       ? undefined
                       : row.compliancePercentage >= 80
-                        ? "#16a34a"
+                        ? "var(--green-600)"
                         : row.compliancePercentage >= 50
-                          ? "#d97706"
-                          : "#dc2626",
+                          ? "var(--amber-600)"
+                          : "var(--red-600)",
                 }))}
               />
             </ChartSection>
@@ -428,10 +431,10 @@ export function DashboardPage() {
                   value: row.count,
                   max: capaAgingMax,
                   colour: row.key.startsWith("OVERDUE")
-                    ? "#dc2626"
+                    ? "var(--red-600)"
                     : row.key === "DUE_SOON"
-                      ? "#d97706"
-                      : "#2563eb",
+                      ? "var(--amber-600)"
+                      : "var(--blue-600)",
                 }))}
               />
             </ChartSection>
@@ -562,11 +565,16 @@ export function DashboardPage() {
                 </Link>
               }
             >
-              <div className="genrac-status" data-testid="dashboard-genrac-body">
+              <div
+                className="genrac-status"
+                data-testid="dashboard-genrac-body"
+              >
                 <p className="genrac-state">
                   <Database size={18} />
                   <strong data-testid="dashboard-genrac-state">
-                    {genrac?.configured ? titleCase(genrac.status) : "Not configured"}
+                    {genrac?.configured
+                      ? titleCase(genrac.status)
+                      : "Not configured"}
                   </strong>
                 </p>
                 <dl className="genrac-facts">
@@ -576,7 +584,9 @@ export function DashboardPage() {
                   </div>
                   <div>
                     <dt>Last sync attempt</dt>
-                    <dd>{formatDateTime(genrac?.lastAttemptedSyncAt ?? null)}</dd>
+                    <dd>
+                      {formatDateTime(genrac?.lastAttemptedSyncAt ?? null)}
+                    </dd>
                   </div>
                   <div>
                     <dt>Last successful sync</dt>
@@ -605,7 +615,9 @@ export function DashboardPage() {
               title="Operational registers"
               subtitle="Imported audit, training, incident, vendor and action records held for this Company."
               testId="dashboard-registers"
-              restricted={data.registers === null || data.registers === undefined}
+              restricted={
+                data.registers === null || data.registers === undefined
+              }
               isEmpty={(data.registers ?? []).length === 0}
               emptyLabel="No operational registers are active for this Company."
               action={
@@ -627,7 +639,7 @@ export function DashboardPage() {
                     1,
                     ...(data.registers ?? []).map((row) => row.recordCount),
                   ),
-                  colour: "#2563eb",
+                  colour: "var(--accent)",
                 }))}
               />
             </ChartSection>
@@ -672,8 +684,9 @@ export function DashboardPage() {
           </div>
 
           <p className="dashboard-generated" data-testid="dashboard-generated">
-            <History size={13} /> Generated {formatDateTime(data.generatedAt ?? null)}{" "}
-            from live PostgreSQL data for {user?.activeCompany.name}.
+            <History size={13} /> Generated{" "}
+            {formatDateTime(data.generatedAt ?? null)} from live PostgreSQL data
+            for {user?.activeCompany.name}.
             <Link to="/evidence">
               <Archive size={13} /> Evidence Library
             </Link>
