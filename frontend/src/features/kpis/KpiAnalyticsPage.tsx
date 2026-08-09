@@ -1,4 +1,9 @@
-import { CheckCircle2, CircleGauge, Percent, TriangleAlert } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleGauge,
+  Percent,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -25,11 +30,15 @@ const humanise = (code: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+/**
+ * RAG read from the design tokens so a chart can never disagree with the badge
+ * beside it. The hues are frozen in tokens.css — see the note there.
+ */
 const RAG_COLOURS: Record<string, string> = {
-  GREEN: "#16a34a",
-  AMBER: "#d97706",
-  RED: "#dc2626",
-  UNRATED: "#6b7280",
+  GREEN: "var(--green-600)",
+  AMBER: "var(--amber-600)",
+  RED: "var(--red-600)",
+  UNRATED: "var(--grey-500)",
 };
 
 const FREQUENCIES = [
@@ -249,7 +258,7 @@ export function KpiAnalyticsPage() {
                   caption: `${point.meetingTarget} of ${point.measured} met target${point.achievementRate === null ? "" : ` · ${point.achievementRate}%`}`,
                   value: point.measured,
                   max: trendMax,
-                  colour: "#2563eb",
+                  colour: "var(--accent)",
                 }))}
               />
             </ChartSection>
@@ -272,7 +281,7 @@ export function KpiAnalyticsPage() {
                     1,
                     ...data.ragDistribution.map((entry) => entry.count),
                   ),
-                  colour: RAG_COLOURS[row.status] ?? "#6b7280",
+                  colour: RAG_COLOURS[row.status] ?? "var(--grey-500)",
                 }))}
               />
             </ChartSection>
@@ -293,7 +302,7 @@ export function KpiAnalyticsPage() {
                 caption: row.code ?? undefined,
                 value: row.measured,
                 max: departmentMax,
-                colour: "#7c3aed",
+                colour: "var(--blue-600)",
               }))}
             />
           </ChartSection>
@@ -310,7 +319,10 @@ export function KpiAnalyticsPage() {
               </div>
             </header>
             {data.missedKpis.length === 0 ? (
-              <p className="chart-empty" data-testid="kpi-analytics-missed-empty">
+              <p
+                className="chart-empty"
+                data-testid="kpi-analytics-missed-empty"
+              >
                 Every measured KPI in scope met its target.
               </p>
             ) : (

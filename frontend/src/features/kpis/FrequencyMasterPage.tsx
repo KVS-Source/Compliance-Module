@@ -88,7 +88,7 @@ export function FrequencyMasterPage() {
                     caption: `${row.configurationCount} Company configuration${row.configurationCount === 1 ? "" : "s"} · ${row.activeConfigurationCount} active`,
                     value: row.definitionCount,
                     max,
-                    colour: "#2563eb",
+                    colour: "var(--accent)",
                   }))}
                 />
               </section>

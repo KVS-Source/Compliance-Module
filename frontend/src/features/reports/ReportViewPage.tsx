@@ -21,36 +21,38 @@ import { registerApi, type RegisterType } from "../../services/registerApi";
 import type { Department, Framework } from "../../types/api";
 
 /** Filter vocabularies. Values must match Prisma enums exactly. */
-const STATUS_OPTIONS: Record<string, ReadonlyArray<{ value: string; label: string }>> =
-  {
-    "evidence-status": [
-      { value: "DRAFT", label: "Draft" },
-      { value: "SUBMITTED", label: "Submitted" },
-      { value: "APPROVED", label: "Approved" },
-      { value: "REJECTED", label: "Rejected" },
-      { value: "ARCHIVED", label: "Archived" },
-    ],
-    risks: [
-      { value: "OPEN", label: "Open" },
-      { value: "UNDER_REVIEW", label: "Under Review" },
-      { value: "TREATED", label: "Treated" },
-      { value: "CLOSED", label: "Closed" },
-      { value: "ARCHIVED", label: "Archived" },
-    ],
-    gaps: [
-      { value: "OPEN", label: "Open" },
-      { value: "IN_PROGRESS", label: "In Progress" },
-      { value: "CLOSED", label: "Closed" },
-      { value: "CANCELLED", label: "Cancelled" },
-    ],
-    "capa-aging": [
-      { value: "OPEN", label: "Open" },
-      { value: "IN_PROGRESS", label: "In Progress" },
-      { value: "PENDING_VERIFICATION", label: "Pending Verification" },
-      { value: "CLOSED", label: "Closed" },
-      { value: "CANCELLED", label: "Cancelled" },
-    ],
-  };
+const STATUS_OPTIONS: Record<
+  string,
+  ReadonlyArray<{ value: string; label: string }>
+> = {
+  "evidence-status": [
+    { value: "DRAFT", label: "Draft" },
+    { value: "SUBMITTED", label: "Submitted" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "REJECTED", label: "Rejected" },
+    { value: "ARCHIVED", label: "Archived" },
+  ],
+  risks: [
+    { value: "OPEN", label: "Open" },
+    { value: "UNDER_REVIEW", label: "Under Review" },
+    { value: "TREATED", label: "Treated" },
+    { value: "CLOSED", label: "Closed" },
+    { value: "ARCHIVED", label: "Archived" },
+  ],
+  gaps: [
+    { value: "OPEN", label: "Open" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "CLOSED", label: "Closed" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ],
+  "capa-aging": [
+    { value: "OPEN", label: "Open" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "PENDING_VERIFICATION", label: "Pending Verification" },
+    { value: "CLOSED", label: "Closed" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ],
+};
 
 /** GapSeverity — no MODERATE; OBSERVATION and OFI are first-class. */
 const SEVERITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
@@ -134,7 +136,12 @@ export function ReportViewPage() {
 
   const resource = useApiResource(
     () => reportApi.run(reportKey, filters),
-    [contextVersion, user?.activeCompany.id, reportKey, searchParams.toString()],
+    [
+      contextVersion,
+      user?.activeCompany.id,
+      reportKey,
+      searchParams.toString(),
+    ],
   );
 
   useEffect(() => {
@@ -239,8 +246,7 @@ export function ReportViewPage() {
               disabled={downloading || !data}
               onClick={() => void download()}
             >
-              <Download size={15} />{" "}
-              {downloading ? "Exporting…" : "Export CSV"}
+              <Download size={15} /> {downloading ? "Exporting…" : "Export CSV"}
             </button>
           </>
         }
@@ -443,7 +449,7 @@ export function ReportViewPage() {
                     key: point.label,
                     label: humanise(point.label),
                     count: point.value ?? 0,
-                    colour: STATUS_COLOURS[point.label] ?? "#2563eb",
+                    colour: STATUS_COLOURS[point.label] ?? "var(--accent)",
                   }))}
                 />
               ) : (
@@ -457,7 +463,7 @@ export function ReportViewPage() {
                     value: point.value,
                     max: data.chart!.valueSuffix === "%" ? 100 : chartMax,
                     note: "Not available",
-                    colour: "#2563eb",
+                    colour: "var(--accent)",
                   }))}
                 />
               )}
@@ -486,8 +492,7 @@ export function ReportViewPage() {
               <div className="table-wrap">
                 <table className="data-table">
                   <caption>
-                    {data.name} — generated{" "}
-                    {formatDateTime(data.generatedAt)}
+                    {data.name} — generated {formatDateTime(data.generatedAt)}
                   </caption>
                   <thead>
                     <tr>
