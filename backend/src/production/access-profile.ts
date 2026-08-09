@@ -1,5 +1,12 @@
 export const PRODUCTION_PERMISSIONS = [
   ["tenants:read", "Read Companies"],
+  /**
+   * Creating a Company is safe to hold at Company-administrator level: a new
+   * Company starts empty and its creator becomes its administrator, so it grants
+   * no access to any existing Company's data. Every other permission remains
+   * scoped to the Company the caller is acting in.
+   */
+  ["tenants:write", "Create Companies"],
   ["users:read", "Read Company users"],
   ["users:write", "Create and update Company users"],
   ["roles:assign", "Assign sanctioned roles to Company users"],
@@ -70,8 +77,13 @@ export const PRODUCTION_ACCESS_PROFILES = {
   COMPLIANCE_MANAGER: {
     name: "Compliance Manager",
     description: "Compliance configuration, workflow and reporting permissions",
+    // Company creation stays with the administrator profile alone; a Compliance
+    // Manager administers the Company they are in, not the estate of Companies.
     permissions: all.filter(
-      (code) => code !== "users:write" && code !== "roles:assign",
+      (code) =>
+        code !== "users:write" &&
+        code !== "roles:assign" &&
+        code !== "tenants:write",
     ),
   },
   DEPARTMENT_OWNER: {

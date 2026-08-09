@@ -143,9 +143,8 @@ export function Topbar({
    * the same permission the underlying API enforces, so the menu never shows an
    * action that would fail on arrival.
    *
-   * Companies are deliberately absent: `tenants` exposes no POST route, and a
-   * Company is provisioned by `npm run client:initialize`. Listing it here would
-   * be a dead entry.
+   * Company creation is included now that `POST /tenants` exists; it is gated on
+   * `tenants:write`, which only the Client Company Administrator profile holds.
    */
   const quickAddGroups = useMemo(
     () =>
@@ -219,6 +218,11 @@ export function Topbar({
         {
           heading: "Administration",
           items: [
+            {
+              label: "Company",
+              to: "/admin/companies",
+              permission: "tenants:write",
+            },
             { label: "User", to: "/admin/users", permission: "users:write" },
             {
               label: "Department",

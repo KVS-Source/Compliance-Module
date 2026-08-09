@@ -6,6 +6,24 @@ export const tenantApi = {
     return (await apiRequest<Company[]>(`/tenants${pageQuery()}`)).data;
   },
 
+  /**
+   * Creates a Company and makes the caller its administrator. Requires
+   * `tenants:write`, which only the Client Company Administrator profile holds.
+   */
+  async create(input: {
+    code: string;
+    name: string;
+    industry?: string | null;
+    country?: string | null;
+  }) {
+    return (
+      await apiRequest<Company>("/tenants", {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+    ).data;
+  },
+
   async switchCompany(companyId: string) {
     const response = await apiRequest<AuthResult>("/auth/tenant-context", {
       method: "POST",

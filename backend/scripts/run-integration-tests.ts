@@ -64,6 +64,7 @@ run(
     "--no-file-parallelism",
     "tests/api.test.ts",
     "tests/access-role-assignment.test.ts",
+    "tests/tenant-create.test.ts",
     "tests/auth-change-password.test.ts",
     "tests/users-write.test.ts",
     "tests/organisation-write.test.ts",

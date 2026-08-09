@@ -163,7 +163,7 @@ export const apiRoutes = (
   router.use(apiRateLimiter());
   router.use("/auth", authRoutes(new AuthService(new AuthRepository(db))));
   router.use(authenticate, authorizeTenantContext(db));
-  router.use("/tenants", tenantsRoutes(provider));
+  router.use("/tenants", tenantsRoutes(provider, db));
   router.use("/dashboard", dashboardRoutes(dashboard));
   router.use("/users", usersRoutes(provider, new UsersRepository(db)));
   router.use(

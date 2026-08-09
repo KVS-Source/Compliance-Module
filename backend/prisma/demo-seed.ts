@@ -26,6 +26,7 @@ import {
   type DemoRiskScenario,
 } from "./demo-seed-data.js";
 import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
+import { PRODUCTION_PERMISSIONS } from "../src/production/access-profile.js";
 import {
   seedDemoGovernanceShowcase,
   seedGovernanceFoundation,
@@ -116,7 +117,9 @@ async function seedAccess(
   departments: ReadonlyMap<string, string>,
 ) {
   const permissionIds = new Map<string, string>();
-  for (const [code, name] of DEMO_PERMISSIONS) {
+  // PRODUCTION_PERMISSIONS is included so every code the production profiles
+  // declare exists before a role is granted it — `tenants:write` among them.
+  for (const [code, name] of [...DEMO_PERMISSIONS, ...PRODUCTION_PERMISSIONS]) {
     const permission = await db.permission.upsert({
       where: { code },
       update: { name },
