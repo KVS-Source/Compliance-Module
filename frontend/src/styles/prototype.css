@@ -146,7 +146,7 @@ body.mobile-nav-open {
 .brand-mark {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(145deg, var(--blue-400), var(--blue-700));
   display: grid;
   place-items: center;
@@ -184,7 +184,7 @@ body.mobile-nav-open {
 .preview-card {
   border: 1px solid rgba(191, 219, 254, 0.14);
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 16px;
   backdrop-filter: blur(8px);
 }
@@ -244,7 +244,9 @@ body.mobile-nav-open {
   background: #fff;
   padding: 9px 12px;
   color: var(--text-primary);
-  transition: 0.18s ease;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 .control:hover {
   border-color: var(--grey-400);
@@ -655,7 +657,7 @@ body.mobile-nav-open {
   width: min(430px, 90vw);
   background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: 10px;
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
   padding: 8px;
   z-index: 90;
@@ -852,7 +854,7 @@ body.mobile-nav-open {
 .filter-bar {
   background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 13px;
+  border-radius: 10px;
   padding: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
   display: flex;
@@ -915,10 +917,13 @@ body.mobile-nav-open {
 .summary-card {
   background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   padding: 16px;
-  box-shadow: var(--shadow);
-  transition: 0.18s ease;
+  /* Flat at rest; the later rule lifts it on hover. Transition is scoped to
+     compositor-friendly properties rather than `all`. */
+  transition:
+    transform var(--duration) var(--ease-out),
+    box-shadow var(--duration) var(--ease-out);
   text-align: left;
 }
 .summary-card.clickable {
@@ -979,11 +984,12 @@ body.mobile-nav-open {
   color: var(--grey-700);
 }
 .card {
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   overflow: hidden;
+  /* Resting shadow removed: cards are flat and lift only on hover. The rule
+     that follows later in this file used to correct this one; both now agree. */
 }
 .card-pad {
   padding: 20px;
@@ -1029,7 +1035,7 @@ body.mobile-nav-open {
 }
 .banner {
   border: 1px solid;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 12px 14px;
   display: flex;
   align-items: flex-start;
@@ -1407,7 +1413,7 @@ body.mobile-nav-open {
 .trace-node {
   position: relative;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 13px;
   min-height: 128px;
   background: #fff;
@@ -1473,7 +1479,7 @@ body.mobile-nav-open {
 .risk-preview {
   border: 1px solid var(--red-100);
   background: var(--red-50);
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 18px;
 }
 .risk-preview.safe {
@@ -1495,7 +1501,7 @@ body.mobile-nav-open {
 }
 .upload-zone {
   border: 2px dashed var(--blue-200);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--blue-50);
   min-height: 230px;
   padding: 30px;
@@ -1503,7 +1509,9 @@ body.mobile-nav-open {
   align-items: center;
   justify-content: center;
   text-align: center;
-  transition: 0.18s;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
 }
 .upload-zone.dragover {
   border-color: var(--blue-600);
@@ -1512,7 +1520,7 @@ body.mobile-nav-open {
 .upload-icon {
   width: 54px;
   height: 54px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #fff;
   color: var(--blue-700);
   display: grid;
@@ -1578,7 +1586,7 @@ body.mobile-nav-open {
   width: 100%;
   border: 1px solid transparent;
   background: #fff;
-  border-radius: 11px;
+  border-radius: 10px;
   padding: 12px;
   text-align: left;
   margin-bottom: 7px;
@@ -1601,7 +1609,7 @@ body.mobile-nav-open {
 .preview-pane {
   background: var(--grey-50);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   min-height: 280px;
   display: grid;
   place-items: center;
@@ -1660,7 +1668,7 @@ body.mobile-nav-open {
   width: min(620px, 100%);
   max-height: 90vh;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 10px;
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
@@ -1755,7 +1763,7 @@ body.mobile-nav-open {
   width: min(380px, calc(100vw - 32px));
   border: 1px solid var(--border-color);
   border-left: 4px solid var(--blue-600);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fff;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
   padding: 12px;
@@ -2294,7 +2302,7 @@ body.mobile-nav-open {
   width: 100%;
   height: auto;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 18px 26px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
 }
@@ -2307,7 +2315,7 @@ body.mobile-nav-open {
   width: 100%;
   height: auto;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 10px 15px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }

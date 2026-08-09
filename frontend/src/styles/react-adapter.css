@@ -138,7 +138,7 @@
   height: 50px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--amber-100);
   color: var(--amber-700);
 }
@@ -596,7 +596,7 @@
   min-height: 132px;
   padding: 16px;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   align-content: center;
@@ -801,7 +801,7 @@
   align-content: center;
   gap: 8px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-muted);
   background: var(--grey-50);
   text-align: center;

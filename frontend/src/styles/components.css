@@ -383,7 +383,7 @@
   z-index: 50;
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--white);
   box-shadow: var(--shadow-lg);
 }
@@ -499,7 +499,7 @@
   width: 220px;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--white);
   box-shadow: var(--shadow-lg);
 }
@@ -815,7 +815,7 @@
   margin-bottom: 12px;
   padding: 9px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -955,7 +955,7 @@
   margin-bottom: 13px;
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1216,7 +1216,7 @@
   padding: 11px;
   border: 1px solid var(--border);
   border-left: 4px solid var(--blue-600);
-  border-radius: 11px;
+  border-radius: 10px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: start;
@@ -1340,7 +1340,7 @@
 .preview-grid article {
   padding: 16px;
   border: 1px solid rgba(191, 219, 254, 0.14);
-  border-radius: 14px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(8px);
 }
