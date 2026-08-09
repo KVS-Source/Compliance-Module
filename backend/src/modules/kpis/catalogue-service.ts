@@ -31,6 +31,280 @@ export class KpiCatalogueService {
   constructor(private readonly db: PrismaClient) {}
 
   /**
+   * Live KPI compliance traceability derived from governed relationships.
+   *
+   * There is deliberately no standalone "KPI mapping" table. The chain is
+   * assembled from active Evidence↔KPI Actual and Evidence↔Control links,
+   * then from the Control's active Policy Version, Framework and Framework
+   * Rule mappings. Risk is the governed Risk linked to the same KPI Actual.
+   * This keeps the page truthful and prevents a second, contradictory mapping
+   * store from being introduced solely for presentation.
+   *
+   * `kpi.frameworkMapping` is reported alongside that derived chain but is not
+   * part of it. It is the clause list the Company *declared* in
+   * `14_KPI_Master`, carried verbatim from the workbook. A declared clause is
+   * an intent, not evidence, so it never contributes to `completeness` — the
+   * `declaredWithoutChain` summary counts exactly the KPIs where the workbook
+   * claims a framework link that no governed control chain yet supports, which
+   * is the gap an auditor needs to see rather than have papered over.
+   */
+  async traceability(tenantId: string) {
+    const actuals = await this.db.kpiActual.findMany({
+      where: { tenantId, deletedAt: null },
+      select: {
+        id: true,
+        code: true,
+        period: true,
+        targetValueSnapshot: true,
+        actualValue: true,
+        variance: true,
+        variancePercentage: true,
+        ragStatus: true,
+        targetMet: true,
+        approvalStatus: true,
+        submittedAt: true,
+        configuration: {
+          select: {
+            id: true,
+            definition: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                unit: true,
+                direction: true,
+                frameworkMapping: true,
+              },
+            },
+            owner: { select: { id: true, fullName: true } },
+            department: { select: { id: true, code: true, name: true } },
+          },
+        },
+        target: { select: { id: true, code: true, version: true } },
+        risks: {
+          where: { tenantId, deletedAt: null },
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            kpiRiskClass: true,
+            generalLevel: true,
+            status: true,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        },
+        evidenceLinks: {
+          where: { tenantId, isActive: true },
+          select: {
+            evidence: {
+              select: {
+                id: true,
+                code: true,
+                title: true,
+                lifecycleStatus: true,
+                controlLinks: {
+                  where: { tenantId, isActive: true },
+                  select: {
+                    control: {
+                      select: {
+                        id: true,
+                        code: true,
+                        title: true,
+                        implementationStatus: true,
+                        policyVersionMappings: {
+                          where: { tenantId, isActive: true },
+                          select: {
+                            policyVersion: {
+                              select: {
+                                id: true,
+                                versionMajor: true,
+                                versionMinor: true,
+                                status: true,
+                                policy: {
+                                  select: { id: true, code: true, title: true },
+                                },
+                              },
+                            },
+                          },
+                        },
+                        frameworkMappings: {
+                          where: { tenantId, isActive: true },
+                          select: {
+                            framework: {
+                              select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                                version: true,
+                                scopeStatus: true,
+                              },
+                            },
+                            ruleControls: {
+                              where: { tenantId, isActive: true },
+                              select: {
+                                frameworkRule: {
+                                  select: {
+                                    id: true,
+                                    code: true,
+                                    title: true,
+                                    clauseRef: true,
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ submittedAt: "desc" }, { id: "asc" }],
+      take: 100,
+    });
+
+    const uniqueById = <T extends { id: string }>(items: T[]) =>
+      [...new Map(items.map((item) => [item.id, item])).values()];
+
+    const rows = actuals.map((actual) => {
+      const evidence = uniqueById(
+        actual.evidenceLinks.map((link) => ({
+          id: link.evidence.id,
+          code: link.evidence.code,
+          title: link.evidence.title,
+          status: link.evidence.lifecycleStatus,
+        })),
+      );
+      const controls = uniqueById(
+        actual.evidenceLinks.flatMap((link) =>
+          link.evidence.controlLinks.map(({ control }) => ({
+            id: control.id,
+            code: control.code,
+            title: control.title,
+            status: control.implementationStatus,
+          })),
+        ),
+      );
+      const controlRecords = actual.evidenceLinks.flatMap((link) =>
+        link.evidence.controlLinks.map(({ control }) => control),
+      );
+      const policies = uniqueById(
+        controlRecords.flatMap((control) =>
+          control.policyVersionMappings.map(({ policyVersion }) => ({
+            id: policyVersion.policy.id,
+            code: policyVersion.policy.code,
+            title: policyVersion.policy.title,
+            versionId: policyVersion.id,
+            version: `${policyVersion.versionMajor}.${policyVersion.versionMinor}`,
+            status: policyVersion.status,
+          })),
+        ),
+      );
+      const frameworks = uniqueById(
+        controlRecords.flatMap((control) =>
+          control.frameworkMappings.map(({ framework }) => ({
+            id: framework.id,
+            code: framework.code,
+            name: framework.name,
+            version: framework.version,
+            scopeStatus: framework.scopeStatus,
+          })),
+        ),
+      );
+      const rules = uniqueById(
+        controlRecords.flatMap((control) =>
+          control.frameworkMappings.flatMap((mapping) =>
+            mapping.ruleControls.map(({ frameworkRule }) => ({
+              id: frameworkRule.id,
+              code: frameworkRule.code,
+              title: frameworkRule.title,
+              clauseRef: frameworkRule.clauseRef,
+            })),
+          ),
+        ),
+      );
+      const risks = actual.risks.map((risk) => ({
+        id: risk.id,
+        code: risk.code,
+        title: risk.title,
+        classification: risk.kpiRiskClass ?? risk.generalLevel,
+        status: risk.status,
+      }));
+      const mappedNodes =
+        2 +
+        Number(policies.length > 0) +
+        Number(frameworks.length > 0) +
+        Number(rules.length > 0) +
+        Number(evidence.length > 0) +
+        Number(controls.length > 0) +
+        Number(risks.length > 0);
+
+      return {
+        id: actual.id,
+        kpi: actual.configuration.definition,
+        configuration: {
+          id: actual.configuration.id,
+          owner: actual.configuration.owner
+            ? {
+                id: actual.configuration.owner.id,
+                name: actual.configuration.owner.fullName,
+              }
+            : null,
+          department: actual.configuration.department,
+        },
+        targetActual: {
+          targetId: actual.target.id,
+          targetCode: actual.target.code,
+          targetVersion: actual.target.version,
+          actualId: actual.id,
+          actualCode: actual.code,
+          period: actual.period,
+          targetValue: String(actual.targetValueSnapshot),
+          actualValue: String(actual.actualValue),
+          variance: String(actual.variance),
+          variancePercentage:
+            actual.variancePercentage === null
+              ? null
+              : String(actual.variancePercentage),
+          ragStatus: actual.ragStatus,
+          targetMet: actual.targetMet,
+          approvalStatus: actual.approvalStatus,
+        },
+        policies,
+        frameworks,
+        rules,
+        evidence,
+        controls,
+        risks,
+        completeness: {
+          mappedNodes,
+          totalNodes: 8,
+          complete: mappedNodes === 8,
+        },
+      };
+    });
+
+    return {
+      generatedAt: new Date(),
+      summary: {
+        actuals: rows.length,
+        completeChains: rows.filter((row) => row.completeness.complete).length,
+        missingEvidence: rows.filter((row) => row.evidence.length === 0).length,
+        riskLinked: rows.filter((row) => row.risks.length > 0).length,
+        declaredWithoutChain: rows.filter(
+          (row) =>
+            row.kpi.frameworkMapping !== null && row.frameworks.length === 0,
+        ).length,
+      },
+      rows,
+    };
+  }
+
+  /**
    * The governed catalogue of KPI definitions, with this Company's
    * configuration state alongside each one.
    *

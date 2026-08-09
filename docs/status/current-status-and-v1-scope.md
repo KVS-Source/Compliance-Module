@@ -1,13 +1,13 @@
 # Current status and V1 scope
 
-Baseline date: 2026-08-06
+Baseline date: 2026-08-07
 
 ## Release classification
 
-The client navigation set is 44 protected **LIVE** modules (API-connected React
-pages backed by PostgreSQL), plus login. Production readiness still depends on
-operator provisioning (TLS, secrets, host, backup) and the blockers listed in
-[known limitations](../known-limitations.md). Authoritative route status is
+The client navigation set is 46 protected **LIVE** visible routes (45 grouped
+modules plus the Settings utility), plus login. Production readiness still
+depends on operator provisioning (TLS, secrets, host, backup) and the blockers
+listed in [known limitations](../known-limitations.md). Authoritative route status is
 `frontend/src/app/routeDefinitions.ts` (`clientNavigationPaths`, `migratedPaths`)
 and `npm run guard:routes`.
 
@@ -20,22 +20,22 @@ evidence status is
 
 ## Status vocabulary
 
-| Status | Meaning |
-| --- | --- |
-| `LIVE` | A real React page calls a real Express API backed by PostgreSQL. |
-| `IN_DEVELOPMENT` | Approved product scope, but not operational. The route renders a truthful status page. |
-| `AWAITING_INTEGRATION` | No live integration exists; client access/interface approval is pending. |
-| `COMPATIBILITY` | A previously published URL is retained but hidden and is not an operational authority. |
-| `DORMANT` | Source/reference material is not imported or routed by the active runtime. |
+| Status                 | Meaning                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `LIVE`                 | A real React page calls a real Express API backed by PostgreSQL.                       |
+| `IN_DEVELOPMENT`       | Approved product scope, but not operational. The route renders a truthful status page. |
+| `AWAITING_INTEGRATION` | No live integration exists; client access/interface approval is pending.               |
+| `COMPATIBILITY`        | A previously published URL is retained but hidden and is not an operational authority. |
+| `DORMANT`              | Source/reference material is not imported or routed by the active runtime.             |
 
-Current totals: one public login; **44 protected LIVE** sidebar modules (all
-entries in `clientNavigationPaths`); one protected LIVE **account-menu** route
+Current totals: one public login; **46 protected LIVE** visible navigation
+routes (45 grouped modules plus the Settings utility); one protected LIVE **account-menu** route
 (Change Password), reached from the Topbar profile menu and deliberately kept
 out of the sidebar; deferred product routes are **hidden** `IN_DEVELOPMENT`
-deep links (not shown in the client sidebar); 14 hidden `COMPATIBILITY` legacy
+deep links (not shown in the client sidebar); 13 hidden `COMPATIBILITY` legacy
 URLs. No sidebar item remains `AWAITING_INTEGRATION`. `npm run guard:routes`
-reports these totals as 58 protected LIVE route patterns, which counts detail
-and parameterised routes in addition to the 44 sidebar entries.
+reports these totals as 60 protected LIVE route patterns, which counts detail
+and parameterised routes in addition to the 46 visible navigation routes.
 
 Client-readable module capabilities: [handover module status](../handover/module-status.md).
 
@@ -82,6 +82,9 @@ Client-readable module capabilities: [handover module status](../handover/module
   mutation path and states `mutable: false` in the response; production roles
   are still provisioned by initialization, not by the UI;
 - **Approved and Rejected Evidence** views alongside the existing review queue;
+- **Settings** utility with a per-Company working-location selector and regional
+  date/time display preferences. These preferences are local and
+  non-authoritative; Company and permission scope remains server-enforced;
 - append-only audit-event writes for active workflows.
 
 `KpiTarget`/`kpi_targets` is the active target authority. `KpiGoal`/
@@ -94,7 +97,7 @@ The following are **not** client sidebar LIVE modules (hidden status pages or
 deferred scope):
 
 - standalone Policy Versions navigation page (versions live inside Policy detail);
-- Tasks, Notifications, tenant/settings screens and KPI mapping deep links;
+- Tasks, Notifications, tenant-settings deep links and KPI mapping deep links;
 - **role and permission administration writes**: the role-access page reads
   profiles only, so creating a role or changing a permission assignment is not
   possible from the client;
@@ -133,7 +136,7 @@ bring-up still requires human infrastructure and secrets.
 ## Test boundary
 
 Backend integration tests use real disposable PostgreSQL and all applied
-migrations (sixteen folders under `backend/prisma/migrations/`). Automated
+migrations (18 folders under `backend/prisma/migrations/`). Automated
 Playwright uses browser-intercepted API responses and is not
 browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
 required for each release candidate.

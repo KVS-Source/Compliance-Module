@@ -72,10 +72,49 @@ export function LoginPage() {
             <div className="login-row"><label className="check"><input type="checkbox" /> Keep me signed in</label><button className="text-btn" type="button" onClick={() => setForgotOpen(true)}>Forgot password?</button></div>
             <button className="btn btn-primary btn-block" type="submit" disabled={submitting}><LogIn size={16} /><span>{submitting ? "Signing in…" : "Sign In"}</span></button>
           </form>
-          <footer className="login-foot"><span>{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span><span>Location 001</span><button className="text-btn" type="button">Privacy</button><button className="text-btn" type="button">Security</button><button className="text-btn" type="button">Support</button></footer>
+          <footer className="login-foot"><span>{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span><span>Secure Company access</span><button className="text-btn" type="button">Privacy</button><button className="text-btn" type="button">Security</button><button className="text-btn" type="button">Support</button></footer>
         </div>
       </section>
-      {forgotOpen ? <Modal title="Forgot Password" onClose={() => setForgotOpen(false)} footer={<button className="btn btn-primary" type="button" onClick={() => setForgotOpen(false)}>Done</button>}><div className="banner banner-info"><ShieldCheck size={18} /><span>Reset delivery remains outside React Milestone 1. No account data was transmitted.</span></div></Modal> : null}
+      {forgotOpen ? (
+        <Modal
+          title="Account Recovery"
+          onClose={() => setForgotOpen(false)}
+          footer={
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => setForgotOpen(false)}
+            >
+              Back to sign in
+            </button>
+          }
+        >
+          <div className="account-recovery-content">
+            <div className="banner banner-info">
+              <ShieldCheck size={18} />
+              <span>
+                GenBioCa uses administrator-controlled account recovery so a
+                reset cannot be issued from an unverified email address.
+              </span>
+            </div>
+            <h3>Recover your access</h3>
+            <ol>
+              <li>Contact your Company Administrator using an approved channel.</li>
+              <li>Provide your registered work email and Company name.</li>
+              <li>
+                The administrator resets the password from Administration →
+                Users and communicates the temporary password securely.
+              </li>
+              <li>Sign in and immediately choose a new password.</li>
+            </ol>
+            <p>
+              A password reset revokes the user&apos;s existing sessions. The
+              application never confirms whether an email address has an
+              account from this public screen.
+            </p>
+          </div>
+        </Modal>
+      ) : null}
     </main>
   );
 }

@@ -21,7 +21,7 @@
 | Dashboard analytics | `dashboard-analytics-unit.test.ts` | `dashboard-analytics-api.test.ts` | `dashboard-deadline.e2e.ts`, including withheld-section and unmapped-framework cases | compare charted figures against the database |
 | Read-only submission modules (Reports, KPI catalogue/analytics, Frequency master, Role & Access) | — | `submission-modules-api.test.ts` permission gating and tenant scope | `milestone1.e2e.ts` navigation, page identity and no-status-page assertions | confirm no mutation path is reachable for a client role |
 | Route truthfulness | route/router/boundary scripts | — | navigation/status assertions | visible route review |
-| Migration history | — | runner deploys sixteen migrations | — | empty history and upgrade drills |
+| Migration history | — | runner deploys 18 migrations | — | empty history and upgrade drills |
 | Trigger/constraint/index catalogue | — | Milestone 4 in `governance-foundation.test.ts`; Milestone 5 Evidence in `evidence-foundation.test.ts` | — | PostgreSQL catalogue reconciliation |
 | Backup/restore | — | — | — | custom-format disposable drill |
 | Secrets/SAST | — | — | — | Gitleaks and Semgrep CI/local scans |
@@ -60,7 +60,7 @@ rejected; it does not claim a correction workflow exists.
 ## Interpretation
 
 Backend integration means real Express/Prisma behavior against an isolated
-PostgreSQL service migrated from the authoritative sixteen migrations. Playwright
+PostgreSQL service migrated from the authoritative 18 migrations. Playwright
 uses `page.route`/browser interception for `/api/v1/**`; it verifies frontend
 behavior but does not prove the browser, Express and PostgreSQL together.
 

@@ -388,6 +388,7 @@ export interface Framework {
   name: string;
   version: string;
   description: string | null;
+  scopeStatus: string | null;
   status: string;
 }
 
@@ -1992,6 +1993,82 @@ export interface KpiCatalogueEntry {
   configurationStatus: "ACTIVE" | "CONFIGURED_INACTIVE" | "NOT_CONFIGURED";
   owners: string[];
   departments: string[];
+}
+
+export interface KpiTraceabilityRef {
+  id: string;
+  code: string;
+  title?: string;
+  name?: string;
+  status?: string | null;
+}
+
+export interface KpiTraceabilityRow {
+  id: string;
+  kpi: {
+    id: string;
+    code: string;
+    name: string;
+    unit: string;
+    direction: string;
+    /**
+     * Clause list declared for this KPI in `14_KPI_Master`, verbatim from the
+     * client workbook. This is a stated intent, not a governed mapping, so it
+     * is displayed apart from the derived chain and never counts toward
+     * `completeness`.
+     */
+    frameworkMapping: string | null;
+  };
+  configuration: {
+    id: string;
+    owner: { id: string; name: string } | null;
+    department: { id: string; code: string; name: string } | null;
+  };
+  targetActual: {
+    targetId: string;
+    targetCode: string;
+    targetVersion: number;
+    actualId: string;
+    actualCode: string;
+    period: string;
+    targetValue: string;
+    actualValue: string;
+    variance: string;
+    variancePercentage: string | null;
+    ragStatus: RagStatus | null;
+    targetMet: boolean;
+    approvalStatus: SubmissionStatus;
+  };
+  policies: Array<
+    KpiTraceabilityRef & {
+      versionId: string;
+      version: string;
+      status: string;
+    }
+  >;
+  frameworks: Array<
+    KpiTraceabilityRef & { version: string; scopeStatus: string | null }
+  >;
+  rules: Array<KpiTraceabilityRef & { clauseRef: string | null }>;
+  evidence: KpiTraceabilityRef[];
+  controls: KpiTraceabilityRef[];
+  risks: Array<
+    KpiTraceabilityRef & { classification: string | null; status: string }
+  >;
+  completeness: { mappedNodes: number; totalNodes: number; complete: boolean };
+}
+
+export interface KpiTraceability {
+  generatedAt: string;
+  summary: {
+    actuals: number;
+    completeChains: number;
+    missingEvidence: number;
+    riskLinked: number;
+    /** Actuals whose KPI declares a workbook clause no control chain supports. */
+    declaredWithoutChain: number;
+  };
+  rows: KpiTraceabilityRow[];
 }
 
 export interface KpiFrequencyEntry {

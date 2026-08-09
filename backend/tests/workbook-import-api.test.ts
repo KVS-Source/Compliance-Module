@@ -120,6 +120,84 @@ const frameworkSheet = (): SheetSpec => ({
     ]),
 });
 
+const organisationSheet = (): SheetSpec => ({
+  name: "03_Company_Setup",
+  rowsXml:
+    row(1, ["COMPANY SETUP"]) +
+    row(29, ["#", "Business Unit", "Department / Function", "Leader", "Location"]) +
+    row(30, [
+      1,
+      "Synthetic Services",
+      "Synthetic Assurance",
+      null,
+      "Test City (Testland)",
+    ]),
+});
+
+const kpiMasterSheet = (code: string): SheetSpec => ({
+  name: "14_KPI_Master",
+  rowsXml:
+    row(1, ["KPI MASTER"]) +
+    row(4, [
+      "KPI Code",
+      "KPI Name",
+      "Description",
+      "Unit",
+      "Direction",
+      "Frequency",
+      "Default Data Source",
+      "Owner Suggestion",
+      "Compliance Framework Mapping",
+    ]) +
+    row(5, [
+      code,
+      "Synthetic completion rate",
+      "An anonymised import mapping fixture",
+      "%",
+      "Higher is Better",
+      "Quarterly",
+      "Manual Entry",
+      "Assurance Lead",
+      "ISO 27001:2022 (9.1)",
+    ]),
+});
+
+const kpiConfigurationSheet = (code: string): SheetSpec => ({
+  name: "15_KPI_Config_Targets",
+  rowsXml:
+    row(1, ["KPI CONFIGURATION & TARGETS"]) +
+    row(4, [
+      "KPI Code",
+      "KPI Name (auto)",
+      "Unit (auto)",
+      "Direction (auto)",
+      "Enabled?",
+      "Target Value",
+      "Period",
+      "Review Frequency",
+      "Owner (User ID)",
+      "Business Unit",
+      "Location",
+      "Product / Service",
+      "Notes",
+    ]) +
+    row(5, [
+      code,
+      "Synthetic completion rate",
+      "%",
+      "Higher is Better",
+      "Yes",
+      95,
+      "FY26-27",
+      "Quarterly",
+      "U-003",
+      "Synthetic Services",
+      "Test City (Testland)",
+      "Assurance",
+      "Synthetic integration fixture",
+    ]),
+});
+
 describe("workbook import", () => {
   let prisma: PrismaClient;
   let service: WorkbookImportService;
@@ -453,6 +531,52 @@ describe("workbook import", () => {
     });
     expect(framework.status).toBe("ACTIVE");
     expect(framework.scopeStatus).toBe("Certified");
+  });
+
+  it("resolves workbook KPI unit and location references without provisioning workbook users", async () => {
+    const code = `KPI-MAP-${Date.now()}`;
+    const workbook = buildWorkbook(
+      [
+        organisationSheet(),
+        kpiMasterSheet(code),
+        kpiConfigurationSheet(code),
+      ],
+      strings,
+    );
+    await service.commit(
+      companyOne,
+      actorOne,
+      "kpi-organisation-mapping.xlsx",
+      workbook,
+    );
+
+    const configuration = await prisma.kpiConfiguration.findFirstOrThrow({
+      where: {
+        tenantId: companyOne,
+        definition: { code },
+        deletedAt: null,
+      },
+      select: {
+        ownerId: true,
+        sourceOwnerRef: true,
+        orgUnit: { select: { name: true } },
+        orgLocation: { select: { name: true, city: true, country: true } },
+      },
+    });
+
+    expect(configuration).toEqual({
+      ownerId: actorOne,
+      sourceOwnerRef: "U-003",
+      orgUnit: { name: "Synthetic Services" },
+      orgLocation: {
+        name: "Test City (Testland)",
+        city: "Test City",
+        country: "Testland",
+      },
+    });
+    expect(
+      await prisma.user.count({ where: { code: "U-003" } }),
+    ).toBe(0);
   });
 
   it("refuses a file that is not a workbook", async () => {

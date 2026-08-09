@@ -6,22 +6,217 @@ import { expect, test, type Page, type Route } from "@playwright/test";
  */
 
 const companies = [
-  { id: "10000000-0000-4000-8000-000000000001", code: "COM-001", name: "Company 001", industry: "Life Sciences", country: "Country 001", status: "ACTIVE", created: "2026-07-01T00:00:00.000Z" },
-  { id: "10000000-0000-4000-8000-000000000002", code: "COM-002", name: "Company 002", industry: "Healthcare Operations", country: "Country 001", status: "ACTIVE", created: "2026-07-02T00:00:00.000Z" },
-  { id: "10000000-0000-4000-8000-000000000003", code: "COM-003", name: "Company 003", industry: "Biotechnology Research", country: "Country 001", status: "ACTIVE", created: "2026-07-03T00:00:00.000Z" },
+  {
+    id: "10000000-0000-4000-8000-000000000001",
+    code: "COM-001",
+    name: "Company 001",
+    industry: "Life Sciences",
+    country: "Country 001",
+    status: "ACTIVE",
+    created: "2026-07-01T00:00:00.000Z",
+  },
+  {
+    id: "10000000-0000-4000-8000-000000000002",
+    code: "COM-002",
+    name: "Company 002",
+    industry: "Healthcare Operations",
+    country: "Country 001",
+    status: "ACTIVE",
+    created: "2026-07-02T00:00:00.000Z",
+  },
+  {
+    id: "10000000-0000-4000-8000-000000000003",
+    code: "COM-003",
+    name: "Company 003",
+    industry: "Biotechnology Research",
+    country: "Country 001",
+    status: "ACTIVE",
+    created: "2026-07-03T00:00:00.000Z",
+  },
 ];
 
 const users = [
-  { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "User 001", email: "admin001@example.test", phone: "+00 00000 00001", department: "Compliance", roles: ["Company Admin"], status: "ACTIVE", lastLogin: "2026-07-21T10:00:00.000Z" },
-  { id: "20000000-0000-4000-8000-000000000002", code: "USR-002", name: "User 002", email: "user001@example.test", phone: "+00 00000 00002", department: "Compliance", roles: ["Company User"], status: "ACTIVE", lastLogin: null },
+  {
+    id: "20000000-0000-4000-8000-000000000001",
+    code: "USR-001",
+    name: "User 001",
+    email: "admin001@example.test",
+    phone: "+00 00000 00001",
+    department: "Compliance",
+    roles: ["Company Admin"],
+    status: "ACTIVE",
+    lastLogin: "2026-07-21T10:00:00.000Z",
+  },
+  {
+    id: "20000000-0000-4000-8000-000000000002",
+    code: "USR-002",
+    name: "User 002",
+    email: "user001@example.test",
+    phone: "+00 00000 00002",
+    department: "Compliance",
+    roles: ["Company User"],
+    status: "ACTIVE",
+    lastLogin: null,
+  },
 ];
 
-const departments = [{ id: "30000000-0000-4000-8000-000000000001", code: "DEP-001", name: "Compliance", headName: "User 002", status: "ACTIVE", createdAt: "2026-07-01T00:00:00.000Z" }];
-const locations = [{ id: "40000000-0000-4000-8000-000000000001", code: "LOC-001", name: "Location 001", city: "City 001", state: "State 001", country: "Country 001", type: "Office", status: "ACTIVE", createdAt: "2026-07-01T00:00:00.000Z" }];
-const units = [{ id: "50000000-0000-4000-8000-000000000001", code: "UNIT-001", name: "Organisation Unit 001", status: "ACTIVE", createdAt: "2026-07-01T00:00:00.000Z" }];
-const frameworks = [{ id: "60000000-0000-4000-8000-000000000001", code: "FRM-001", name: "ISO 9001", version: "2025", description: "Quality management system", status: "ACTIVE" }];
-const rules = [{ id: "70000000-0000-4000-8000-000000000001", frameworkId: frameworks[0]!.id, code: "RUL-001", title: "Documented information control", description: "Control documented information and retained evidence.", status: "ACTIVE" }];
-const kpis = [{ id: "80000000-0000-4000-8000-000000000001", code: "KPI-001", name: "Customer Satisfaction Score", description: "Quarterly verified customer satisfaction.", unit: "%", direction: "HIGHER_IS_BETTER", frequency: "QUARTERLY", status: "ACTIVE" }];
+const departments = [
+  {
+    id: "30000000-0000-4000-8000-000000000001",
+    code: "DEP-001",
+    name: "Compliance",
+    headName: "User 002",
+    status: "ACTIVE",
+    createdAt: "2026-07-01T00:00:00.000Z",
+  },
+];
+const locations = [
+  {
+    id: "40000000-0000-4000-8000-000000000001",
+    code: "LOC-001",
+    name: "Location 001",
+    city: "City 001",
+    state: "State 001",
+    country: "Country 001",
+    type: "Office",
+    status: "ACTIVE",
+    createdAt: "2026-07-01T00:00:00.000Z",
+  },
+];
+const units = [
+  {
+    id: "50000000-0000-4000-8000-000000000001",
+    code: "UNIT-001",
+    name: "Organisation Unit 001",
+    status: "ACTIVE",
+    createdAt: "2026-07-01T00:00:00.000Z",
+  },
+];
+const frameworks = [
+  {
+    id: "60000000-0000-4000-8000-000000000001",
+    code: "FRM-001",
+    name: "ISO 9001",
+    version: "2025",
+    description: "Quality management system",
+    status: "ACTIVE",
+  },
+];
+const rules = [
+  {
+    id: "70000000-0000-4000-8000-000000000001",
+    frameworkId: frameworks[0]!.id,
+    code: "RUL-001",
+    title: "Documented information control",
+    description: "Control documented information and retained evidence.",
+    status: "ACTIVE",
+  },
+];
+const kpis = [
+  {
+    id: "80000000-0000-4000-8000-000000000001",
+    code: "KPI-001",
+    name: "Customer Satisfaction Score",
+    description: "Quarterly verified customer satisfaction.",
+    unit: "%",
+    direction: "HIGHER_IS_BETTER",
+    frequency: "QUARTERLY",
+    status: "ACTIVE",
+  },
+];
+const kpiTraceability = {
+  generatedAt: "2026-08-07T00:00:00.000Z",
+  summary: { actuals: 1, completeChains: 1, missingEvidence: 0, riskLinked: 1 },
+  rows: [
+    {
+      id: "81000000-0000-4000-8000-000000000001",
+      kpi: {
+        id: kpis[0]!.id,
+        code: "KPI-001",
+        name: "Customer Satisfaction Score",
+        unit: "%",
+        direction: "HIGHER_IS_BETTER",
+      },
+      configuration: {
+        id: "82000000-0000-4000-8000-000000000001",
+        owner: { id: users[0]!.id, name: "User 001" },
+        department: {
+          id: departments[0]!.id,
+          code: "DEP-001",
+          name: "Compliance",
+        },
+      },
+      targetActual: {
+        targetId: "83000000-0000-4000-8000-000000000001",
+        targetCode: "TGT-001",
+        targetVersion: 1,
+        actualId: "81000000-0000-4000-8000-000000000001",
+        actualCode: "ACT-001",
+        period: "Q2 2026",
+        targetValue: "90",
+        actualValue: "82",
+        variance: "-8",
+        variancePercentage: "-8.9",
+        ragStatus: "RED",
+        targetMet: false,
+        approvalStatus: "APPROVED",
+      },
+      policies: [
+        {
+          id: "84000000-0000-4000-8000-000000000001",
+          code: "POL-001",
+          title: "Customer Feedback Policy",
+          versionId: "85000000-0000-4000-8000-000000000001",
+          version: "1.0",
+          status: "APPROVED",
+        },
+      ],
+      frameworks: [
+        {
+          id: frameworks[0]!.id,
+          code: "FRM-001",
+          name: "ISO 9001",
+          version: "2025",
+          scopeStatus: "Active – In Scope",
+        },
+      ],
+      rules: [
+        {
+          id: rules[0]!.id,
+          code: "RUL-001",
+          title: "Quarterly CSAT review required",
+          clauseRef: "9.1.2",
+        },
+      ],
+      evidence: [
+        {
+          id: "86000000-0000-4000-8000-000000000001",
+          code: "EVD-002",
+          title: "Customer survey results",
+          status: "APPROVED",
+        },
+      ],
+      controls: [
+        {
+          id: "87000000-0000-4000-8000-000000000001",
+          code: "CTL-001",
+          title: "Customer Satisfaction Monitoring",
+          status: "IMPLEMENTED",
+        },
+      ],
+      risks: [
+        {
+          id: "88000000-0000-4000-8000-000000000001",
+          code: "RSK-001",
+          title: "Customer satisfaction missed target",
+          classification: "MAJOR",
+          status: "OPEN",
+        },
+      ],
+      completeness: { mappedNodes: 8, totalNodes: 8, complete: true },
+    },
+  ],
+};
 const dashboardSummary = {
   kpis: {
     activeConfigurations: 9,
@@ -62,19 +257,52 @@ const dashboardSummary = {
       policiesDueForReview: 2,
     },
     kpiTrend: [
-      { period: "FY26-27 Q1", periodStart: "2026-04-01", measured: 29, meetingTarget: 9, targetTotal: 100, actualTotal: 80 },
+      {
+        period: "FY26-27 Q1",
+        periodStart: "2026-04-01",
+        measured: 29,
+        meetingTarget: 9,
+        targetTotal: 100,
+        actualTotal: 80,
+      },
     ],
-    evidenceStatus: [{ status: "APPROVED", count: 2 }, { status: "DRAFT", count: 18 }],
+    evidenceStatus: [
+      { status: "APPROVED", count: 2 },
+      { status: "DRAFT", count: 18 },
+    ],
     frameworkCompliance: [
-      { id: "60000000-0000-4000-8000-000000000001", code: "FRM-001", name: "ISO 9001", version: "2025", scopeStatus: "Active – In Scope", ruleCount: 12, mappedControls: 0, implementedControls: 0, openGaps: 1, compliancePercentage: null },
+      {
+        id: "60000000-0000-4000-8000-000000000001",
+        code: "FRM-001",
+        name: "ISO 9001",
+        version: "2025",
+        scopeStatus: "Active – In Scope",
+        ruleCount: 12,
+        mappedControls: 0,
+        implementedControls: 0,
+        openGaps: 1,
+        compliancePercentage: null,
+      },
     ],
-    riskHeatMap: { cells: [{ likelihood: 3, impact: 4, count: 1 }], maxLikelihood: 3, maxImpact: 4, total: 1 },
+    riskHeatMap: {
+      cells: [{ likelihood: 3, impact: 4, count: 1 }],
+      maxLikelihood: 3,
+      maxImpact: 4,
+      total: 1,
+    },
     capaAging: [{ key: "OVERDUE_1_30", label: "Overdue 1–30 days", count: 1 }],
     recentKpiRisks: [],
     capasDueSoon: [],
     policiesDueForReview: { total: 2, overdue: 1, horizonDays: 90, items: [] },
     actionQueue: [
-      { key: "gap-open", label: "Open Gaps", description: "Compliance gaps still awaiting remediation.", count: 4, to: "/compliance/gaps", tone: "amber" },
+      {
+        key: "gap-open",
+        label: "Open Gaps",
+        description: "Compliance gaps still awaiting remediation.",
+        count: 4,
+        to: "/compliance/gaps",
+        tone: "amber",
+      },
     ],
     genrac: {
       configured: false,
@@ -101,7 +329,11 @@ const identity = (activeCompany = companies[0]!) => ({
   status: "ACTIVE",
   lastLogin: users[0]!.lastLogin,
   permissions: ["*"],
-  activeCompany: { id: activeCompany.id, code: activeCompany.code, name: activeCompany.name },
+  activeCompany: {
+    id: activeCompany.id,
+    code: activeCompany.code,
+    name: activeCompany.name,
+  },
   companies: companies.map(({ id, code, name }) => ({ id, code, name })),
 });
 
@@ -120,177 +352,294 @@ async function installMockApi(
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    if (
-      request.method() !== "GET" &&
-      !path.startsWith("/api/v1/auth/")
-    ) {
+    if (request.method() !== "GET" && !path.startsWith("/api/v1/auth/")) {
       undeclaredWrites.push(`${request.method()} ${path}`);
     }
     if (path === "/api/v1/auth/refresh") {
-      if (!authenticated) return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Invalid refresh token" } }) });
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "mock-access-token", user: identity(activeCompany) })) });
+      if (!authenticated)
+        return route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: false,
+            error: { code: "UNAUTHORIZED", message: "Invalid refresh token" },
+          }),
+        });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            accessToken: "mock-access-token",
+            user: identity(activeCompany),
+          }),
+        ),
+      });
     }
     if (path === "/api/v1/auth/login") {
       authenticated = true;
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "mock-access-token", user: identity(activeCompany) })) });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            accessToken: "mock-access-token",
+            user: identity(activeCompany),
+          }),
+        ),
+      });
     }
     if (path === "/api/v1/auth/logout") {
       authenticated = false;
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ loggedOut: true })) });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(success({ loggedOut: true })),
+      });
     }
     if (path === "/api/v1/auth/tenant-context") {
       const payload = request.postDataJSON() as { companyId: string };
-      activeCompany = companies.find((company) => company.id === payload.companyId) ?? activeCompany;
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "switched-access-token", user: identity(activeCompany) })) });
+      activeCompany =
+        companies.find((company) => company.id === payload.companyId) ??
+        activeCompany;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            accessToken: "switched-access-token",
+            user: identity(activeCompany),
+          }),
+        ),
+      });
     }
-    const data = path === "/api/v1/tenants" ? companies
-      : path === "/api/v1/dashboard/summary" ? summary
-      : path === "/api/v1/users" ? users
-        : path.startsWith("/api/v1/users/") ? users.find((user) => path.endsWith(user.id))
-          : path === "/api/v1/organisation/departments" ? departments
-            : path === "/api/v1/organisation/locations" ? locations
-              : path === "/api/v1/organisation/units" ? units
-                : path === "/api/v1/frameworks" ? frameworks
-                  : path.endsWith("/rules") ? rules
-                    : path.startsWith("/api/v1/frameworks/") ? frameworks[0]
-                      : path === "/api/v1/kpi-definitions" ? kpis
-                        : path === "/api/v1/kpis/catalogue" ? [{
-                            id: "80000000-0000-4000-8000-000000000001",
-                            code: "KPI-001",
-                            name: "Customer Satisfaction Score",
-                            description: "Quarterly verified customer satisfaction.",
-                            unit: "%",
-                            direction: "HIGHER_IS_BETTER",
-                            frequency: "QUARTERLY",
-                            status: "ACTIVE",
-                            perspective: null,
-                            framework: null,
-                            configurationCount: 1,
-                            activeConfigurationCount: 1,
-                            configurationStatus: "ACTIVE",
-                            owners: ["User One"],
-                            departments: ["Quality"],
-                          }]
-                        : path === "/api/v1/kpis/frequencies" ? [{
-                            code: "QUARTERLY",
-                            definitionCount: 1,
-                            configurationCount: 1,
-                            activeConfigurationCount: 1,
-                          }]
-                          : path === "/api/v1/kpis/analytics" ? {
-                              generatedAt: "2026-08-06T00:00:00.000Z",
-                              filters: {
-                                frequency: null,
-                                ownerId: null,
-                                departmentId: null,
-                                period: null,
-                              },
-                              summary: {
-                                measured: 29,
-                                meetingTarget: 9,
-                                missingTarget: 20,
-                                achievementRate: 31,
-                              },
-                              ragDistribution: [
-                                { status: "GREEN", count: 9 },
-                                { status: "AMBER", count: 10 },
-                                { status: "RED", count: 10 },
-                              ],
-                              trend: [
-                                {
-                                  period: "FY26-27 Q1",
-                                  periodStart: "2026-04-01",
-                                  measured: 29,
-                                  meetingTarget: 9,
-                                  achievementRate: 31,
-                                },
-                              ],
-                              departmentDistribution: [
-                                {
-                                  id: "30000000-0000-4000-8000-000000000001",
-                                  code: "QA",
-                                  name: "Quality",
-                                  measured: 10,
-                                },
-                              ],
-                              missedKpis: [],
-                            }
-                            : path === "/api/v1/access/profiles" ? {
-                                profiles: [
-                                  {
-                                    code: "COMPLIANCE_MANAGER",
-                                    name: "Compliance Manager",
-                                    description: "Compliance configuration and reporting",
-                                    provisioned: true,
-                                    enabled: true,
-                                    userCount: 1,
-                                    permissions: ["dashboard:read", "users:read"],
-                                    permissionCount: 2,
-                                  },
-                                ],
-                                additionalRoles: [],
-                                permissions: [
-                                  {
-                                    code: "dashboard:read",
-                                    description: "Read dashboard",
-                                    module: "dashboard",
-                                  },
-                                  {
-                                    code: "users:read",
-                                    description: "Read users",
-                                    module: "users",
-                                  },
-                                ],
-                                mutable: false,
-                              }
-                              : path === "/api/v1/reports" ? [
-                                  {
-                                    key: "kpi-variance",
-                                    name: "KPI Variance",
-                                    description: "Target versus actual achievement",
-                                    filters: ["period", "departmentId"],
-                                    permissions: ["kpis:read"],
-                                    available: true,
-                                  },
-                                ]
-                                : path.startsWith("/api/v1/reports/") ? {
-                                    key: "kpi-variance",
-                                    name: "KPI Variance",
-                                    generatedAt: "2026-08-06T00:00:00.000Z",
-                                    filters: {},
-                                    summary: [],
-                                    columns: [{ key: "code", label: "KPI" }],
-                                    rows: [],
-                                  }
-                        : path === "/api/v1/kpi-goals" ? []
-                          : path === "/api/v1/kpi-configurations" ? []
-                            : path === "/api/v1/kpi-targets" ? []
-                              : path === "/api/v1/policies" || path === "/api/v1/controls" || path === "/api/v1/checkpoints" || path === "/api/v1/evidence" || path === "/api/v1/evidence/review-queue" || path === "/api/v1/gaps" || path === "/api/v1/capas" || path === "/api/v1/imports" || path === "/api/v1/audit-events" || path === "/api/v1/operational-registers" || path === "/api/v1/imports/csv/templates" ? []
-                                : path === "/api/v1/integrations/genrac/status" ? {
-                                  connection: {
-                                    id: "90000000-0000-4000-8000-000000000001",
-                                    systemCode: "GENRAC",
-                                    displayName: "GenRAC",
-                                    connectorType: "CSV_FILE",
-                                    status: "NOT_CONFIGURED",
-                                    secretRefKeys: [],
-                                    config: {},
-                                    lastTestedAt: null,
-                                    lastTestSuccess: null,
-                                    lastTestMessage: null,
-                                    lastSuccessfulSyncAt: null,
-                                    lastAttemptedSyncAt: null,
-                                    configurationExplanation:
-                                      "GenRAC credentials and connection settings are not configured. Live REST/database sync remains unavailable.",
-                                  },
-                                  mappingCount: 0,
-                                  lastSyncRun: null,
-                                  liveAccess: false,
-                                  adapters: { csvFile: false, rest: false, postgresReadonly: false },
-                                }
-                                  : path === "/api/v1/integrations/genrac/history" ? []
-                                    : null;
-    if (data === null || data === undefined) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }) });
+    const data =
+      path === "/api/v1/tenants"
+        ? companies
+        : path === "/api/v1/dashboard/summary"
+          ? summary
+          : path === "/api/v1/users"
+            ? users
+            : path.startsWith("/api/v1/users/")
+              ? users.find((user) => path.endsWith(user.id))
+              : path === "/api/v1/organisation/departments"
+                ? departments
+                : path === "/api/v1/organisation/locations"
+                  ? locations
+                  : path === "/api/v1/organisation/units"
+                    ? units
+                    : path === "/api/v1/frameworks"
+                      ? frameworks
+                      : path.endsWith("/rules")
+                        ? rules
+                        : path.startsWith("/api/v1/frameworks/")
+                          ? frameworks[0]
+                          : path === "/api/v1/kpi-definitions"
+                            ? kpis
+                            : path === "/api/v1/kpis/traceability"
+                              ? kpiTraceability
+                              : path === "/api/v1/kpis/catalogue"
+                                ? [
+                                    {
+                                      id: "80000000-0000-4000-8000-000000000001",
+                                      code: "KPI-001",
+                                      name: "Customer Satisfaction Score",
+                                      description:
+                                        "Quarterly verified customer satisfaction.",
+                                      unit: "%",
+                                      direction: "HIGHER_IS_BETTER",
+                                      frequency: "QUARTERLY",
+                                      status: "ACTIVE",
+                                      perspective: null,
+                                      framework: null,
+                                      configurationCount: 1,
+                                      activeConfigurationCount: 1,
+                                      configurationStatus: "ACTIVE",
+                                      owners: ["User One"],
+                                      departments: ["Quality"],
+                                    },
+                                  ]
+                                : path === "/api/v1/kpis/frequencies"
+                                  ? [
+                                      {
+                                        code: "QUARTERLY",
+                                        definitionCount: 1,
+                                        configurationCount: 1,
+                                        activeConfigurationCount: 1,
+                                      },
+                                    ]
+                                  : path === "/api/v1/kpis/analytics"
+                                    ? {
+                                        generatedAt: "2026-08-06T00:00:00.000Z",
+                                        filters: {
+                                          frequency: null,
+                                          ownerId: null,
+                                          departmentId: null,
+                                          period: null,
+                                        },
+                                        summary: {
+                                          measured: 29,
+                                          meetingTarget: 9,
+                                          missingTarget: 20,
+                                          achievementRate: 31,
+                                        },
+                                        ragDistribution: [
+                                          { status: "GREEN", count: 9 },
+                                          { status: "AMBER", count: 10 },
+                                          { status: "RED", count: 10 },
+                                        ],
+                                        trend: [
+                                          {
+                                            period: "FY26-27 Q1",
+                                            periodStart: "2026-04-01",
+                                            measured: 29,
+                                            meetingTarget: 9,
+                                            achievementRate: 31,
+                                          },
+                                        ],
+                                        departmentDistribution: [
+                                          {
+                                            id: "30000000-0000-4000-8000-000000000001",
+                                            code: "QA",
+                                            name: "Quality",
+                                            measured: 10,
+                                          },
+                                        ],
+                                        missedKpis: [],
+                                      }
+                                    : path === "/api/v1/access/profiles"
+                                      ? {
+                                          profiles: [
+                                            {
+                                              code: "COMPLIANCE_MANAGER",
+                                              name: "Compliance Manager",
+                                              description:
+                                                "Compliance configuration and reporting",
+                                              provisioned: true,
+                                              enabled: true,
+                                              userCount: 1,
+                                              permissions: [
+                                                "dashboard:read",
+                                                "users:read",
+                                              ],
+                                              permissionCount: 2,
+                                            },
+                                          ],
+                                          additionalRoles: [],
+                                          permissions: [
+                                            {
+                                              code: "dashboard:read",
+                                              description: "Read dashboard",
+                                              module: "dashboard",
+                                            },
+                                            {
+                                              code: "users:read",
+                                              description: "Read users",
+                                              module: "users",
+                                            },
+                                          ],
+                                          mutable: false,
+                                        }
+                                      : path === "/api/v1/reports"
+                                        ? [
+                                            {
+                                              key: "kpi-variance",
+                                              name: "KPI Variance",
+                                              description:
+                                                "Target versus actual achievement",
+                                              filters: [
+                                                "period",
+                                                "departmentId",
+                                              ],
+                                              permissions: ["kpis:read"],
+                                              available: true,
+                                            },
+                                          ]
+                                        : path.startsWith("/api/v1/reports/")
+                                          ? {
+                                              key: "kpi-variance",
+                                              name: "KPI Variance",
+                                              generatedAt:
+                                                "2026-08-06T00:00:00.000Z",
+                                              filters: {},
+                                              summary: [],
+                                              columns: [
+                                                { key: "code", label: "KPI" },
+                                              ],
+                                              rows: [],
+                                            }
+                                          : path === "/api/v1/kpi-goals"
+                                            ? []
+                                            : path ===
+                                                "/api/v1/kpi-configurations"
+                                              ? []
+                                              : path === "/api/v1/kpi-targets"
+                                                ? []
+                                                : path === "/api/v1/policies" ||
+                                                    path ===
+                                                      "/api/v1/controls" ||
+                                                    path ===
+                                                      "/api/v1/checkpoints" ||
+                                                    path ===
+                                                      "/api/v1/evidence" ||
+                                                    path ===
+                                                      "/api/v1/evidence/review-queue" ||
+                                                    path === "/api/v1/gaps" ||
+                                                    path === "/api/v1/capas" ||
+                                                    path ===
+                                                      "/api/v1/imports" ||
+                                                    path ===
+                                                      "/api/v1/audit-events" ||
+                                                    path ===
+                                                      "/api/v1/operational-registers" ||
+                                                    path ===
+                                                      "/api/v1/imports/csv/templates"
+                                                  ? []
+                                                  : path ===
+                                                      "/api/v1/integrations/genrac/status"
+                                                    ? {
+                                                        connection: {
+                                                          id: "90000000-0000-4000-8000-000000000001",
+                                                          systemCode: "GENRAC",
+                                                          displayName: "GenRAC",
+                                                          connectorType:
+                                                            "CSV_FILE",
+                                                          status:
+                                                            "NOT_CONFIGURED",
+                                                          secretRefKeys: [],
+                                                          config: {},
+                                                          lastTestedAt: null,
+                                                          lastTestSuccess: null,
+                                                          lastTestMessage: null,
+                                                          lastSuccessfulSyncAt:
+                                                            null,
+                                                          lastAttemptedSyncAt:
+                                                            null,
+                                                          configurationExplanation:
+                                                            "GenRAC credentials and connection settings are not configured. Live REST/database sync remains unavailable.",
+                                                        },
+                                                        mappingCount: 0,
+                                                        lastSyncRun: null,
+                                                        liveAccess: false,
+                                                        adapters: {
+                                                          csvFile: false,
+                                                          rest: false,
+                                                          postgresReadonly: false,
+                                                        },
+                                                      }
+                                                    : path ===
+                                                        "/api/v1/integrations/genrac/history"
+                                                      ? []
+                                                      : null;
+    if (data === null || data === undefined)
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Not found" },
+        }),
+      });
     if (
       path === "/api/v1/policies" ||
       path === "/api/v1/controls" ||
@@ -315,7 +664,11 @@ async function installMockApi(
         }),
       });
     }
-    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success(data)) });
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(success(data)),
+    });
   });
 }
 
@@ -329,7 +682,9 @@ async function navigateInApp(page: Page, path: string) {
   );
 }
 
-test("login, secure storage, Company switch and API-backed master screens", async ({ page }) => {
+test("login, secure storage, Company switch and API-backed master screens", async ({
+  page,
+}) => {
   test.setTimeout(90_000);
   await installMockApi(page, false);
   await page.goto("/login");
@@ -339,10 +694,11 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByText("Active KPI Configurations")).toBeVisible();
-  await expect(
-    page.getByLabel(/Active KPI Configurations: 9/),
-  ).toBeVisible();
-  const stored = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } }));
+  await expect(page.getByLabel(/Active KPI Configurations: 9/)).toBeVisible();
+  const stored = await page.evaluate(() => ({
+    local: { ...localStorage },
+    session: { ...sessionStorage },
+  }));
   const storedText = JSON.stringify(stored);
   const storageContainsSecretValue = [
     "Synthetic001!",
@@ -374,12 +730,16 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
 
   await navigateInApp(page, "/admin/users");
   await page.getByRole("button", { name: `View ${users[0]!.id}` }).click();
-  await expect(page.getByText("Database-authoritative Company user detail.")).toBeVisible();
+  await expect(
+    page.getByText("Database-authoritative Company user detail."),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Done" }).click();
 
   await navigateInApp(page, "/master/frameworks");
   await page.getByRole("button", { name: `View ${frameworks[0]!.id}` }).click();
-  await expect(page).toHaveURL(new RegExp(`/master/frameworks/${frameworks[0]!.id}/rules$`));
+  await expect(page).toHaveURL(
+    new RegExp(`/master/frameworks/${frameworks[0]!.id}/rules$`),
+  );
   await expect(page.getByText("RUL-001")).toBeVisible();
 });
 
@@ -391,10 +751,11 @@ const approvedGroups = [
   "Compliance Management",
   "Evidence Management",
   "Data Management",
-  "Audit & Reporting",
+  "Audit & Operations",
+  "Analytics & Reports",
 ];
 
-/** Must match `clientNavigationPaths` in routeDefinitions.ts (44 LIVE nav paths). */
+/** Primary navigation paths; Settings is the separate sidebar utility route. */
 const approvedPaths = [
   "/dashboard",
   "/admin/companies",
@@ -412,11 +773,11 @@ const approvedPaths = [
   "/master/controls",
   "/master/kpis",
   "/kpi/catalogue",
+  "/kpi/mapping",
   "/kpi/configuration",
   "/kpi/targets",
   "/kpi/actual-entry",
   "/kpi/approval",
-  "/kpi/analytics",
   "/compliance/frameworks",
   "/compliance/controls",
   "/compliance/checkpoints",
@@ -434,6 +795,7 @@ const approvedPaths = [
   "/data/genrac-integration",
   "/audit-trail",
   "/compliance/operational-registers",
+  "/kpi/analytics",
   "/reports",
   "/reports/kpi-variance",
   "/reports/framework-compliance",
@@ -455,7 +817,7 @@ const livePaths = [
   ["/master/targets", "KPI Targets"],
   ["/master/policies", "Policy Register"],
   ["/master/controls", "Control Register"],
-  ["/master/kpis", "KPI Catalogue"],
+  ["/master/kpis", "KPI Master"],
   ["/master/frameworks", "Framework Master"],
   ["/master/rules", "Framework Rules"],
   ["/compliance/frameworks", "Framework Master"],
@@ -481,7 +843,9 @@ const livePaths = [
   ["/evidence/review", "Evidence Review"],
   ["/evidence/approved", "Approved Evidence"],
   ["/evidence/rejected", "Rejected Evidence"],
-  ["/reports", "Report Hub"],
+  ["/kpi/mapping", "KPI Mapping & Compliance Traceability"],
+  ["/reports", "Analytics & Reports"],
+  ["/settings", "Settings"],
 ] as const;
 
 test("sidebar exposes the complete approved structure and truthful badges", async ({
@@ -501,11 +865,14 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
       links.map((link) => link.getAttribute("href")).filter(Boolean),
     );
   expect(hrefs).toEqual(approvedPaths);
+  await expect(page.locator('.sidebar-foot a[href="/settings"]')).toHaveCount(
+    1,
+  );
   // Client navigation is LIVE-only — no In Development or Awaiting Access badges.
   await expect(page.locator(".nav-status-badge")).toHaveCount(0);
-  await expect(page.getByTestId("nav-status-/data/genrac-integration")).toHaveCount(
-    0,
-  );
+  await expect(
+    page.getByTestId("nav-status-/data/genrac-integration"),
+  ).toHaveCount(0);
   // Role & Access is a real read-only page in this release, so it is visible.
   await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(1);
   await expect(page.locator('a[href="/tasks"]')).toHaveCount(0);
@@ -518,12 +885,94 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
   await expect(
     page.getByRole("button", { name: "Reports & Analytics", exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Settings", exact: true }),
-  ).toHaveCount(0);
-  await expect(page.locator('a[href="/dashboard"] .nav-status-badge')).toHaveCount(
-    0,
+  await expect(page.locator('.sidebar-foot a[href="/settings"]')).toHaveCount(
+    1,
   );
+  await expect(
+    page.locator('a[href="/dashboard"] .nav-status-badge'),
+  ).toHaveCount(0);
+});
+
+test("settings persist the selected working location and update the header", async ({
+  page,
+}) => {
+  await installMockApi(page, true);
+  await page.goto("/settings");
+
+  await expect(page.getByTestId("settings-page")).toBeVisible();
+  await expect(page.getByLabel("Working location")).toHaveValue("");
+  await expect(page.locator(".datetime")).toContainText("All locations");
+
+  await page.getByLabel("Working location").selectOption(locations[0]!.id);
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved")).toBeVisible();
+  await expect(page.locator(".datetime")).toContainText("Location 001");
+
+  await page.reload();
+  await expect(page.getByLabel("Working location")).toHaveValue(
+    locations[0]!.id,
+  );
+  await expect(page.locator(".datetime")).toContainText("Location 001");
+});
+
+test("KPI Master and KPI Catalogue remain distinct live views", async ({
+  page,
+}) => {
+  await installMockApi(page, true);
+  await page.goto("/master/kpis");
+  await expect(page.getByRole("heading", { name: "KPI Master" })).toBeVisible();
+  await expect(page.locator("caption")).toContainText("KPI Definition Master");
+  await expect(
+    page.getByRole("link", { name: "KPI Catalogue" }),
+  ).toHaveAttribute("href", "/kpi/catalogue");
+
+  await page.goto("/kpi/catalogue");
+  await expect(
+    page.getByRole("heading", { name: "KPI Catalogue" }),
+  ).toBeVisible();
+  await expect(page.locator("caption")).not.toContainText(
+    "KPI Definition Master",
+  );
+});
+
+test("KPI Mapping renders the live governed traceability chain", async ({
+  page,
+}) => {
+  await installMockApi(page, true);
+  await page.goto("/kpi/mapping");
+  await expect(page.getByTestId("kpi-traceability-page")).toBeVisible();
+  await expect(page.getByTestId("kpi-traceability-chain")).toBeVisible();
+  for (const label of [
+    "Policy",
+    "Framework",
+    "Rule",
+    "Evidence",
+    "Control",
+    "KPI",
+    "Target vs Actual",
+    "Risk",
+  ]) {
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText("8/8 nodes linked")).toBeVisible();
+  await expect(page.getByText("31%", { exact: true })).toHaveCount(0);
+});
+
+test("analytics and reports exposes live analytics and the report catalogue", async ({
+  page,
+}) => {
+  await installMockApi(page, true);
+  await page.goto("/reports");
+
+  await expect(
+    page.getByRole("heading", { name: "Analytics & Reports" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("report-hub-summary")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /KPI Analytics/ }),
+  ).toHaveAttribute("href", "/kpi/analytics");
+  await expect(page.getByTestId("report-hub-grid")).toBeVisible();
+  await expect(page.getByTestId("report-tile-kpi-variance")).toBeVisible();
 });
 
 test("live navigation remains API-backed and never shows development status", async ({
@@ -539,8 +988,8 @@ test("live navigation remains API-backed and never shows development status", as
     await expect(page.locator(".page-head h1")).toContainText(heading, {
       timeout: 15_000,
     });
-    await expect(page.locator(".sidebar nav a.active")).toHaveCount(1);
-    await expect(page.locator(`.sidebar nav a[href="${path}"]`)).toHaveClass(
+    await expect(page.locator(".sidebar a.active")).toHaveCount(1);
+    await expect(page.locator(`.sidebar a[href="${path}"]`)).toHaveClass(
       /active/,
     );
     await expect(page.getByTestId("module-status-page")).toHaveCount(0);
@@ -568,7 +1017,9 @@ test("unfinished and compatibility routes use truthful non-operational status pa
 
   for (const [path, expectedStatus] of [
     ["/kpi/dashboard", "development"],
-    ["/kpi/mapping", "development"],
+    // `/kpi/mapping` is no longer listed here: it is now a LIVE traceability
+    // surface backed by GET /kpis/traceability, covered by "KPI Mapping
+    // renders the live governed traceability chain" above.
     ["/settings/tenant", "development"],
     ["/compliance/policy-versions", "compatibility"],
     ["/master/customers", "compatibility"],
@@ -585,7 +1036,9 @@ test("unfinished and compatibility routes use truthful non-operational status pa
         statusPage.getByText("Compatibility Route", { exact: true }),
       ).toBeVisible();
     } else {
-      await expect(page.getByTestId("development-status-message")).toBeVisible();
+      await expect(
+        page.getByTestId("development-status-message"),
+      ).toBeVisible();
       await expect(
         statusPage.getByText("In Development", { exact: true }),
       ).toBeVisible();
@@ -621,12 +1074,13 @@ test("GenRAC Integration shows Not configured without claiming live access", asy
   );
   await expect(page.getByText("Awaiting GenRAC Access")).toHaveCount(0);
   await expect(page.getByText("Awaiting Access")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Preview Changes" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Preview Changes" }),
+  ).toBeDisabled();
   await expect(page.getByRole("button", { name: "Run Sync" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Preview Changes" })).toHaveAttribute(
-    "title",
-    /Not configured/,
-  );
+  await expect(
+    page.getByRole("button", { name: "Preview Changes" }),
+  ).toHaveAttribute("title", /Not configured/);
   await expect(page.getByRole("button", { name: "Run Sync" })).toHaveAttribute(
     "title",
     /Not configured/,
@@ -684,7 +1138,9 @@ test("mobile navigation contains the same approved modules and closes after use"
       width: rect(sidebar)?.width ?? 0,
       iconLabelGap:
         icon && label ? (rect(label)?.left ?? 0) - (rect(icon)?.right ?? 0) : 0,
-      linkInset: link ? (rect(link)?.left ?? 0) - (rect(sidebar)?.left ?? 0) : 0,
+      linkInset: link
+        ? (rect(link)?.left ?? 0) - (rect(sidebar)?.left ?? 0)
+        : 0,
     };
   });
   expect(mobileGeometry.width).toBeLessThanOrEqual(264.5);
@@ -700,7 +1156,9 @@ test("mobile navigation contains the same approved modules and closes after use"
 
   await page.locator('.sidebar a[href="/admin/users"]').click();
   await expect(page).toHaveURL(/\/admin\/users$/);
-  await expect(page.getByRole("heading", { name: "User Management" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "User Management" }),
+  ).toBeVisible();
   await expect(page.locator(".sidebar")).toBeHidden();
 });
 
@@ -736,7 +1194,9 @@ test("logout still survives a page reload from a status route", async ({
   test.setTimeout(60_000);
   await installMockApi(page, true);
   await page.goto("/admin/roles");
-  await expect(page.getByRole("heading", { name: "Role & Access" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Role & Access" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "User profile" }).click();
   await page
     .locator(".profile-menu")
@@ -760,22 +1220,19 @@ async function assertDashboardKeyboardDestinations(
   for (let index = 0; index < destinations.length; index += 1) {
     const destination = destinations[index]!;
     const controlIndex = offset + index;
-    await test.step(
-      `dashboard control ${controlIndex + 1} reaches ${destination}`,
-      async () => {
-        await expect(cards).toHaveCount(expectedControlCount);
-        const link = cards.nth(controlIndex);
-        await expect(link).toBeVisible();
-        await link.focus();
-        await page.keyboard.press("Enter");
-        await expect(page).toHaveURL(
-          new RegExp(`${destination.replaceAll("/", "\\/")}$`),
-        );
-        await page.goto("/dashboard");
-        await expect(page.getByTestId("dashboard-cards")).toBeVisible();
-        await expect(page.locator(selector)).toHaveCount(expectedControlCount);
-      },
-    );
+    await test.step(`dashboard control ${controlIndex + 1} reaches ${destination}`, async () => {
+      await expect(cards).toHaveCount(expectedControlCount);
+      const link = cards.nth(controlIndex);
+      await expect(link).toBeVisible();
+      await link.focus();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(
+        new RegExp(`${destination.replaceAll("/", "\\/")}$`),
+      );
+      await page.goto("/dashboard");
+      await expect(page.getByTestId("dashboard-cards")).toBeVisible();
+      await expect(page.locator(selector)).toHaveCount(expectedControlCount);
+    });
   }
 }
 
@@ -794,6 +1251,7 @@ test("dashboard summary cards reach their live routes by keyboard", async ({
     page,
     ".dashboard-cards a",
     [
+      "/kpi/analytics",
       "/kpi/catalogue",
       "/kpi/configuration",
       "/kpi/analytics",
@@ -806,7 +1264,7 @@ test("dashboard summary cards reach their live routes by keyboard", async ({
       "/compliance/policy-register",
     ],
     0,
-    10,
+    11,
   );
 });
 
@@ -835,7 +1293,10 @@ test("dashboard visualisation sections link to the registers they summarise", as
     await expect(page.getByTestId(testId)).toBeVisible();
   }
 
-  await page.getByTestId("dashboard-evidence-status").getByRole("link", { name: "Evidence Library" }).click();
+  await page
+    .getByTestId("dashboard-evidence-status")
+    .getByRole("link", { name: "Evidence Library" })
+    .click();
   await expect(page).toHaveURL(/\/evidence$/);
   await page.goto("/dashboard");
   await page
@@ -885,15 +1346,17 @@ test("desktop header controls are truthful, close correctly and do not write", a
   await expect(policyResult).not.toContainText("In Development");
   await policyResult.click();
   await expect(page).toHaveURL(/\/compliance\/policy-register$/);
-  await expect(page.getByRole("heading", { name: "Policy Register" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Policy Register" }),
+  ).toBeVisible();
   await expect(page.getByTestId("module-status-page")).toHaveCount(0);
 
   // User Master is a real navigation entry now, so it must be findable.
   await page.goto("/dashboard");
   await routeSearch.fill("User Master");
-  await expect(
-    page.getByRole("option", { name: /User Master/ }),
-  ).toContainText("Live");
+  await expect(page.getByRole("option", { name: /User Master/ })).toContainText(
+    "Live",
+  );
 
   // Customer Master remains a hidden compatibility URL and must stay unfindable.
   await page.goto("/dashboard");
@@ -988,7 +1451,10 @@ for (const outage of ["network", "500"] as const) {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify(
-            success({ accessToken: "recovered-access-token", user: identity() }),
+            success({
+              accessToken: "recovered-access-token",
+              user: identity(),
+            }),
           ),
         });
       }
@@ -1020,7 +1486,9 @@ for (const outage of ["network", "500"] as const) {
 
     available = true;
     await page.getByRole("button", { name: "Retry connection" }).click();
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
     expect(refreshRequests).toBe(2);
   });
 }

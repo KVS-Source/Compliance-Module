@@ -1,4 +1,4 @@
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -17,6 +17,7 @@ import { useApiResource } from "../../hooks/useApiResource";
 import { masterDataApi } from "../../services/masterDataApi";
 import { frameworkApi } from "../../services/frameworkApi";
 import { reportApi } from "../../services/submissionApi";
+import { registerApi, type RegisterType } from "../../services/registerApi";
 import type { Department, Framework } from "../../types/api";
 
 /** Filter vocabularies. Values must match Prisma enums exactly. */
@@ -75,6 +76,15 @@ const humanise = (code: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const isFrameworkActiveInScope = (scopeStatus: string | null | undefined) =>
+  ["active - in scope", "certified"].includes(
+    scopeStatus
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/\s+/g, " ") ?? "",
+  );
+
 const cell = (value: unknown) => {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "number") return formatNumber(value);
@@ -96,6 +106,7 @@ export function ReportViewPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [frameworks, setFrameworks] = useState<Framework[]>([]);
+  const [registers, setRegisters] = useState<RegisterType[]>([]);
   const [downloading, setDownloading] = useState(false);
 
   const filters = useMemo(
@@ -108,6 +119,7 @@ export function ReportViewPage() {
       severity: searchParams.get("severity") ?? undefined,
       priority: searchParams.get("priority") ?? undefined,
       period: searchParams.get("period") ?? undefined,
+      registerCode: searchParams.get("registerCode") ?? undefined,
     }),
     [searchParams],
   );
@@ -138,10 +150,24 @@ export function ReportViewPage() {
     void frameworkApi
       .list()
       .then((rows) => {
-        if (active) setFrameworks(rows);
+        if (active) {
+          setFrameworks(
+            rows.filter((framework) =>
+              isFrameworkActiveInScope(framework.scopeStatus),
+            ),
+          );
+        }
       })
       .catch(() => {
         if (active) setFrameworks([]);
+      });
+    void registerApi
+      .listTypes(1, 100)
+      .then((result) => {
+        if (active) setRegisters(result.data);
+      })
+      .catch(() => {
+        if (active) setRegisters([]);
       });
     return () => {
       active = false;
@@ -196,7 +222,7 @@ export function ReportViewPage() {
     <div className="page">
       <PageHeader
         title={definition?.name ?? data?.name ?? "Report"}
-        section="Audit & Reporting"
+        section="Analytics & Reports"
         description={
           definition?.description ??
           "Tenant-scoped report built from live PostgreSQL data."
@@ -349,6 +375,33 @@ export function ReportViewPage() {
                 ))}
               </select>
             </label>
+          ) : null}
+          {available.includes("registerCode") ? (
+            <label className="toolbar-select">
+              <span className="sr-only">Operational register</span>
+              <select
+                className="control"
+                value={filters.registerCode ?? ""}
+                aria-label="Filter by operational register"
+                onChange={(event) => update("registerCode", event.target.value)}
+              >
+                <option value="">All operational registers</option>
+                {registers.map((register) => (
+                  <option key={register.code} value={register.code}>
+                    {register.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {searchParams.size > 0 ? (
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setSearchParams(new URLSearchParams())}
+            >
+              <RotateCcw size={15} /> Clear filters
+            </button>
           ) : null}
         </div>
       ) : null}

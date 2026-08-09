@@ -1,7 +1,7 @@
 # Module status (client handover)
 
 This table describes what a company user can do in the **client sidebar** today.
-It matches the 44 protected live navigation modules shipped for client use.
+It matches the 46 protected live navigation routes shipped for client use.
 Several Master Data entries are alternative sidebar routes into a screen listed
 below (for example Master Data → Policies opens the Policy Register), so the
 table describes screens rather than repeating a row per path.
@@ -19,10 +19,12 @@ Access still depends on the user’s assigned permissions.
 | Organisation Units | View, create and update organisation units. | Same as departments for bulk load. |
 | Frameworks | Browse active compliance frameworks held in the system. | Creating or editing frameworks is not available in the UI (catalogue is maintained outside this screen). |
 | Framework Rules | Choose a framework and review its rules. | Creating or editing rules is not available in the UI. |
+| KPI Master | Review the shared KPI master attributes imported from the approved workbook, including declared framework mapping, default data source and owner suggestion. | **Read-only.** Workbook suggestions are not binding ownership assignments. |
 | Policy Register | Maintain policies; create and edit versions; map frameworks; submit, approve or reject versions; archive; view traceability and policy audit history. | Standalone “Policy Versions” navigation page is deferred (version work lives inside the policy). Policy version obsoletion and some inactive transitions remain deferred. |
 | Controls | Create and update controls; activate, deactivate or archive; map policy versions, frameworks and framework rules; view checkpoint counts, traceability and control audit history. | Reverse “all evidence for this control” browse APIs are not part of this release’s UI promise. |
 | Checkpoints | Create and update checkpoints; lifecycle actions; submit reviews; view latest review, history, traceability and checkpoint audit history. | Correcting a review for the **same period** is not supported. |
 | KPI Catalogue | Browse the KPI definitions available to configure, with their measurement details. | **Read-only.** Creating or editing a KPI definition is not available in the UI; definitions are shared master data. |
+| KPI Mapping | Trace the declared Policy → Framework → Rule → Evidence → Control → KPI → Target vs Actual → Risk chain and export it where permitted. | **Read-only.** The page distinguishes workbook-declared mappings from governed database relationships. |
 | KPI Analytics | Review KPI trend and performance charts for the company. | **Read-only.** Charts show only what the API returns; a section you lack permission for reads as restricted rather than as zero. |
 | Frequency Master | Review the reporting frequencies used by KPI configurations and targets. | **Read-only.** |
 | KPI Configuration | Create and update KPI configurations (scope, ownership, thresholds, evidence and approval requirements). | Configuration draws on the shared KPI catalogue, which is not editable here. |
@@ -43,6 +45,7 @@ Access still depends on the user’s assigned permissions.
 | Import History | Review past import batches, outcomes and row-level errors. | History is read-only; corrections are made by a new import or in the domain screens. |
 | Reports | Open the reports catalogue and run any of **ten** reports with the filters each one supports: KPI target versus actual, KPI variance and achievement, Framework compliance, Evidence status and aging, Risks, Gaps, CAPA aging and overdue, Policy review schedule, Audit activity, and Operational Registers. Every report is listed, and one your permissions do not allow is shown as locked rather than hidden. Five have their own sidebar entry; the rest open from the catalogue. | **Read-only.** CSV export needs the separate export permission, so a role may be able to read a report on screen without being able to export it. Scheduled reports, subscriptions and PDF output are not available. |
 | GenRAC Integration | View GenRAC connector status and sync history; when operations have configured a CSV adapter, run test connection, preview and sync. | Live GenRAC REST or database access is **not** available. The product does not claim live GenRAC connectivity when unconfigured. Browser self-service for placing GenRAC files is limited; operations configure the adapter. |
+| Settings | Select a working location for display, choose time-zone/date/time preferences, and open the relevant administration and workflow screens from one place. | Preferences are local display settings only; they do not change the server-enforced Company, location or permission scope. |
 
 ## Notes for handover
 

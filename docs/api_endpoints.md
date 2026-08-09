@@ -16,7 +16,7 @@ routes require bearer authentication and active Company membership.
 | Organisation | `GET/POST /organisation/departments`; `PATCH /organisation/departments/:id`; equivalent `locations` and `units` paths |
 | Frameworks | `GET /frameworks`; `GET /frameworks/:id`; `GET /frameworks/:id/rules` |
 | KPI catalogue/compatibility | `GET /kpi-definitions`; `GET /kpi-goals` (compatibility read only) |
-| KPI catalogue and analytics | `GET /kpis/catalogue`; `GET /kpis/frequencies`; `GET /kpis/analytics` (all read-only, `kpis:read`) |
+| KPI catalogue, analytics and traceability | `GET /kpis/catalogue`; `GET /kpis/frequencies`; `GET /kpis/analytics` (read-only, `kpis:read`); `GET /kpis/traceability` (read-only derived graph; requires `kpis:read`, `evidence:read`, `controls:read`, `frameworks:read`, `policies:read` and `risk:read`) |
 | Role and access profiles | `GET /access/profiles` (read-only, `users:read`; response states `mutable: false`) |
 | Reports | `GET /reports` (catalogue with a per-report `available` flag); `GET /reports/:reportKey`; `GET /reports/:reportKey/export.csv`. `dashboard:read` plus the report's own module permission; CSV additionally requires `exports:read` |
 | KPI configuration | `GET/POST /kpi-configurations`; `GET /kpi-configurations/threshold-defaults`; `GET/PATCH/DELETE /kpi-configurations/:id` |

@@ -221,6 +221,9 @@ export const kpiDefinitionImporter: SheetImporter = {
           description: normaliseText(row.cell("description")) ?? null,
           frameworkMapping:
             normaliseText(row.cell("compliance framework mapping")) ?? null,
+          defaultDataSource:
+            normaliseText(row.cell("default data source")) ?? null,
+          ownerSuggestion: normaliseText(row.cell("owner suggestion")) ?? null,
         },
         errors,
       });
@@ -238,6 +241,9 @@ export const kpiDefinitionImporter: SheetImporter = {
         direction: KpiDirection;
         frequency: KpiFrequency;
         description: string | null;
+        frameworkMapping: string | null;
+        defaultDataSource: string | null;
+        ownerSuggestion: string | null;
       };
       const existing = await context.tx.kpiDefinition.findUnique({
         where: { code: payload.code },
@@ -251,6 +257,9 @@ export const kpiDefinitionImporter: SheetImporter = {
           direction: payload.direction,
           frequency: payload.frequency,
           description: payload.description,
+          frameworkMapping: payload.frameworkMapping,
+          defaultDataSource: payload.defaultDataSource,
+          ownerSuggestion: payload.ownerSuggestion,
         },
         create: {
           code: payload.code,
@@ -259,6 +268,9 @@ export const kpiDefinitionImporter: SheetImporter = {
           direction: payload.direction,
           frequency: payload.frequency,
           description: payload.description,
+          frameworkMapping: payload.frameworkMapping,
+          defaultDataSource: payload.defaultDataSource,
+          ownerSuggestion: payload.ownerSuggestion,
         },
         select: { id: true },
       });
@@ -376,7 +388,14 @@ export const kpiConfigurationImporter: SheetImporter = {
         enabled: payload.enabled,
         reviewFrequency:
           payload.reviewFrequency ?? definition?.frequency ?? "QUARTERLY",
+        orgUnitId: payload.businessUnit
+          ? (context.orgUnits.get(payload.businessUnit.toLowerCase()) ?? null)
+          : null,
+        orgLocationId: payload.location
+          ? (context.orgLocations.get(payload.location.toLowerCase()) ?? null)
+          : null,
         productService: payload.productService,
+        sourceOwnerRef: payload.ownerRef,
         updatedById: context.actorUserId,
       };
       const configuration = existing
@@ -391,8 +410,8 @@ export const kpiConfigurationImporter: SheetImporter = {
               tenantId: context.tenantId,
               kpiDefinitionId,
               // The workbook's owner column holds a `U-00n` token, not a
-              // platform account. The import actor owns the record and the
-              // original token is preserved on the target for traceability.
+              // platform account. The import actor owns the record while the
+              // original token is retained as non-authoritative metadata.
               ownerId: context.actorUserId,
               effectiveFrom: new Date(Date.UTC(2025, 3, 1)),
               createdById: context.actorUserId,

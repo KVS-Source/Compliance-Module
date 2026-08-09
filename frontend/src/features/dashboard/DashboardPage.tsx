@@ -59,6 +59,7 @@ export function DashboardPage() {
     [contextVersion, user?.activeCompany.id],
   );
   const data = resource.data;
+  const compliance = data?.compliance ?? null;
   const analytics = data?.analytics ?? null;
   const cards = analytics?.cards;
   const trend = analytics?.kpiTrend ?? null;
@@ -112,11 +113,63 @@ export function DashboardPage() {
         <ErrorState error={resource.error} />
       ) : data ? (
         <>
+          <section
+            className={`dashboard-data-scope${
+              compliance?.measuredKpis === 0 ? " is-empty" : ""
+            }`}
+            data-testid="dashboard-data-scope"
+            aria-label={`Live dashboard data for ${user?.activeCompany.name ?? "the active Company"}`}
+          >
+            <span className="dashboard-data-scope-icon" aria-hidden="true">
+              <Database size={20} />
+            </span>
+            <div className="dashboard-data-scope-copy">
+              <span>Live PostgreSQL data scope</span>
+              <strong>{user?.activeCompany.name ?? "Active Company"}</strong>
+              {user?.activeCompany.code ? (
+                <code>{user.activeCompany.code}</code>
+              ) : null}
+            </div>
+            <div className="dashboard-data-scope-metrics">
+              <strong>
+                {compliance === null
+                  ? "Restricted"
+                  : `${formatNumber(compliance.overallPercentage)}% compliance`}
+              </strong>
+              <span>
+                {compliance === null
+                  ? "KPI totals are not available to this role"
+                  : compliance.measuredKpis === 0
+                    ? "No measured KPI actuals in this Company"
+                    : `${formatNumber(compliance.measuredKpis)} measured KPIs · ${formatNumber(compliance.kpisMeetingTarget)} met target`}
+              </span>
+            </div>
+            <span className="dashboard-data-scope-time">
+              Generated {formatDateTime(data.generatedAt ?? null)}
+            </span>
+          </section>
+
           <div className="cards dashboard-cards" data-testid="dashboard-cards">
             <MetricCard
-              label="Total KPI Definitions"
+              label="Overall Compliance"
+              value={
+                data.compliance === null || data.compliance === undefined
+                  ? "—"
+                  : `${formatNumber(data.compliance.overallPercentage)}%`
+              }
+              note={
+                data.compliance === null || data.compliance === undefined
+                  ? "permission restricted"
+                  : `${formatNumber(data.compliance.kpisMeetingTarget)} of ${formatNumber(data.compliance.measuredKpis)} measured KPIs met target`
+              }
+              icon={CircleGauge}
+              tone="blue"
+              to="/kpi/analytics"
+            />
+            <MetricCard
+              label="Company KPI Definitions"
               value={value(cards?.kpiDefinitions)}
-              note={note(cards?.kpiDefinitions, "active in the catalogue")}
+              note={note(cards?.kpiDefinitions, "configured for this Company")}
               icon={ListChecks}
               tone="grey"
               to="/kpi/catalogue"

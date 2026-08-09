@@ -23,7 +23,7 @@ exhaustive enforced inventory.
 ### Live (API-connected) routes
 
 These use the real backend and must **not** show the prototype banner. The
-client sidebar ships **44 LIVE modules** (`clientNavigationPaths` in
+client sidebar ships **46 LIVE modules** (`clientNavigationPaths` in
 `frontend/src/app/routeDefinitions.ts`):
 
 | Path | Notes |
@@ -50,6 +50,7 @@ client sidebar ships **44 LIVE modules** (`clientNavigationPaths` in
 | `/compliance/controls` | Controls |
 | `/compliance/checkpoints` | Checkpoints |
 | `/kpi/catalogue` | KPI catalogue (read) |
+| `/kpi/mapping` | KPI Mapping and compliance traceability (read) |
 | `/kpi/analytics` | KPI analytics and trend charts (read) |
 | `/kpi/configuration` | KPI configurations |
 | `/kpi/targets` | KPI target selection/lifecycle |
@@ -77,6 +78,7 @@ client sidebar ships **44 LIVE modules** (`clientNavigationPaths` in
 | `/reports/gaps` | Gap report (read; CSV needs `exports:read`) |
 | `/reports/audit-activity` | Audit activity report (read; CSV needs `exports:read`) |
 | `/reports/:reportKey` | One parameterised view serving all ten catalogue reports; the five above are the sidebar entries, and KPI target-versus-actual, risks, CAPA aging, policy review and Operational Registers open from the hub |
+| `/settings` | Working location, regional display preferences and governed administration shortcuts (`/settings/tenant` and `/settings/integrations` stay deferred) |
 
 Authoritative list: `clientNavigationPaths` / `migratedPaths` in
 `frontend/src/app/routeDefinitions.ts`, plus detail routes in

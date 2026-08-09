@@ -1,4 +1,11 @@
-import { BookOpenCheck, Lock } from "lucide-react";
+import {
+  BookOpenCheck,
+  ChartLine,
+  Download,
+  LayoutDashboard,
+  Lock,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { PageHeader } from "../../components/feedback/PageHeader";
@@ -22,13 +29,15 @@ export function ReportHubPage() {
     user?.activeCompany.id,
   ]);
   const reports = resource.data ?? [];
+  const availableReports = reports.filter((report) => report.available);
+  const filterCount = new Set(reports.flatMap((report) => report.filters)).size;
 
   return (
     <div className="page">
       <PageHeader
-        title="Report Hub"
-        section="Audit & Reporting"
-        description="Tenant-scoped reports built from live PostgreSQL data, each with filters, a table and a safe CSV export."
+        title="Analytics & Reports"
+        section="Analytics & Reports"
+        description="Company-scoped KPI analytics and ten live PostgreSQL reports with reproducible filters, charts, tables and safe CSV export."
         connected
       />
 
@@ -38,6 +47,52 @@ export function ReportHubPage() {
         <ErrorState error={resource.error} />
       ) : (
         <>
+          <div className="cards analytics-report-summary" data-testid="report-hub-summary">
+            <article className="summary-card">
+              <div className="card-label"><BookOpenCheck size={17} /><span>Report catalogue</span></div>
+              <div className="card-value">{reports.length}</div>
+              <p>live Company-scoped reports</p>
+            </article>
+            <article className="summary-card">
+              <div className="card-label"><LayoutDashboard size={17} /><span>Available to you</span></div>
+              <div className="card-value">{availableReports.length}</div>
+              <p>based on your active role</p>
+            </article>
+            <article className="summary-card">
+              <div className="card-label"><SlidersHorizontal size={17} /><span>Filter dimensions</span></div>
+              <div className="card-value">{filterCount}</div>
+              <p>reproducible URL-backed filters</p>
+            </article>
+            <article className="summary-card">
+              <div className="card-label"><Download size={17} /><span>Export format</span></div>
+              <div className="card-value report-format-value">CSV</div>
+              <p>same query as the visible table</p>
+            </article>
+          </div>
+
+          <section className="analytics-launch-grid" aria-label="Analytics views">
+            <Link className="card analytics-launch-card" to="/kpi/analytics">
+              <span className="feature-icon tone-blue"><ChartLine size={20} /></span>
+              <span>
+                <strong>KPI Analytics</strong>
+                <small>Achievement, RAG status, missed KPIs and department performance.</small>
+              </span>
+            </Link>
+            <Link className="card analytics-launch-card" to="/dashboard">
+              <span className="feature-icon tone-green"><LayoutDashboard size={20} /></span>
+              <span>
+                <strong>Executive Dashboard</strong>
+                <small>Compliance, Evidence, Risk, CAPA and action-queue analytics.</small>
+              </span>
+            </Link>
+          </section>
+
+          <div className="section-heading">
+            <div>
+              <h2>Report catalogue</h2>
+              <p>Open a report to apply its authoritative filters and export the resulting rows.</p>
+            </div>
+          </div>
           <div className="report-grid" data-testid="report-hub-grid">
             {reports.map((report) =>
               report.available ? (
@@ -52,7 +107,9 @@ export function ReportHubPage() {
                   </span>
                   <strong>{report.name}</strong>
                   <span>{report.description}</span>
-                  <em>{report.filters.length} filters · CSV export</em>
+                  <em>
+                    {report.filters.length} {report.filters.length === 1 ? "filter" : "filters"} · CSV export
+                  </em>
                 </Link>
               ) : (
                 <div
@@ -71,7 +128,7 @@ export function ReportHubPage() {
             )}
           </div>
 
-          <section className="card information-card">
+          <section className="card information-card report-contract-card">
             <span className="feature-icon tone-blue">
               <BookOpenCheck size={19} />
             </span>

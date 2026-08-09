@@ -4,6 +4,7 @@ import type {
   KpiAnalytics,
   KpiCatalogueEntry,
   KpiFrequencyEntry,
+  KpiTraceability,
   ReportCatalogueEntry,
   ReportResult,
 } from "../types/api";
@@ -36,6 +37,9 @@ export const kpiCatalogueApi = {
   },
   async frequencies() {
     return (await apiRequest<KpiFrequencyEntry[]>("/kpis/frequencies")).data;
+  },
+  async traceability() {
+    return (await apiRequest<KpiTraceability>("/kpis/traceability")).data;
   },
   async analytics(filters: {
     frequency?: string;

@@ -42,6 +42,19 @@ export const kpiCatalogueRoutes = (service: KpiCatalogueService) => {
   const router = Router();
 
   router.get(
+    "/traceability",
+    permit("kpis:read"),
+    permit("evidence:read"),
+    permit("controls:read"),
+    permit("frameworks:read"),
+    permit("policies:read"),
+    permit("risk:read"),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(res, await service.traceability(req.auth!.tenantId)),
+    ),
+  );
+
+  router.get(
     "/catalogue",
     permit("kpis:read"),
     asyncHandler(async (req: Request, res: Response) =>

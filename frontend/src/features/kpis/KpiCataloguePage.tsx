@@ -33,7 +33,7 @@ const CONFIGURATION_LABEL: Record<KpiCatalogueEntry["configurationStatus"], stri
  * platform offers. Columns the schema does not carry — a perspective, or a
  * framework at definition level — print "—" rather than a guess.
  */
-export function KpiCataloguePage() {
+export function KpiCataloguePage({ mode = "catalogue" }: { mode?: "catalogue" | "master" }) {
   const { user } = useAuth();
   const { contextVersion } = useTenant();
   const [search, setSearch] = useState("");
@@ -63,7 +63,7 @@ export function KpiCataloguePage() {
     );
   }, [all, configuration, frequency, search]);
 
-  const columns: Column<KpiCatalogueEntry>[] = [
+  const catalogueColumns: Column<KpiCatalogueEntry>[] = [
     {
       key: "code",
       label: "Code",
@@ -132,19 +132,60 @@ export function KpiCataloguePage() {
       ),
     },
   ];
+  const masterColumns: Column<KpiCatalogueEntry>[] = [
+    catalogueColumns[0]!,
+    catalogueColumns[1]!,
+    catalogueColumns[3]!,
+    catalogueColumns[5]!,
+    {
+      key: "frequency",
+      label: "Default Frequency",
+      render: (row) => humanise(row.frequency),
+    },
+    {
+      key: "status",
+      label: "Record Status",
+      render: (row) => (
+        <Badge tone={row.status === "ACTIVE" ? "green" : "grey"}>
+          {humanise(row.status)}
+        </Badge>
+      ),
+    },
+    {
+      key: "configurationCount",
+      label: "Company Usage",
+      render: (row) => (
+        <span className="list-row-copy">
+          <strong>{row.configurationCount} configuration(s)</strong>
+          <span>{row.activeConfigurationCount} active</span>
+        </span>
+      ),
+    },
+  ];
+  const isMaster = mode === "master";
+  const columns = isMaster ? masterColumns : catalogueColumns;
 
   return (
     <div className="page">
       <PageHeader
-        title="KPI Catalogue"
-        section="KPI Management"
-        description="The governed catalogue of KPI definitions, with this Company's configuration state against each one."
+        title={isMaster ? "KPI Master" : "KPI Catalogue"}
+        section={isMaster ? "Master Data" : "KPI Management"}
+        description={
+          isMaster
+            ? "The authoritative KPI definition master: code, measurement unit, direction, default frequency and record status."
+            : "The governed catalogue of KPI definitions, with this Company's configuration state against each one."
+        }
         connected
         actions={
           <>
             <Link className="btn btn-secondary" to="/master/frequencies">
               Frequency Master
             </Link>
+            {isMaster ? (
+              <Link className="btn btn-secondary" to="/kpi/catalogue">
+                KPI Catalogue
+              </Link>
+            ) : null}
             <Link className="btn btn-primary" to="/kpi/configuration">
               KPI Configuration
             </Link>
@@ -153,7 +194,7 @@ export function KpiCataloguePage() {
       />
 
       {resource.loading ? (
-        <LoadingState label="Loading KPI catalogue…" />
+        <LoadingState label={`Loading ${isMaster ? "KPI master" : "KPI catalogue"}…`} />
       ) : resource.error ? (
         <ErrorState error={resource.error} />
       ) : (
@@ -211,10 +252,10 @@ export function KpiCataloguePage() {
               the governed KPI definitions.
             </p>
           ) : (
-            <DataTable
-              rows={rows}
-              columns={columns}
-              caption="KPI Catalogue"
+          <DataTable
+            rows={rows}
+            columns={columns}
+            caption={isMaster ? "KPI Definition Master" : "KPI Catalogue"}
               companyName={user?.activeCompany.name}
               pageSize={15}
             />
@@ -239,4 +280,8 @@ export function KpiCataloguePage() {
       )}
     </div>
   );
+}
+
+export function KpiMasterPage() {
+  return <KpiCataloguePage mode="master" />;
 }

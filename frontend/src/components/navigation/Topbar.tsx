@@ -20,6 +20,7 @@ import { useToast } from "../../context/ToastContext";
 import { dashboardApi } from "../../services/dashboardApi";
 import type { DashboardSummary } from "../../types/api";
 import type { ModuleStatus } from "../../types/navigation";
+import type { UiPreferences } from "../../hooks/useUiPreferences";
 
 const routeStatus = (status: ModuleStatus, label?: string) => {
   if (status === "LIVE") return "Live";
@@ -27,7 +28,13 @@ const routeStatus = (status: ModuleStatus, label?: string) => {
   return label ?? "In Development";
 };
 
-export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
+export function Topbar({
+  onOpenMobile,
+  preferences,
+}: {
+  onOpenMobile: () => void;
+  preferences: UiPreferences;
+}) {
   const { user, logout, hasPermission } = useAuth();
   const { switching, switchCompany, contextVersion } = useTenant();
   const { showToast } = useToast();
@@ -185,14 +192,10 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
       });
     }
     return supported.sort(
-      (left, right) =>
-        right.count - left.count || left.key.localeCompare(right.key),
+      (left, right) => right.count - left.count || left.key.localeCompare(right.key),
     );
   }, [notificationSummary]);
-  const workQueueCount = workQueue.reduce(
-    (total, item) => total + item.count,
-    0,
-  );
+  const workQueueCount = workQueue.reduce((total, item) => total + item.count, 0);
   const hasVisibleWorkQueueSource = Boolean(
     notificationSummary &&
       [
@@ -208,18 +211,36 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const date = now.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = now.toLocaleDateString(
+    preferences.dateStyle === "month-first" ? "en-US" : "en-GB",
+    preferences.dateStyle === "long"
+      ? {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          timeZone: preferences.timeZone,
+        }
+      : {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: preferences.timeZone,
+        },
+  );
   const time = now
-    .toLocaleTimeString("en-GB", {
+    .toLocaleTimeString(
+      preferences.timeFormat === "12-hour" ? "en-GB" : "en-GB",
+      {
       hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
-    })
+        hour12: preferences.timeFormat === "12-hour",
+        timeZone: preferences.timeZone,
+      },
+    )
     .toLowerCase();
+  const workingLocation = user?.activeCompany.id
+    ? preferences.workingLocations[user.activeCompany.id]
+    : undefined;
 
   const handleCompany = async (companyId: string) => {
     if (!companyId || companyId === user?.activeCompany.id) return;
@@ -334,7 +355,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           >
             {(user?.companies ?? []).map((company) => (
               <option value={company.id} key={company.id}>
-                {company.name}
+                {company.name} ({company.code})
               </option>
             ))}
           </select>
@@ -373,7 +394,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
         <div className="datetime">
           <span>{date}</span>
           <br />
-          <span>{time} · Location 001</span>
+          <span>{time} · {workingLocation?.name ?? "All locations"}</span>
         </div>
         <button
           className="profile-btn"
@@ -474,29 +495,17 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             )}
             <div className="notification-actions">
               {hasPermission("kpis:read") ? (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => openRoute("/kpi/approval")}
-                >
+                <button className="btn btn-secondary" type="button" onClick={() => openRoute("/kpi/approval")}>
                   KPI Approval
                 </button>
               ) : null}
               {hasPermission("gaps:read") ? (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => openRoute("/compliance/gaps")}
-                >
+                <button className="btn btn-secondary" type="button" onClick={() => openRoute("/compliance/gaps")}>
                   Gap Register
                 </button>
               ) : null}
               {hasPermission("capa:read") ? (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => openRoute("/compliance/capa")}
-                >
+                <button className="btn btn-secondary" type="button" onClick={() => openRoute("/compliance/capa")}>
                   CAPA Register
                 </button>
               ) : null}

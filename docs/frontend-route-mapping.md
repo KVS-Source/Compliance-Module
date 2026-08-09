@@ -9,11 +9,12 @@ The route guard enforces unique paths and route IDs, navigation resolution,
 status/page consistency and these counts:
 
 - one public login;
-- 58 protected `LIVE` route patterns — 44 sidebar modules, 13 detail/child
-  patterns and one account-menu route;
+- 60 protected `LIVE` route patterns — 46 visible navigation routes (45 grouped
+  modules plus the Settings utility), 13 detail/child patterns and one
+  account-menu route;
 - 0 visible `IN_DEVELOPMENT` routes and 0 `AWAITING_INTEGRATION` routes: no
   client-visible navigation entry may carry a non-live badge;
-- 14 hidden `COMPATIBILITY` routes;
+- 13 hidden `COMPATIBILITY` routes;
 - two Evidence compatibility redirects.
 
 ## Public route
@@ -22,16 +23,18 @@ status/page consistency and these counts:
 | --- | --- | --- |
 | `/login` | `LoginPage` | real auth API; public |
 
-## Protected LIVE sidebar modules: 44
+## Protected LIVE sidebar modules: 45
 
 These render dedicated business pages and call real Express/PostgreSQL APIs.
 They must never render `ModuleStatusPage`. Permission is the code the route
 requires before it will load; a caller without it sees a permission boundary
 rather than an empty screen.
 
-Several Master Data entries deliberately resolve to the same page as their
-operational counterpart under the name the client uses — Target Master is KPI
-Targets, Rule Master is Framework Rules, KPI Master is the KPI Catalogue.
+Several Master Data entries deliberately resolve to the same governed source
+as their operational counterpart under the name the client uses — Target
+Master is KPI Targets and Rule Master is Framework Rules. KPI Master and KPI
+Catalogue both read the authoritative KPI definitions API, but render distinct
+master-data and Company-catalogue views.
 
 ### Overview
 
@@ -61,18 +64,18 @@ Targets, Rule Master is Framework Rules, KPI Master is the KPI Catalogue.
 | `/master/rules` | Rule Master | `frameworks:read` | `GET /frameworks · GET /frameworks/:id/rules` |
 | `/master/policies` | Policy Master | `policies:read` | `GET /policies` |
 | `/master/controls` | Control Master | `controls:read` | `GET /controls` |
-| `/master/kpis` | KPI Master | `kpis:read` | `GET /kpis/catalogue` |
+| `/master/kpis` | KPI Master | `kpis:read` | `GET /kpis/catalogue` (definition-master view) |
 
 ### KPI Management
 
 | Path | Module | Permission | Primary API |
 | --- | --- | --- | --- |
 | `/kpi/catalogue` | KPI Catalogue | `kpis:read` | `GET /kpis/catalogue` |
+| `/kpi/mapping` | KPI Mapping & Compliance Traceability | `kpis:read` plus source-domain read permissions | `GET /kpis/traceability` |
 | `/kpi/configuration` | KPI Configuration | `kpis:read` | `GET/POST /kpi-configurations · PATCH/DELETE /kpi-configurations/:id` |
 | `/kpi/targets` | KPI Targets | `kpis:read` | `GET /kpi-configurations · GET/POST /kpi-targets · POST /kpi-targets/:id/submit|approve|reject|versions` |
 | `/kpi/actual-entry` | KPI Actual Entry | `kpis:read` | `GET /kpi-configurations · GET /kpi-targets · POST /kpi-actuals` |
 | `/kpi/approval` | KPI Approval | `kpis:read` | `GET /kpi-actuals · GET /kpi-actuals/:id · POST /kpi-actuals/:id/approve|reject|resubmit` |
-| `/kpi/analytics` | KPI Analytics | `kpis:read` | `GET /kpis/analytics` |
 
 ### Compliance Management
 
@@ -104,18 +107,29 @@ Targets, Rule Master is Framework Rules, KPI Master is the KPI Catalogue.
 | `/data/import-history` | Import History | `imports:read` | `GET /imports · GET /imports/:id · GET /imports/:id/errors` |
 | `/data/genrac-integration` | GenRAC Integration | `integrations:read` | `GET /integrations/genrac/status · POST test/preview/sync · GET history` |
 
-### Audit & Reporting
+### Audit & Operations
 
 | Path | Module | Permission | Primary API |
 | --- | --- | --- | --- |
 | `/audit-trail` | Audit Trail | `audit:read` | `GET /audit-events · GET /audit-events/:id · GET /audit-events/export.csv` |
 | `/compliance/operational-registers` | Operational Registers | `registers:read` | `GET /operational-registers · GET /operational-registers/:code/records` |
-| `/reports` | Report Hub | `dashboard:read` | `GET /reports` |
+### Analytics & Reports
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/kpi/analytics` | KPI Analytics | `kpis:read` | `GET /kpis/analytics` |
+| `/reports` | Analytics & Reports | `dashboard:read` | `GET /reports` |
 | `/reports/kpi-variance` | KPI Reports | `kpis:read` | `GET /reports/kpi-variance` |
 | `/reports/framework-compliance` | Compliance Reports | `controls:read` | `GET /reports/framework-compliance` |
 | `/reports/evidence-status` | Evidence Reports | `evidence:read` | `GET /reports/evidence-status` |
 | `/reports/gaps` | Risk / Gap / CAPA Reports | `gaps:read` | `GET /reports/gaps · /reports/risks · /reports/capa-aging` |
 | `/reports/audit-activity` | Audit Reports | `audit:read` | `GET /reports/audit-activity` |
+
+### Settings utility
+
+| Path | Module | Permission | Primary API |
+| --- | --- | --- | --- |
+| `/settings` | Settings | Authenticated | `GET /organisation/locations` plus non-authoritative local display preferences |
 
 
 The five `/reports/*` sidebar entries are not the whole Reports centre: the
@@ -152,7 +166,7 @@ never appear in `migratedPaths`. The guard asserts them separately.
 | --- | --- | --- |
 | `/account/change-password` | `ChangePasswordPage` | Reached from the Topbar profile menu. Held out of `clientNavigationPaths` and `utilityRoutes` so the sidebar contract stays untouched. |
 
-## Hidden IN DEVELOPMENT deep links: 9
+## Hidden IN DEVELOPMENT deep links: 8
 
 Not in the client sidebar. Each resolves to `ModuleStatusPage` and states
 plainly that the module is not operational:
@@ -160,7 +174,6 @@ plainly that the module is not operational:
 | Path | Module |
 | --- | --- |
 | `/kpi/dashboard` | KPI Dashboard |
-| `/kpi/mapping` | KPI Mapping |
 | `/compliance/gaps/review` | Gap Review |
 | `/compliance/capa/review` | CAPA Review |
 | `/tasks` | Tasks |
@@ -169,7 +182,7 @@ plainly that the module is not operational:
 | `/settings/tenant` | Tenant Settings |
 | `/settings/integrations` | Integration Settings |
 
-## Hidden COMPATIBILITY routes: 14
+## Hidden COMPATIBILITY routes: 13
 
 Published URLs that stay routable to a compatibility status page. They are
 excluded from sidebar navigation and global search and are not operational
@@ -190,7 +203,6 @@ authorities:
 | `/reports/attribution` | Attribution Reports | — (prototype-only concept) |
 | `/reports/deals` | Deals Won / Lost | — (prototype-only concept) |
 | `/reports/customer-outcomes` | Customer Won / Lost | — (prototype-only concept) |
-| `/settings` | Settings | — (deferred) |
 
 The guard also rejects any attempt to surface `/master/customers`,
 `/analytics/customers` or `/reports/attribution` in visible navigation:
