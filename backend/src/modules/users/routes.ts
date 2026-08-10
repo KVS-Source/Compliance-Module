@@ -12,14 +12,40 @@ import {
   passwordSchema,
 } from "../../common/security/password.js";
 import { created, ok, pageMeta } from "../../common/responses/envelope.js";
-import {
-  paginationSchema,
-  type Pagination,
-} from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
+import { paginationSchema } from "../../common/responses/pagination.js";
+import { importUploadRateLimiter } from "../../common/middleware/rate-limit.js";
 import type { SharedMasterProvider } from "../../providers/shared-master/provider.js";
+import { exportFilename } from "../exports/csv.js";
 import type { UsersRepository } from "./repository.js";
+import type { UserImportService } from "./import-service.js";
+import type { UserSessionService } from "./session-service.js";
+import {
+  MAX_USER_IMPORT_BYTES,
+  MAX_USER_IMPORT_ROWS,
+  USER_IMPORT_STATUSES,
+  userImportTemplate,
+  userImportTemplateBody,
+} from "./import-template.js";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
+const sessionParamsSchema = z.object({
+  id: z.string().uuid(),
+  sessionId: z.string().uuid(),
+});
+const userListSchema = paginationSchema
+  .extend({
+    ...listOrderFields([
+      "code",
+      "fullName",
+      "email",
+      "status",
+      "createdAt",
+    ] as const).shape,
+  })
+  .strict();
+
+type UserListQuery = z.infer<typeof userListSchema>;
 
 const statusSchema = z.enum(["ACTIVE", "DISABLED", "INVITED", "LOCKED"]);
 
@@ -37,6 +63,40 @@ const createUserSchema = z.object({
   status: statusSchema.default("ACTIVE"),
   departmentId: z.string().uuid().nullable().optional(),
 });
+
+const importPreviewSchema = z
+  .object({
+    csv: z.string().min(1).max(MAX_USER_IMPORT_BYTES),
+  })
+  .strict();
+
+const importCommitSchema = z
+  .object({
+    /**
+     * Supplied by the administrator with the request, never carried in the
+     * uploaded file and never returned. Same strength rule as every other
+     * password the platform stores.
+     */
+    initialPassword: passwordSchema,
+    rows: z
+      .array(
+        z
+          .object({
+            line: z.number().int().min(1).max(MAX_USER_IMPORT_ROWS).optional(),
+            code: z.string().trim().min(1).max(64),
+            name: z.string().trim().min(1).max(200),
+            email: z.string().trim().min(1).max(254),
+            phone: z.string().trim().max(64).nullable().optional(),
+            departmentId: z.string().uuid().nullable().optional(),
+            roleCode: z.string().trim().max(64).nullable().optional(),
+            status: z.enum(USER_IMPORT_STATUSES).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(MAX_USER_IMPORT_ROWS),
+  })
+  .strict();
 
 const updateUserSchema = z
   .object({
@@ -106,11 +166,16 @@ export class UsersService {
     private readonly repository: UsersRepository,
   ) {}
 
-  async list(tenantId: string, pagination: Pagination) {
-    const result = await this.provider.listUsers(tenantId, pagination);
+  async list(tenantId: string, query: UserListQuery) {
+    const result = await this.provider.listUsers(tenantId, {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.orderBy ? { orderBy: query.orderBy } : {}),
+      ...(query.order ? { order: query.order } : {}),
+    });
     return {
       data: result.items.map(dto),
-      meta: pageMeta(pagination.page, pagination.pageSize, result.total),
+      meta: pageMeta(query.page, query.pageSize, result.total),
     };
   }
 
@@ -207,12 +272,15 @@ export class UsersService {
 }
 
 export class UsersController {
-  constructor(private readonly service: UsersService) {}
+  constructor(
+    private readonly service: UsersService,
+    private readonly sessions: UserSessionService,
+  ) {}
 
   list = async (req: Request, res: Response) => {
     const result = await this.service.list(
       req.auth!.tenantId,
-      req.query as unknown as Pagination,
+      req.query as unknown as UserListQuery,
     );
     return ok(res, result.data, result.meta);
   };
@@ -248,22 +316,164 @@ export class UsersController {
     );
     return ok(res, updated);
   };
+
+  listSessions = async (req: Request, res: Response) => {
+    return ok(
+      res,
+      await this.sessions.listSessions(
+        String(req.params.id),
+        req.auth!.tenantId,
+        req.auth!.sessionFamilyId
+          ? { currentSessionFamilyId: req.auth!.sessionFamilyId }
+          : {},
+      ),
+    );
+  };
+
+  revokeSession = async (req: Request, res: Response) => {
+    const userAgent = req.get("user-agent");
+    return ok(
+      res,
+      await this.sessions.revokeSession(
+        String(req.params.id),
+        req.auth!.tenantId,
+        String(req.params.sessionId),
+        req.auth!.userId,
+        {
+          ...(req.ip ? { ip: req.ip } : {}),
+          ...(userAgent ? { userAgent } : {}),
+        },
+      ),
+    );
+  };
+
+  revokeAllSessions = async (req: Request, res: Response) => {
+    const userAgent = req.get("user-agent");
+    return ok(
+      res,
+      await this.sessions.revokeAllSessions(
+        String(req.params.id),
+        req.auth!.tenantId,
+        req.auth!.userId,
+        {
+          ...(req.ip ? { ip: req.ip } : {}),
+          ...(userAgent ? { userAgent } : {}),
+        },
+      ),
+    );
+  };
 }
+
+/**
+ * Bulk import sits on its own sub-router mounted before `/:id`, so the literal
+ * `import` segment is never parsed as a user identifier.
+ */
+const userImportRoutes = (service: UserImportService) => {
+  const router = Router();
+
+  router.get(
+    "/template",
+    permit("users:read"),
+    asyncHandler(async (_req: Request, res: Response) =>
+      ok(res, userImportTemplate()),
+    ),
+  );
+
+  router.get(
+    "/template.csv",
+    permit("users:read"),
+    asyncHandler(async (_req: Request, res: Response) => {
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${exportFilename("user-import-template")}"`,
+      );
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      return res.send(userImportTemplateBody());
+    }),
+  );
+
+  router.post(
+    "/preview",
+    permit("users:write"),
+    importUploadRateLimiter(),
+    validate(importPreviewSchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.preview(
+          req.auth!.tenantId,
+          req.auth!.permissions,
+          String(req.body.csv),
+        ),
+      ),
+    ),
+  );
+
+  router.post(
+    "/commit",
+    permit("users:write"),
+    importUploadRateLimiter(),
+    validate(importCommitSchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const userAgent = req.get("user-agent");
+      return ok(
+        res,
+        await service.commit(
+          req.auth!.tenantId,
+          req.auth!.userId,
+          req.auth!.permissions,
+          req.body as z.infer<typeof importCommitSchema>,
+          {
+            ...(req.ip ? { ip: req.ip } : {}),
+            ...(userAgent ? { userAgent } : {}),
+          },
+        ),
+      );
+    }),
+  );
+
+  return router;
+};
 
 export const usersRoutes = (
   provider: SharedMasterProvider,
   repository: UsersRepository,
+  userImports: UserImportService,
+  sessions: UserSessionService,
 ) => {
   const router = Router();
   const controller = new UsersController(
     new UsersService(provider, repository),
+    sessions,
   );
   router.use(authenticate);
+  router.use("/import", userImportRoutes(userImports));
   router.get(
     "/",
     permit("users:read"),
-    validate(paginationSchema, "query"),
+    validate(userListSchema, "query"),
     asyncHandler(controller.list),
+  );
+  // Session routes before bare `/:id` is fine — Express matches path length —
+  // but keep them explicit so revoke-all is never captured as a user id.
+  router.get(
+    "/:id/sessions",
+    permit("users:read"),
+    validate(paramsSchema, "params"),
+    asyncHandler(controller.listSessions),
+  );
+  router.post(
+    "/:id/sessions/revoke-all",
+    permit("users:write"),
+    validate(paramsSchema, "params"),
+    asyncHandler(controller.revokeAllSessions),
+  );
+  router.post(
+    "/:id/sessions/:sessionId/revoke",
+    permit("users:write"),
+    validate(sessionParamsSchema, "params"),
+    asyncHandler(controller.revokeSession),
   );
   router.get(
     "/:id",

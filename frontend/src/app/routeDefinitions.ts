@@ -132,6 +132,19 @@ const navigationRouteDefinitions: RouteDefinition[] = [
   ),
 
   live(
+    "/my-work",
+    "#my-work",
+    "My work",
+    "Overview",
+    "Your open gaps, CAPAs, risks, evidence review and KPI approvals.",
+    ListChecks,
+    {
+      permission: "dashboard:read",
+      api: "GET /gaps · GET /capas · GET /risks · GET /evidence/review-queue · GET /kpi-actuals",
+    },
+  ),
+
+  live(
     "/admin/companies",
     "#admin/companies",
     "Companies",
@@ -284,6 +297,15 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     { permission: "kpis:read", api: "GET /kpis/catalogue" },
   ),
   live(
+    "/kpi/mapping",
+    "#kpi/mapping",
+    "KPI Mapping",
+    "KPI Management",
+    "Live compliance traceability derived from governed KPI Actual, Evidence, Control, Policy, Framework, Rule and Risk relationships.",
+    GitMerge,
+    { permission: "kpis:read", api: "GET /kpis/traceability" },
+  ),
+  live(
     "/kpi/configuration",
     "#kpi/configuration",
     "KPI Configuration",
@@ -335,7 +357,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/kpi/analytics",
     "#kpi/analytics",
     "KPI Analytics",
-    "KPI Management",
+    "Analytics & Reports",
     "Achievement, RAG and department analysis over measured KPI actuals.",
     ChartLine,
     { permission: "kpis:read", api: "GET /kpis/analytics" },
@@ -516,7 +538,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/audit-trail",
     "#audit-trail",
     "Audit Trail",
-    "Audit & Reporting",
+    "Audit & Operations",
     "Searchable tenant-scoped history of governed activity.",
     History,
     {
@@ -528,7 +550,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/compliance/operational-registers",
     "#compliance/operational-registers",
     "Operational Registers",
-    "Audit & Reporting",
+    "Audit & Operations",
     "Audit schedule, findings, training, incidents, vendors, privacy, meetings and actions.",
     ClipboardList,
     {
@@ -539,9 +561,9 @@ const navigationRouteDefinitions: RouteDefinition[] = [
   live(
     "/reports",
     "#reports",
-    "Report Hub",
-    "Audit & Reporting",
-    "Tenant-scoped reports with filters, tables, charts and safe CSV export.",
+    "Analytics & Reports",
+    "Analytics & Reports",
+    "Live KPI analytics and ten Company-scoped reports with filters, charts, tables and safe CSV export.",
     BookOpenCheck,
     { permission: "dashboard:read", api: "GET /reports" },
   ),
@@ -549,7 +571,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/reports/kpi-variance",
     "#reports/kpi-variance",
     "KPI Reports",
-    "Audit & Reporting",
+    "Analytics & Reports",
     "KPI variance and achievement by reporting period.",
     ChartLine,
     { permission: "kpis:read", api: "GET /reports/kpi-variance" },
@@ -558,7 +580,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/reports/framework-compliance",
     "#reports/framework-compliance",
     "Compliance Reports",
-    "Audit & Reporting",
+    "Analytics & Reports",
     "Framework compliance from mapped and implemented Controls.",
     CircleGauge,
     {
@@ -570,7 +592,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/reports/evidence-status",
     "#reports/evidence-status",
     "Evidence Reports",
-    "Audit & Reporting",
+    "Analytics & Reports",
     "Evidence status distribution and aging.",
     FileSearch,
     { permission: "evidence:read", api: "GET /reports/evidence-status" },
@@ -579,7 +601,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/reports/gaps",
     "#reports/gaps",
     "Risk / Gap / CAPA Reports",
-    "Audit & Reporting",
+    "Analytics & Reports",
     "Gap, Risk and CAPA reporting with severity, ownership and aging.",
     TriangleAlert,
     {
@@ -591,10 +613,21 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "/reports/audit-activity",
     "#reports/audit-activity",
     "Audit Reports",
-    "Audit & Reporting",
+    "Analytics & Reports",
     "Governed activity from the append-only audit trail.",
     History,
     { permission: "audit:read", api: "GET /reports/audit-activity" },
+  ),
+  live(
+    "/settings",
+    "#settings",
+    "Settings",
+    "Company & Account",
+    "Working location, regional display preferences and governed administration shortcuts.",
+    Settings,
+    {
+      api: "GET /organisation/locations · authenticated local display preferences",
+    },
   ),
 ];
 
@@ -617,7 +650,6 @@ const legacyStatusRoutes: Array<[string, string]> = [
   ["/reports/attribution", "Attribution Reports"],
   ["/reports/deals", "Deals Won / Lost"],
   ["/reports/customer-outcomes", "Customer Won / Lost"],
-  ["/settings", "Settings"],
 ];
 
 const legacyStatusDefinitions: RouteDefinition[] = legacyStatusRoutes.map(
@@ -657,15 +689,6 @@ const deferredRouteDefinitions: RouteDefinition[] = [
     "Superseded by KPI Analytics.",
     ChartLine,
     { hidden: true, dependency: "Use KPI Analytics under KPI Management." },
-  ),
-  development(
-    "/kpi/mapping",
-    "#kpi/mapping",
-    "KPI Mapping",
-    "KPI Management",
-    "Trace KPI definitions to compliance and risk records.",
-    GitMerge,
-    { hidden: true },
   ),
   development(
     "/compliance/gaps/review",
@@ -759,11 +782,13 @@ const groups: Array<[string, string, LucideIcon]> = [
   ["compliance", "Compliance Management", Landmark],
   ["evidence", "Evidence Management", Archive],
   ["data", "Data Management", FileSpreadsheet],
-  ["audit-reporting", "Audit & Reporting", BookOpenCheck],
+  ["audit-operations", "Audit & Operations", History],
+  ["analytics-reporting", "Analytics & Reports", ChartLine],
 ];
 
 export const clientNavigationPaths = new Set([
   "/dashboard",
+  "/my-work",
   "/admin/companies",
   "/admin/users",
   "/admin/roles",
@@ -779,6 +804,7 @@ export const clientNavigationPaths = new Set([
   "/master/controls",
   "/master/kpis",
   "/kpi/catalogue",
+  "/kpi/mapping",
   "/kpi/configuration",
   "/kpi/targets",
   "/kpi/actual-entry",
@@ -807,6 +833,7 @@ export const clientNavigationPaths = new Set([
   "/reports/evidence-status",
   "/reports/gaps",
   "/reports/audit-activity",
+  "/settings",
 ]);
 
 export const navigationGroups: NavigationGroup[] = groups.map(
@@ -822,7 +849,9 @@ export const navigationGroups: NavigationGroup[] = groups.map(
   }),
 );
 
-export const utilityRoutes: RouteDefinition[] = [];
+export const utilityRoutes: RouteDefinition[] = navigationRouteDefinitions.filter(
+  (definition) => definition.path === "/settings",
+);
 
 /**
  * LIVE routes reached from the Topbar account menu rather than the sidebar.
@@ -845,6 +874,7 @@ export const accountRouteDefinitions: RouteDefinition[] = [
 export const migratedPaths = new Set([
   "/account/change-password",
   "/dashboard",
+  "/my-work",
   "/admin/companies",
   "/admin/users",
   "/admin/roles",
@@ -860,6 +890,7 @@ export const migratedPaths = new Set([
   "/master/controls",
   "/master/kpis",
   "/kpi/catalogue",
+  "/kpi/mapping",
   "/kpi/configuration",
   "/kpi/targets",
   "/kpi/actual-entry",
@@ -888,6 +919,7 @@ export const migratedPaths = new Set([
   "/reports/evidence-status",
   "/reports/gaps",
   "/reports/audit-activity",
+  "/settings",
 ]);
 
 export const routeByPath = new Map(

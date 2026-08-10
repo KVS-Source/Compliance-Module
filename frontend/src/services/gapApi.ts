@@ -15,6 +15,9 @@ const queryString = (query: GapListQuery) => {
   if (query.status) params.set("status", query.status);
   if (query.severity) params.set("severity", query.severity);
   if (query.overdue !== undefined) params.set("overdue", String(query.overdue));
+  if (query.ownerId) params.set("ownerId", query.ownerId);
+  if (query.orderBy) params.set("orderBy", query.orderBy);
+  if (query.order) params.set("order", query.order);
   return params.toString();
 };
 

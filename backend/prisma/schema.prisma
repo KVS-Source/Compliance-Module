@@ -1009,6 +1009,21 @@ model KpiDefinition {
   direction      KpiDirection
   frequency      KpiFrequency
   status         RecordStatus       @default(ACTIVE)
+  /// Verbatim clause list from `14_KPI_Master!Compliance Framework Mapping`,
+  /// for example `ISO 9001:2015 (9.1.2); CMMI-SVC L3 (SD)`. This is the
+  /// client's *declared* mapping and is deliberately kept as written rather
+  /// than resolved into `ControlFramework` rows: the workbook states clauses
+  /// the Company intends a KPI to evidence, which is a weaker claim than a
+  /// governed control mapping and must not be presented as one.
+  frameworkMapping String? @map("framework_mapping")
+  /// `14_KPI_Master!Default Data Source` — the system the actual is expected
+  /// to come from (`Manual Entry`, `Tally`, `HRMS`, …). Advisory only; actual
+  /// ingestion is governed by KpiActual.
+  defaultDataSource String? @map("default_data_source")
+  /// `14_KPI_Master!Owner Suggestion` — the role the workbook recommends as
+  /// owner. The binding owner is `KpiConfiguration.ownerId`; this stays a
+  /// suggestion so an imported basket never silently assigns accountability.
+  ownerSuggestion String? @map("owner_suggestion")
   goals          KpiGoal[]
   configurations KpiConfiguration[]
 
@@ -1048,6 +1063,9 @@ model KpiConfiguration {
   departmentId      String?        @map("department_id") @db.Uuid
   ownerId           String         @map("owner_id") @db.Uuid
   approverId        String?        @map("approver_id") @db.Uuid
+  /// Workbook user token (for example `U-003`). It is traceability metadata,
+  /// not an authenticated account and is never used for authorisation.
+  sourceOwnerRef    String?        @map("source_owner_ref")
   enabled           Boolean        @default(true)
   currency          String?
   reviewFrequency   KpiFrequency   @map("review_frequency")
@@ -1310,12 +1328,22 @@ model RefreshToken {
   expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
   replacedBy String?   @map("replaced_by") @db.Uuid
+  /// Client address observed when the session was issued or last rotated.
+  /// Nullable for tokens created before session management shipped.
+  ipAddress  String?   @map("ip_address")
+  /// User-Agent string captured at issue/rotate. Not parsed into a device
+  /// catalogue — the raw value is enough for an administrator to recognise a
+  /// browser. Nullable for tokens created before session management shipped.
+  userAgent  String?   @map("user_agent") @db.Text
+  /// Updated on every successful refresh rotation so "last used" is real.
+  lastUsedAt DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([userId, familyId])
   @@index([tenantId, expiresAt])
+  @@index([userId, tenantId, revokedAt])
   @@map("refresh_tokens")
 }
 

@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { isFrameworkActiveInScope } from "./framework-scope.js";
 
 /**
  * Live dashboard analytics.
@@ -216,8 +217,11 @@ export class DashboardAnalyticsRepository {
       },
       orderBy: [{ code: "asc" }, { version: "asc" }],
     });
-    if (frameworks.length === 0) return [];
-    const frameworkIds = frameworks.map((framework) => framework.id);
+    const inScopeFrameworks = frameworks.filter((framework) =>
+      isFrameworkActiveInScope(framework.scopeStatus),
+    );
+    if (inScopeFrameworks.length === 0) return [];
+    const frameworkIds = inScopeFrameworks.map((framework) => framework.id);
     const controlScope: Prisma.ControlFrameworkWhereInput = {
       tenantId,
       frameworkId: { in: frameworkIds },
@@ -256,7 +260,7 @@ export class DashboardAnalyticsRepository {
       groups: { frameworkId: string | null; _count: { _all: number } }[],
       id: string,
     ) => groups.find((group) => group.frameworkId === id)?._count._all ?? 0;
-    return frameworks.map((framework) => {
+    return inScopeFrameworks.map((framework) => {
       const mappedControls = count(mapped, framework.id);
       const implementedControls = count(implemented, framework.id);
       return {

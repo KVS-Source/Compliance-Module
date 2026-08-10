@@ -1,16 +1,80 @@
+/**
+ * GenBioCa Compliance — design tokens (single source of truth).
+ * Accent: near-black primary actions (Stripe/Linear). Coral (--brand) is
+ * reserved for the GenBioCa mark only so GRC status reds stay unambiguous.
+ * Light mode only. No dark theme / prefers-color-scheme switching.
+ */
 :root {
-  --navy-950: #07152b;
-  --navy-900: #0b1f3a;
-  --navy-850: #102946;
-  --navy-800: #12345b;
-  --navy-700: #17436f;
-  --blue-700: #1d4ed8;
-  --blue-600: #2563eb;
-  --blue-500: #3b82f6;
-  --blue-400: #60a5fa;
-  --blue-200: #bfdbfe;
-  --blue-100: #dbeafe;
-  --blue-50: #eff6ff;
+  /* Surfaces */
+  --page: #fafafa;
+  --page-bg: #fafafa;
+  --white: #ffffff;
+  --surface: #ffffff;
+  --card-bg: #ffffff;
+
+  /* Text */
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+
+  /* Accent — near-black primary */
+  --accent: #18181b;
+  --accent-hover: #27272a;
+  --accent-muted: #f4f4f5;
+  --accent-subtle: #e4e4e7;
+  --focus-ring: rgba(24, 24, 27, 0.16);
+
+  /* Brand mark only (logo chrome) */
+  --brand: #e11d48;
+  --brand-soft: #fff1f2;
+
+  /* Borders */
+  --border: #e4e4e7;
+  --border-color: #e4e4e7;
+
+  /* Neutrals (zinc) — sidebar / chrome */
+  --navy-950: #09090b;
+  --navy-900: #18181b;
+  --navy-850: #27272a;
+  --navy-800: #3f3f46;
+  --navy-700: #52525b;
+  --sidebar-bg: #18181b;
+
+  --grey-950: #09090b;
+  --grey-900: #18181b;
+  --grey-800: #27272a;
+  --grey-700: #3f3f46;
+  --grey-600: #52525b;
+  --grey-500: #71717a;
+  --grey-400: #a1a1aa;
+  --grey-300: #d4d4d8;
+  --grey-200: #e4e4e7;
+  --grey-100: #f4f4f5;
+  --grey-50: #fafafa;
+
+  /* Informational slate (charts/links — not brand) */
+  --blue-700: #334155;
+  --blue-600: #475569;
+  --blue-500: #64748b;
+  --blue-400: #94a3b8;
+  --blue-300: #cbd5e1;
+  --blue-200: #e2e8f0;
+  --blue-100: #f1f5f9;
+  --blue-50: #f8fafc;
+
+  /**
+   * RAG status — a fixed domain vocabulary, not decoration.
+   *
+   * Red, Amber and Green are how compliance and audit users read a register at
+   * a glance, so these hues are FROZEN. Desaturate for calm if needed, but
+   * never shift the hue: green must not drift to lime, amber must not drift to
+   * brown, and red must not drift to rose. Red must also stay clearly distinct
+   * from the coral brand mark (--brand #e11d48) so a status is never mistaken
+   * for chrome.
+   *
+   * All pass WCAG AA on white, and status is always paired with a text label —
+   * colour alone is never the signal.
+   */
   --green-700: #15803d;
   --green-600: #16a34a;
   --green-100: #dcfce7;
@@ -21,33 +85,48 @@
   --amber-50: #fffbeb;
   --red-700: #b91c1c;
   --red-600: #dc2626;
+  --red-500: #ef4444;
+  --red-200: #fecaca;
   --red-100: #fee2e2;
   --red-50: #fef2f2;
-  --purple-700: #6d28d9;
-  --purple-600: #7c3aed;
-  --purple-100: #ede9fe;
-  --grey-950: #111827;
-  --grey-900: #1f2937;
-  --grey-800: #273449;
-  --grey-700: #374151;
-  --grey-600: #4b5563;
-  --grey-500: #6b7280;
-  --grey-400: #9ca3af;
-  --grey-300: #d1d5db;
-  --grey-200: #e5e7eb;
-  --grey-100: #f3f4f6;
-  --grey-50: #f9fafb;
-  --white: #fff;
-  --text-primary: #172033;
-  --text-muted: #667085;
-  --page: #f4f7fb;
-  --border: #dfe5ee;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 20px 48px rgba(7, 21, 43, 0.18);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+
+  /* Soft stone stand-in for legacy "purple" tones (no violet brand) */
+  --purple-700: #57534e;
+  --purple-600: #78716c;
+  --purple-100: #f5f5f4;
+
+  /* Optional teal kept for legacy chip refs */
+  --teal-700: #115e59;
+  --teal-600: #0f766e;
+  --teal-100: #ccfbf1;
+  --teal-50: #f0fdfa;
+
+  /* Shadows — minimal */
+  --shadow: 0 1px 2px rgba(24, 24, 27, 0.04);
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.04);
+  --shadow-md: 0 2px 8px rgba(24, 24, 27, 0.06);
+  --shadow-lg: 0 4px 16px rgba(24, 24, 27, 0.08);
+  --shadow-hover: 0 2px 8px rgba(24, 24, 27, 0.08);
+
+  /* Radii 6–10px */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  /* Typography */
+  --font-sans:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-sans);
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration: 220ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layout */
   --sidebar-width: 276px;
   --sidebar-collapsed: 76px;
   --topbar-height: 68px;

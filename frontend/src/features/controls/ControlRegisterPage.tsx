@@ -11,15 +11,20 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
+import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
 import { ApiError } from "../../services/apiClient";
 import { controlApi } from "../../services/controlApi";
 import { frameworkApi } from "../../services/frameworkApi";
@@ -84,27 +89,46 @@ export function ControlRegisterPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const canWrite = hasPermission("controls:write");
-
-  const [draftSearch, setDraftSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [lifecycleStatus, setLifecycleStatus] = useState<
-    ControlLifecycleStatus | ""
-  >("");
-  const [implementationStatus, setImplementationStatus] = useState<
-    ControlImplementationStatus | ""
-  >("");
-  const [controlType, setControlType] = useState<ControlType | "">("");
-  const [frequency, setFrequency] = useState<ControlFrequency | "">("");
-  const [ownerId, setOwnerId] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [frameworkId, setFrameworkId] = useState("");
-  const [requiresEvidence, setRequiresEvidence] = useState<"" | "true" | "false">(
-    "",
-  );
-  const [reviewDueFrom, setReviewDueFrom] = useState("");
-  const [reviewDueTo, setReviewDueTo] = useState("");
-  const [page, setPage] = useState(1);
   const [listVersion, setListVersion] = useState(0);
+
+  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
+    useRegisterQueryState({
+      keys: [
+        "q",
+        "lifecycleStatus",
+        "implementationStatus",
+        "controlType",
+        "frequency",
+        "ownerId",
+        "departmentId",
+        "frameworkId",
+        "requiresEvidence",
+        "reviewDueFrom",
+        "reviewDueTo",
+      ],
+    });
+  const appliedSearch = values.q ?? "";
+  const lifecycleStatus = (values.lifecycleStatus ?? "") as
+    | ControlLifecycleStatus
+    | "";
+  const implementationStatus = (values.implementationStatus ?? "") as
+    | ControlImplementationStatus
+    | "";
+  const controlType = (values.controlType ?? "") as ControlType | "";
+  const frequency = (values.frequency ?? "") as ControlFrequency | "";
+  const ownerId = values.ownerId ?? "";
+  const departmentId = values.departmentId ?? "";
+  const frameworkId = values.frameworkId ?? "";
+  const requiresEvidence = (values.requiresEvidence ?? "") as
+    | ""
+    | "true"
+    | "false";
+  const reviewDueFrom = values.reviewDueFrom ?? "";
+  const reviewDueTo = values.reviewDueTo ?? "";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    appliedSearch,
+    updateParams,
+  );
 
   const [users, setUsers] = useState<MasterState<CompanyUser>>({
     status: "loading",
@@ -124,19 +148,6 @@ export function ControlRegisterPage() {
   } | null>(null);
 
   useEffect(() => {
-    setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycleStatus("");
-    setImplementationStatus("");
-    setControlType("");
-    setFrequency("");
-    setOwnerId("");
-    setDepartmentId("");
-    setFrameworkId("");
-    setRequiresEvidence("");
-    setReviewDueFrom("");
-    setReviewDueTo("");
-    setPage(1);
     setCreating(false);
     setEditing(null);
     setLifecycle(null);
@@ -178,6 +189,8 @@ export function ControlRegisterPage() {
             : requiresEvidence === "true",
         reviewDueFrom: reviewDueFrom || undefined,
         reviewDueTo: reviewDueTo || undefined,
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
       }),
     [
       contextVersion,
@@ -194,41 +207,34 @@ export function ControlRegisterPage() {
       requiresEvidence,
       reviewDueFrom,
       reviewDueTo,
+      orderBy,
+      order,
       listVersion,
     ],
   );
 
-  const applySearch = () => {
-    setPage(1);
-    setAppliedSearch(draftSearch.trim());
-  };
-
   const resetFilters = () => {
     setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycleStatus("");
-    setImplementationStatus("");
-    setControlType("");
-    setFrequency("");
-    setOwnerId("");
-    setDepartmentId("");
-    setFrameworkId("");
-    setRequiresEvidence("");
-    setReviewDueFrom("");
-    setReviewDueTo("");
-    setPage(1);
+    updateParams({
+      q: "",
+      lifecycleStatus: "",
+      implementationStatus: "",
+      controlType: "",
+      frequency: "",
+      ownerId: "",
+      departmentId: "",
+      frameworkId: "",
+      requiresEvidence: "",
+      reviewDueFrom: "",
+      reviewDueTo: "",
+      orderBy: "",
+      order: "",
+    });
   };
 
   const onSearchSubmit = (event: FormEvent) => {
     event.preventDefault();
-    applySearch();
-  };
-
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      applySearch();
-    }
+    updateParams({ q: draftSearch.trim() });
   };
 
   const openEdit = async (control: Control) => {
@@ -304,7 +310,6 @@ export function ControlRegisterPage() {
             type="search"
             value={draftSearch}
             onChange={(event) => setDraftSearch(event.target.value)}
-            onKeyDown={onSearchKeyDown}
             placeholder="Search code or title…"
             maxLength={100}
             aria-label="Search controls by code or title"
@@ -316,12 +321,9 @@ export function ControlRegisterPage() {
             className="control"
             value={lifecycleStatus}
             aria-label="Filter by lifecycle status"
-            onChange={(event) => {
-              setLifecycleStatus(
-                event.target.value as ControlLifecycleStatus | "",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ lifecycleStatus: event.target.value })
+            }
           >
             <option value="">All lifecycles</option>
             <option value="ACTIVE">ACTIVE</option>
@@ -335,12 +337,9 @@ export function ControlRegisterPage() {
             className="control"
             value={implementationStatus}
             aria-label="Filter by implementation status"
-            onChange={(event) => {
-              setImplementationStatus(
-                event.target.value as ControlImplementationStatus | "",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ implementationStatus: event.target.value })
+            }
           >
             <option value="">All implementation statuses</option>
             {IMPLEMENTATION_STATUS_OPTIONS.map((status) => (
@@ -356,10 +355,9 @@ export function ControlRegisterPage() {
             className="control"
             value={controlType}
             aria-label="Filter by control type"
-            onChange={(event) => {
-              setControlType(event.target.value as ControlType | "");
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ controlType: event.target.value })
+            }
           >
             <option value="">All types</option>
             {CONTROL_TYPE_OPTIONS.map((type) => (
@@ -375,10 +373,9 @@ export function ControlRegisterPage() {
             className="control"
             value={frequency}
             aria-label="Filter by frequency"
-            onChange={(event) => {
-              setFrequency(event.target.value as ControlFrequency | "");
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ frequency: event.target.value })
+            }
           >
             <option value="">All frequencies</option>
             {FREQUENCY_OPTIONS.map((entry) => (
@@ -395,10 +392,7 @@ export function ControlRegisterPage() {
             value={ownerId}
             aria-label="Filter by owner"
             disabled={users.status !== "ready"}
-            onChange={(event) => {
-              setOwnerId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => updateParams({ ownerId: event.target.value })}
           >
             <option value="">
               {users.status === "forbidden"
@@ -421,10 +415,9 @@ export function ControlRegisterPage() {
             value={departmentId}
             aria-label="Filter by department"
             disabled={departments.status !== "ready"}
-            onChange={(event) => {
-              setDepartmentId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ departmentId: event.target.value })
+            }
           >
             <option value="">
               {departments.status === "forbidden"
@@ -447,10 +440,9 @@ export function ControlRegisterPage() {
             value={frameworkId}
             aria-label="Filter by Framework"
             disabled={frameworks.status !== "ready"}
-            onChange={(event) => {
-              setFrameworkId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ frameworkId: event.target.value })
+            }
           >
             <option value="">
               {frameworks.status === "forbidden"
@@ -472,12 +464,9 @@ export function ControlRegisterPage() {
             className="control"
             value={requiresEvidence}
             aria-label="Filter by Evidence requirement"
-            onChange={(event) => {
-              setRequiresEvidence(
-                event.target.value as "" | "true" | "false",
-              );
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ requiresEvidence: event.target.value })
+            }
           >
             <option value="">Evidence: any</option>
             <option value="true">Requires Evidence</option>
@@ -491,10 +480,9 @@ export function ControlRegisterPage() {
             type="date"
             value={reviewDueFrom}
             aria-label="Review due from"
-            onChange={(event) => {
-              setReviewDueFrom(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ reviewDueFrom: event.target.value })
+            }
           />
         </label>
         <label className="toolbar-select">
@@ -504,10 +492,9 @@ export function ControlRegisterPage() {
             type="date"
             value={reviewDueTo}
             aria-label="Review due to"
-            onChange={(event) => {
-              setReviewDueTo(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ reviewDueTo: event.target.value })
+            }
           />
         </label>
         <button className="btn btn-secondary" type="submit">
@@ -619,14 +606,38 @@ export function ControlRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Control</th>
-                    <th scope="col">Lifecycle</th>
-                    <th scope="col">Implementation</th>
+                    <SortableTh
+                      column="title"
+                      label="Control"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="lifecycleStatus"
+                      label="Lifecycle"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="implementationStatus"
+                      label="Implementation"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Type</th>
                     <th scope="col">Frequency</th>
                     <th scope="col">Owner</th>
                     <th scope="col">Department</th>
-                    <th scope="col">Next review</th>
+                    <SortableTh
+                      column="nextReviewDate"
+                      label="Next review"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Evidence</th>
                     <th scope="col">Policies</th>
                     <th scope="col">Frameworks</th>

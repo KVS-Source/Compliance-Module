@@ -385,12 +385,12 @@ test("Audit Trail lists and filters company events", async ({ page }) => {
   await expect(page.getByTestId("audit-trail-table")).toContainText("IMPORT");
 });
 
-test("Operational Registers selector, list, detail and read-only copy", async ({
+test("Operational Registers selector, list, detail and write control", async ({
   page,
 }) => {
   await installFinalMock(page);
   await page.goto("/compliance/operational-registers");
-  await expect(page.getByText(/read-only/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add record" })).toBeVisible();
   await expect(page.getByTestId("operational-registers-table")).toContainText(
     "AUD-001",
   );
@@ -436,7 +436,7 @@ test("desktop and mobile nav hide unfinished modules", async ({ page }) => {
     }
     await expect(page.locator(".nav-status-badge")).toHaveCount(0);
     // Role & Access is now a real read-only page, so it belongs in navigation.
-    // Tasks, Settings and the Customer/Deal prototype routes do not.
+    // Tasks, deferred tenant-settings and Customer/Deal prototype routes do not.
     await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(1);
     await expect(page.locator('a[href="/tasks"]')).toHaveCount(0);
     await expect(page.locator('a[href="/settings/tenant"]')).toHaveCount(0);

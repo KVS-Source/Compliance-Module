@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const REGISTER_TITLE_MAX_LENGTH = 300;
 export const REGISTER_CODE_MAX_LENGTH = 64;
@@ -75,6 +76,14 @@ export const registerRecordListSchema = paginationSchema
       .optional(),
     dueFrom: dateSchema.optional(),
     dueTo: dateSchema.optional(),
+    ...listOrderFields([
+      "businessRecordCode",
+      "title",
+      "status",
+      "dueDate",
+      "recordDate",
+      "createdAt",
+    ] as const).shape,
   })
   .strict();
 

@@ -3,7 +3,13 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Modal } from "../../components/feedback/Modal";
 import { ApiError } from "../../services/apiClient";
 import { masterDataApi } from "../../services/masterDataApi";
-import type { CompanyUser, Department, UserStatus } from "../../types/api";
+import { userRoleApi } from "../../services/userRoleApi";
+import type {
+  AccessProfileResponse,
+  CompanyUser,
+  Department,
+  UserStatus,
+} from "../../types/api";
 import {
   duplicateEmailFieldError,
   fieldErrorsFromApi,
@@ -15,6 +21,7 @@ const statuses: UserStatus[] = ["ACTIVE", "DISABLED", "INVITED", "LOCKED"];
 interface UserFormModalProps {
   mode: "create" | "edit";
   user?: CompanyUser | null;
+  canAssignRole: boolean;
   onClose: () => void;
   onSaved: (user: CompanyUser) => void;
 }
@@ -27,11 +34,21 @@ const emptyCreate = {
   password: "",
   status: "ACTIVE" as UserStatus,
   departmentId: "",
+  roleCode: "",
+};
+
+const assignedRoleCode = (user?: CompanyUser | null) => {
+  const assignment = user?.roles.find(
+    (role): role is Exclude<CompanyUser["roles"][number], string> =>
+      typeof role !== "string" && role.status === "ACTIVE",
+  );
+  return assignment?.code ?? "";
 };
 
 export function UserFormModal({
   mode,
   user,
+  canAssignRole,
   onClose,
   onSaved,
 }: UserFormModalProps) {
@@ -47,14 +64,22 @@ export function UserFormModal({
             ? user.status
             : "ACTIVE") as UserStatus,
           departmentId: "",
+          roleCode: assignedRoleCode(user),
         }
       : emptyCreate,
   );
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [profiles, setProfiles] = useState<AccessProfileResponse["profiles"]>(
+    [],
+  );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [savedWithoutRole, setSavedWithoutRole] = useState<CompanyUser | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const [loadingProfiles, setLoadingProfiles] = useState(canAssignRole);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +107,36 @@ export function UserFormModal({
     };
   }, [mode, user]);
 
+  useEffect(() => {
+    if (!canAssignRole) {
+      setProfiles([]);
+      setLoadingProfiles(false);
+      return;
+    }
+    let active = true;
+    setLoadingProfiles(true);
+    void userRoleApi
+      .profiles()
+      .then((response) => {
+        if (!active) return;
+        setProfiles(response.profiles);
+      })
+      .catch(() => {
+        if (!active) return;
+        setProfiles([]);
+        setFieldErrors((current) => ({
+          ...current,
+          roleCode: "Roles could not be loaded",
+        }));
+      })
+      .finally(() => {
+        if (active) setLoadingProfiles(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [canAssignRole]);
+
   const setField = (key: keyof typeof values, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => {
@@ -97,32 +152,61 @@ export function UserFormModal({
     setSaving(true);
     setFormError(null);
     setFieldErrors({});
+    if (mode === "create" && canAssignRole && !values.roleCode) {
+      setFieldErrors({ roleCode: "Select a sanctioned role" });
+      setSaving(false);
+      return;
+    }
+    let saved = savedWithoutRole;
+    let assigningRole = false;
     try {
       const phone = values.phone.trim() ? values.phone.trim() : null;
-      const departmentId = values.departmentId
-        ? values.departmentId
-        : null;
-      const saved =
-        mode === "create"
-          ? await masterDataApi.createUser({
-              code: values.code.trim(),
-              name: values.name.trim(),
-              email: values.email.trim(),
-              phone,
-              password: values.password,
-              status: values.status,
-              departmentId,
-            })
-          : await masterDataApi.updateUser(user!.id, {
-              name: values.name.trim(),
-              email: values.email.trim(),
-              phone,
-              status: values.status,
-              departmentId,
-              ...(values.password ? { password: values.password } : {}),
-            });
+      const departmentId = values.departmentId ? values.departmentId : null;
+      if (!saved) {
+        saved =
+          mode === "create"
+            ? await masterDataApi.createUser({
+                code: values.code.trim(),
+                name: values.name.trim(),
+                email: values.email.trim(),
+                phone,
+                password: values.password,
+                status: values.status,
+                departmentId,
+              })
+            : await masterDataApi.updateUser(user!.id, {
+                name: values.name.trim(),
+                email: values.email.trim(),
+                phone,
+                status: values.status,
+                departmentId,
+                ...(values.password ? { password: values.password } : {}),
+              });
+      }
+      const initialRoleCode = assignedRoleCode(user);
+      if (
+        canAssignRole &&
+        values.roleCode &&
+        (mode === "create" || values.roleCode !== initialRoleCode)
+      ) {
+        assigningRole = true;
+        await userRoleApi.assign(saved.id, values.roleCode);
+      }
       onSaved(saved);
     } catch (error) {
+      if (saved && assigningRole) {
+        setSavedWithoutRole(saved);
+        const reason =
+          error instanceof ApiError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "Request failed";
+        setFormError(
+          `${mode === "create" ? "The user was created" : "The user details were saved"}, but the role assignment failed: ${reason}. Choose a role and retry the assignment.`,
+        );
+        return;
+      }
       const emailConflict = duplicateEmailFieldError(error);
       if (emailConflict) {
         setFieldErrors({ email: emailConflict });
@@ -177,14 +261,23 @@ export function UserFormModal({
             className="btn btn-primary"
             type="submit"
             form="user-write-form"
-            disabled={saving}
+            disabled={saving || (canAssignRole && loadingProfiles)}
           >
-            <Save size={15} /> {saving ? "Saving…" : "Save"}
+            <Save size={15} />{" "}
+            {saving
+              ? "Saving…"
+              : savedWithoutRole
+                ? "Retry role assignment"
+                : "Save"}
           </button>
         </>
       }
     >
-      <form id="user-write-form" className="form-grid" onSubmit={(event) => void onSubmit(event)}>
+      <form
+        id="user-write-form"
+        className="form-grid"
+        onSubmit={(event) => void onSubmit(event)}
+      >
         {formError ? (
           <div className="banner warning field-span" role="alert">
             {formError}
@@ -316,6 +409,32 @@ export function UserFormModal({
             ))}
           </select>,
         )}
+        {canAssignRole
+          ? field(
+              "roleCode",
+              "Role",
+              <select
+                id="user-roleCode"
+                className={`control ${fieldErrors.roleCode ? "invalid" : ""}`}
+                name="roleCode"
+                value={values.roleCode}
+                onChange={(event) => setField("roleCode", event.target.value)}
+                disabled={loadingProfiles}
+                required={mode === "create"}
+                aria-invalid={Boolean(fieldErrors.roleCode)}
+                aria-describedby="user-roleCode-error"
+              >
+                <option value="">
+                  {mode === "create" ? "Select a role" : "Keep current role"}
+                </option>
+                {profiles.map((profile) => (
+                  <option key={profile.code} value={profile.code}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>,
+            )
+          : null}
       </form>
     </Modal>
   );

@@ -894,6 +894,71 @@ export const openApiDocument = {
         },
       },
     },
+    "/access/profiles": {
+      get: {
+        summary: "List sanctioned production access profiles",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Immutable production access profile matrix" },
+          "403": { description: "Missing users:read permission" },
+        },
+      },
+    },
+    "/access/users/{userId}/roles": {
+      get: {
+        summary: "List active and disabled Company role assignments for a user",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "userId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": { description: "Company-scoped role assignments" },
+          "403": { description: "Missing users:read permission" },
+          "404": { description: "User not in active Company context" },
+        },
+      },
+      put: {
+        summary: "Assign one sanctioned production profile to a Company user",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "userId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["roleCode"],
+                properties: { roleCode: { type: "string" } },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Role assigned and audit event written" },
+          "400": { description: "Wildcard or non-profile role code" },
+          "403": {
+            description:
+              "Missing roles:assign permission or attempted self-assignment",
+          },
+          "409": {
+            description: "Inactive membership or cross-Company role assignment",
+          },
+        },
+      },
+    },
     "/organisation/departments": {
       get: {
         summary: "List departments",
@@ -1471,6 +1536,60 @@ export const openApiDocument = {
               "Tenant-filtered risk page. Each item uses the risk detail DTO, including additive source.actual value fields when linked.",
           },
           "403": { description: "Missing risk:read permission" },
+        },
+      },
+      post: {
+        summary: "Create a manual Company risk",
+        description:
+          "Allocates the next code from the shared Company RSK sequence. " +
+          "Manual risks have null KPI actual, configuration, target and KPI risk class fields; " +
+          "generalLevel is derived from inherentLikelihood × inherentImpact.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "title",
+                  "description",
+                  "category",
+                  "inherentLikelihood",
+                  "inherentImpact",
+                ],
+                properties: {
+                  title: { type: "string", maxLength: 300 },
+                  description: { type: "string", maxLength: 5_000 },
+                  category: { type: "string", maxLength: 200 },
+                  inherentLikelihood: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 5,
+                  },
+                  inherentImpact: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 5,
+                  },
+                  ownerId: {
+                    type: "string",
+                    format: "uuid",
+                    nullable: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Manual risk created and audited" },
+          "400": {
+            description:
+              "Invalid input or owner not active in the current Company",
+          },
+          "403": { description: "Missing risk:write permission" },
         },
       },
     },

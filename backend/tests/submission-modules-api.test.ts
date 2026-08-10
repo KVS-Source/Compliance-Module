@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { isFrameworkActiveInScope } from "../src/modules/dashboard/framework-scope.js";
 import { REPORT_CATALOGUE } from "../src/modules/reports/service.js";
 
 if (
@@ -161,6 +162,58 @@ describe("submission modules", () => {
     });
   });
 
+  describe("KPI compliance traceability", () => {
+    it("derives every row from governed relationships in the active Company", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const { data } = await get(admin.accessToken, "/kpis/traceability");
+      const tenantId = admin.user.activeCompany.id;
+      const expectedActualIds = new Set(
+        (
+          await prisma.kpiActual.findMany({
+            where: { tenantId, deletedAt: null },
+            select: { id: true },
+            orderBy: [{ submittedAt: "desc" }, { id: "asc" }],
+            take: 100,
+          })
+        ).map(({ id }) => id),
+      );
+      expect(data.summary.actuals).toBe(expectedActualIds.size);
+      expect(data.rows).toHaveLength(expectedActualIds.size);
+      for (const row of data.rows) {
+        expect(expectedActualIds.has(row.id)).toBe(true);
+        expect(row.completeness.totalNodes).toBe(8);
+        expect(row.completeness.mappedNodes).toBeGreaterThanOrEqual(2);
+        expect(row.completeness.mappedNodes).toBeLessThanOrEqual(8);
+        expect(row.targetActual.actualId).toBe(row.id);
+      }
+    });
+
+    it("never returns another Company's KPI Actuals", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      const other = admin.user.companies.find(({ code }) => code === "COM-002");
+      if (!other) throw new Error("COM-002 fixture is unavailable");
+      const otherToken = await switchCompany(admin.accessToken, other.id);
+      const [{ data: first }, { data: second }] = await Promise.all([
+        get(admin.accessToken, "/kpis/traceability"),
+        get(otherToken, "/kpis/traceability"),
+      ]);
+      const firstIds = new Set<string>(
+        first.rows.map((row: { id: string }) => row.id),
+      );
+      const secondIds = new Set<string>(
+        second.rows.map((row: { id: string }) => row.id),
+      );
+      for (const id of firstIds) expect(secondIds.has(id)).toBe(false);
+      for (const id of secondIds) {
+        expect(
+          await prisma.kpiActual.count({
+            where: { id, tenantId: other.id, deletedAt: null },
+          }),
+        ).toBe(1);
+      }
+    });
+  });
+
   describe("KPI Analytics", () => {
     it("agrees with the actuals it aggregates", async () => {
       const admin = await login("admin001@example.test", "Admin001!Secure");
@@ -210,6 +263,57 @@ describe("submission modules", () => {
         expect(Array.isArray(data.columns)).toBe(true);
         expect(Array.isArray(data.rows)).toBe(true);
         expect(data.rows.length).toBeLessThanOrEqual(data.rowLimit);
+      }
+    });
+
+    it("keeps the framework report limited to the active in-scope catalogue", async () => {
+      const admin = await login("admin001@example.test", "Admin001!Secure");
+      /**
+       * Frameworks are a global shared master with no `tenant_id`, and the
+       * deterministic fixture seeds `FRM-001` with a null `scopeStatus` — so
+       * nothing is in scope on a clean database. This test must plant its own
+       * in-scope row and remove it again; depending on whichever other file
+       * ran first and left one behind makes the result an artefact of the
+       * runner's file order rather than of the report.
+       */
+      const unique = Date.now().toString();
+      const planted = await prisma.framework.create({
+        data: {
+          code: `RPT-IN-SCOPE-${unique}`,
+          name: "Synthetic in-scope framework for the report",
+          version: "1",
+          status: "ACTIVE",
+          scopeStatus: "Active – In Scope",
+        },
+        select: { id: true },
+      });
+      const outOfScope = await prisma.framework.create({
+        data: {
+          code: `RPT-PLANNING-${unique}`,
+          name: "Synthetic planning framework for the report",
+          version: "1",
+          status: "ACTIVE",
+          scopeStatus: "Planning",
+        },
+        select: { id: true },
+      });
+      try {
+        const { data } = await get(
+          admin.accessToken,
+          "/reports/framework-compliance",
+        );
+        expect(data.rows.length).toBeGreaterThan(0);
+        for (const row of data.rows) {
+          expect(isFrameworkActiveInScope(row.scopeStatus)).toBe(true);
+        }
+        // The planted in-scope row is reported; the Planning one is excluded.
+        const codes = data.rows.map((row: { code: string }) => row.code);
+        expect(codes).toContain(`RPT-IN-SCOPE-${unique}`);
+        expect(codes).not.toContain(`RPT-PLANNING-${unique}`);
+      } finally {
+        await prisma.framework.deleteMany({
+          where: { id: { in: [planted.id, outOfScope.id] } },
+        });
       }
     });
 

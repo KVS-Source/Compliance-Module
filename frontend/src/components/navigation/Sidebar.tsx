@@ -196,8 +196,9 @@ export function Sidebar({
             <div className="sidebar-user-copy">
               <strong>{user?.name}</strong>
               <span>
-                {user?.permissions.includes("*")
-                  ? "Company Admin"
+                {user?.permissions.includes("*") ||
+                user?.permissions.includes("roles:assign")
+                  ? "Company Administrator"
                   : "Company User"}{" "}
                 · {user?.activeCompany.name}
               </span>

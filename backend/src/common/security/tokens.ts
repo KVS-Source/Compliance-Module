@@ -6,6 +6,11 @@ export interface AccessClaims {
   sub: string;
   tenantId: string;
   permissions: string[];
+  /**
+   * Refresh-token family for the session that issued this access token.
+   * Optional so tokens minted before session management still verify.
+   */
+  sessionFamilyId?: string;
   type: "access";
 }
 

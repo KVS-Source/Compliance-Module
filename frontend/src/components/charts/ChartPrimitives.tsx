@@ -17,13 +17,21 @@ import { Link } from "react-router-dom";
  *    company must look empty.
  */
 
-/** Status hues. Ordered so red and green are never adjacent in a legend. */
+/**
+ * Status hues, read from the design tokens rather than hardcoded, so RAG stays
+ * consistent with every badge and bar elsewhere in the app. Ordered so red and
+ * green are never adjacent in a legend.
+ *
+ * APPROVED and REJECTED deliberately use the frozen RAG green and red: a chart
+ * is often the first thing a reviewer looks at, and a lime or rose stand-in
+ * reads as a different status.
+ */
 export const STATUS_COLOURS: Record<string, string> = {
-  DRAFT: "#6b7280",
-  SUBMITTED: "#2563eb",
-  APPROVED: "#16a34a",
-  ARCHIVED: "#7c3aed",
-  REJECTED: "#dc2626",
+  DRAFT: "var(--grey-500)",
+  SUBMITTED: "var(--blue-600)",
+  APPROVED: "var(--green-600)",
+  ARCHIVED: "var(--purple-600)",
+  REJECTED: "var(--red-600)",
 };
 
 /** Legend order for Evidence lifecycle, chosen for colour-vision separation. */
@@ -35,7 +43,7 @@ export const EVIDENCE_STATUS_ORDER = [
   "REJECTED",
 ];
 
-const SERIES_COLOURS = ["#2563eb", "#16a34a"];
+const SERIES_COLOURS = ["var(--accent)", "var(--green-600)"];
 
 export const formatNumber = (value: number) =>
   new Intl.NumberFormat("en-GB").format(value);
@@ -285,7 +293,7 @@ export function HorizontalBars({
                 className="hbar-fill"
                 style={{
                   width: `${row.max === 0 ? 0 : Math.max(1, (row.value / row.max) * 100)}%`,
-                  background: row.colour ?? "#2563eb",
+                  background: row.colour ?? "var(--accent)",
                 }}
               />
             )}
@@ -317,8 +325,14 @@ export function RiskHeatMap({
   const lookup = new Map(
     cells.map((cell) => [`${cell.likelihood}:${cell.impact}`, cell.count]),
   );
-  const impacts = Array.from({ length: maxImpact }, (_, index) => maxImpact - index);
-  const likelihoods = Array.from({ length: maxLikelihood }, (_, index) => index + 1);
+  const impacts = Array.from(
+    { length: maxImpact },
+    (_, index) => maxImpact - index,
+  );
+  const likelihoods = Array.from(
+    { length: maxLikelihood },
+    (_, index) => index + 1,
+  );
   return (
     <div className="chart-heatmap" data-testid={testId}>
       <div
@@ -328,7 +342,11 @@ export function RiskHeatMap({
         }}
       >
         {impacts.map((impact) => (
-          <div className="heatmap-row" key={impact} style={{ display: "contents" }}>
+          <div
+            className="heatmap-row"
+            key={impact}
+            style={{ display: "contents" }}
+          >
             <span className="heatmap-axis-label">Impact {impact}</span>
             {likelihoods.map((likelihood) => {
               const count = lookup.get(`${likelihood}:${impact}`) ?? 0;

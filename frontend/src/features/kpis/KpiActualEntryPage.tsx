@@ -1,8 +1,4 @@
-import {
-  CheckCircle2,
-  Send,
-  TriangleAlert,
-} from "lucide-react";
+import { CheckCircle2, Send, TriangleAlert } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -11,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import { KpiActualGrid } from "./KpiActualGrid";
 import { kpiApi } from "../../services/kpiApi";
 import type { KpiActual, KpiConfiguration, KpiTarget } from "../../types/api";
 import {
@@ -85,6 +82,7 @@ export function KpiActualEntryPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mode, setMode] = useState<"single" | "grid">("single");
   const [result, setResult] = useState<KpiActual | null>(null);
 
   const configurations = useApiResource(
@@ -198,352 +196,384 @@ export function KpiActualEntryPage() {
         section="KPI Management"
         description="Record KPI performance against an approved target for the active Company."
         connected
+        actions={
+          <div className="mode-switch" role="group" aria-label="Entry mode">
+            <button
+              className={`btn ${mode === "single" ? "btn-primary" : "btn-secondary"}`}
+              type="button"
+              aria-pressed={mode === "single"}
+              onClick={() => setMode("single")}
+              data-testid="kpi-entry-mode-single"
+            >
+              Single
+            </button>
+            <button
+              className={`btn ${mode === "grid" ? "btn-primary" : "btn-secondary"}`}
+              type="button"
+              aria-pressed={mode === "grid"}
+              onClick={() => setMode("grid")}
+              data-testid="kpi-entry-mode-grid"
+            >
+              Grid
+            </button>
+          </div>
+        }
       />
 
-      <div className="grid-2 kpi-entry-layout">
-        <section className="card">
-          <header className="card-head">
-            <div>
-              <h2>Actual Performance</h2>
-              <p>Select an active KPI configuration and approved period.</p>
-            </div>
-            <Badge tone={canWrite ? "blue" : "grey"}>
-              {canWrite ? "Ready" : "Read only"}
-            </Badge>
-          </header>
-          <form
-            className="card-pad form-grid"
-            onSubmit={(event) => void onSubmit(event)}
-          >
-            {formError ? (
-              <div className="banner warning field-span" role="alert">
-                {formError}
-              </div>
-            ) : null}
-
-            <div className="field field-span">
-              <label htmlFor="actual-kpi">KPI configuration *</label>
-              <select
-                id="actual-kpi"
-                className={`control ${fieldErrors.kpiConfigurationId ? "invalid" : ""}`}
-                value={configurationId}
-                onChange={(event) => onConfigurationChange(event.target.value)}
-                required
-                aria-invalid={Boolean(fieldErrors.kpiConfigurationId)}
-                aria-describedby="actual-kpi-error"
-              >
-                <option value="">Select an active KPI configuration</option>
-                {(configurations.data ?? []).map((configuration) => (
-                  <option key={configuration.id} value={configuration.id}>
-                    {configurationLabel(configuration)}
-                  </option>
-                ))}
-              </select>
-              <div className="error" id="actual-kpi-error" role="alert">
-                {fieldErrors.kpiConfigurationId ?? ""}
-              </div>
-            </div>
-
-            {selectedConfiguration ? (
-              <section
-                className="field-span information-card"
-                aria-label="Selected KPI"
-              >
-                <dl className="detail-list">
-                  <div>
-                    <dt>Code</dt>
-                    <dd className="mono">{selectedConfiguration.kpi.code}</dd>
-                  </div>
-                  <div>
-                    <dt>Name</dt>
-                    <dd>{selectedConfiguration.kpi.name}</dd>
-                  </div>
-                  <div>
-                    <dt>Unit of measure</dt>
-                    <dd>
-                      {selectedConfiguration.kpi.unit}
-                      {selectedConfiguration.currency
-                        ? ` · ${selectedConfiguration.currency}`
-                        : ""}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Frequency</dt>
-                    <dd>
-                      {frequencyLabel(selectedConfiguration.kpi.frequency)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Owner</dt>
-                    <dd>
-                      {selectedConfiguration.owner
-                        ? `${selectedConfiguration.owner.name} (${selectedConfiguration.owner.code})`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Department</dt>
-                    <dd>
-                      {selectedConfiguration.department
-                        ? `${selectedConfiguration.department.name} (${selectedConfiguration.department.code})`
-                        : "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </section>
-            ) : null}
-
-            <div className="field">
-              <label htmlFor="actual-period">Period *</label>
-              <select
-                id="actual-period"
-                className={`control ${fieldErrors.period ? "invalid" : ""}`}
-                value={period}
-                onChange={(event) => onPeriodChange(event.target.value)}
-                required
-                disabled={
-                  !configurationId ||
-                  targets.loading ||
-                  (!targets.loading && periods.length === 0)
-                }
-                aria-invalid={Boolean(fieldErrors.period)}
-                aria-describedby="actual-period-error"
-              >
-                <option value="">
-                  {!configurationId
-                    ? "Select a KPI first"
-                    : targets.loading
-                      ? "Loading approved periods…"
-                      : periods.length === 0
-                        ? "No approved targets for this KPI"
-                        : "Select a period"}
-                </option>
-                {periods.map((entry) => (
-                  <option key={entry} value={entry}>
-                    {entry}
-                  </option>
-                ))}
-              </select>
-              <div className="error" id="actual-period-error" role="alert">
-                {fieldErrors.period ?? ""}
-              </div>
-              {configurationId &&
-              !targets.loading &&
-              !targets.error &&
-              periods.length === 0 ? (
-                <p className="muted">
-                  This KPI has no approved active targets. Approve a target
-                  before submitting an actual.
-                </p>
-              ) : null}
-              {targets.error ? (
-                <p className="error" role="alert">
-                  {targets.error.message}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="field">
-              <label htmlFor="actual-value">Actual value *</label>
-              <input
-                id="actual-value"
-                className={`control ${fieldErrors.actualValue ? "invalid" : ""}`}
-                name="actualValue"
-                value={actualValue}
-                onChange={(event) => {
-                  setActualValue(event.target.value);
-                  clearFieldError("actualValue");
-                }}
-                required
-                inputMode="decimal"
-                placeholder="e.g. 95.0000"
-                aria-invalid={Boolean(fieldErrors.actualValue)}
-                aria-describedby="actual-value-error"
-              />
-              <div className="error" id="actual-value-error" role="alert">
-                {fieldErrors.actualValue ?? ""}
-              </div>
-            </div>
-
-            <div className="field">
-              <label htmlFor="actual-target">Approved target</label>
-              <input
-                id="actual-target"
-                className="control"
-                value={
-                  selectedTarget
-                    ? `${selectedTarget.targetValue}${
-                        selectedConfiguration?.kpi.unit
-                          ? ` ${selectedConfiguration.kpi.unit}`
-                          : ""
-                      } · v${selectedTarget.version}`
-                    : "—"
-                }
-                readOnly
-              />
-              {selectedTarget?.minValue != null ||
-              selectedTarget?.maxValue != null ? (
-                <p className="muted">
-                  Tolerance band: {selectedTarget.minValue ?? "—"} to{" "}
-                  {selectedTarget.maxValue ?? "—"}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="field field-span">
-              <label htmlFor="actual-comments">Comments</label>
-              <textarea
-                id="actual-comments"
-                className={`control ${fieldErrors.comments ? "invalid" : ""}`}
-                rows={4}
-                value={comments}
-                onChange={(event) => {
-                  setComments(event.target.value);
-                  clearFieldError("comments");
-                }}
-                placeholder="Describe the result, variance and corrective context."
-                aria-invalid={Boolean(fieldErrors.comments)}
-                aria-describedby="actual-comments-error"
-              />
-              <div className="error" id="actual-comments-error" role="alert">
-                {fieldErrors.comments ?? ""}
-              </div>
-            </div>
-
-            <div className="field-span button-row">
-              {canWrite ? (
-                <button
-                  className="btn btn-primary"
-                  type="submit"
-                  disabled={
-                    submitting ||
-                    !configurationId ||
-                    !period ||
-                    !actualValue.trim()
-                  }
-                >
-                  <Send size={15} />
-                  {submitting ? "Submitting…" : "Submit actual"}
-                </button>
-              ) : (
-                <p className="muted" role="status">
-                  Your role does not include <code>kpi-actual:write</code>, so
-                  submission is unavailable.
-                </p>
-              )}
-            </div>
-          </form>
-        </section>
-
-        <div className="stack">
-          <section
-            className={`card risk-preview ${
-              result
-                ? result.risk
-                  ? "risk-preview-missed"
-                  : "risk-preview-met"
-                : ""
-            }`}
-            aria-live="polite"
-          >
+      {mode === "grid" ? (
+        <KpiActualGrid
+          configurations={configurations.data ?? []}
+          canWrite={canWrite}
+        />
+      ) : (
+        <div className="grid-2 kpi-entry-layout">
+          <section className="card">
             <header className="card-head">
               <div>
-                <h2>Submission result</h2>
-                <p>
-                  {result
-                    ? `Authoritative API response for ${result.code}`
-                    : "Calculated after a successful submission"}
-                </p>
+                <h2>Actual Performance</h2>
+                <p>Select an active KPI configuration and approved period.</p>
               </div>
-              {result?.ragStatus ? (
-                <Badge tone={ragTone}>{result.ragStatus}</Badge>
-              ) : result ? (
-                <Badge tone="grey">Informational</Badge>
-              ) : (
-                <Badge tone="grey">Awaiting submit</Badge>
-              )}
+              <Badge tone={canWrite ? "blue" : "grey"}>
+                {canWrite ? "Ready" : "Read only"}
+              </Badge>
             </header>
-            <div className="card-pad">
-              {result && riskCopy ? (
-                <>
-                  <span className={`feature-icon tone-${riskCopy.tone}`}>
-                    {result.risk ? (
-                      <TriangleAlert size={22} />
-                    ) : (
-                      <CheckCircle2 size={22} />
-                    )}
-                  </span>
-                  <h3>{riskCopy.title}</h3>
-                  <p className="muted">{riskCopy.body}</p>
-                  <div className="metric-row">
-                    <span>Target snapshot</span>
-                    <strong>{result.targetValueSnapshot}</strong>
-                  </div>
-                  <div className="metric-row">
-                    <span>Actual</span>
-                    <strong>{result.actualValue}</strong>
-                  </div>
-                  <div className="metric-row">
-                    <span>Variance</span>
-                    <strong>{result.variance}</strong>
-                  </div>
-                  <div className="metric-row">
-                    <span>Variance %</span>
-                    <strong>
-                      {result.variancePercentage == null
-                        ? "—"
-                        : `${result.variancePercentage}%`}
-                    </strong>
-                  </div>
-                  <div className="metric-row">
-                    <span>RAG</span>
-                    <strong>{result.ragStatus ?? "None"}</strong>
-                  </div>
-                  <div className="metric-row">
-                    <span>Approval status</span>
-                    <strong>{result.approvalStatus}</strong>
-                  </div>
-                  {result.risk ? (
-                    <>
-                      <div className="metric-row">
-                        <span>Risk code</span>
-                        <strong className="mono">{result.risk.code}</strong>
-                      </div>
-                      <div className="metric-row">
-                        <span>Risk class</span>
-                        <strong>{result.risk.kpiRiskClass ?? "—"}</strong>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="metric-row">
-                      <span>Risk</span>
-                      <strong>No risk</strong>
+            <form
+              className="card-pad form-grid"
+              onSubmit={(event) => void onSubmit(event)}
+            >
+              {formError ? (
+                <div className="banner warning field-span" role="alert">
+                  {formError}
+                </div>
+              ) : null}
+
+              <div className="field field-span">
+                <label htmlFor="actual-kpi">KPI configuration *</label>
+                <select
+                  id="actual-kpi"
+                  className={`control ${fieldErrors.kpiConfigurationId ? "invalid" : ""}`}
+                  value={configurationId}
+                  onChange={(event) =>
+                    onConfigurationChange(event.target.value)
+                  }
+                  required
+                  aria-invalid={Boolean(fieldErrors.kpiConfigurationId)}
+                  aria-describedby="actual-kpi-error"
+                >
+                  <option value="">Select an active KPI configuration</option>
+                  {(configurations.data ?? []).map((configuration) => (
+                    <option key={configuration.id} value={configuration.id}>
+                      {configurationLabel(configuration)}
+                    </option>
+                  ))}
+                </select>
+                <div className="error" id="actual-kpi-error" role="alert">
+                  {fieldErrors.kpiConfigurationId ?? ""}
+                </div>
+              </div>
+
+              {selectedConfiguration ? (
+                <section
+                  className="field-span information-card"
+                  aria-label="Selected KPI"
+                >
+                  <dl className="detail-list">
+                    <div>
+                      <dt>Code</dt>
+                      <dd className="mono">{selectedConfiguration.kpi.code}</dd>
                     </div>
-                  )}
-                </>
-              ) : (
-                <p className="muted">
-                  Choose a KPI and period, enter the actual value, then submit.
-                  The server calculates variance, RAG and any automatic risk.
-                </p>
-              )}
-            </div>
+                    <div>
+                      <dt>Name</dt>
+                      <dd>{selectedConfiguration.kpi.name}</dd>
+                    </div>
+                    <div>
+                      <dt>Unit of measure</dt>
+                      <dd>
+                        {selectedConfiguration.kpi.unit}
+                        {selectedConfiguration.currency
+                          ? ` · ${selectedConfiguration.currency}`
+                          : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Frequency</dt>
+                      <dd>
+                        {frequencyLabel(selectedConfiguration.kpi.frequency)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Owner</dt>
+                      <dd>
+                        {selectedConfiguration.owner
+                          ? `${selectedConfiguration.owner.name} (${selectedConfiguration.owner.code})`
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Department</dt>
+                      <dd>
+                        {selectedConfiguration.department
+                          ? `${selectedConfiguration.department.name} (${selectedConfiguration.department.code})`
+                          : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+              ) : null}
+
+              <div className="field">
+                <label htmlFor="actual-period">Period *</label>
+                <select
+                  id="actual-period"
+                  className={`control ${fieldErrors.period ? "invalid" : ""}`}
+                  value={period}
+                  onChange={(event) => onPeriodChange(event.target.value)}
+                  required
+                  disabled={
+                    !configurationId ||
+                    targets.loading ||
+                    (!targets.loading && periods.length === 0)
+                  }
+                  aria-invalid={Boolean(fieldErrors.period)}
+                  aria-describedby="actual-period-error"
+                >
+                  <option value="">
+                    {!configurationId
+                      ? "Select a KPI first"
+                      : targets.loading
+                        ? "Loading approved periods…"
+                        : periods.length === 0
+                          ? "No approved targets for this KPI"
+                          : "Select a period"}
+                  </option>
+                  {periods.map((entry) => (
+                    <option key={entry} value={entry}>
+                      {entry}
+                    </option>
+                  ))}
+                </select>
+                <div className="error" id="actual-period-error" role="alert">
+                  {fieldErrors.period ?? ""}
+                </div>
+                {configurationId &&
+                !targets.loading &&
+                !targets.error &&
+                periods.length === 0 ? (
+                  <p className="muted">
+                    This KPI has no approved active targets. Approve a target
+                    before submitting an actual.
+                  </p>
+                ) : null}
+                {targets.error ? (
+                  <p className="error" role="alert">
+                    {targets.error.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label htmlFor="actual-value">Actual value *</label>
+                <input
+                  id="actual-value"
+                  className={`control ${fieldErrors.actualValue ? "invalid" : ""}`}
+                  name="actualValue"
+                  value={actualValue}
+                  onChange={(event) => {
+                    setActualValue(event.target.value);
+                    clearFieldError("actualValue");
+                  }}
+                  required
+                  inputMode="decimal"
+                  placeholder="e.g. 95.0000"
+                  aria-invalid={Boolean(fieldErrors.actualValue)}
+                  aria-describedby="actual-value-error"
+                />
+                <div className="error" id="actual-value-error" role="alert">
+                  {fieldErrors.actualValue ?? ""}
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="actual-target">Approved target</label>
+                <input
+                  id="actual-target"
+                  className="control"
+                  value={
+                    selectedTarget
+                      ? `${selectedTarget.targetValue}${
+                          selectedConfiguration?.kpi.unit
+                            ? ` ${selectedConfiguration.kpi.unit}`
+                            : ""
+                        } · v${selectedTarget.version}`
+                      : "—"
+                  }
+                  readOnly
+                />
+                {selectedTarget?.minValue != null ||
+                selectedTarget?.maxValue != null ? (
+                  <p className="muted">
+                    Tolerance band: {selectedTarget.minValue ?? "—"} to{" "}
+                    {selectedTarget.maxValue ?? "—"}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="field field-span">
+                <label htmlFor="actual-comments">Comments</label>
+                <textarea
+                  id="actual-comments"
+                  className={`control ${fieldErrors.comments ? "invalid" : ""}`}
+                  rows={4}
+                  value={comments}
+                  onChange={(event) => {
+                    setComments(event.target.value);
+                    clearFieldError("comments");
+                  }}
+                  placeholder="Describe the result, variance and corrective context."
+                  aria-invalid={Boolean(fieldErrors.comments)}
+                  aria-describedby="actual-comments-error"
+                />
+                <div className="error" id="actual-comments-error" role="alert">
+                  {fieldErrors.comments ?? ""}
+                </div>
+              </div>
+
+              <div className="field-span button-row">
+                {canWrite ? (
+                  <button
+                    className="btn btn-primary"
+                    type="submit"
+                    disabled={
+                      submitting ||
+                      !configurationId ||
+                      !period ||
+                      !actualValue.trim()
+                    }
+                  >
+                    <Send size={15} />
+                    {submitting ? "Submitting…" : "Submit actual"}
+                  </button>
+                ) : (
+                  <p className="muted" role="status">
+                    Your role does not include <code>kpi-actual:write</code>, so
+                    submission is unavailable.
+                  </p>
+                )}
+              </div>
+            </form>
           </section>
 
-          {result ? (
-            <KpiActualEvidencePanel
-              kpiActualId={result.id}
-              kpiActualCode={result.code}
-              period={result.period}
-              approvalStatus={result.approvalStatus}
-              requiresEvidence={
-                selectedConfiguration?.requiresEvidence ?? false
-              }
-              returnTo="/kpis/actuals/new"
-            />
-          ) : null}
+          <div className="stack">
+            <section
+              className={`card risk-preview ${
+                result
+                  ? result.risk
+                    ? "risk-preview-missed"
+                    : "risk-preview-met"
+                  : ""
+              }`}
+              aria-live="polite"
+            >
+              <header className="card-head">
+                <div>
+                  <h2>Submission result</h2>
+                  <p>
+                    {result
+                      ? `Authoritative API response for ${result.code}`
+                      : "Calculated after a successful submission"}
+                  </p>
+                </div>
+                {result?.ragStatus ? (
+                  <Badge tone={ragTone}>{result.ragStatus}</Badge>
+                ) : result ? (
+                  <Badge tone="grey">Informational</Badge>
+                ) : (
+                  <Badge tone="grey">Awaiting submit</Badge>
+                )}
+              </header>
+              <div className="card-pad">
+                {result && riskCopy ? (
+                  <>
+                    <span className={`feature-icon tone-${riskCopy.tone}`}>
+                      {result.risk ? (
+                        <TriangleAlert size={22} />
+                      ) : (
+                        <CheckCircle2 size={22} />
+                      )}
+                    </span>
+                    <h3>{riskCopy.title}</h3>
+                    <p className="muted">{riskCopy.body}</p>
+                    <div className="metric-row">
+                      <span>Target snapshot</span>
+                      <strong>{result.targetValueSnapshot}</strong>
+                    </div>
+                    <div className="metric-row">
+                      <span>Actual</span>
+                      <strong>{result.actualValue}</strong>
+                    </div>
+                    <div className="metric-row">
+                      <span>Variance</span>
+                      <strong>{result.variance}</strong>
+                    </div>
+                    <div className="metric-row">
+                      <span>Variance %</span>
+                      <strong>
+                        {result.variancePercentage == null
+                          ? "—"
+                          : `${result.variancePercentage}%`}
+                      </strong>
+                    </div>
+                    <div className="metric-row">
+                      <span>RAG</span>
+                      <strong>{result.ragStatus ?? "None"}</strong>
+                    </div>
+                    <div className="metric-row">
+                      <span>Approval status</span>
+                      <strong>{result.approvalStatus}</strong>
+                    </div>
+                    {result.risk ? (
+                      <>
+                        <div className="metric-row">
+                          <span>Risk code</span>
+                          <strong className="mono">{result.risk.code}</strong>
+                        </div>
+                        <div className="metric-row">
+                          <span>Risk class</span>
+                          <strong>{result.risk.kpiRiskClass ?? "—"}</strong>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="metric-row">
+                        <span>Risk</span>
+                        <strong>No risk</strong>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="muted">
+                    Choose a KPI and period, enter the actual value, then
+                    submit. The server calculates variance, RAG and any
+                    automatic risk.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {result ? (
+              <KpiActualEvidencePanel
+                kpiActualId={result.id}
+                kpiActualCode={result.code}
+                period={result.period}
+                approvalStatus={result.approvalStatus}
+                requiresEvidence={
+                  selectedConfiguration?.requiresEvidence ?? false
+                }
+                returnTo="/kpis/actuals/new"
+              />
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

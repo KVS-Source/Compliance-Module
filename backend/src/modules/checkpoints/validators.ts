@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const CHECKPOINT_SEARCH_MAX_LENGTH = 100;
 export const CHECKPOINT_TITLE_MAX_LENGTH = 300;
@@ -80,6 +81,13 @@ export const checkpointListSchema = paginationSchema
       .optional(),
     frameworkId: z.string().uuid().optional(),
     policyId: z.string().uuid().optional(),
+    ...listOrderFields([
+      "code",
+      "title",
+      "lifecycleStatus",
+      "nextReviewDate",
+      "createdAt",
+    ] as const).shape,
   })
   .strict()
   .superRefine((value, context) => {

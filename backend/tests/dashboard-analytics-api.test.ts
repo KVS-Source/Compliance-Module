@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { isFrameworkActiveInScope } from "../src/modules/dashboard/framework-scope.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -122,6 +123,7 @@ describe("dashboard analytics", () => {
     const admin = await login("admin001@example.test", "Admin001!Secure");
     const { frameworkCompliance } = await analytics(admin.accessToken);
     for (const row of frameworkCompliance) {
+      expect(isFrameworkActiveInScope(row.scopeStatus)).toBe(true);
       if (row.mappedControls === 0) {
         expect(row.compliancePercentage).toBeNull();
       } else {

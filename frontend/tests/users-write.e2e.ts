@@ -23,6 +23,67 @@ const departments = [
   },
 ];
 
+const profiles = [
+  {
+    code: "CLIENT_COMPANY_ADMINISTRATOR",
+    name: "Client Company Administrator",
+    description: "Explicit Company administration and compliance permissions",
+    provisioned: true,
+    enabled: true,
+    userCount: 1,
+    permissions: ["users:read", "users:write", "roles:assign"],
+    permissionCount: 3,
+  },
+  {
+    code: "COMPLIANCE_MANAGER",
+    name: "Compliance Manager",
+    description: "Compliance configuration, workflow and reporting permissions",
+    provisioned: false,
+    enabled: false,
+    userCount: 0,
+    permissions: ["users:read"],
+    permissionCount: 1,
+  },
+  {
+    code: "DEPARTMENT_OWNER",
+    name: "Department Owner",
+    description: "Operational contribution without administrative rights",
+    provisioned: false,
+    enabled: false,
+    userCount: 0,
+    permissions: ["users:read"],
+    permissionCount: 1,
+  },
+  {
+    code: "REVIEWER_APPROVER",
+    name: "Reviewer/Approver",
+    description: "Read, review, approval and closure permissions",
+    provisioned: false,
+    enabled: false,
+    userCount: 0,
+    permissions: ["users:read"],
+    permissionCount: 1,
+  },
+  {
+    code: "MANAGEMENT_VIEWER",
+    name: "Read-only Management Viewer",
+    description: "Read-only management visibility and CSV exports",
+    provisioned: false,
+    enabled: false,
+    userCount: 0,
+    permissions: ["users:read"],
+    permissionCount: 1,
+  },
+];
+
+const administratorPermissions = [
+  "tenants:read",
+  "users:read",
+  "users:write",
+  "roles:assign",
+  "organisation:read",
+];
+
 type MockUser = {
   id: string;
   code: string;
@@ -80,12 +141,15 @@ const failure = (
 
 async function installUsersWriteMock(
   page: Page,
-  options: { permissions: string[] },
+  options: { permissions: string[]; failRoleAssignment?: boolean },
 ) {
   let users = seedUsers();
   const canWrite =
     options.permissions.includes("*") ||
     options.permissions.includes("users:write");
+  const canAssignRole =
+    options.permissions.includes("*") ||
+    options.permissions.includes("roles:assign");
 
   const identity = () => ({
     id: users[0]!.id,
@@ -140,6 +204,82 @@ async function installUsersWriteMock(
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(success(departments)),
+      });
+    }
+
+    if (path === "/api/v1/access/profiles" && method === "GET") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            profiles,
+            additionalRoles: [],
+            permissions: [],
+            mutable: false,
+          }),
+        ),
+      });
+    }
+
+    if (
+      path.startsWith("/api/v1/access/users/") &&
+      path.endsWith("/roles") &&
+      method === "PUT"
+    ) {
+      if (!canAssignRole) {
+        const denied = failure(403, "FORBIDDEN", "Permission denied");
+        return route.fulfill({
+          status: denied.status,
+          contentType: "application/json",
+          body: JSON.stringify(denied.body),
+        });
+      }
+      if (options.failRoleAssignment) {
+        const unavailable = failure(
+          503,
+          "SERVICE_UNAVAILABLE",
+          "Role assignment is temporarily unavailable",
+        );
+        return route.fulfill({
+          status: unavailable.status,
+          contentType: "application/json",
+          body: JSON.stringify(unavailable.body),
+        });
+      }
+      const userId = path.split("/")[5]!;
+      const payload = request.postDataJSON() as { roleCode: string };
+      const profile = profiles.find((entry) => entry.code === payload.roleCode);
+      const index = users.findIndex((entry) => entry.id === userId);
+      if (!profile || index < 0) {
+        const invalid = failure(400, "INVALID_ROLE_CODE", "Invalid role");
+        return route.fulfill({
+          status: invalid.status,
+          contentType: "application/json",
+          body: JSON.stringify(invalid.body),
+        });
+      }
+      users = users.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, roles: [profile.name] } : entry,
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            id: "40000000-0000-4000-8000-000000000001",
+            userId,
+            status: "ACTIVE",
+            assignedBy: users[0]!.id,
+            assignedAt: "2026-08-08T00:00:00.000Z",
+            role: {
+              id: "50000000-0000-4000-8000-000000000001",
+              code: profile.code,
+              name: profile.name,
+              status: "ACTIVE",
+            },
+          }),
+        ),
       });
     }
 
@@ -306,10 +446,19 @@ async function installUsersWriteMock(
   });
 }
 
-test("creates a Company user through the Users page", async ({ page }) => {
-  await installUsersWriteMock(page, { permissions: ["*"] });
+test("creates a Company user, assigns a sanctioned role and shows it in the list", async ({
+  page,
+}) => {
+  await installUsersWriteMock(page, {
+    permissions: administratorPermissions,
+  });
   await page.goto("/admin/users");
-  await expect(page.getByRole("heading", { name: "User Management" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "User Management" }),
+  ).toBeVisible();
+  await expect(page.locator(".sidebar-user-copy")).toContainText(
+    "Company Administrator",
+  );
   await expect(page.getByTestId("prototype-module-banner")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Add User" }).click();
@@ -318,22 +467,32 @@ test("creates a Company user through the Users page", async ({ page }) => {
   await page.locator("#user-email").fill("writer100@example.test");
   await page.locator("#user-password").fill("Writer100!Secure");
   await page.locator("#user-departmentId").selectOption(departments[0]!.id);
+  await page.locator("#user-roleCode").selectOption("DEPARTMENT_OWNER");
   await page.getByRole("button", { name: "Save" }).click();
 
   await expect(page.getByText("User created")).toBeVisible();
   const table = page.getByRole("table", { name: /User Management/ });
-  await expect(table.getByText("User Writer 100", { exact: true })).toBeVisible();
+  await expect(
+    table.getByText("User Writer 100", { exact: true }),
+  ).toBeVisible();
   await expect(table.getByText("writer100@example.test")).toBeVisible();
+  await expect(
+    table.getByText("Department Owner", { exact: true }),
+  ).toBeVisible();
 });
 
 test("edits a Company user through the Users page", async ({ page }) => {
-  await installUsersWriteMock(page, { permissions: ["*"] });
+  await installUsersWriteMock(page, {
+    permissions: administratorPermissions,
+  });
   await page.goto("/admin/users");
 
   await page
     .getByRole("button", { name: `Edit ${seedUsers()[1]!.id}` })
     .click();
-  await expect(page.getByRole("heading", { name: "Edit User 002" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Edit User 002" }),
+  ).toBeVisible();
   await page.locator("#user-name").fill("User 002 Updated");
   await page.getByRole("button", { name: "Save" }).click();
 
@@ -346,7 +505,9 @@ test("edits a Company user through the Users page", async ({ page }) => {
 });
 
 test("shows a field error when create email conflicts", async ({ page }) => {
-  await installUsersWriteMock(page, { permissions: ["*"] });
+  await installUsersWriteMock(page, {
+    permissions: administratorPermissions,
+  });
   await page.goto("/admin/users");
 
   await page.getByRole("button", { name: "Add User" }).click();
@@ -354,6 +515,7 @@ test("shows a field error when create email conflicts", async ({ page }) => {
   await page.locator("#user-name").fill("Duplicate Email");
   await page.locator("#user-email").fill("admin001@example.test");
   await page.locator("#user-password").fill("Duplicate001!Secure");
+  await page.locator("#user-roleCode").selectOption("MANAGEMENT_VIEWER");
   await page.getByRole("button", { name: "Save" }).click();
 
   await expect(page.locator("#user-email-error")).toHaveText(
@@ -363,6 +525,40 @@ test("shows a field error when create email conflicts", async ({ page }) => {
   await expect(page.getByText("User created")).toHaveCount(0);
 });
 
+test("reports a created user honestly when role assignment fails", async ({
+  page,
+}) => {
+  await installUsersWriteMock(page, {
+    permissions: administratorPermissions,
+    failRoleAssignment: true,
+  });
+  await page.goto("/admin/users");
+  await page.getByRole("button", { name: "Add User" }).click();
+  await page.locator("#user-code").fill("USR-101");
+  await page.locator("#user-name").fill("User 101");
+  await page.locator("#user-email").fill("user101@example.test");
+  await page.locator("#user-password").fill("User101!Secure");
+  await page.locator("#user-roleCode").selectOption("MANAGEMENT_VIEWER");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await expect(page.locator(".banner.warning[role='alert']")).toContainText(
+    "The user was created, but the role assignment failed",
+  );
+  await expect(
+    page.getByRole("button", { name: "Retry role assignment" }),
+  ).toBeVisible();
+  await expect(page.getByText("User created")).toHaveCount(0);
+});
+
+test("hides the role control without roles:assign", async ({ page }) => {
+  await installUsersWriteMock(page, {
+    permissions: ["users:read", "users:write", "organisation:read"],
+  });
+  await page.goto("/admin/users");
+  await page.getByRole("button", { name: "Add User" }).click();
+  await expect(page.locator("#user-roleCode")).toHaveCount(0);
+});
+
 test("hides write actions without users:write and rejects create safely", async ({
   page,
 }) => {
@@ -370,7 +566,9 @@ test("hides write actions without users:write and rejects create safely", async 
     permissions: ["users:read", "organisation:read"],
   });
   await page.goto("/admin/users");
-  await expect(page.getByRole("heading", { name: "User Management" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "User Management" }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Add User" })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: `Edit ${seedUsers()[0]!.id}` }),

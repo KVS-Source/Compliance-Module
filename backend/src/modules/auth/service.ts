@@ -115,7 +115,13 @@ export class AuthService {
       );
     if (!membership) throw forbidden("No active Company membership");
     await this.repository.updateLoginSuccess(user.id);
-    const tokens = await this.issue(user, membership.tenantId);
+    const tokens = await this.issue(
+      user,
+      membership.tenantId,
+      undefined,
+      undefined,
+      context,
+    );
     await this.repository.audit(
       membership.tenantId,
       user.id,
@@ -127,7 +133,10 @@ export class AuthService {
     return { ...tokens, user: userDto(user, membership.tenantId) };
   }
 
-  async refresh(raw: string) {
+  async refresh(
+    raw: string,
+    context: { ip?: string; userAgent?: string } = {},
+  ) {
     const stored = await this.repository.findRefresh(hashToken(raw));
     if (!stored) throw unauthorized("Invalid refresh token");
     if (stored.revokedAt) {
@@ -149,6 +158,7 @@ export class AuthService {
       stored.tenantId,
       stored.familyId,
       stored.id,
+      context,
     );
     return { ...next, user: userDto(user, stored.tenantId) };
   }
@@ -248,15 +258,22 @@ export class AuthService {
     tenantId: string,
     familyId?: string,
     previousRefreshId?: string,
+    context: { ip?: string; userAgent?: string } = {},
   ) {
     const refresh = newRefreshToken();
     const actualFamily = familyId ?? refresh.familyId;
+    const now = new Date();
     const input = {
       tokenHash: hashToken(refresh.raw),
       userId: user.id,
       tenantId,
       familyId: actualFamily,
       expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 86_400_000),
+      lastUsedAt: now,
+      ...(context.ip !== undefined ? { ipAddress: context.ip } : {}),
+      ...(context.userAgent !== undefined
+        ? { userAgent: context.userAgent }
+        : {}),
     };
     const stored = previousRefreshId
       ? await this.repository.rotateRefresh(previousRefreshId, input)
@@ -270,6 +287,7 @@ export class AuthService {
         sub: user.id,
         tenantId,
         permissions: permissionsFor(user, tenantId),
+        sessionFamilyId: actualFamily,
       }),
       refreshToken: refresh.raw,
       refreshId: stored.id,

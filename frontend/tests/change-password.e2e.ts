@@ -36,6 +36,7 @@ const json = (route: Route, status: number, body: unknown) =>
   });
 
 interface MockOptions {
+  initialAuthenticated?: boolean;
   /** Response for POST /auth/change-password. Defaults to success. */
   changePassword?: {
     status: number;
@@ -45,7 +46,7 @@ interface MockOptions {
 
 async function installMockApi(page: Page, options: MockOptions = {}) {
   const requests: Array<{ method: string; path: string; body: unknown }> = [];
-  let authenticated = true;
+  let authenticated = options.initialAuthenticated ?? true;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -106,6 +107,21 @@ const openChangePassword = async (page: Page) => {
   await expect(page).toHaveURL(/\/account\/change-password$/);
   await expect(page.getByTestId("change-password-card")).toBeVisible();
 };
+
+test("public account recovery explains the secure administrator path", async ({
+  page,
+}) => {
+  await installMockApi(page, { initialAuthenticated: false });
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Account Recovery" });
+  await expect(dialog).toContainText(
+    "administrator-controlled account recovery",
+  );
+  await expect(dialog).toContainText("Administration → Users");
+  await expect(dialog).toContainText("revokes the user's existing sessions");
+});
 
 test("reaches Change Password from the account menu without a sidebar entry", async ({
   page,

@@ -417,6 +417,8 @@ export class WorkbookImportService {
             frameworks: new FrameworkResolver(),
             frameworkRules: new Map(),
             departments: new Map(),
+            orgUnits: new Map(),
+            orgLocations: new Map(),
             kpiDefinitions: new Map(),
             kpiConfigurations: new Map(),
             kpiTargets: new Map(),
@@ -662,6 +664,21 @@ export class WorkbookImportService {
     });
     for (const department of departments) {
       context.departments.set(department.name.toLowerCase(), department.id);
+    }
+    const orgUnits = await context.tx.orgUnit.findMany({
+      where: { tenantId: context.tenantId },
+      select: { id: true, name: true },
+    });
+    for (const orgUnit of orgUnits) {
+      context.orgUnits.set(orgUnit.name.toLowerCase(), orgUnit.id);
+    }
+    const orgLocations = await context.tx.orgLocation.findMany({
+      where: { tenantId: context.tenantId },
+      select: { id: true, code: true, name: true },
+    });
+    for (const orgLocation of orgLocations) {
+      context.orgLocations.set(orgLocation.name.toLowerCase(), orgLocation.id);
+      context.orgLocations.set(orgLocation.code.toLowerCase(), orgLocation.id);
     }
     const definitions = await context.tx.kpiDefinition.findMany({
       select: { id: true, code: true },

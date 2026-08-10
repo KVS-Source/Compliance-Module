@@ -11,7 +11,7 @@ describe("dashboard summary business definitions", () => {
   it("uses framework scope status for the active dashboard set", () => {
     expect(isFrameworkActiveInScope("Active – In Scope")).toBe(true);
     expect(isFrameworkActiveInScope(" active - in scope ")).toBe(true);
-    expect(isFrameworkActiveInScope("Certified")).toBe(false);
+    expect(isFrameworkActiveInScope("Certified")).toBe(true);
     expect(isFrameworkActiveInScope("Planning")).toBe(false);
     expect(isFrameworkActiveInScope(null)).toBe(false);
   });

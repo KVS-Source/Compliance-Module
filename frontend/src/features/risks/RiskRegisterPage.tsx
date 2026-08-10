@@ -3,18 +3,29 @@ import {
   ChevronRight,
   Eye,
   Inbox,
+  Plus,
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
+import {
+  BulkActionBar,
+  type BulkAction,
+} from "../../components/tables/BulkActionBar";
+import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
+import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
 import { riskApi } from "../../services/riskApi";
 import type {
   GeneralRiskLevel,
@@ -23,6 +34,7 @@ import type {
   RiskLifecycle,
   RiskStatus,
 } from "../../types/api";
+import { RiskCreateModal } from "./RiskCreateModal";
 
 const PAGE_SIZE = 20;
 
@@ -39,26 +51,62 @@ const named = (
 export function RiskRegisterPage() {
   const { user, hasPermission } = useAuth();
   const { contextVersion } = useTenant();
+  const { showToast } = useToast();
   const navigate = useNavigate();
-
-  const [draftSearch, setDraftSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [lifecycle, setLifecycle] = useState<RiskLifecycle>("active");
-  const [status, setStatus] = useState<RiskStatus | "">("");
-  const [kpiRiskClass, setKpiRiskClass] = useState<KpiRiskClass | "">("");
-  const [generalLevel, setGeneralLevel] = useState<GeneralRiskLevel | "">("");
-  const [page, setPage] = useState(1);
   const [listVersion, setListVersion] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  /**
+   * Risk bulk uses the same per-record endpoints as Gap/CAPA. Owner reassignment
+   * is gated on `risk:treat` (matching the API); close on `risk:close`. There is
+   * no bulk due-date action: risks have no dueDate on the list DTO.
+   */
+  const bulkActions: BulkAction[] = [
+    ...(hasPermission("risk:treat")
+      ? [
+          {
+            key: "owner",
+            label: "Reassign owner",
+            prompt: {
+              label: "Owner user id",
+              placeholder: "User id",
+              required: true,
+            },
+            run: (id: string, value: string) => riskApi.assignOwner(id, value),
+          },
+        ]
+      : []),
+    ...(hasPermission("risk:close")
+      ? [
+          {
+            key: "close",
+            label: "Close",
+            prompt: {
+              label: "Closure reason",
+              placeholder: "Why these risks are closed",
+              required: true,
+            },
+            run: (id: string, value: string) => riskApi.close(id, value),
+          },
+        ]
+      : []),
+  ];
+  const canBulk = bulkActions.length > 0;
 
-  useEffect(() => {
-    setDraftSearch("");
-    setAppliedSearch("");
-    setLifecycle("active");
-    setStatus("");
-    setKpiRiskClass("");
-    setGeneralLevel("");
-    setPage(1);
-  }, [contextVersion, user?.activeCompany.id]);
+  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
+    useRegisterQueryState({
+      keys: ["q", "lifecycle", "status", "kpiRiskClass", "generalLevel"],
+      defaults: { lifecycle: "active" },
+    });
+  const appliedSearch = values.q ?? "";
+  const lifecycle = (values.lifecycle || "active") as RiskLifecycle;
+  const status = (values.status ?? "") as RiskStatus | "";
+  const kpiRiskClass = (values.kpiRiskClass ?? "") as KpiRiskClass | "";
+  const generalLevel = (values.generalLevel ?? "") as GeneralRiskLevel | "";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    appliedSearch,
+    updateParams,
+  );
 
   const resource = useApiResource(
     () =>
@@ -70,6 +118,8 @@ export function RiskRegisterPage() {
         status: status || undefined,
         kpiRiskClass: kpiRiskClass || undefined,
         generalLevel: generalLevel || undefined,
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
       }),
     [
       contextVersion,
@@ -80,25 +130,15 @@ export function RiskRegisterPage() {
       status,
       kpiRiskClass,
       generalLevel,
+      orderBy,
+      order,
       listVersion,
     ],
   );
 
-  const applySearch = () => {
-    setPage(1);
-    setAppliedSearch(draftSearch.trim());
-  };
-
-  const onSearchSubmit = (event: FormEvent) => {
+  const applySearch = (event: FormEvent) => {
     event.preventDefault();
-    applySearch();
-  };
-
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      applySearch();
-    }
+    updateParams({ q: draftSearch.trim() });
   };
 
   const rows = resource.data?.data ?? [];
@@ -118,23 +158,38 @@ export function RiskRegisterPage() {
       <PageHeader
         title="Risk Register"
         section="Compliance Management"
-        description="Company-scoped risks raised from KPI misses and enterprise assessment. Reads use risk:read only."
+        description="Company-scoped risks raised from KPI misses or recorded manually after enterprise assessment."
         connected
         actions={
           <>
-          {hasPermission("exports:read") ? <CsvExportButton module="risks" /> : null}
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => setListVersion((value) => value + 1)}
-          >
-            <RefreshCw size={15} /> Refresh
-          </button>
+            {hasPermission("risk:write") ? (
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus size={15} /> Add risk
+              </button>
+            ) : null}
+            {hasPermission("exports:read") ? (
+              <CsvExportButton module="risks" />
+            ) : null}
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setListVersion((value) => value + 1)}
+            >
+              <RefreshCw size={15} /> Refresh
+            </button>
           </>
         }
       />
 
-      <form className="filter-bar" style={{ flexWrap: "wrap" }} onSubmit={onSearchSubmit}>
+      <form
+        className="filter-bar"
+        style={{ flexWrap: "wrap" }}
+        onSubmit={applySearch}
+      >
         <label className="filter-search">
           <span className="sr-only">Search risks</span>
           <Search className="icon" size={16} aria-hidden />
@@ -143,7 +198,6 @@ export function RiskRegisterPage() {
             type="search"
             value={draftSearch}
             onChange={(event) => setDraftSearch(event.target.value)}
-            onKeyDown={onSearchKeyDown}
             placeholder="Search title, risk code, KPI code or name…"
             maxLength={100}
             aria-label="Search risks by title, code or KPI"
@@ -155,10 +209,9 @@ export function RiskRegisterPage() {
             className="control"
             value={lifecycle}
             aria-label="Active or historical risks"
-            onChange={(event) => {
-              setLifecycle(event.target.value as RiskLifecycle);
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ lifecycle: event.target.value })
+            }
           >
             <option value="active">Active</option>
             <option value="closed">Historical</option>
@@ -171,10 +224,7 @@ export function RiskRegisterPage() {
             className="control"
             value={status}
             aria-label="Filter by risk status"
-            onChange={(event) => {
-              setStatus(event.target.value as RiskStatus | "");
-              setPage(1);
-            }}
+            onChange={(event) => updateParams({ status: event.target.value })}
           >
             <option value="">All statuses</option>
             <option value="OPEN">OPEN</option>
@@ -190,10 +240,9 @@ export function RiskRegisterPage() {
             className="control"
             value={kpiRiskClass}
             aria-label="Filter by KPI risk class"
-            onChange={(event) => {
-              setKpiRiskClass(event.target.value as KpiRiskClass | "");
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ kpiRiskClass: event.target.value })
+            }
           >
             <option value="">All KPI classes</option>
             <option value="MAJOR">MAJOR</option>
@@ -206,10 +255,9 @@ export function RiskRegisterPage() {
             className="control"
             value={generalLevel}
             aria-label="Filter by general risk level"
-            onChange={(event) => {
-              setGeneralLevel(event.target.value as GeneralRiskLevel | "");
-              setPage(1);
-            }}
+            onChange={(event) =>
+              updateParams({ generalLevel: event.target.value })
+            }
           >
             <option value="">All levels</option>
             <option value="LOW">LOW</option>
@@ -232,7 +280,9 @@ export function RiskRegisterPage() {
       ) : rows.length === 0 ? (
         <section className="card empty-state" id="page-content">
           <Inbox size={28} aria-hidden />
-          <h3>{hasFilters ? "No risks match these filters" : "No risks yet"}</h3>
+          <h3>
+            {hasFilters ? "No risks match these filters" : "No risks yet"}
+          </h3>
           <p>
             {hasFilters
               ? "Server-side filters returned no rows for the active Company. Adjust search or lifecycle and try again."
@@ -246,6 +296,26 @@ export function RiskRegisterPage() {
             id="page-content"
             data-testid="risk-register-table"
           >
+            {canBulk && bulkActions.length > 0 ? (
+              <BulkActionBar
+                selectedIds={selected}
+                actions={bulkActions}
+                onClear={() => setSelected([])}
+                onCompleted={({ done, refused }) => {
+                  setSelected([]);
+                  setListVersion((current) => current + 1);
+                  showToast(
+                    refused === 0 ? "success" : "warning",
+                    refused === 0
+                      ? `${done} risk${done === 1 ? "" : "s"} updated`
+                      : `${done} updated, ${refused} refused`,
+                    refused === 0
+                      ? "The register has been reloaded."
+                      : "Records you may not change were left untouched.",
+                  );
+                }}
+              />
+            ) : null}
             <div className="table-wrap">
               <table className="data-table">
                 <caption>
@@ -256,10 +326,47 @@ export function RiskRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Risk</th>
-                    <th scope="col">Status</th>
+                    {canBulk && bulkActions.length > 0 ? (
+                      <th className="select-cell">
+                        <input
+                          type="checkbox"
+                          checked={
+                            rows.length > 0 && selected.length === rows.length
+                          }
+                          onChange={(event) =>
+                            setSelected(
+                              event.target.checked
+                                ? rows.map((risk) => risk.id)
+                                : [],
+                            )
+                          }
+                          aria-label="Select all risks on this page"
+                          data-testid="risk-select-all"
+                        />
+                      </th>
+                    ) : null}
+                    <SortableTh
+                      column="title"
+                      label="Risk"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="status"
+                      label="Status"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">KPI class</th>
-                    <th scope="col">Level</th>
+                    <SortableTh
+                      column="generalLevel"
+                      label="Level"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Inherent</th>
                     <th scope="col">Source KPI</th>
                     <th scope="col">Actual</th>
@@ -275,6 +382,15 @@ export function RiskRegisterPage() {
                     <RiskRow
                       key={risk.id}
                       risk={risk}
+                      selectable={canBulk && bulkActions.length > 0}
+                      selected={selected.includes(risk.id)}
+                      onSelect={(checked) =>
+                        setSelected((current) =>
+                          checked
+                            ? [...current, risk.id]
+                            : current.filter((id) => id !== risk.id),
+                        )
+                      }
                       onOpen={() => navigate(`/compliance/risks/${risk.id}`)}
                     />
                   ))}
@@ -342,6 +458,27 @@ export function RiskRegisterPage() {
           </section>
         </>
       )}
+      {createOpen ? (
+        <RiskCreateModal
+          onClose={() => setCreateOpen(false)}
+          onSaved={(risk) => {
+            showToast(
+              "success",
+              "Risk created",
+              `${risk.code} was added to the Risk Register.`,
+            );
+            setCreateOpen(false);
+            updateParams({
+              q: "",
+              lifecycle: "active",
+              status: "",
+              kpiRiskClass: "",
+              generalLevel: "",
+            });
+            setListVersion((value) => value + 1);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -392,11 +529,34 @@ function RiskPager({
   );
 }
 
-function RiskRow({ risk, onOpen }: { risk: Risk; onOpen: () => void }) {
+function RiskRow({
+  risk,
+  onOpen,
+  selectable = false,
+  selected = false,
+  onSelect,
+}: {
+  risk: Risk;
+  onOpen: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
+}) {
   const configuration = risk.source.configuration;
   const actual = risk.source.actual;
   return (
     <tr>
+      {selectable ? (
+        <td className="select-cell">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(event) => onSelect?.(event.target.checked)}
+            aria-label={`Select ${risk.code}`}
+            data-testid={`risk-select-${risk.code}`}
+          />
+        </td>
+      ) : null}
       <td>
         <div className="cell-title">
           <strong>{risk.title}</strong>
@@ -443,8 +603,8 @@ function RiskRow({ risk, onOpen }: { risk: Risk; onOpen: () => void }) {
           <div className="cell-title">
             <span className="mono">{actual.code}</span>
             <small>
-              Actual {actual.actualValue} · Target {actual.targetValueSnapshot} ·
-              Var {actual.variance}
+              Actual {actual.actualValue} · Target {actual.targetValueSnapshot}{" "}
+              · Var {actual.variance}
               {actual.ragStatus ? ` · ${actual.ragStatus}` : ""}
             </small>
           </div>

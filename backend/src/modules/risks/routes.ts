@@ -10,6 +10,7 @@ import {
   assignRiskOwnerSchema,
   closeRiskSchema,
   completeRiskTreatmentSchema,
+  createManualRiskSchema,
   createRiskReviewSchema,
   createRiskTreatmentSchema,
   reopenRiskSchema,
@@ -40,6 +41,22 @@ export const riskRoutes = (service: RiskService) => {
       );
       return ok(res, result.data, result.meta);
     }),
+  );
+  router.post(
+    "/",
+    permit("risk:write"),
+    validate(createManualRiskSchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      created(
+        res,
+        await service.createManual(
+          req.auth!.tenantId,
+          req.auth!.userId,
+          req.body,
+          auditContext(req),
+        ),
+      ),
+    ),
   );
   router.get(
     "/:id",

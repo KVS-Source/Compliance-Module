@@ -49,6 +49,14 @@ async function main() {
       passwordHash,
       status: "ACTIVE",
       defaultTenantId: company001.id,
+      // The suite deliberately fails a login for this account, and
+      // `failedLoginCount` only clears on a successful sign-in. Left to
+      // accumulate across runs it reaches the five-failure lockout, after
+      // which every later file gets 429 on login, no token, and 401s in
+      // whichever test happens to run next. A fixture must not inherit auth
+      // lockout state from a previous run.
+      failedLoginCount: 0,
+      lockedUntil: null,
     },
     create: {
       code: "USR-001",
@@ -67,6 +75,8 @@ async function main() {
       passwordHash: userPasswordHash,
       status: "ACTIVE",
       defaultTenantId: company001.id,
+      failedLoginCount: 0,
+      lockedUntil: null,
     },
     create: {
       code: "USR-002",
@@ -148,9 +158,15 @@ async function main() {
           "Create and update Company operational register records",
         ],
         ["imports:read", "Read Company workbook import batches and row errors"],
-        ["imports:write", "Preview and commit Company workbook and CSV imports"],
+        [
+          "imports:write",
+          "Preview and commit Company workbook and CSV imports",
+        ],
         ["audit:read", "Read Company audit trail events"],
-        ["integrations:read", "Read external integration status and sync history"],
+        [
+          "integrations:read",
+          "Read external integration status and sync history",
+        ],
         ["integrations:write", "Test and run configured external integrations"],
         ["dashboard:read", "Read the Company compliance dashboard"],
         ["exports:read", "Export Company records as CSV"],
@@ -186,6 +202,48 @@ async function main() {
       update: {},
       create: { roleId: role.id, permissionId: allPermission.id },
     });
+    const adminPermissionCodes = [
+      "*",
+      ...permissions
+        .map(({ code }) => code)
+        .filter((code) =>
+          [
+            "kpi-config:write",
+            "kpi-target:write",
+            "kpi-target:approve",
+            "kpi-actual:write",
+            "kpi-actual:approve",
+            "risk:read",
+            "risk:write",
+            "risk:treat",
+            "risk:close",
+            "policies:read",
+            "policies:write",
+            "policies:submit",
+            "policies:approve",
+            "controls:read",
+            "controls:write",
+            "checkpoints:read",
+            "checkpoints:write",
+            "checkpoints:review",
+            "evidence:read",
+            "evidence:write",
+            "evidence:review",
+            "evidence:download",
+            "gaps:read",
+            "gaps:write",
+            "gaps:close",
+            "capa:read",
+            "capa:write",
+            "capa:close",
+            "registers:read",
+            "registers:write",
+            "imports:read",
+            "dashboard:read",
+            "exports:read",
+          ].includes(code),
+        ),
+    ];
     for (const permission of permissions.filter(({ code }) =>
       [
         "kpi-config:write",
@@ -234,6 +292,16 @@ async function main() {
         create: { roleId: role.id, permissionId: permission.id },
       });
     }
+    // Upsert alone only ever adds. A test that grants a role an extra
+    // permission would leave it in place, so the next run's negative
+    // assertions fail against state the fixture never declared. Pruning keeps
+    // the fixture deterministic regardless of what previous runs did.
+    await db.rolePermission.deleteMany({
+      where: {
+        roleId: role.id,
+        permission: { code: { notIn: adminPermissionCodes } },
+      },
+    });
     await roleAssignments.upsertActive({
       userId: admin.id,
       roleId: role.id,
@@ -261,7 +329,7 @@ async function main() {
           status: "ACTIVE",
         },
       });
-      for (const readerPermission of permissions.filter(
+      const readerPermissions = permissions.filter(
         ({ code }) =>
           code !== "*" &&
           code !== "users:read" &&
@@ -292,7 +360,8 @@ async function main() {
           code !== "capa:write" &&
           code !== "capa:close" &&
           code !== "registers:write",
-      )) {
+      );
+      for (const readerPermission of readerPermissions) {
         await db.rolePermission.upsert({
           where: {
             roleId_permissionId: {
@@ -307,6 +376,17 @@ async function main() {
           },
         });
       }
+      // Same reason as COMPANY_ADMIN above: this reader role must not keep a
+      // write permission that a previous run's test granted it, or the
+      // negative authorisation assertions become order-dependent.
+      await db.rolePermission.deleteMany({
+        where: {
+          roleId: companyUserRole.id,
+          permission: {
+            code: { notIn: readerPermissions.map(({ code }) => code) },
+          },
+        },
+      });
       await roleAssignments.upsertActive({
         userId: user.id,
         roleId: companyUserRole.id,

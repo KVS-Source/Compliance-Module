@@ -139,6 +139,8 @@ export interface DashboardAnalytics {
     openGaps: number | null;
     openCapas: number | null;
     policiesDueForReview: number | null;
+    evidenceExpiringSoon: number | null;
+    evidenceExpired: number | null;
   };
   kpiTrend: Array<{
     period: string;
@@ -287,6 +289,17 @@ export interface CompanyUser {
   lastLogin: string | null;
 }
 
+/** One live refresh-token family for a Company user. Token hashes are never included. */
+export interface UserSession {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string;
+  expiresAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  current: boolean;
+}
+
 export type UserStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
 
 export interface CreateUserInput {
@@ -297,6 +310,71 @@ export interface CreateUserInput {
   password: string;
   status?: UserStatus;
   departmentId?: string | null;
+}
+
+export interface UserImportTemplate {
+  headers: string[];
+  maxRows: number;
+  statuses: UserStatus[];
+  roles: Array<{ code: string; name: string }>;
+}
+
+/** A row the API validated and is willing to create. */
+export interface UserImportCandidate {
+  line: number;
+  code: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  roleCode: string | null;
+  status: UserStatus;
+}
+
+export interface UserImportPreviewRow {
+  line: number;
+  valid: boolean;
+  errors: string[];
+  /** The raw cells as they were read, so an invalid row is still legible. */
+  source: {
+    line: number;
+    code: string;
+    name: string;
+    email: string;
+    phone: string;
+    department: string;
+    role: string;
+    status: string;
+  } | null;
+  candidate: UserImportCandidate | null;
+}
+
+export interface UserImportPreview {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  canAssignRoles: boolean;
+  rows: UserImportPreviewRow[];
+}
+
+export interface UserImportResult {
+  line: number;
+  code: string;
+  email: string;
+  outcome: "CREATED" | "FAILED";
+  userId?: string;
+  roleCode?: string;
+  roleAssigned?: boolean;
+  errors?: string[];
+}
+
+export interface UserImportReport {
+  totalRows: number;
+  created: number;
+  failed: number;
+  rolesAssigned: number;
+  results: UserImportResult[];
 }
 
 export interface UpdateUserInput {
@@ -386,6 +464,7 @@ export interface Framework {
   name: string;
   version: string;
   description: string | null;
+  scopeStatus: string | null;
   status: string;
 }
 
@@ -779,6 +858,15 @@ export interface RiskDetail extends Risk {
   treatments: RiskTreatmentEntry[];
 }
 
+export interface CreateManualRiskInput {
+  title: string;
+  description: string;
+  category: string;
+  inherentLikelihood: number;
+  inherentImpact: number;
+  ownerId?: string | null;
+}
+
 export interface CreateRiskReviewInput {
   comments: string;
   likelihoodAtReview?: number | null;
@@ -801,6 +889,9 @@ export interface RiskListQuery {
   lifecycle?: RiskLifecycle;
   kpiRiskClass?: KpiRiskClass | "";
   generalLevel?: GeneralRiskLevel | "";
+  ownerId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface RiskListResult {
@@ -922,6 +1013,8 @@ export interface PolicyListQuery {
   frameworkId?: string;
   reviewDueFrom?: string;
   reviewDueTo?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface PolicyListResult {
@@ -1104,6 +1197,8 @@ export interface ControlListQuery {
   requiresEvidence?: boolean;
   reviewDueFrom?: string;
   reviewDueTo?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface ControlListResult {
@@ -1321,6 +1416,8 @@ export interface CheckpointListQuery {
   reviewPeriod?: string;
   frameworkId?: string;
   policyId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface CheckpointListResult {
@@ -1614,6 +1711,9 @@ export interface EvidenceListQuery {
   departmentId?: string;
   expiresBefore?: string;
   expiresAfter?: string;
+  expiringSoon?: boolean;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface EvidenceListResult {
@@ -1773,6 +1873,9 @@ export interface GapListQuery {
   severity?: GapSeverity;
   status?: GapStatus;
   overdue?: boolean;
+  ownerId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface GapListResult {
@@ -1860,6 +1963,9 @@ export interface CapaListQuery {
   priority?: CapaPriority;
   gapId?: string;
   overdue?: boolean;
+  ownerId?: string;
+  orderBy?: string;
+  order?: "asc" | "desc";
 }
 
 export interface CapaListResult {
@@ -1920,6 +2026,27 @@ export interface ImportBatchError { id: string; sheet: string; rowNumber: number
 export interface ImportBatchErrorListResult { data: ImportBatchError[]; meta: PageMeta; }
 
 /** Read-only Role & Access matrix. The API states `mutable: false` itself. */
+export interface PrivilegeAccessHolder {
+  id: string;
+  code: string;
+  name: string;
+  email: string;
+  roleCode: string;
+  roleName: string;
+}
+
+export interface PrivilegeAccessPermission {
+  code: string;
+  description: string;
+  holderCount: number;
+  holders: PrivilegeAccessHolder[];
+}
+
+export interface PrivilegeAccessReview {
+  generatedAt: string;
+  permissions: PrivilegeAccessPermission[];
+}
+
 export interface AccessProfileResponse {
   profiles: Array<{
     code: string;
@@ -1963,6 +2090,82 @@ export interface KpiCatalogueEntry {
   configurationStatus: "ACTIVE" | "CONFIGURED_INACTIVE" | "NOT_CONFIGURED";
   owners: string[];
   departments: string[];
+}
+
+export interface KpiTraceabilityRef {
+  id: string;
+  code: string;
+  title?: string;
+  name?: string;
+  status?: string | null;
+}
+
+export interface KpiTraceabilityRow {
+  id: string;
+  kpi: {
+    id: string;
+    code: string;
+    name: string;
+    unit: string;
+    direction: string;
+    /**
+     * Clause list declared for this KPI in `14_KPI_Master`, verbatim from the
+     * client workbook. This is a stated intent, not a governed mapping, so it
+     * is displayed apart from the derived chain and never counts toward
+     * `completeness`.
+     */
+    frameworkMapping: string | null;
+  };
+  configuration: {
+    id: string;
+    owner: { id: string; name: string } | null;
+    department: { id: string; code: string; name: string } | null;
+  };
+  targetActual: {
+    targetId: string;
+    targetCode: string;
+    targetVersion: number;
+    actualId: string;
+    actualCode: string;
+    period: string;
+    targetValue: string;
+    actualValue: string;
+    variance: string;
+    variancePercentage: string | null;
+    ragStatus: RagStatus | null;
+    targetMet: boolean;
+    approvalStatus: SubmissionStatus;
+  };
+  policies: Array<
+    KpiTraceabilityRef & {
+      versionId: string;
+      version: string;
+      status: string;
+    }
+  >;
+  frameworks: Array<
+    KpiTraceabilityRef & { version: string; scopeStatus: string | null }
+  >;
+  rules: Array<KpiTraceabilityRef & { clauseRef: string | null }>;
+  evidence: KpiTraceabilityRef[];
+  controls: KpiTraceabilityRef[];
+  risks: Array<
+    KpiTraceabilityRef & { classification: string | null; status: string }
+  >;
+  completeness: { mappedNodes: number; totalNodes: number; complete: boolean };
+}
+
+export interface KpiTraceability {
+  generatedAt: string;
+  summary: {
+    actuals: number;
+    completeChains: number;
+    missingEvidence: number;
+    riskLinked: number;
+    /** Actuals whose KPI declares a workbook clause no control chain supports. */
+    declaredWithoutChain: number;
+  };
+  rows: KpiTraceabilityRow[];
 }
 
 export interface KpiFrequencyEntry {

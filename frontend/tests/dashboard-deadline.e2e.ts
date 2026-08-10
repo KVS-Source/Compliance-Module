@@ -325,13 +325,22 @@ async function mockDashboard(
         mode === "zero"
           ? {
               ...summary,
+              compliance: {
+                overallPercentage: 0,
+                measuredKpis: 0,
+                kpisMeetingTarget: 0,
+              },
               registers: [],
               recentActivity: [],
               latestImport: null,
               analytics: emptyAnalytics,
             }
           : mode === "restricted"
-            ? { ...summary, analytics: restrictedAnalytics }
+            ? {
+                ...summary,
+                compliance: null,
+                analytics: restrictedAnalytics,
+              }
             : summary;
       return route.fulfill({
         status: 200,
@@ -356,7 +365,8 @@ test("Dashboard renders every required summary card from the API", async ({
   await mockDashboard(page);
   await page.goto("/dashboard");
   for (const [label, value] of [
-    ["Total KPI Definitions", "91"],
+    ["Overall Compliance", "31%"],
+    ["Company KPI Definitions", "91"],
     ["Active KPI Configurations", "24"],
     ["Measured KPIs", "29"],
     ["KPIs Meeting Target", "9"],
@@ -366,13 +376,33 @@ test("Dashboard renders every required summary card from the API", async ({
     ["Open Gaps", "4"],
     ["Open CAPAs", "5"],
     ["Policies Due for Review", "2"],
+    ["Evidence expiring", "—"],
   ] as const) {
     await expect(
       page.getByLabel(new RegExp(`${label}: ${value}`)),
       label,
     ).toBeVisible();
   }
-  await expect(page.getByTestId("dashboard-cards").locator("a")).toHaveCount(10);
+  await expect(page.getByTestId("dashboard-cards").locator("a")).toHaveCount(12);
+  await expect(
+    page.getByLabel("Overall Compliance: 31%. Open Overall Compliance"),
+  ).toContainText("9 of 29 measured KPIs met target");
+  await expect(page.getByTestId("dashboard-data-scope")).toContainText(
+    "GenBioCa",
+  );
+  await expect(page.getByTestId("dashboard-data-scope")).toContainText(
+    "31% compliance",
+  );
+  await expect(page.locator("#company-switcher")).toContainText(
+    "GenBioCa (GEN)",
+  );
+  await page.getByRole("button", { name: "Help", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Dashboard help" })).toContainText(
+    "This page uses the Company selected in the header",
+  );
+  await expect(
+    page.getByRole("link", { name: "Dashboard", exact: true }),
+  ).toHaveAttribute("href", "/dashboard");
 });
 
 test("Dashboard renders every required visualisation section", async ({
@@ -457,6 +487,9 @@ test("Dashboard shows truthful empty states rather than zeroed charts", async ({
     "No outstanding actions",
   );
   await expect(page.getByLabel(/Open Gaps: 0/)).toBeVisible();
+  await expect(page.getByTestId("dashboard-data-scope")).toContainText(
+    "No measured KPI actuals in this Company",
+  );
 });
 
 test("A withheld section reads as restricted, not as zero", async ({ page }) => {
@@ -469,6 +502,9 @@ test("A withheld section reads as restricted, not as zero", async ({ page }) => 
     page.getByTestId("dashboard-capa-aging-restricted"),
   ).toBeVisible();
   // The card must print an em dash, never a 0 that reads as "none".
+  await expect(page.getByLabel(/Overall Compliance: —/)).toContainText(
+    "permission restricted",
+  );
   await expect(page.getByLabel(/Open Risks: —/)).toBeVisible();
 });
 
@@ -506,7 +542,7 @@ test("Dashboard has no horizontal overflow on a narrow screen", async ({
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test("Dashboard links use a full blue hover state", async ({ page }) => {
+test("Dashboard links use a calm hover state", async ({ page }) => {
   await mockDashboard(page);
   await page.goto("/dashboard");
   const card = page.getByLabel(/Open Gaps: 4/);
@@ -515,13 +551,18 @@ test("Dashboard links use a full blue hover state", async ({ page }) => {
     const label = element.querySelector(".card-label");
     return {
       background: getComputedStyle(element).backgroundImage,
+      backgroundColor: getComputedStyle(element).backgroundColor,
       border: getComputedStyle(element).borderColor,
+      boxShadow: getComputedStyle(element).boxShadow,
       label: label ? getComputedStyle(label).color : "",
     };
   });
-  expect(hoverStyle.background).toContain("linear-gradient");
-  expect(hoverStyle.border).toBe("rgb(37, 99, 235)");
-  expect(hoverStyle.label).toBe("rgb(255, 255, 255)");
+  // Calm enterprise hover: no blue fill gradient; border + light shadow only.
+  expect(hoverStyle.background === "none" || hoverStyle.background === "initial").toBeTruthy();
+  expect(hoverStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(hoverStyle.border).not.toBe("rgb(37, 99, 235)");
+  expect(hoverStyle.boxShadow).not.toBe("none");
+  expect(hoverStyle.label).not.toBe("rgb(255, 255, 255)");
 });
 
 test("Summary cards stay full-width and interactive on narrow screens", async ({
@@ -540,10 +581,9 @@ test("Summary cards stay full-width and interactive on narrow screens", async ({
     .evaluate((element) => element.getBoundingClientRect().width);
   expect(cardWidth).toBeGreaterThan(gridWidth * 0.9);
   await card.hover();
-  await expect(card).toHaveCSS(
-    "background-image",
-    /linear-gradient.*rgb\(37, 99, 235\)/,
-  );
+  await expect(card).toHaveCSS("background-image", "none");
+  const border = await card.evaluate((el) => getComputedStyle(el).borderColor);
+  expect(border).not.toBe("rgb(37, 99, 235)");
 });
 
 test("Dashboard permission boundary prevents an unauthorised summary request", async ({

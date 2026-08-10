@@ -32,6 +32,8 @@ const buildListQuery = (query: PolicyListQuery) => {
   if (query.frameworkId) params.set("frameworkId", query.frameworkId);
   if (query.reviewDueFrom) params.set("reviewDueFrom", query.reviewDueFrom);
   if (query.reviewDueTo) params.set("reviewDueTo", query.reviewDueTo);
+  if (query.orderBy) params.set("orderBy", query.orderBy);
+  if (query.order) params.set("order", query.order);
   return params.toString();
 };
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const EVIDENCE_TITLE_MAX_LENGTH = 300;
 export const EVIDENCE_DESCRIPTION_MAX_LENGTH = 5_000;
@@ -95,6 +96,17 @@ export const evidenceListSchema = paginationSchema
     departmentId: z.string().uuid().optional(),
     expiresBefore: dateSchema.optional(),
     expiresAfter: dateSchema.optional(),
+    expiringSoon: z
+      .union([z.literal("true"), z.literal("false"), z.boolean()])
+      .transform((value) => value === true || value === "true")
+      .optional(),
+    ...listOrderFields([
+      "code",
+      "title",
+      "lifecycleStatus",
+      "expiresAt",
+      "createdAt",
+    ] as const).shape,
   })
   .strict();
 

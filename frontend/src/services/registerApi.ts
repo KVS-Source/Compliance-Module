@@ -39,6 +39,22 @@ export type RegisterRecord = {
   updatedAt?: string;
 };
 
+export type CreateRegisterRecordInput = {
+  businessRecordCode: string;
+  title: string;
+  status?: string | null;
+  ownerId?: string | null;
+  departmentId?: string | null;
+  recordDate?: string | null;
+  dueDate?: string | null;
+  payload?: Record<string, string>;
+};
+
+export type UpdateRegisterRecordInput = Omit<
+  CreateRegisterRecordInput,
+  "businessRecordCode"
+>;
+
 export const registerApi = {
   async listTypes(page = 1, pageSize = 50) {
     const response = await apiRequest<RegisterType[]>(
@@ -59,6 +75,8 @@ export const registerApi = {
       ownerId?: string;
       departmentId?: string;
       overdue?: boolean;
+      orderBy?: string;
+      order?: "asc" | "desc";
     } = {},
   ) {
     const params = new URLSearchParams();
@@ -69,6 +87,8 @@ export const registerApi = {
     if (query.ownerId) params.set("ownerId", query.ownerId);
     if (query.departmentId) params.set("departmentId", query.departmentId);
     if (query.overdue) params.set("overdue", "true");
+    if (query.orderBy) params.set("orderBy", query.orderBy);
+    if (query.order) params.set("order", query.order);
     const response = await apiRequest<RegisterRecord[]>(
       `/operational-registers/${encodeURIComponent(registerCode)}/records?${params}`,
     );
@@ -83,6 +103,29 @@ export const registerApi = {
     return (
       await apiRequest<RegisterRecord>(
         `/operational-registers/${encodeURIComponent(registerCode)}/records/${encodeURIComponent(recordId)}`,
+      )
+    ).data;
+  },
+  async createRecord(
+    registerCode: string,
+    input: CreateRegisterRecordInput,
+  ) {
+    return (
+      await apiRequest<RegisterRecord>(
+        `/operational-registers/${encodeURIComponent(registerCode)}/records`,
+        { method: "POST", body: JSON.stringify(input) },
+      )
+    ).data;
+  },
+  async updateRecord(
+    registerCode: string,
+    recordId: string,
+    input: UpdateRegisterRecordInput,
+  ) {
+    return (
+      await apiRequest<RegisterRecord>(
+        `/operational-registers/${encodeURIComponent(registerCode)}/records/${encodeURIComponent(recordId)}`,
+        { method: "PATCH", body: JSON.stringify(input) },
       )
     ).data;
   },

@@ -89,6 +89,19 @@ export interface AutomaticRiskCreateData {
   status: Extract<RiskStatus, "OPEN">;
 }
 
+export interface ManualRiskCreateData {
+  code: string;
+  title: string;
+  description: string;
+  category: string;
+  inherentLikelihood: number;
+  inherentImpact: number;
+  inherentScore: number;
+  generalLevel: GeneralRiskLevel;
+  ownerId: string | null;
+  status: Extract<RiskStatus, "OPEN">;
+}
+
 /** Builds the tenant-scoped list filter. Specific `status` overrides `lifecycle`. */
 export const buildRiskListWhere = (
   tenantId: string,
@@ -99,6 +112,7 @@ export const buildRiskListWhere = (
     deletedAt: null,
     ...(query.kpiRiskClass ? { kpiRiskClass: query.kpiRiskClass } : {}),
     ...(query.generalLevel ? { generalLevel: query.generalLevel } : {}),
+    ...(query.ownerId ? { ownerId: query.ownerId } : {}),
   };
 
   if (query.status) {
@@ -174,11 +188,51 @@ export class RiskTransactionRepository {
     });
   }
 
+  findActiveMember(tenantId: string, userId: string) {
+    return this.transaction.userCompany.findFirst({
+      where: {
+        tenantId,
+        userId,
+        status: "ACTIVE",
+        user: { status: "ACTIVE" },
+      },
+      select: { userId: true },
+    });
+  }
+
+  createManualRisk(
+    tenantId: string,
+    actorUserId: string,
+    data: ManualRiskCreateData,
+  ) {
+    return this.transaction.risk.create({
+      data: {
+        tenantId,
+        ...data,
+        kpiActualId: null,
+        kpiConfigurationId: null,
+        kpiTargetId: null,
+        kpiRiskClass: null,
+        residualLikelihood: null,
+        residualImpact: null,
+        residualScore: null,
+        treatmentStrategy: null,
+        reviewDate: null,
+        closedAt: null,
+        closureReason: null,
+        createdById: actorUserId,
+        updatedById: actorUserId,
+      },
+      include: riskInclude,
+    });
+  }
+
   writeCreatedAudit(
     tenantId: string,
     actorUserId: string,
     risk: RiskRecord,
     context: AuditContext,
+    automatic = true,
   ) {
     return this.transaction.auditEvent.create({
       data: {
@@ -197,7 +251,7 @@ export class RiskTransactionRepository {
           inherentLikelihood: risk.inherentLikelihood,
           inherentImpact: risk.inherentImpact,
           inherentScore: risk.inherentScore,
-          automatic: true,
+          automatic,
         },
         ...(context.ip ? { ipAddress: context.ip } : {}),
         ...(context.userAgent ? { userAgent: context.userAgent } : {}),
@@ -217,7 +271,10 @@ export class RiskRepository {
         include: riskInclude,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
-        orderBy: [{ createdAt: "desc" }, { code: "asc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ createdAt: "desc" }, { code: "asc" }]
+            : [{ [query.orderBy]: query.order ?? "asc" }, { code: "asc" }],
       }),
       this.db.risk.count({ where }),
     ]);
@@ -236,6 +293,14 @@ export class RiskRepository {
       where: { id, tenantId, deletedAt: null },
       include: riskDetailInclude,
     });
+  }
+
+  runCreationTransaction<T>(
+    operation: (repository: RiskTransactionRepository) => Promise<T>,
+  ) {
+    return this.db.$transaction((transaction) =>
+      operation(new RiskTransactionRepository(transaction)),
+    );
   }
 
   runWorkflowTransaction<T>(

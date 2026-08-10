@@ -6,6 +6,12 @@ Node.js (PERN), with Prisma and JWT authentication.
 Standing architecture and security rules live in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 Read that before changing non-trivial behaviour.
 
+> **Picking this project up?** Start with
+> [`docs/handover/START-HERE.md`](./docs/handover/START-HERE.md). It covers how
+> to run and seed the platform, what is in each Company, what is specified but
+> not built, and the non-obvious traps. Active development stopped on
+> 2026-08-10.
+
 ---
 
 ## Route status (read this first)
@@ -23,60 +29,62 @@ exhaustive enforced inventory.
 ### Live (API-connected) routes
 
 These use the real backend and must **not** show the prototype banner. The
-client sidebar ships **44 LIVE modules** (`clientNavigationPaths` in
+client sidebar ships **46 LIVE modules** (`clientNavigationPaths` in
 `frontend/src/app/routeDefinitions.ts`):
 
-| Path | Notes |
-|------|--------|
-| `/login` | Authentication (public) |
-| `/dashboard` | Company-scoped PostgreSQL aggregates |
-| `/admin/companies` | Companies available to the signed-in user |
-| `/admin/users` | User management |
-| `/admin/departments` | Organisation masters |
-| `/admin/locations` | Organisation masters |
-| `/admin/organisation-units` | Organisation masters |
-| `/admin/roles` | Role and permission profiles (read-only; production roles are not editable) |
-| `/master/users` | Master Data entry point for user management |
-| `/master/frameworks` | Framework master (read) |
-| `/master/rules` | Framework rule browser (read) |
-| `/master/frameworks/:frameworkId/rules` | Framework rules (detail) |
-| `/master/frequencies` | Frequency master (read) |
-| `/master/targets` | Master Data entry point for KPI targets |
-| `/master/policies` | Master Data entry point for the Policy Register |
-| `/master/controls` | Master Data entry point for the Control Register |
-| `/master/kpis` | Master Data entry point for the KPI catalogue |
-| `/compliance/frameworks` | Framework compliance overview (read) |
-| `/compliance/policy-register` | Policy Register |
-| `/compliance/controls` | Controls |
-| `/compliance/checkpoints` | Checkpoints |
-| `/kpi/catalogue` | KPI catalogue (read) |
-| `/kpi/analytics` | KPI analytics and trend charts (read) |
-| `/kpi/configuration` | KPI configurations |
-| `/kpi/targets` | KPI target selection/lifecycle |
-| `/kpi/configuration/:configurationId/targets` | KPI target lifecycle (detail) |
-| `/kpi/actual-entry` | Submit KPI actuals |
-| `/kpi/approval` | KPI actual approval lifecycle |
-| `/compliance/risks` | Risk Register |
-| `/compliance/risks/:riskId` | Risk review, treatment and closure |
-| `/evidence` | Evidence Library |
-| `/evidence/new` | Create Evidence |
-| `/evidence/review` | Evidence Review queue |
-| `/evidence/approved` | Approved Evidence (read) |
-| `/evidence/rejected` | Rejected Evidence (read) |
-| `/compliance/gaps` | Gap Register |
-| `/compliance/capa` | CAPA Register |
-| `/audit-trail` | Audit Trail |
-| `/compliance/operational-registers` | Operational Registers (UI read-only) |
-| `/data/import` | Data Import (XLSX / CSV templates) |
-| `/data/import-history` | Import History |
-| `/data/genrac-integration` | GenRAC connector status (CSV adapter when configured; live REST/DB access not claimed) |
-| `/reports` | Reports centre catalogue; each report carries an `available` flag and renders locked when the caller lacks its permissions |
-| `/reports/kpi-variance` | KPI variance report (read; CSV needs `exports:read`) |
-| `/reports/framework-compliance` | Framework compliance report (read; CSV needs `exports:read`) |
-| `/reports/evidence-status` | Evidence status report (read; CSV needs `exports:read`) |
-| `/reports/gaps` | Gap report (read; CSV needs `exports:read`) |
-| `/reports/audit-activity` | Audit activity report (read; CSV needs `exports:read`) |
-| `/reports/:reportKey` | One parameterised view serving all ten catalogue reports; the five above are the sidebar entries, and KPI target-versus-actual, risks, CAPA aging, policy review and Operational Registers open from the hub |
+| Path                                          | Notes                                                                                                                                                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/login`                                      | Authentication (public)                                                                                                                                                                                      |
+| `/dashboard`                                  | Company-scoped PostgreSQL aggregates                                                                                                                                                                         |
+| `/admin/companies`                            | Companies available to the signed-in user                                                                                                                                                                    |
+| `/admin/users`                                | User management                                                                                                                                                                                              |
+| `/admin/departments`                          | Organisation masters                                                                                                                                                                                         |
+| `/admin/locations`                            | Organisation masters                                                                                                                                                                                         |
+| `/admin/organisation-units`                   | Organisation masters                                                                                                                                                                                         |
+| `/admin/roles`                                | Role and permission profiles (read-only; production roles are not editable)                                                                                                                                  |
+| `/master/users`                               | Master Data entry point for user management                                                                                                                                                                  |
+| `/master/frameworks`                          | Framework master (read)                                                                                                                                                                                      |
+| `/master/rules`                               | Framework rule browser (read)                                                                                                                                                                                |
+| `/master/frameworks/:frameworkId/rules`       | Framework rules (detail)                                                                                                                                                                                     |
+| `/master/frequencies`                         | Frequency master (read)                                                                                                                                                                                      |
+| `/master/targets`                             | Master Data entry point for KPI targets                                                                                                                                                                      |
+| `/master/policies`                            | Master Data entry point for the Policy Register                                                                                                                                                              |
+| `/master/controls`                            | Master Data entry point for the Control Register                                                                                                                                                             |
+| `/master/kpis`                                | Master Data entry point for the KPI catalogue                                                                                                                                                                |
+| `/compliance/frameworks`                      | Framework compliance overview (read)                                                                                                                                                                         |
+| `/compliance/policy-register`                 | Policy Register                                                                                                                                                                                              |
+| `/compliance/controls`                        | Controls                                                                                                                                                                                                     |
+| `/compliance/checkpoints`                     | Checkpoints                                                                                                                                                                                                  |
+| `/kpi/catalogue`                              | KPI catalogue (read)                                                                                                                                                                                         |
+| `/kpi/mapping`                                | KPI Mapping and compliance traceability (read)                                                                                                                                                               |
+| `/kpi/analytics`                              | KPI analytics and trend charts (read)                                                                                                                                                                        |
+| `/kpi/configuration`                          | KPI configurations                                                                                                                                                                                           |
+| `/kpi/targets`                                | KPI target selection/lifecycle                                                                                                                                                                               |
+| `/kpi/configuration/:configurationId/targets` | KPI target lifecycle (detail)                                                                                                                                                                                |
+| `/kpi/actual-entry`                           | Submit KPI actuals                                                                                                                                                                                           |
+| `/kpi/approval`                               | KPI actual approval lifecycle                                                                                                                                                                                |
+| `/compliance/risks`                           | Risk Register                                                                                                                                                                                                |
+| `/compliance/risks/:riskId`                   | Risk review, treatment and closure                                                                                                                                                                           |
+| `/evidence`                                   | Evidence Library                                                                                                                                                                                             |
+| `/evidence/new`                               | Create Evidence                                                                                                                                                                                              |
+| `/evidence/review`                            | Evidence Review queue                                                                                                                                                                                        |
+| `/evidence/approved`                          | Approved Evidence (read)                                                                                                                                                                                     |
+| `/evidence/rejected`                          | Rejected Evidence (read)                                                                                                                                                                                     |
+| `/compliance/gaps`                            | Gap Register                                                                                                                                                                                                 |
+| `/compliance/capa`                            | CAPA Register                                                                                                                                                                                                |
+| `/audit-trail`                                | Audit Trail                                                                                                                                                                                                  |
+| `/compliance/operational-registers`           | Operational Registers (UI read-only)                                                                                                                                                                         |
+| `/data/import`                                | Data Import (XLSX / CSV templates)                                                                                                                                                                           |
+| `/data/import-history`                        | Import History                                                                                                                                                                                               |
+| `/data/genrac-integration`                    | GenRAC connector status (CSV adapter when configured; live REST/DB access not claimed)                                                                                                                       |
+| `/reports`                                    | Reports centre catalogue; each report carries an `available` flag and renders locked when the caller lacks its permissions                                                                                   |
+| `/reports/kpi-variance`                       | KPI variance report (read; CSV needs `exports:read`)                                                                                                                                                         |
+| `/reports/framework-compliance`               | Framework compliance report (read; CSV needs `exports:read`)                                                                                                                                                 |
+| `/reports/evidence-status`                    | Evidence status report (read; CSV needs `exports:read`)                                                                                                                                                      |
+| `/reports/gaps`                               | Gap report (read; CSV needs `exports:read`)                                                                                                                                                                  |
+| `/reports/audit-activity`                     | Audit activity report (read; CSV needs `exports:read`)                                                                                                                                                       |
+| `/reports/:reportKey`                         | One parameterised view serving all ten catalogue reports; the five above are the sidebar entries, and KPI target-versus-actual, risks, CAPA aging, policy review and Operational Registers open from the hub |
+| `/settings`                                   | Working location, regional display preferences and governed administration shortcuts (`/settings/tenant` and `/settings/integrations` stay deferred)                                                         |
 
 Authoritative list: `clientNavigationPaths` / `migratedPaths` in
 `frontend/src/app/routeDefinitions.ts`, plus detail routes in
@@ -103,12 +111,12 @@ enabled without approved configuration.
 
 Verified on a development machine with:
 
-| Tool | Requirement | Checked |
-|------|-------------|---------|
-| Node.js | `>=20` (`engines` in `backend/` and `frontend/`) | `node -v` |
-| npm | Ships with Node | `npm -v` |
-| Docker | Recent Docker Desktop / Engine | `docker --version` |
-| Docker Compose | Compose V2 (`docker compose`) | `docker compose version` |
+| Tool           | Requirement                                      | Checked                  |
+| -------------- | ------------------------------------------------ | ------------------------ |
+| Node.js        | `>=20` (`engines` in `backend/` and `frontend/`) | `node -v`                |
+| npm            | Ships with Node                                  | `npm -v`                 |
+| Docker         | Recent Docker Desktop / Engine                   | `docker --version`       |
+| Docker Compose | Compose V2 (`docker compose`)                    | `docker compose version` |
 
 PostgreSQL 16 is provided by Compose (`postgres:16-alpine`). You do not need a
 host-installed Postgres for the default workflow.
@@ -119,10 +127,10 @@ host-installed Postgres for the default workflow.
 
 Compose and the Node backend load **different** env files.
 
-| File | Used by |
-|------|---------|
-| **Repository root** `.env` | `docker compose` (Postgres, test Postgres, optional app container) |
-| **`backend/.env`** | Backend when you run `npm run … --prefix backend` (Prisma + Express via `dotenv`) |
+| File                       | Used by                                                                           |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| **Repository root** `.env` | `docker compose` (Postgres, test Postgres, optional app container)                |
+| **`backend/.env`**         | Backend when you run `npm run … --prefix backend` (Prisma + Express via `dotenv`) |
 
 ### Setup
 
@@ -230,13 +238,13 @@ npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
 
-| Service | URL |
-|---------|-----|
-| React UI | http://127.0.0.1:5173 |
-| API | http://127.0.0.1:8000/api/v1 |
-| Health | http://127.0.0.1:8000/api/v1/health |
-| Ready | http://127.0.0.1:8000/api/v1/ready |
-| Swagger | http://127.0.0.1:8000/api/docs |
+| Service  | URL                                 |
+| -------- | ----------------------------------- |
+| React UI | http://127.0.0.1:5173               |
+| API      | http://127.0.0.1:8000/api/v1        |
+| Health   | http://127.0.0.1:8000/api/v1/health |
+| Ready    | http://127.0.0.1:8000/api/v1/ready  |
+| Swagger  | http://127.0.0.1:8000/api/docs      |
 
 Vite proxies `/api` to `http://127.0.0.1:8000`.
 
@@ -247,10 +255,10 @@ Vite proxies `/api` to `http://127.0.0.1:8000`.
 Passwords are **not** listed here. Read the hashes’ plaintext sources in
 `backend/prisma/seed.ts` (search for `argon2.hash`).
 
-| Email | Role (COM-001) | Access summary |
-|-------|----------------|----------------|
-| `admin001@example.test` | `COMPANY_ADMIN` | Wildcard `*` — full access for local development |
-| `user001@example.test` | `COMPANY_USER` | Read-oriented only: `tenants:read`, `organisation:read`, `frameworks:read`, `kpis:read`. **No** user/org writes, **no** KPI config/target/actual write or approve, **no** `risk:read` |
+| Email                   | Role (COM-001)  | Access summary                                                                                                                                                                        |
+| ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin001@example.test` | `COMPANY_ADMIN` | Wildcard `*` — full access for local development                                                                                                                                      |
+| `user001@example.test`  | `COMPANY_USER`  | Read-oriented only: `tenants:read`, `organisation:read`, `frameworks:read`, `kpis:read`. **No** user/org writes, **no** KPI config/target/actual write or approve, **no** `risk:read` |
 
 Use the admin account for the walkthrough below. These credentials are synthetic
 fixtures for local use only — never reuse them in shared or production systems.
@@ -375,16 +383,16 @@ Open **Risk Register**: http://127.0.0.1:5173/compliance/risks
 
 ## Project structure
 
-| Path | Role |
-|------|------|
-| `frontend/` | React 19 + Vite + TypeScript UI. Live pages and truthful module-status routes; prototype React data is dormant. |
-| `backend/` | Express 5 + TypeScript API, auth, middleware, domain modules. |
-| `backend/prisma/` | Active schema, migrations, and seed scripts. |
-| `docs/` | Architecture notes, reviews, and prototype HTML reference assets. |
-| `legacy/` | **Dormant.** Old Node and Python implementations. Do not run their
-migrations, import them into active code, or build features there. See
-`legacy/README.md`. |
-| `docker-compose.yml` | Local Postgres, test Postgres, optional migrate/app images. |
+| Path                                                                   | Role                                                                                                            |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `frontend/`                                                            | React 19 + Vite + TypeScript UI. Live pages and truthful module-status routes; prototype React data is dormant. |
+| `backend/`                                                             | Express 5 + TypeScript API, auth, middleware, domain modules.                                                   |
+| `backend/prisma/`                                                      | Active schema, migrations, and seed scripts.                                                                    |
+| `docs/`                                                                | Architecture notes, reviews, and prototype HTML reference assets.                                               |
+| `legacy/`                                                              | **Dormant.** Old Node and Python implementations. Do not run their                                              |
+| migrations, import them into active code, or build features there. See |
+| `legacy/README.md`.                                                    |
+| `docker-compose.yml`                                                   | Local Postgres, test Postgres, optional migrate/app images.                                                     |
 
 Authoritative runtime paths are also listed in
 `docs/architecture/authoritative-runtime.md`.

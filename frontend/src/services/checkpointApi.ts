@@ -46,6 +46,8 @@ const buildListQuery = (query: CheckpointListQuery) => {
   }
   if (query.frameworkId) params.set("frameworkId", query.frameworkId);
   if (query.policyId) params.set("policyId", query.policyId);
+  if (query.orderBy) params.set("orderBy", query.orderBy);
+  if (query.order) params.set("order", query.order);
   return params.toString();
 };
 

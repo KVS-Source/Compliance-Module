@@ -365,7 +365,10 @@ export class PolicyRepository {
         include,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
-        orderBy: [{ code: "asc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ code: "asc" }]
+            : [{ [query.orderBy]: query.order ?? "asc" }, { code: "asc" }],
       }),
       this.db.policy.count({ where }),
     ]);

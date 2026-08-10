@@ -14,9 +14,11 @@ import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
+import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import type { SortOrder } from "../../hooks/useRegisterQueryState";
 import { ApiError } from "../../services/apiClient";
 import { evidenceApi } from "../../services/evidenceApi";
 import { masterDataApi } from "../../services/masterDataApi";
@@ -36,6 +38,8 @@ import {
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
+/** Matches backend expiringSoon window (90 days). */
+const EXPIRING_SOON_DAYS = 90;
 
 type MasterState<T> =
   | { status: "loading" }
@@ -111,6 +115,11 @@ export function EvidenceLibraryPage({
   const expiresAfter = isIsoDate(expiresAfterParam) ? expiresAfterParam : "";
   const expiresBeforeParam = searchParams.get("expiresBefore");
   const expiresBefore = isIsoDate(expiresBeforeParam) ? expiresBeforeParam : "";
+  const expiringSoon = searchParams.get("expiringSoon") === "true";
+  const orderBy = searchParams.get("orderBy") ?? "";
+  const orderParam = searchParams.get("order");
+  const order: SortOrder =
+    orderParam === "desc" || orderParam === "asc" ? orderParam : "asc";
 
   const [draftSearch, setDraftSearch] = useState(appliedSearch);
   const [listVersion, setListVersion] = useState(0);
@@ -181,6 +190,21 @@ export function EvidenceLibraryPage({
     };
   }, [contextVersion, activeCompanyId]);
 
+  const toggleSort = useCallback(
+    (column: string) => {
+      if (orderBy === column) {
+        if (order === "asc") {
+          updateParams({ orderBy: column, order: "desc" });
+        } else {
+          updateParams({ orderBy: "", order: "" });
+        }
+      } else {
+        updateParams({ orderBy: column, order: "asc" });
+      }
+    },
+    [order, orderBy, updateParams],
+  );
+
   const resource = useApiResource(
     () =>
       evidenceApi.listEvidence({
@@ -192,6 +216,9 @@ export function EvidenceLibraryPage({
         departmentId: departmentId || undefined,
         expiresAfter: expiresAfter || undefined,
         expiresBefore: expiresBefore || undefined,
+        expiringSoon: expiringSoon || undefined,
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
       }),
     [
       contextVersion,
@@ -203,6 +230,9 @@ export function EvidenceLibraryPage({
       departmentId,
       expiresAfter,
       expiresBefore,
+      expiringSoon,
+      orderBy,
+      order,
       listVersion,
     ],
   );
@@ -224,13 +254,15 @@ export function EvidenceLibraryPage({
           ownerId ||
           departmentId ||
           expiresAfter ||
-          expiresBefore,
+          expiresBefore ||
+          expiringSoon,
       ),
     [
       appliedSearch,
       departmentId,
       expiresAfter,
       expiresBefore,
+      expiringSoon,
       lifecycleStatus,
       ownerId,
     ],
@@ -413,6 +445,19 @@ export function EvidenceLibraryPage({
             }
           />
         </label>
+        <label className="deadline-check">
+          <input
+            type="checkbox"
+            checked={expiringSoon}
+            aria-label="Expiring within 90 days"
+            onChange={(event) =>
+              updateParams({
+                expiringSoon: event.target.checked ? "true" : "",
+              })
+            }
+          />{" "}
+          Expiring soon (90 days)
+        </label>
         <button className="btn btn-secondary" type="submit">
           Search
         </button>
@@ -480,12 +525,30 @@ export function EvidenceLibraryPage({
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Evidence</th>
-                    <th scope="col">Status</th>
+                    <SortableTh
+                      column="title"
+                      label="Evidence"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
+                    <SortableTh
+                      column="lifecycleStatus"
+                      label="Status"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">Owner</th>
                     <th scope="col">Department</th>
                     <th scope="col">Issued</th>
-                    <th scope="col">Expires</th>
+                    <SortableTh
+                      column="expiresAt"
+                      label="Expires"
+                      orderBy={orderBy}
+                      order={order}
+                      onSort={toggleSort}
+                    />
                     <th scope="col">File</th>
                     <th scope="col">
                       <span className="sr-only">Actions</span>
@@ -517,33 +580,51 @@ export function EvidenceLibraryPage({
             aria-label="Evidence Library cards"
             data-testid="evidence-library-cards"
           >
-            {rows.map((evidence) => (
-              <article className="card evidence-library-card" key={evidence.id}>
-                <header className="card-head">
-                  <div>
-                    <h2>{evidence.title}</h2>
-                    <p className="mono">{evidence.code}</p>
+            {rows.map((evidence) => {
+              const expiry = classifyExpiry(evidence.expiresAt);
+              return (
+                <article
+                  className={`card evidence-library-card${expiry.rowClass ? ` ${expiry.rowClass}` : ""}`}
+                  key={evidence.id}
+                >
+                  <header className="card-head">
+                    <div>
+                      <h2>{evidence.title}</h2>
+                      <p className="mono">{evidence.code}</p>
+                    </div>
+                    <Badge tone={evidenceStatusTone(evidence.lifecycleStatus)}>
+                      {evidenceStatusLabel(evidence.lifecycleStatus)}
+                    </Badge>
+                  </header>
+                  <div className="card-pad">
+                    <p>Owner {named(evidence.owner)}</p>
+                    <p>
+                      Department {named(evidence.department, "Not assigned")}
+                    </p>
+                    <p>
+                      Expires {formatEvidenceDate(evidence.expiresAt)}
+                      {expiry.marker ? (
+                        <>
+                          {" "}
+                          <span className={`expiry-marker ${expiry.markerClass}`}>
+                            {expiry.marker}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                    <p>File {evidence.hasFile ? "Uploaded" : "Not uploaded"}</p>
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      aria-label={`View ${evidence.code}`}
+                      onClick={() => navigate(`/evidence/${evidence.id}`)}
+                    >
+                      <Eye size={15} /> View detail
+                    </button>
                   </div>
-                  <Badge tone={evidenceStatusTone(evidence.lifecycleStatus)}>
-                    {evidenceStatusLabel(evidence.lifecycleStatus)}
-                  </Badge>
-                </header>
-                <div className="card-pad">
-                  <p>Owner {named(evidence.owner)}</p>
-                  <p>Department {named(evidence.department, "Not assigned")}</p>
-                  <p>Expires {formatEvidenceDate(evidence.expiresAt)}</p>
-                  <p>File {evidence.hasFile ? "Uploaded" : "Not uploaded"}</p>
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    aria-label={`View ${evidence.code}`}
-                    onClick={() => navigate(`/evidence/${evidence.id}`)}
-                  >
-                    <Eye size={15} /> View detail
-                  </button>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
             <EvidencePager
               page={page}
               total={total}
@@ -604,6 +685,53 @@ function EvidencePager({
   );
 }
 
+function startOfUtcDay(date: Date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function parseExpiryDay(value: string): number | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(5, 7));
+    const day = Number(value.slice(8, 10));
+    return Date.UTC(year, month - 1, day);
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return null;
+  return startOfUtcDay(parsed);
+}
+
+function classifyExpiry(expiresAt: string | null | undefined): {
+  rowClass: string;
+  marker: string;
+  markerClass: string;
+} {
+  if (!expiresAt) {
+    return { rowClass: "", marker: "", markerClass: "" };
+  }
+  const expiryDay = parseExpiryDay(expiresAt);
+  if (expiryDay === null) {
+    return { rowClass: "", marker: "", markerClass: "" };
+  }
+  const today = startOfUtcDay(new Date());
+  const soonLimit = today + EXPIRING_SOON_DAYS * 86_400_000;
+  if (expiryDay < today) {
+    return {
+      rowClass: "row-expired",
+      marker: "Expired",
+      markerClass: "expired",
+    };
+  }
+  if (expiryDay <= soonLimit) {
+    return {
+      rowClass: "row-expiring",
+      marker: "Expiring soon",
+      markerClass: "expiring",
+    };
+  }
+  return { rowClass: "", marker: "", markerClass: "" };
+}
+
 function EvidenceRow({
   evidence,
   onView,
@@ -611,8 +739,9 @@ function EvidenceRow({
   evidence: Evidence;
   onView: () => void;
 }) {
+  const expiry = classifyExpiry(evidence.expiresAt);
   return (
-    <tr>
+    <tr className={expiry.rowClass || undefined}>
       <td>
         <div className="cell-title">
           <strong>{evidence.title}</strong>
@@ -627,7 +756,17 @@ function EvidenceRow({
       <td>{named(evidence.owner)}</td>
       <td>{named(evidence.department, "Not assigned")}</td>
       <td>{formatEvidenceDate(evidence.issueDate)}</td>
-      <td>{formatEvidenceDate(evidence.expiresAt)}</td>
+      <td>
+        {formatEvidenceDate(evidence.expiresAt)}
+        {expiry.marker ? (
+          <>
+            {" "}
+            <span className={`expiry-marker ${expiry.markerClass}`}>
+              {expiry.marker}
+            </span>
+          </>
+        ) : null}
+      </td>
       <td>{evidence.hasFile ? "Uploaded" : "Not uploaded"}</td>
       <td>
         <button

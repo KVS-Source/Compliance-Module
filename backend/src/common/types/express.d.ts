@@ -6,6 +6,8 @@ declare global {
         userId: string;
         tenantId: string;
         permissions: string[];
+        /** Present when the access token was issued with a known refresh family. */
+        sessionFamilyId?: string;
       };
     }
   }

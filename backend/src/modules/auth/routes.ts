@@ -61,7 +61,11 @@ export class AuthController {
 
   refresh = async (req: Request, res: Response) => {
     const raw = req.cookies[REFRESH_COOKIE] as string | undefined;
-    const result = await this.service.refresh(raw ?? "");
+    const userAgent = req.get("user-agent");
+    const result = await this.service.refresh(raw ?? "", {
+      ...(req.ip ? { ip: req.ip } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
     res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions);
     return ok(res, { accessToken: result.accessToken, user: result.user });
   };

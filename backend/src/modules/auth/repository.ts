@@ -8,6 +8,9 @@ interface RefreshTokenInput {
   tenantId: string;
   familyId: string;
   expiresAt: Date;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  lastUsedAt?: Date;
 }
 
 export class AuthRepository {
@@ -60,7 +63,22 @@ export class AuthRepository {
   }
 
   createRefresh(input: RefreshTokenInput) {
-    return this.db.refreshToken.create({ data: input });
+    return this.db.refreshToken.create({
+      data: {
+        tokenHash: input.tokenHash,
+        userId: input.userId,
+        tenantId: input.tenantId,
+        familyId: input.familyId,
+        expiresAt: input.expiresAt,
+        lastUsedAt: input.lastUsedAt ?? new Date(),
+        ...(input.ipAddress !== undefined
+          ? { ipAddress: input.ipAddress }
+          : {}),
+        ...(input.userAgent !== undefined
+          ? { userAgent: input.userAgent }
+          : {}),
+      },
+    });
   }
 
   findRefresh(tokenHash: string) {
@@ -70,8 +88,29 @@ export class AuthRepository {
   async rotateRefresh(id: string, input: RefreshTokenInput) {
     try {
       return await this.db.$transaction(async (transaction) => {
+        const previous = await transaction.refreshToken.findUnique({
+          where: { id },
+          select: { ipAddress: true, userAgent: true },
+        });
         const replacement = await transaction.refreshToken.create({
-          data: input,
+          data: {
+            tokenHash: input.tokenHash,
+            userId: input.userId,
+            tenantId: input.tenantId,
+            familyId: input.familyId,
+            expiresAt: input.expiresAt,
+            lastUsedAt: input.lastUsedAt ?? new Date(),
+            // Prefer the fresh request context; fall back to the prior tip so
+            // a rotation without headers does not blank known client metadata.
+            ipAddress:
+              input.ipAddress !== undefined
+                ? input.ipAddress
+                : (previous?.ipAddress ?? null),
+            userAgent:
+              input.userAgent !== undefined
+                ? input.userAgent
+                : (previous?.userAgent ?? null),
+          },
         });
         const claimed = await transaction.refreshToken.updateMany({
           where: { id, revokedAt: null },

@@ -1,13 +1,13 @@
 # Current status and V1 scope
 
-Baseline date: 2026-08-06
+Baseline date: 2026-08-10
 
 ## Release classification
 
-The client navigation set is 44 protected **LIVE** modules (API-connected React
-pages backed by PostgreSQL), plus login. Production readiness still depends on
-operator provisioning (TLS, secrets, host, backup) and the blockers listed in
-[known limitations](../known-limitations.md). Authoritative route status is
+The client navigation set is 46 protected **LIVE** visible routes (45 grouped
+modules plus the Settings utility), plus login. Production readiness still
+depends on operator provisioning (TLS, secrets, host, backup) and the blockers
+listed in [known limitations](../known-limitations.md). Authoritative route status is
 `frontend/src/app/routeDefinitions.ts` (`clientNavigationPaths`, `migratedPaths`)
 and `npm run guard:routes`.
 
@@ -20,44 +20,56 @@ evidence status is
 
 ## Status vocabulary
 
-| Status | Meaning |
-| --- | --- |
-| `LIVE` | A real React page calls a real Express API backed by PostgreSQL. |
-| `IN_DEVELOPMENT` | Approved product scope, but not operational. The route renders a truthful status page. |
-| `AWAITING_INTEGRATION` | No live integration exists; client access/interface approval is pending. |
-| `COMPATIBILITY` | A previously published URL is retained but hidden and is not an operational authority. |
-| `DORMANT` | Source/reference material is not imported or routed by the active runtime. |
+| Status                 | Meaning                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `LIVE`                 | A real React page calls a real Express API backed by PostgreSQL.                       |
+| `IN_DEVELOPMENT`       | Approved product scope, but not operational. The route renders a truthful status page. |
+| `AWAITING_INTEGRATION` | No live integration exists; client access/interface approval is pending.               |
+| `COMPATIBILITY`        | A previously published URL is retained but hidden and is not an operational authority. |
+| `DORMANT`              | Source/reference material is not imported or routed by the active runtime.             |
 
-Current totals: one public login; **44 protected LIVE** sidebar modules (all
-entries in `clientNavigationPaths`); one protected LIVE **account-menu** route
+Current totals: one public login; **46 protected LIVE** visible navigation
+routes (45 grouped modules plus the Settings utility); one protected LIVE **account-menu** route
 (Change Password), reached from the Topbar profile menu and deliberately kept
 out of the sidebar; deferred product routes are **hidden** `IN_DEVELOPMENT`
-deep links (not shown in the client sidebar); 14 hidden `COMPATIBILITY` legacy
+deep links (not shown in the client sidebar); 13 hidden `COMPATIBILITY` legacy
 URLs. No sidebar item remains `AWAITING_INTEGRATION`. `npm run guard:routes`
-reports these totals as 58 protected LIVE route patterns, which counts detail
-and parameterised routes in addition to the 44 sidebar entries.
+reports these totals as 60 protected LIVE route patterns, which counts detail
+and parameterised routes in addition to the 46 visible navigation routes.
 
 Client-readable module capabilities: [handover module status](../handover/module-status.md).
 
 ## Implemented LIVE capability (shipped sidebar set)
 
+Forward remaining work: [completion plan](./completion-plan.md) (V1.1 / V1.5 /
+V2). Spec gaps: [gap register](../handover/gap-register.md).
+
 - authentication, refresh rotation, logout and active Company selection;
-- Companies (read), users (create/update including admin password set), and
-  organisation masters (departments, locations, units);
+- Companies (**read + create** via `POST /tenants` when permitted), users
+  (create/update including admin password set and **role assignment** to one of
+  the five production profiles), and organisation masters (departments,
+  locations, units);
 - **self-service password change** for any authenticated role (no permission
   code required), which revokes every session for that user on success;
-- frameworks and framework rules (read);
+  administrator-set password is the intentional recovery path (no email
+  forgot-password);
+- **My Work** personal queue (permission-gated sections, overdue first);
+- frameworks and framework rules (read); register **column sort** and
+  **URL-synced filters** on major registers;
 - Policy, Control and Checkpoint registers with lifecycle, mappings, reviews
   and scoped audit/traceability;
-- KPI configuration, versioned targets, actual entry, approval, and automatic
-  KPI-linked risks (Major/Minor) with Risk Register treatment workflow;
+- KPI configuration, versioned targets, actual entry (**single and grid modes**),
+  approval, and automatic KPI-linked risks (Major/Minor) with Risk Register
+  treatment workflow and **manual risk create**;
 - Evidence library, create/upload, review queue, linking and gates for
-  Checkpoint, Policy Version and KPI actual approval;
+  Checkpoint, Policy Version and KPI actual approval; **evidence expiring soon**
+  on the dashboard and library filters;
 - **Gap Register and CAPA Register** (create, update, owner, close/reopen,
-  evidence linkage; closure is evidence-gated);
+  evidence linkage; closure is evidence-gated; Gap Register supports **bulk**
+  owner/due-date/close against per-record endpoints);
 - **Audit Trail** (searchable company history and CSV export);
-- **Operational Registers** (read company register types and records; write API
-  exists but the UI is read-only in this release);
+- **Operational Registers** (browse, create and edit company register records
+  when permitted; also loadable by import);
 - **Data Import** (browser XLSX workbook and approved CSV template preview and
   commit) and **Import History**;
 - **GenRAC Integration** page: connector status, sync history, and CSV-adapter
@@ -78,10 +90,15 @@ Client-readable module capabilities: [handover module status](../handover/module
   report on screen;
 - **KPI catalogue and KPI analytics** pages (read-only) and the **Frequency
   master** (read-only);
-- **Role and access profiles** page (read-only). The API exposes no role
-  mutation path and states `mutable: false` in the response; production roles
-  are still provisioned by initialization, not by the UI;
+- **Role and access profiles** page (catalogue read-only; `mutable: false` for
+  permission sets) plus **privilege access review**
+  (`GET /access/privilege-review`) of who holds sensitive permissions.
+  **User-to-profile assignment** is mutable via
+  `PUT /access/users/:id/roles` (`roles:assign`); free-form role design is not;
 - **Approved and Rejected Evidence** views alongside the existing review queue;
+- **Settings** utility with a per-Company working-location selector and regional
+  date/time display preferences. These preferences are local and
+  non-authoritative; Company and permission scope remains server-enforced;
 - append-only audit-event writes for active workflows.
 
 `KpiTarget`/`kpi_targets` is the active target authority. `KpiGoal`/
@@ -91,17 +108,16 @@ path for it.
 ## Not operational / deferred
 
 The following are **not** client sidebar LIVE modules (hidden status pages or
-deferred scope):
+deferred scope). Sequenced remaining work is in the
+[completion plan](./completion-plan.md).
 
 - standalone Policy Versions navigation page (versions live inside Policy detail);
-- Tasks, Notifications, tenant/settings screens and KPI mapping deep links;
-- **role and permission administration writes**: the role-access page reads
-  profiles only, so creating a role or changing a permission assignment is not
-  possible from the client;
+- Tasks, Notifications, tenant-settings deep links and KPI mapping deep links;
+- **free-form role and permission design**: profiles are fixed; only assignment
+  of a user to a sanctioned profile is mutable;
 - **report scheduling, subscriptions and PDF output**: the Reports centre runs a
   report on demand and exports CSV only;
-- free-form manual risk **create** in the API (risks are auto-raised from KPI
-  misses and import; treatment/close work on the Risk Register);
+- record comments and saved named views (remaining V1.1 strong additions);
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
   place a file and configure via API);
 - Policy Version obsoletion and Policy `INACTIVE` transitions;
@@ -133,7 +149,7 @@ bring-up still requires human infrastructure and secrets.
 ## Test boundary
 
 Backend integration tests use real disposable PostgreSQL and all applied
-migrations (sixteen folders under `backend/prisma/migrations/`). Automated
+migrations (18 folders under `backend/prisma/migrations/`). Automated
 Playwright uses browser-intercepted API responses and is not
 browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
 required for each release candidate.

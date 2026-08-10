@@ -15,6 +15,7 @@ import type {
   AssignRiskOwnerBody,
   CloseRiskBody,
   CompleteRiskTreatmentBody,
+  CreateManualRiskBody,
   CreateRiskReviewBody,
   CreateRiskTreatmentBody,
   ReopenRiskBody,
@@ -226,6 +227,50 @@ export class RiskService {
     const risk = await this.repository.findDetail(tenantId, id);
     if (!risk) throw notFound("Risk not found");
     return riskDetailDto(risk);
+  }
+
+  async createManual(
+    tenantId: string,
+    actorUserId: string,
+    body: CreateManualRiskBody,
+    context: AuditContext,
+  ) {
+    return this.repository.runCreationTransaction(async (transaction) => {
+      if (body.ownerId) {
+        const owner = await transaction.findActiveMember(
+          tenantId,
+          body.ownerId,
+        );
+        if (!owner) {
+          throw relatedRecordInvalid(
+            "Risk owner must be an active user in the current Company",
+          );
+        }
+      }
+
+      const number = await transaction.allocateNextRiskNumber(tenantId);
+      const inherentScore = body.inherentLikelihood * body.inherentImpact;
+      const risk = await transaction.createManualRisk(tenantId, actorUserId, {
+        code: formatRiskCode(number),
+        title: body.title,
+        description: body.description,
+        category: body.category,
+        inherentLikelihood: body.inherentLikelihood,
+        inherentImpact: body.inherentImpact,
+        inherentScore,
+        generalLevel: generalLevelForScore(inherentScore),
+        ownerId: body.ownerId ?? null,
+        status: "OPEN",
+      });
+      await transaction.writeCreatedAudit(
+        tenantId,
+        actorUserId,
+        risk,
+        context,
+        false,
+      );
+      return riskDto(risk);
+    });
   }
 
   /** Decisions are refused on a closed risk until it is explicitly reopened. */

@@ -14,14 +14,29 @@ import type {
   UpdateLocationInput,
   UpdateOrganisationUnitInput,
   UpdateUserInput,
+  UserSession,
 } from "../types/api";
 
 export const masterDataApi = {
-  async listUsers() {
-    return (await apiRequest<CompanyUser[]>(`/users${pageQuery()}`)).data;
+  async listUsers(
+    query: {
+      page?: number;
+      pageSize?: number;
+      orderBy?: string;
+      order?: "asc" | "desc";
+    } = {},
+  ) {
+    const params = new URLSearchParams();
+    params.set("page", String(query.page ?? 1));
+    params.set("pageSize", String(query.pageSize ?? 100));
+    if (query.orderBy) params.set("orderBy", query.orderBy);
+    if (query.order) params.set("order", query.order);
+    return (await apiRequest<CompanyUser[]>(`/users?${params.toString()}`))
+      .data;
   },
   async getUser(id: string) {
-    return (await apiRequest<CompanyUser>(`/users/${encodeURIComponent(id)}`)).data;
+    return (await apiRequest<CompanyUser>(`/users/${encodeURIComponent(id)}`))
+      .data;
   },
   async createUser(input: CreateUserInput) {
     return (
@@ -36,6 +51,36 @@ export const masterDataApi = {
       await apiRequest<CompanyUser>(`/users/${encodeURIComponent(id)}`, {
         method: "PATCH",
         body: JSON.stringify(input),
+      })
+    ).data;
+  },
+  async listUserSessions(userId: string) {
+    return (
+      await apiRequest<UserSession[]>(
+        `/users/${encodeURIComponent(userId)}/sessions`,
+      )
+    ).data;
+  },
+  async revokeUserSession(userId: string, sessionId: string) {
+    return (
+      await apiRequest<{
+        revoked: true;
+        familyId: string;
+        tokensRevoked: number;
+      }>(
+        `/users/${encodeURIComponent(userId)}/sessions/${encodeURIComponent(sessionId)}/revoke`,
+        { method: "POST" },
+      )
+    ).data;
+  },
+  async revokeAllUserSessions(userId: string) {
+    return (
+      await apiRequest<{
+        revoked: true;
+        sessionCount: number;
+        tokensRevoked: number;
+      }>(`/users/${encodeURIComponent(userId)}/sessions/revoke-all`, {
+        method: "POST",
       })
     ).data;
   },
@@ -103,9 +148,8 @@ export const masterDataApi = {
     ).data;
   },
   async listKpiDefinitions() {
-    return (
-      await apiRequest<KpiDefinition[]>(`/kpi-definitions${pageQuery()}`)
-    ).data;
+    return (await apiRequest<KpiDefinition[]>(`/kpi-definitions${pageQuery()}`))
+      .data;
   },
   async listKpiGoals() {
     return (await apiRequest<KpiGoal[]>(`/kpi-goals${pageQuery()}`)).data;

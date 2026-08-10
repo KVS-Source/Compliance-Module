@@ -11,6 +11,7 @@ import { PermissionBoundary } from "../components/feedback/PermissionBoundary";
 import { useAuth } from "../context/AuthContext";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
+import { MyWorkPage } from "../features/work/MyWorkPage";
 import {
   FrameworkRulesPage,
   FrameworksPage,
@@ -52,9 +53,11 @@ import { GenracIntegrationPage } from "../features/integrations/GenracIntegratio
 import { RoleAccessPage } from "../features/access/RoleAccessPage";
 import { FrequencyMasterPage } from "../features/kpis/FrequencyMasterPage";
 import { KpiAnalyticsPage } from "../features/kpis/KpiAnalyticsPage";
-import { KpiCataloguePage } from "../features/kpis/KpiCataloguePage";
+import { KpiCataloguePage, KpiMasterPage } from "../features/kpis/KpiCataloguePage";
+import { KpiTraceabilityPage } from "../features/kpis/KpiTraceabilityPage";
 import { ReportHubPage } from "../features/reports/ReportHubPage";
 import { ReportViewPage } from "../features/reports/ReportViewPage";
+import { SettingsPage } from "../features/settings/SettingsPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
@@ -110,6 +113,14 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="dashboard:read">
         <DashboardPage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "my-work",
+    element: (
+      <PermissionBoundary permission="dashboard:read">
+        <MyWorkPage />
       </PermissionBoundary>
     ),
   },
@@ -207,7 +218,7 @@ const migratedRoutes: RouteObject[] = [
     path: "master/kpis",
     element: (
       <PermissionBoundary permission="kpis:read">
-        <KpiCataloguePage />
+        <KpiMasterPage />
       </PermissionBoundary>
     ),
   },
@@ -248,6 +259,14 @@ const migratedRoutes: RouteObject[] = [
     element: (
       <PermissionBoundary permission="kpis:read">
         <KpiCataloguePage />
+      </PermissionBoundary>
+    ),
+  },
+  {
+    path: "kpi/mapping",
+    element: (
+      <PermissionBoundary permission="kpis:read">
+        <KpiTraceabilityPage />
       </PermissionBoundary>
     ),
   },
@@ -470,6 +489,10 @@ const migratedRoutes: RouteObject[] = [
         <ReportViewPage />
       </PermissionBoundary>
     ),
+  },
+  {
+    path: "settings",
+    element: <SettingsPage />,
   },
   {
     path: "evidence/:evidenceId",

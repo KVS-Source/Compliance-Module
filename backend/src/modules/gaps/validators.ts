@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { listOrderFields } from "../../common/list-order.js";
 import { paginationSchema } from "../../common/responses/pagination.js";
 
 export const GAP_TITLE_MAX_LENGTH = 300;
@@ -69,6 +70,14 @@ export const gapListSchema = paginationSchema
       .optional(),
     dueFrom: dateSchema.optional(),
     dueTo: dateSchema.optional(),
+    ...listOrderFields([
+      "code",
+      "title",
+      "status",
+      "severity",
+      "dueDate",
+      "createdAt",
+    ] as const).shape,
   })
   .strict()
   .superRefine((value, context) => {

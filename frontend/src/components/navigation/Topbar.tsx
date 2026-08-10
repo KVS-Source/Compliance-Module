@@ -11,7 +11,7 @@ import {
   Search,
   ShieldAlert,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { routeDefinitions } from "../../app/routeDefinitions";
 import { useAuth } from "../../context/AuthContext";
@@ -20,6 +20,7 @@ import { useToast } from "../../context/ToastContext";
 import { dashboardApi } from "../../services/dashboardApi";
 import type { DashboardSummary } from "../../types/api";
 import type { ModuleStatus } from "../../types/navigation";
+import type { UiPreferences } from "../../hooks/useUiPreferences";
 
 const routeStatus = (status: ModuleStatus, label?: string) => {
   if (status === "LIVE") return "Live";
@@ -27,8 +28,14 @@ const routeStatus = (status: ModuleStatus, label?: string) => {
   return label ?? "In Development";
 };
 
-export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
-  const { user, logout } = useAuth();
+export function Topbar({
+  onOpenMobile,
+  preferences,
+}: {
+  onOpenMobile: () => void;
+  preferences: UiPreferences;
+}) {
+  const { user, logout, hasPermission } = useAuth();
   const { switching, switchCompany, contextVersion } = useTenant();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -42,7 +49,9 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const [notificationError, setNotificationError] = useState<string | null>(
     null,
   );
+  const [notificationVersion, setNotificationVersion] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -60,6 +69,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
         setMobileSearchOpen(false);
         setNotificationsOpen(false);
         setProfileOpen(false);
+        setQuickAddOpen(false);
       }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -68,6 +78,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
         setMobileSearchOpen(false);
         setNotificationsOpen(false);
         setProfileOpen(false);
+        setQuickAddOpen(false);
       }
     };
     document.addEventListener("pointerdown", closePopovers);
@@ -83,12 +94,13 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     setMobileSearchOpen(false);
     setNotificationsOpen(false);
     setNotificationSummary(null);
+    setNotificationLoading(false);
     setNotificationError(null);
     setProfileOpen(false);
+    setQuickAddOpen(false);
   }, [contextVersion]);
 
-  useEffect(() => {
-    if (!notificationsOpen) return;
+  const loadNotificationSummary = useCallback(() => {
     let active = true;
     setNotificationLoading(true);
     setNotificationError(null);
@@ -113,7 +125,130 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     return () => {
       active = false;
     };
-  }, [contextVersion, notificationsOpen, user?.activeCompany.id]);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.activeCompany.id || !hasPermission("dashboard:read")) return;
+    return loadNotificationSummary();
+  }, [
+    contextVersion,
+    hasPermission,
+    loadNotificationSummary,
+    notificationVersion,
+    user?.activeCompany.id,
+  ]);
+
+  /**
+   * Quick Add offers only records this build can actually create, each gated on
+   * the same permission the underlying API enforces, so the menu never shows an
+   * action that would fail on arrival.
+   *
+   * Company creation is included now that `POST /tenants` exists; it is gated on
+   * `tenants:write`, which only the Client Company Administrator profile holds.
+   */
+  const quickAddGroups = useMemo(
+    () =>
+      [
+        {
+          heading: "Compliance",
+          items: [
+            {
+              label: "Risk",
+              to: "/compliance/risks",
+              permission: "risk:write",
+            },
+            {
+              label: "Gap",
+              to: "/compliance/gaps",
+              permission: "gaps:write",
+            },
+            { label: "CAPA", to: "/compliance/capa", permission: "capa:write" },
+            {
+              label: "Policy",
+              to: "/compliance/policy-register",
+              permission: "policies:write",
+            },
+            {
+              label: "Control",
+              to: "/compliance/controls",
+              permission: "controls:write",
+            },
+            {
+              label: "Checkpoint",
+              to: "/compliance/checkpoints",
+              permission: "checkpoints:write",
+            },
+            {
+              label: "Register record",
+              to: "/compliance/operational-registers",
+              permission: "registers:write",
+            },
+          ],
+        },
+        {
+          heading: "Evidence & KPI",
+          items: [
+            {
+              label: "Evidence",
+              to: "/evidence/new",
+              permission: "evidence:write",
+            },
+            {
+              label: "KPI actual",
+              to: "/kpi/actual-entry",
+              permission: "kpi-actual:write",
+            },
+            {
+              label: "KPI configuration",
+              to: "/kpi/configuration",
+              permission: "kpi-config:write",
+            },
+            {
+              label: "KPI target",
+              to: "/kpi/targets",
+              permission: "kpi-target:write",
+            },
+            {
+              label: "Workbook import",
+              to: "/data/import",
+              permission: "imports:write",
+            },
+          ],
+        },
+        {
+          heading: "Administration",
+          items: [
+            {
+              label: "Company",
+              to: "/admin/companies",
+              permission: "tenants:write",
+            },
+            { label: "User", to: "/admin/users", permission: "users:write" },
+            {
+              label: "Department",
+              to: "/admin/departments",
+              permission: "departments:write",
+            },
+            {
+              label: "Location",
+              to: "/admin/locations",
+              permission: "locations:write",
+            },
+            {
+              label: "Organisation unit",
+              to: "/admin/organisation-units",
+              permission: "units:write",
+            },
+          ],
+        },
+      ]
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => hasPermission(item.permission)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [hasPermission],
+  );
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -127,24 +262,105 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
       .slice(0, 6);
   }, [search]);
 
+  const workQueue = useMemo(() => {
+    const queue = notificationSummary?.analytics?.actionQueue ?? [];
+    const supported = queue.filter((item) =>
+      ["kpi-approval", "gap-open", "capa-overdue"].includes(item.key),
+    );
+    const present = new Set(supported.map((item) => item.key));
+    if (
+      !present.has("kpi-approval") &&
+      (notificationSummary?.kpis?.pendingApprovals ?? 0) > 0
+    ) {
+      supported.push({
+        key: "kpi-approval",
+        label: "KPI actuals awaiting approval",
+        description: "Submitted KPI actuals with no approval decision.",
+        count: notificationSummary!.kpis!.pendingApprovals,
+        to: "/kpi/approval",
+        tone: "blue",
+      });
+    }
+    if (
+      !present.has("gap-open") &&
+      (notificationSummary?.gaps?.open ?? 0) > 0
+    ) {
+      supported.push({
+        key: "gap-open",
+        label: "Open Gaps",
+        description: "Compliance gaps still awaiting remediation.",
+        count: notificationSummary!.gaps!.open,
+        to: "/compliance/gaps",
+        tone: "amber",
+      });
+    }
+    if (
+      !present.has("capa-overdue") &&
+      (notificationSummary?.capas?.overdue ?? 0) > 0
+    ) {
+      supported.push({
+        key: "capa-overdue",
+        label: "Overdue CAPAs",
+        description: "Open corrective actions past their recorded due date.",
+        count: notificationSummary!.capas!.overdue,
+        to: "/compliance/capa",
+        tone: "red",
+      });
+    }
+    return supported.sort(
+      (left, right) =>
+        right.count - left.count || left.key.localeCompare(right.key),
+    );
+  }, [notificationSummary]);
+  const workQueueCount = workQueue.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
+  const hasVisibleWorkQueueSource = Boolean(
+    notificationSummary &&
+    [
+      notificationSummary.kpis,
+      notificationSummary.gaps,
+      notificationSummary.capas,
+    ].some((source) => source !== undefined && source !== null),
+  );
+
   const initials = (user?.name ?? "User")
     .split(/\s+/)
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const date = now.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = now.toLocaleDateString(
+    preferences.dateStyle === "month-first" ? "en-US" : "en-GB",
+    preferences.dateStyle === "long"
+      ? {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          timeZone: preferences.timeZone,
+        }
+      : {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: preferences.timeZone,
+        },
+  );
   const time = now
-    .toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    })
+    .toLocaleTimeString(
+      preferences.timeFormat === "12-hour" ? "en-GB" : "en-GB",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: preferences.timeFormat === "12-hour",
+        timeZone: preferences.timeZone,
+      },
+    )
     .toLowerCase();
+  const workingLocation = user?.activeCompany.id
+    ? preferences.workingLocations[user.activeCompany.id]
+    : undefined;
 
   const handleCompany = async (companyId: string) => {
     if (!companyId || companyId === user?.activeCompany.id) return;
@@ -172,6 +388,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     setMobileSearchOpen(false);
     setNotificationsOpen(false);
     setProfileOpen(false);
+    setQuickAddOpen(false);
   };
 
   const searchResults = (
@@ -240,14 +457,50 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
         >
           <Search size={17} />
         </button>
-        <button
-          className="btn btn-primary quick-add"
-          type="button"
-          onClick={() => openRoute("/master/kpis")}
-        >
-          <Plus size={16} />
-          <span>Quick Add</span>
-        </button>
+        {quickAddGroups.length > 0 ? (
+          <div className="quick-add-wrap">
+            <button
+              className="btn btn-primary quick-add"
+              type="button"
+              data-testid="quick-add-trigger"
+              aria-haspopup="menu"
+              aria-expanded={quickAddOpen}
+              onClick={() => {
+                setQuickAddOpen((open) => !open);
+                setNotificationsOpen(false);
+                setProfileOpen(false);
+              }}
+            >
+              <Plus size={16} />
+              <span>Quick Add</span>
+            </button>
+            {quickAddOpen ? (
+              <div
+                className="popover quick-add-menu"
+                role="menu"
+                data-testid="quick-add-menu"
+              >
+                {quickAddGroups.map((group) => (
+                  <div className="quick-add-group" key={group.heading}>
+                    <p className="quick-add-heading">{group.heading}</p>
+                    {group.items.map((item) => (
+                      <button
+                        className="menu-item"
+                        type="button"
+                        role="menuitem"
+                        key={item.to + item.label}
+                        data-testid={`quick-add-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        onClick={() => openRoute(item.to)}
+                      >
+                        <Plus size={14} /> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <label className="company-switch">
           <span className="sr-only">Company Switcher</span>
           <select
@@ -259,7 +512,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           >
             {(user?.companies ?? []).map((company) => (
               <option value={company.id} key={company.id}>
-                {company.name}
+                {company.name} ({company.code})
               </option>
             ))}
           </select>
@@ -279,6 +532,9 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           aria-expanded={notificationsOpen}
           aria-controls="notification-summary"
           onClick={() => {
+            if (!notificationsOpen) {
+              setNotificationVersion((value) => value + 1);
+            }
             setNotificationsOpen((value) => !value);
             setMobileSearchOpen(false);
             setProfileOpen(false);
@@ -286,11 +542,18 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           }}
         >
           <Bell size={17} />
+          {!notificationLoading && notificationSummary ? (
+            <span className="counter" aria-hidden>
+              {workQueueCount > 99 ? "99+" : workQueueCount}
+            </span>
+          ) : null}
         </button>
         <div className="datetime">
           <span>{date}</span>
           <br />
-          <span>{time} · Location 001</span>
+          <span>
+            {time} · {workingLocation?.name ?? "All locations"}
+          </span>
         </div>
         <button
           className="profile-btn"
@@ -315,7 +578,9 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             role="dialog"
             aria-label="Search pages and modules"
           >
-            <label htmlFor="mobile-global-search">Search pages and modules</label>
+            <label htmlFor="mobile-global-search">
+              Search pages and modules
+            </label>
             <div className="search-input-wrap">
               <Search className="icon" size={18} />
               <input
@@ -339,77 +604,84 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             role="dialog"
             aria-label="Notifications"
           >
-            <h3>Notification summary</h3>
+            <h3>Work queue</h3>
             {notificationLoading ? (
               <div className="notification-state" role="status">
                 <LoaderCircle className="spin" size={17} />
-                Loading live Company summary…
+                Loading live Company work queue…
               </div>
             ) : notificationError ? (
               <div className="notification-state state-error" role="alert">
                 <AlertTriangle size={17} />
                 {notificationError}
               </div>
-            ) : notificationSummary?.kpis || notificationSummary?.risks ? (
+            ) : workQueue.length > 0 ? (
               <div className="notification-summary">
-                {notificationSummary.kpis ? (
+                {workQueue.map((item) => (
                   <button
+                    key={item.key}
                     className="notification-item"
                     type="button"
-                    onClick={() => openRoute("/kpi/approval")}
+                    onClick={() => openRoute(item.to)}
                   >
-                    <ClipboardCheck size={18} />
+                    {item.key === "kpi-approval" ? (
+                      <ClipboardCheck size={18} />
+                    ) : item.key === "gap-open" ? (
+                      <ShieldAlert size={18} />
+                    ) : (
+                      <AlertTriangle size={18} />
+                    )}
                     <span>
                       <strong>
-                        {notificationSummary.kpis.pendingApprovals} pending KPI{" "}
-                        {notificationSummary.kpis.pendingApprovals === 1
-                          ? "approval"
-                          : "approvals"}
+                        {item.count}{" "}
+                        {item.count === 1
+                          ? item.key === "kpi-approval"
+                            ? "KPI actual awaiting approval"
+                            : item.key === "gap-open"
+                              ? "Open Gap"
+                              : "Overdue CAPA"
+                          : item.label}
                       </strong>
-                      <small>Open the database-backed KPI Approval queue</small>
+                      <small>{item.description}</small>
                     </span>
                   </button>
-                ) : null}
-                {notificationSummary.risks ? (
-                  <button
-                    className="notification-item"
-                    type="button"
-                    onClick={() => openRoute("/compliance/risks")}
-                  >
-                    <ShieldAlert size={18} />
-                    <span>
-                      <strong>
-                        {notificationSummary.risks.openRisks} open ·{" "}
-                        {notificationSummary.risks.majorRisks} major{" "}
-                        {notificationSummary.risks.majorRisks === 1
-                          ? "risk"
-                          : "risks"}
-                      </strong>
-                      <small>Open the database-backed Risk Register</small>
-                    </span>
-                  </button>
-                ) : null}
+                ))}
               </div>
             ) : (
               <p className="notification-empty">
-                No notification feed is configured for this UAT release.
+                {hasVisibleWorkQueueSource
+                  ? "No pending KPI approvals, open gaps, or overdue CAPAs."
+                  : "No work-queue sources are visible with your current permissions."}
               </p>
             )}
             <div className="notification-actions">
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => openRoute("/kpi/approval")}
-              >
-                KPI Approval
-              </button>
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => openRoute("/compliance/risks")}
-              >
-                Risk Register
-              </button>
+              {hasPermission("kpis:read") ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/kpi/approval")}
+                >
+                  KPI Approval
+                </button>
+              ) : null}
+              {hasPermission("gaps:read") ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/compliance/gaps")}
+                >
+                  Gap Register
+                </button>
+              ) : null}
+              {hasPermission("capa:read") ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => openRoute("/compliance/capa")}
+                >
+                  CAPA Register
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

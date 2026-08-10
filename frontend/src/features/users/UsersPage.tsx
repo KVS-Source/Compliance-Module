@@ -1,4 +1,4 @@
-import { ShieldCheck, UserPlus } from "lucide-react";
+import { ShieldCheck, Upload, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -10,10 +10,16 @@ import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
+import {
+  useDebouncedSearchParam,
+  useRegisterQueryState,
+} from "../../hooks/useRegisterQueryState";
 import { ApiError } from "../../services/apiClient";
 import { masterDataApi } from "../../services/masterDataApi";
 import type { CompanyUser } from "../../types/api";
 import { UserFormModal } from "./UserFormModal";
+import { UserImportModal } from "./UserImportModal";
+import { UserSessionsPanel } from "./UserSessionsPanel";
 
 const roleName = (role: CompanyUser["roles"][number]) =>
   typeof role === "string" ? role : role.name;
@@ -23,20 +29,35 @@ export function UsersPage() {
   const { contextVersion } = useTenant();
   const { showToast } = useToast();
   const canWrite = hasPermission("users:write");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All Statuses");
+  const canAssignRole = hasPermission("roles:assign");
   const [listVersion, setListVersion] = useState(0);
   const [detail, setDetail] = useState<CompanyUser | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editor, setEditor] = useState<
     null | { mode: "create" } | { mode: "edit"; user: CompanyUser }
   >(null);
+  const [importing, setImporting] = useState(false);
 
-  const resource = useApiResource(masterDataApi.listUsers, [
-    contextVersion,
-    user?.activeCompany.id,
-    listVersion,
-  ]);
+  const { values, orderBy, order, updateParams, toggleSort } =
+    useRegisterQueryState({
+      keys: ["q", "status"],
+    });
+  const search = values.q ?? "";
+  // Map empty → "All Statuses" for the existing SearchToolbar control.
+  const status = values.status || "All Statuses";
+  const { draftSearch, setDraftSearch } = useDebouncedSearchParam(
+    search,
+    updateParams,
+  );
+
+  const resource = useApiResource(
+    () =>
+      masterDataApi.listUsers({
+        orderBy: orderBy || undefined,
+        order: orderBy ? order : undefined,
+      }),
+    [contextVersion, user?.activeCompany.id, listVersion, orderBy, order],
+  );
 
   const rows = useMemo(
     () =>
@@ -52,15 +73,18 @@ export function UsersPage() {
     [resource.data, search, status],
   );
 
+  // Server allowlist: code | fullName | email | status | createdAt.
   const columns: Column<CompanyUser>[] = [
     {
       key: "code",
       label: "User ID",
+      sortColumn: "code",
       render: (row) => <span className="mono link-text">{row.code}</span>,
     },
     {
       key: "name",
       label: "User Name",
+      sortColumn: "fullName",
       render: (row) => (
         <div className="cell-title">
           <strong>{row.name}</strong>
@@ -77,12 +101,12 @@ export function UsersPage() {
     {
       key: "roles",
       label: "Role",
-      render: (row) =>
-        row.roles.map(roleName).join(" · ") || "Company User",
+      render: (row) => row.roles.map(roleName).join(" · ") || "Company User",
     },
     {
       key: "status",
       label: "Status",
+      sortColumn: "status",
       render: (row) => <Badge>{row.status}</Badge>,
     },
     {
@@ -148,27 +172,43 @@ export function UsersPage() {
         primaryLabel={canWrite ? "Add User" : undefined}
         onPrimary={canWrite ? () => setEditor({ mode: "create" }) : undefined}
         actions={
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() =>
-              showToast(
-                "info",
-                "Role authority",
-                "Database roles and permissions determine access in the active Company.",
-              )
-            }
-          >
-            <ShieldCheck size={15} /> Review access
-          </button>
+          <>
+            {canWrite ? (
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={() => setImporting(true)}
+                data-testid="users-import"
+              >
+                <Upload size={15} /> Import users
+              </button>
+            ) : null}
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() =>
+                showToast(
+                  "info",
+                  "Role authority",
+                  "Database roles and permissions determine access in the active Company.",
+                )
+              }
+            >
+              <ShieldCheck size={15} /> Review access
+            </button>
+          </>
         }
       />
       <SearchToolbar
-        value={search}
-        onChange={setSearch}
+        value={draftSearch}
+        onChange={setDraftSearch}
         placeholder="Search users, roles or departments…"
         status={status}
-        onStatusChange={setStatus}
+        onStatusChange={(value) =>
+          updateParams({
+            status: value === "All Statuses" ? "" : value,
+          })
+        }
       />
       {resource.loading ? (
         <LoadingState label="Loading Company users…" />
@@ -180,6 +220,9 @@ export function UsersPage() {
           columns={columns}
           caption="User Management"
           companyName={user?.activeCompany.name}
+          orderBy={orderBy}
+          order={order}
+          onSort={toggleSort}
           onView={(row) => void openDetail(row)}
           onEdit={canWrite ? (row) => void openEdit(row) : undefined}
         />
@@ -251,12 +294,34 @@ export function UsersPage() {
               </dd>
             </div>
           </dl>
+          <UserSessionsPanel
+            userId={detail.id}
+            canWrite={canWrite}
+            onToast={showToast}
+          />
         </Modal>
+      ) : null}
+      {importing ? (
+        <UserImportModal
+          canAssignRole={canAssignRole}
+          onClose={() => setImporting(false)}
+          onImported={(report) => {
+            setListVersion((value) => value + 1);
+            showToast(
+              report.failed > 0 ? "info" : "success",
+              report.failed > 0
+                ? "Import finished with skipped rows"
+                : "Users imported",
+              `${report.created} created · ${report.failed} skipped · ${report.rolesAssigned} role${report.rolesAssigned === 1 ? "" : "s"} assigned for ${user?.activeCompany.name ?? "the active Company"}.`,
+            );
+          }}
+        />
       ) : null}
       {editor ? (
         <UserFormModal
           mode={editor.mode}
           user={editor.mode === "edit" ? editor.user : null}
+          canAssignRole={canAssignRole}
           onClose={() => setEditor(null)}
           onSaved={(saved) => {
             setEditor(null);

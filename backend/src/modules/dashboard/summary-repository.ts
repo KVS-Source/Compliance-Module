@@ -76,7 +76,20 @@ export class DashboardSummaryRepository {
       targetMet,
       pendingApproval,
     ] = await this.db.$transaction([
-      this.db.kpiDefinition.count({ where: { status: "ACTIVE" } }),
+      this.db.kpiDefinition.count({
+        where: {
+          status: "ACTIVE",
+          configurations: {
+            some: {
+              tenantId,
+              deletedAt: null,
+              ...(filters.departmentId
+                ? { departmentId: filters.departmentId }
+                : {}),
+            },
+          },
+        },
+      }),
       this.db.kpiConfiguration.count({
         where: {
           tenantId,
@@ -265,6 +278,7 @@ export class DashboardSummaryRepository {
   async frameworks(filters: SummaryFilters) {
     const frameworks = await this.db.framework.findMany({
       where: {
+        status: "ACTIVE",
         ...(filters.frameworkId ? { id: filters.frameworkId } : {}),
       },
       select: {

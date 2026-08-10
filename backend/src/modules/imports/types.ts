@@ -65,6 +65,10 @@ export interface ImportContext {
   readonly frameworkRules: Map<string, string>;
   /** OrgDepartment id by department name. */
   readonly departments: Map<string, string>;
+  /** OrgUnit id by lower-cased name. */
+  readonly orgUnits: Map<string, string>;
+  /** OrgLocation id by lower-cased name or code. */
+  readonly orgLocations: Map<string, string>;
   /** KpiDefinition id by KPI code. */
   readonly kpiDefinitions: Map<string, string>;
   /** KpiConfiguration id by KPI code. */

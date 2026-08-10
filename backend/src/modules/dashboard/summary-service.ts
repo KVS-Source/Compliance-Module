@@ -269,6 +269,8 @@ export class DashboardSummaryService {
           openGaps: gaps?.open ?? null,
           openCapas: capas?.open ?? null,
           policiesDueForReview: policiesDueForReview?.total ?? null,
+          evidenceExpiringSoon: evidence?.expiringSoon ?? null,
+          evidenceExpired: evidence?.expired ?? null,
         },
         kpiTrend,
         evidenceStatus,

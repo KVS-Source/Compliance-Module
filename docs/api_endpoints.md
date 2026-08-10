@@ -13,16 +13,18 @@ routes require bearer authentication and active Company membership.
 | Auth | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me`; `POST /auth/tenant-context` |
 | Companies/dashboard | `GET /tenants`; `GET /dashboard/summary` |
 | Users | `GET /users`; `GET /users/:id`; `POST /users`; `PATCH /users/:id` |
+| Bulk user import | `GET /users/import/template` and `GET /users/import/template.csv` (`users:read`); `POST /users/import/preview` (dry run, `users:write`); `POST /users/import/commit` (`users:write`, plus `roles:assign` when any row carries a role). The file carries no password: `initialPassword` is supplied with the commit request and is never returned |
+| User sessions | `GET /users/:id/sessions` (`users:read`); `POST /users/:id/sessions/:sessionId/revoke`; `POST /users/:id/sessions/revoke-all` (`users:write`). Session id is the refresh-token family. Response never includes token material. Login/refresh store IP, User-Agent and `lastUsedAt` on the tip row |
 | Organisation | `GET/POST /organisation/departments`; `PATCH /organisation/departments/:id`; equivalent `locations` and `units` paths |
 | Frameworks | `GET /frameworks`; `GET /frameworks/:id`; `GET /frameworks/:id/rules` |
 | KPI catalogue/compatibility | `GET /kpi-definitions`; `GET /kpi-goals` (compatibility read only) |
-| KPI catalogue and analytics | `GET /kpis/catalogue`; `GET /kpis/frequencies`; `GET /kpis/analytics` (all read-only, `kpis:read`) |
-| Role and access profiles | `GET /access/profiles` (read-only, `users:read`; response states `mutable: false`) |
+| KPI catalogue, analytics and traceability | `GET /kpis/catalogue`; `GET /kpis/frequencies`; `GET /kpis/analytics` (read-only, `kpis:read`); `GET /kpis/traceability` (read-only derived graph; requires `kpis:read`, `evidence:read`, `controls:read`, `frameworks:read`, `policies:read` and `risk:read`) |
+| Role and access profiles | `GET /access/profiles` (read-only, `users:read`; response states `mutable: false`); `GET /access/privilege-review` (`users:read`); `GET/PUT /access/users/:userId/roles` (read `users:read`, write `roles:assign`) |
 | Reports | `GET /reports` (catalogue with a per-report `available` flag); `GET /reports/:reportKey`; `GET /reports/:reportKey/export.csv`. `dashboard:read` plus the report's own module permission; CSV additionally requires `exports:read` |
 | KPI configuration | `GET/POST /kpi-configurations`; `GET /kpi-configurations/threshold-defaults`; `GET/PATCH/DELETE /kpi-configurations/:id` |
 | KPI Targets | `GET/POST /kpi-targets`; `GET/PATCH/DELETE /kpi-targets/:id`; `POST /kpi-targets/:id/submit`; `/approve`; `/reject`; `/versions` |
 | KPI actuals | `GET/POST /kpi-actuals`; `GET /kpi-actuals/:id`; `POST /kpi-actuals/:id/approve`; `/reject`; `/resubmit` |
-| Risks | `GET /risks`; `GET /risks/:id`; `POST /risks/:id/reviews`; `/treatments`; `/treatments/:treatmentId/complete`; `PATCH /risks/:id/owner`; `POST /risks/:id/close`; `/reopen` |
+| Risks | `GET/POST /risks`; `GET /risks/:id`; `POST /risks/:id/reviews`; `/treatments`; `/treatments/:treatmentId/complete`; `PATCH /risks/:id/owner`; `POST /risks/:id/close`; `/reopen` |
 | Policies | `GET/POST /policies`; `GET/PATCH /policies/:policyId`; `POST /policies/:policyId/archive`; `GET/POST /policies/:policyId/versions`; `GET /policies/:policyId/versions/:versionId`; `GET /policies/:policyId/traceability`; `GET /policies/:policyId/audit-events`; `PATCH /policy-versions/:versionId`; `PUT /policy-versions/:versionId/frameworks`; `POST /policy-versions/:versionId/submit`; `/approve`; `/reject` |
 | Controls | `GET/POST /controls`; `GET/PATCH /controls/:controlId`; `POST /controls/:controlId/activate`; `/deactivate`; `/archive`; `PUT /controls/:controlId/policy-versions`; `/frameworks`; `/framework-rules`; `GET /controls/:controlId/traceability`; `/audit-events` |
 | Checkpoints | `GET/POST /checkpoints`; `GET/PATCH /checkpoints/:checkpointId`; `POST /checkpoints/:checkpointId/activate`; `/deactivate`; `/archive`; `GET/POST /checkpoints/:checkpointId/reviews` (Evidence gate when `evidenceRequired`); `GET /checkpoints/:checkpointId/latest-review`; `/traceability`; `/audit-events` |

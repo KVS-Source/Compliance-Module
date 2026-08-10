@@ -111,7 +111,10 @@ export class CapaRepository {
       this.db.capa.findMany({
         where,
         include: capaInclude,
-        orderBy: [{ createdAt: "desc" }, { code: "asc" }],
+        orderBy:
+          query.orderBy === undefined
+            ? [{ createdAt: "desc" }, { code: "asc" }]
+            : [{ [query.orderBy]: query.order ?? "asc" }, { code: "asc" }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

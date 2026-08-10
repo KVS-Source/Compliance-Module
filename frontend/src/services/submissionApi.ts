@@ -4,6 +4,8 @@ import type {
   KpiAnalytics,
   KpiCatalogueEntry,
   KpiFrequencyEntry,
+  KpiTraceability,
+  PrivilegeAccessReview,
   ReportCatalogueEntry,
   ReportResult,
 } from "../types/api";
@@ -28,6 +30,10 @@ export const accessApi = {
   async profiles() {
     return (await apiRequest<AccessProfileResponse>("/access/profiles")).data;
   },
+  async privilegeReview() {
+    return (await apiRequest<PrivilegeAccessReview>("/access/privilege-review"))
+      .data;
+  },
 };
 
 export const kpiCatalogueApi = {
@@ -36,6 +42,9 @@ export const kpiCatalogueApi = {
   },
   async frequencies() {
     return (await apiRequest<KpiFrequencyEntry[]>("/kpis/frequencies")).data;
+  },
+  async traceability() {
+    return (await apiRequest<KpiTraceability>("/kpis/traceability")).data;
   },
   async analytics(filters: {
     frequency?: string;

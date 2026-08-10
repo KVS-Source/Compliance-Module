@@ -65,6 +65,9 @@ const listParams = (query: EvidenceListQuery) => {
   if (query.departmentId) params.set("departmentId", query.departmentId);
   if (query.expiresBefore) params.set("expiresBefore", query.expiresBefore);
   if (query.expiresAfter) params.set("expiresAfter", query.expiresAfter);
+  if (query.orderBy) params.set("orderBy", query.orderBy);
+  if (query.order) params.set("order", query.order);
+  if (query.expiringSoon) params.set("expiringSoon", "true");
   return params.toString();
 };
 

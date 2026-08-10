@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { listOrderFields } from "../../common/list-order.js";
 
 export const POLICY_SEARCH_MAX_LENGTH = 100;
 export const POLICY_TITLE_MAX_LENGTH = 200;
@@ -140,6 +141,13 @@ export const policyListSchema = paginationSchema
     frameworkId: z.string().uuid().optional(),
     reviewDueFrom: dateSchema.optional(),
     reviewDueTo: dateSchema.optional(),
+    ...listOrderFields([
+      "code",
+      "title",
+      "lifecycleStatus",
+      "createdAt",
+      "updatedAt",
+    ] as const).shape,
   })
   .strict()
   .superRefine((value, context) => {

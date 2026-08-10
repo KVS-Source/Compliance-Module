@@ -25,6 +25,7 @@ const routerPath = resolve(repositoryRoot, "frontend/src/app/router.tsx");
  */
 const requiredLiveRoutes = [
   { path: "/dashboard", component: "DashboardPage" },
+  { path: "/my-work", component: "MyWorkPage" },
   { path: "/admin/users", component: "UsersPage" },
   { path: "/admin/companies", component: "CompaniesPage" },
   { path: "/admin/roles", component: "RoleAccessPage" },
@@ -37,11 +38,12 @@ const requiredLiveRoutes = [
   { path: "/master/targets", component: "KpiConfigurationPage" },
   { path: "/master/policies", component: "PolicyRegisterPage" },
   { path: "/master/controls", component: "ControlRegisterPage" },
-  { path: "/master/kpis", component: "KpiCataloguePage" },
+  { path: "/master/kpis", component: "KpiMasterPage" },
   { path: "/master/frameworks", component: "FrameworksPage" },
   { path: "/master/rules", component: "FrameworksPage" },
   { path: "/compliance/frameworks", component: "FrameworksPage" },
   { path: "/kpi/catalogue", component: "KpiCataloguePage" },
+  { path: "/kpi/mapping", component: "KpiTraceabilityPage" },
   { path: "/kpi/analytics", component: "KpiAnalyticsPage" },
   { path: "/kpi/configuration", component: "KpiConfigurationPage" },
   { path: "/kpi/targets", component: "KpiConfigurationPage" },
@@ -64,6 +66,7 @@ const requiredLiveRoutes = [
   { path: "/evidence/approved", component: "EvidenceLibraryPage" },
   { path: "/evidence/rejected", component: "EvidenceLibraryPage" },
   { path: "/reports", component: "ReportHubPage" },
+  { path: "/settings", component: "SettingsPage" },
 ];
 
 /**
@@ -142,7 +145,6 @@ const forbiddenVisibleFragments = [
   "/reports/customer-outcomes",
   "/tasks",
   "/notifications",
-  "/settings",
 ];
 
 const failures = [];
@@ -279,14 +281,14 @@ const protectedLivePatterns =
 // Submission navigation is LIVE-only: no In Development or Awaiting Access
 // badge may reach a client. Deferred routes live outside navigation metadata.
 if (
-  protectedLivePatterns !== 58 ||
+  protectedLivePatterns !== 61 ||
   statusCounts.IN_DEVELOPMENT !== 0 ||
   statusCounts.AWAITING_INTEGRATION !== 0 ||
-  statusCounts.COMPATIBILITY !== 14 ||
-  visiblePaths.length !== 44
+  statusCounts.COMPATIBILITY !== 13 ||
+  visiblePaths.length !== 47
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 58 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 14 hidden COMPATIBILITY routes and 44 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 61 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 13 hidden COMPATIBILITY routes and 47 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 

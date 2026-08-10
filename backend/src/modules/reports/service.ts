@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { AppError } from "../../common/errors/app-error.js";
+import { isFrameworkActiveInScope } from "../dashboard/framework-scope.js";
 import { toCsv, type CsvColumn } from "../exports/csv.js";
 
 /**
@@ -454,7 +455,10 @@ export class ReportService {
       },
       orderBy: [{ code: "asc" }, { version: "asc" }],
     });
-    const ids = frameworks.map((framework) => framework.id);
+    const inScopeFrameworks = frameworks.filter((framework) =>
+      isFrameworkActiveInScope(framework.scopeStatus),
+    );
+    const ids = inScopeFrameworks.map((framework) => framework.id);
     const controlScope: Prisma.ControlFrameworkWhereInput = {
       tenantId,
       frameworkId: { in: ids },
@@ -501,7 +505,7 @@ export class ReportService {
       groups: Array<{ frameworkId: string | null; _count: { _all: number } }>,
       id: string,
     ) => groups.find((group) => group.frameworkId === id)?._count._all ?? 0;
-    const rows = frameworks.map((framework) => {
+    const rows = inScopeFrameworks.map((framework) => {
       const mappedControls = count(mapped, framework.id);
       const implementedControls = count(implemented, framework.id);
       return {

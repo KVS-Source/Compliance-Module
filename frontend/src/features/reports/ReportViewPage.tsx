@@ -1,4 +1,4 @@
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -17,39 +17,42 @@ import { useApiResource } from "../../hooks/useApiResource";
 import { masterDataApi } from "../../services/masterDataApi";
 import { frameworkApi } from "../../services/frameworkApi";
 import { reportApi } from "../../services/submissionApi";
+import { registerApi, type RegisterType } from "../../services/registerApi";
 import type { Department, Framework } from "../../types/api";
 
 /** Filter vocabularies. Values must match Prisma enums exactly. */
-const STATUS_OPTIONS: Record<string, ReadonlyArray<{ value: string; label: string }>> =
-  {
-    "evidence-status": [
-      { value: "DRAFT", label: "Draft" },
-      { value: "SUBMITTED", label: "Submitted" },
-      { value: "APPROVED", label: "Approved" },
-      { value: "REJECTED", label: "Rejected" },
-      { value: "ARCHIVED", label: "Archived" },
-    ],
-    risks: [
-      { value: "OPEN", label: "Open" },
-      { value: "UNDER_REVIEW", label: "Under Review" },
-      { value: "TREATED", label: "Treated" },
-      { value: "CLOSED", label: "Closed" },
-      { value: "ARCHIVED", label: "Archived" },
-    ],
-    gaps: [
-      { value: "OPEN", label: "Open" },
-      { value: "IN_PROGRESS", label: "In Progress" },
-      { value: "CLOSED", label: "Closed" },
-      { value: "CANCELLED", label: "Cancelled" },
-    ],
-    "capa-aging": [
-      { value: "OPEN", label: "Open" },
-      { value: "IN_PROGRESS", label: "In Progress" },
-      { value: "PENDING_VERIFICATION", label: "Pending Verification" },
-      { value: "CLOSED", label: "Closed" },
-      { value: "CANCELLED", label: "Cancelled" },
-    ],
-  };
+const STATUS_OPTIONS: Record<
+  string,
+  ReadonlyArray<{ value: string; label: string }>
+> = {
+  "evidence-status": [
+    { value: "DRAFT", label: "Draft" },
+    { value: "SUBMITTED", label: "Submitted" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "REJECTED", label: "Rejected" },
+    { value: "ARCHIVED", label: "Archived" },
+  ],
+  risks: [
+    { value: "OPEN", label: "Open" },
+    { value: "UNDER_REVIEW", label: "Under Review" },
+    { value: "TREATED", label: "Treated" },
+    { value: "CLOSED", label: "Closed" },
+    { value: "ARCHIVED", label: "Archived" },
+  ],
+  gaps: [
+    { value: "OPEN", label: "Open" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "CLOSED", label: "Closed" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ],
+  "capa-aging": [
+    { value: "OPEN", label: "Open" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "PENDING_VERIFICATION", label: "Pending Verification" },
+    { value: "CLOSED", label: "Closed" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ],
+};
 
 /** GapSeverity — no MODERATE; OBSERVATION and OFI are first-class. */
 const SEVERITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
@@ -75,6 +78,15 @@ const humanise = (code: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const isFrameworkActiveInScope = (scopeStatus: string | null | undefined) =>
+  ["active - in scope", "certified"].includes(
+    scopeStatus
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/\s+/g, " ") ?? "",
+  );
+
 const cell = (value: unknown) => {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "number") return formatNumber(value);
@@ -96,6 +108,7 @@ export function ReportViewPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [frameworks, setFrameworks] = useState<Framework[]>([]);
+  const [registers, setRegisters] = useState<RegisterType[]>([]);
   const [downloading, setDownloading] = useState(false);
 
   const filters = useMemo(
@@ -108,6 +121,7 @@ export function ReportViewPage() {
       severity: searchParams.get("severity") ?? undefined,
       priority: searchParams.get("priority") ?? undefined,
       period: searchParams.get("period") ?? undefined,
+      registerCode: searchParams.get("registerCode") ?? undefined,
     }),
     [searchParams],
   );
@@ -122,7 +136,12 @@ export function ReportViewPage() {
 
   const resource = useApiResource(
     () => reportApi.run(reportKey, filters),
-    [contextVersion, user?.activeCompany.id, reportKey, searchParams.toString()],
+    [
+      contextVersion,
+      user?.activeCompany.id,
+      reportKey,
+      searchParams.toString(),
+    ],
   );
 
   useEffect(() => {
@@ -138,10 +157,24 @@ export function ReportViewPage() {
     void frameworkApi
       .list()
       .then((rows) => {
-        if (active) setFrameworks(rows);
+        if (active) {
+          setFrameworks(
+            rows.filter((framework) =>
+              isFrameworkActiveInScope(framework.scopeStatus),
+            ),
+          );
+        }
       })
       .catch(() => {
         if (active) setFrameworks([]);
+      });
+    void registerApi
+      .listTypes(1, 100)
+      .then((result) => {
+        if (active) setRegisters(result.data);
+      })
+      .catch(() => {
+        if (active) setRegisters([]);
       });
     return () => {
       active = false;
@@ -196,7 +229,7 @@ export function ReportViewPage() {
     <div className="page">
       <PageHeader
         title={definition?.name ?? data?.name ?? "Report"}
-        section="Audit & Reporting"
+        section="Analytics & Reports"
         description={
           definition?.description ??
           "Tenant-scoped report built from live PostgreSQL data."
@@ -213,8 +246,7 @@ export function ReportViewPage() {
               disabled={downloading || !data}
               onClick={() => void download()}
             >
-              <Download size={15} />{" "}
-              {downloading ? "Exporting…" : "Export CSV"}
+              <Download size={15} /> {downloading ? "Exporting…" : "Export CSV"}
             </button>
           </>
         }
@@ -350,6 +382,33 @@ export function ReportViewPage() {
               </select>
             </label>
           ) : null}
+          {available.includes("registerCode") ? (
+            <label className="toolbar-select">
+              <span className="sr-only">Operational register</span>
+              <select
+                className="control"
+                value={filters.registerCode ?? ""}
+                aria-label="Filter by operational register"
+                onChange={(event) => update("registerCode", event.target.value)}
+              >
+                <option value="">All operational registers</option>
+                {registers.map((register) => (
+                  <option key={register.code} value={register.code}>
+                    {register.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {searchParams.size > 0 ? (
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setSearchParams(new URLSearchParams())}
+            >
+              <RotateCcw size={15} /> Clear filters
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -390,7 +449,7 @@ export function ReportViewPage() {
                     key: point.label,
                     label: humanise(point.label),
                     count: point.value ?? 0,
-                    colour: STATUS_COLOURS[point.label] ?? "#2563eb",
+                    colour: STATUS_COLOURS[point.label] ?? "var(--accent)",
                   }))}
                 />
               ) : (
@@ -404,7 +463,7 @@ export function ReportViewPage() {
                     value: point.value,
                     max: data.chart!.valueSuffix === "%" ? 100 : chartMax,
                     note: "Not available",
-                    colour: "#2563eb",
+                    colour: "var(--accent)",
                   }))}
                 />
               )}
@@ -433,8 +492,7 @@ export function ReportViewPage() {
               <div className="table-wrap">
                 <table className="data-table">
                   <caption>
-                    {data.name} — generated{" "}
-                    {formatDateTime(data.generatedAt)}
+                    {data.name} — generated {formatDateTime(data.generatedAt)}
                   </caption>
                   <thead>
                     <tr>

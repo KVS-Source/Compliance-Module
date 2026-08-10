@@ -100,7 +100,7 @@ export const organisationImporter: SheetImporter = {
 
       if (payload.businessUnit) {
         const code = codeFromLabel(payload.businessUnit);
-        await context.tx.orgUnit.upsert({
+        const orgUnit = await context.tx.orgUnit.upsert({
           where: { tenantId_code: { tenantId: context.tenantId, code } },
           update: { name: payload.businessUnit },
           create: {
@@ -108,14 +108,16 @@ export const organisationImporter: SheetImporter = {
             code,
             name: payload.businessUnit,
           },
+          select: { id: true },
         });
+        context.orgUnits.set(payload.businessUnit.toLowerCase(), orgUnit.id);
       }
       if (payload.location) {
         const code = codeFromLabel(payload.location);
         // `Thane (India)` carries the country in brackets.
         const country = /\(([^)]+)\)/.exec(payload.location)?.[1] ?? null;
         const city = payload.location.replace(/\s*\([^)]*\)\s*/, "").trim();
-        await context.tx.orgLocation.upsert({
+        const orgLocation = await context.tx.orgLocation.upsert({
           where: { tenantId_code: { tenantId: context.tenantId, code } },
           update: { name: payload.location, city, country },
           create: {
@@ -125,7 +127,10 @@ export const organisationImporter: SheetImporter = {
             city,
             country,
           },
+          select: { id: true },
         });
+        context.orgLocations.set(payload.location.toLowerCase(), orgLocation.id);
+        context.orgLocations.set(code.toLowerCase(), orgLocation.id);
       }
 
       const existing = await context.tx.orgDepartment.findUnique({
