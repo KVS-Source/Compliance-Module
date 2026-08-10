@@ -19,7 +19,7 @@ import type { SharedMasterProvider } from "../../providers/shared-master/provide
 import { exportFilename } from "../exports/csv.js";
 import type { UsersRepository } from "./repository.js";
 import type { UserImportService } from "./import-service.js";
-import { UserSessionService } from "./session-service.js";
+import type { UserSessionService } from "./session-service.js";
 import {
   MAX_USER_IMPORT_BYTES,
   MAX_USER_IMPORT_ROWS,
