@@ -189,6 +189,14 @@ export class KpiActualService {
     private readonly performanceService: KpiPerformanceService,
     private readonly riskService: RiskService,
     private readonly evidenceGate: EvidenceGateService,
+    private readonly delegation?: {
+      mayActAsApprover: (
+        tenantId: string,
+        configuredApproverId: string | null | undefined,
+        actorUserId: string,
+        at?: Date,
+      ) => Promise<boolean>;
+    },
   ) {}
 
   async listActuals(
@@ -390,13 +398,18 @@ export class KpiActualService {
     );
   }
 
-  private assertDecisionActor(actual: KpiActualRecord, actorUserId: string) {
+  private async assertDecisionActor(
+    actual: KpiActualRecord,
+    actorUserId: string,
+    tenantId: string,
+  ) {
     if (
       actual.approvalStatus !== "SUBMITTED" &&
       actual.approvalStatus !== "PENDING_APPROVAL"
     ) {
       throw invalidActualState("KPI actual is not pending approval");
     }
+    // Maker-checker: submitter never decides, even with a live delegation.
     if (actual.submittedById === actorUserId) {
       throw forbidden("KPI actual self-approval is forbidden");
     }
@@ -404,12 +417,21 @@ export class KpiActualService {
     const configuredApproverFallback =
       configuredApproverId !== null &&
       configuredApproverId === actual.submittedById;
-    if (
-      configuredApproverId &&
-      !configuredApproverFallback &&
-      configuredApproverId !== actorUserId
-    ) {
-      throw forbidden("Only the configured KPI actual approver may decide");
+    if (configuredApproverId && !configuredApproverFallback) {
+      const allowed =
+        configuredApproverId === actorUserId ||
+        (this.delegation
+          ? await this.delegation.mayActAsApprover(
+              tenantId,
+              configuredApproverId,
+              actorUserId,
+            )
+          : false);
+      if (!allowed) {
+        throw forbidden(
+          "Only the configured KPI actual approver (or their live delegate) may decide",
+        );
+      }
     }
     return configuredApproverFallback;
   }
@@ -455,9 +477,10 @@ export class KpiActualService {
           approverId: lockedConfig[0].approver_id,
         },
       };
-      const configuredApproverFallback = this.assertDecisionActor(
+      const configuredApproverFallback = await this.assertDecisionActor(
         decisionActual,
         actorUserId,
+        tenantId,
       );
 
       // Gate before decision/approval audit; holds Evidence FOR SHARE until commit.
@@ -521,9 +544,10 @@ export class KpiActualService {
     return this.repository.runWorkflowTransaction(async (transaction) => {
       const existing = await transaction.findWorkflowActual(tenantId, id);
       if (!existing) throw actualNotFound();
-      const configuredApproverFallback = this.assertDecisionActor(
+      const configuredApproverFallback = await this.assertDecisionActor(
         existing,
         actorUserId,
+        tenantId,
       );
       const decidedAt = new Date();
       const actual = await transaction.decideActual(

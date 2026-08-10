@@ -20,7 +20,9 @@ routes require bearer authentication and active Company membership.
 | KPI catalogue/compatibility | `GET /kpi-definitions`; `GET /kpi-goals` (compatibility read only) |
 | KPI catalogue, analytics and traceability | `GET /kpis/catalogue`; `GET /kpis/frequencies`; `GET /kpis/analytics` (read-only, `kpis:read`); `GET /kpis/traceability` (read-only derived graph; requires `kpis:read`, `evidence:read`, `controls:read`, `frameworks:read`, `policies:read` and `risk:read`) |
 | Role and access profiles | `GET /access/profiles` (read-only, `users:read`; response states `mutable: false`); `GET /access/privilege-review` (`users:read`); `GET/PUT /access/users/:userId/roles` (read `users:read`, write `roles:assign`) |
-| Reports | `GET /reports` (catalogue with a per-report `available` flag); `GET /reports/:reportKey`; `GET /reports/:reportKey/export.csv`. `dashboard:read` plus the report's own module permission; CSV additionally requires `exports:read` |
+| Reports | `GET /reports` (catalogue with a per-report `available` flag); `GET /reports/:reportKey` (supports `asOf=YYYY-MM-DD` snapshot filter where listed); `GET /reports/:reportKey/export.csv`; `GET /reports/:reportKey/export.pdf`. `dashboard:read` plus the report's own module permission; CSV and PDF additionally require `exports:read` |
+| Approver delegations | `GET /delegations` (`users:read`); `POST /delegations` (self-service window for the caller); `POST /delegations/:id/revoke`. Live windows let a delegate approve on behalf of the configured approver; self-approval remains forbidden |
+| Evidence | `GET /evidence/:evidenceId/file?disposition=attachment\|inline` — `inline` for PDF/image preview; attachment remains the default download |
 | KPI configuration | `GET/POST /kpi-configurations`; `GET /kpi-configurations/threshold-defaults`; `GET/PATCH/DELETE /kpi-configurations/:id` |
 | KPI Targets | `GET/POST /kpi-targets`; `GET/PATCH/DELETE /kpi-targets/:id`; `POST /kpi-targets/:id/submit`; `/approve`; `/reject`; `/versions` |
 | KPI actuals | `GET/POST /kpi-actuals`; `GET /kpi-actuals/:id`; `POST /kpi-actuals/:id/approve`; `/reject`; `/resubmit` |

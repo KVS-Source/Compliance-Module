@@ -2199,7 +2199,8 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
     // columns (framework mapping, default data source, owner suggestion), plus
     // 20260807170000_kpi_configuration_source_owner for the traceable workbook
     // owner token on per-Company KPI configuration, plus
-    // 20260810120000_user_session_management for refresh-token client metadata.
-    expect(Number(migrationRows[0]?.count)).toBe(19);
+    // 20260810120000_user_session_management for refresh-token client metadata,
+    // plus 20260811200000_approver_delegation for out-of-office approval routing.
+    expect(Number(migrationRows[0]?.count)).toBe(20);
   });
 });

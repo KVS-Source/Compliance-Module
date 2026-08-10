@@ -260,6 +260,7 @@ model Tenant {
   externalConnections      ExternalSystemConnection[]
   externalRecordMaps       ExternalRecordMap[]
   syncRuns                 SyncRun[]
+  approverDelegations      ApproverDelegation[]
 
   @@map("tenants")
 }
@@ -354,9 +355,41 @@ model User {
   createdRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordCreatedBy")
   updatedRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordUpdatedBy")
   startedImportBatches      ImportBatch[]          @relation("ImportBatchUploadedBy")
+  delegationsAsDelegator    ApproverDelegation[]   @relation("DelegationDelegator")
+  delegationsAsDelegate     ApproverDelegation[]   @relation("DelegationDelegate")
+  delegationsCreated        ApproverDelegation[]   @relation("DelegationCreatedBy")
+  delegationsRevoked        ApproverDelegation[]   @relation("DelegationRevokedBy")
 
   @@index([status, createdAt])
   @@map("users")
+}
+
+/// Temporary out-of-office routing: the delegate may approve on behalf of the
+/// configured approver while the window is ACTIVE. Maker-checker still forbids
+/// a person approving their own submission even when they hold a delegation.
+model ApproverDelegation {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  delegatorUserId String       @map("delegator_user_id") @db.Uuid
+  delegateUserId  String       @map("delegate_user_id") @db.Uuid
+  startsAt        DateTime     @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime     @map("ends_at") @db.Timestamptz(6)
+  status          RecordStatus @default(ACTIVE)
+  reason          String?      @db.Text
+  createdById     String       @map("created_by_id") @db.Uuid
+  revokedAt       DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  revokedById     String?      @map("revoked_by_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  delegator       User         @relation("DelegationDelegator", fields: [delegatorUserId], references: [id], onDelete: Restrict)
+  delegate        User         @relation("DelegationDelegate", fields: [delegateUserId], references: [id], onDelete: Restrict)
+  createdBy       User         @relation("DelegationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  revokedBy       User?        @relation("DelegationRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, delegateUserId, status, startsAt, endsAt])
+  @@index([tenantId, delegatorUserId, status])
+  @@map("approver_delegations")
 }
 
 model UserCompany {

@@ -92,7 +92,10 @@ const stripControlChars = (value: string) =>
     })
     .join("");
 
-export const buildContentDisposition = (filename: string): string => {
+export const buildContentDisposition = (
+  filename: string,
+  disposition: "attachment" | "inline" = "attachment",
+): string => {
   const safe = stripControlChars(filename).replace(/["\\\r\n]/g, "_");
   const ascii = safe
     .replace(/[^\x20-\x7E]/g, "_")
@@ -102,7 +105,8 @@ export const buildContentDisposition = (filename: string): string => {
     .replace(/['()]/g, escape)
     .replace(/\*/g, "%2A");
   const fallback = ascii.length > 0 ? ascii : "evidence-file.bin";
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+  const kind = disposition === "inline" ? "inline" : "attachment";
+  return `${kind}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 };
 
 const assertTextPolicy = async (absolutePath: string) => {

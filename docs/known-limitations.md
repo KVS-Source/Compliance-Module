@@ -12,8 +12,12 @@ by UAT language or status-page presentation.
    production readiness can pass.
 2. PostgreSQL RLS is not implemented. Tenant isolation currently depends on
    application context/predicates plus database FKs, constraints and triggers.
-3. There is no automated browser-to-PostgreSQL E2E suite. Playwright intercepts
-   APIs; human real-stack verification remains required.
+3. A real-stack Playwright suite exists (`frontend/tests-real-stack` +
+   `playwright.real-stack.config.ts`, runner `frontend/scripts/run-real-stack-e2e.mjs`)
+   that exercises the browser against a live API and disposable PostgreSQL with
+   no `page.route` intercepts. The default mocked Playwright suite remains for
+   fast UI coverage. Human real-stack walkthroughs remain useful for release
+   candidates; the automated path covers the gap-evidence-gate critical flow.
 4. A production Compose fallback and HTTPS reverse-proxy configuration exist,
    but the actual server, DNS, certificate, secret manager, log destination,
    alerting and host/disk encryption still require human infrastructure inputs.
@@ -43,16 +47,17 @@ by UAT language or status-page presentation.
   a **read-only** catalogue of production profiles (no free-form permission
   editing). The Reports centre, KPI catalogue/analytics and Frequency master are
   operational but **read-only** for definitions; report scheduling/subscriptions
-  and PDF output remain deferred. Tasks, Notifications and tenant/settings polish
-  remain deferred and hidden from production navigation. Grid KPI actual entry,
-  Gap bulk actions, CAPA/Risk bulk actions, whole-row overdue cues, the
-  privilege access review, bulk user import and session management have
-  shipped (`a1f37d9`, `70989f2`, `1736809`, `7773818`, and this branch);
-  record comments and saved named views remain open (see
-  [completion plan](./status/completion-plan.md)).
-  Same-period Checkpoint Review correction remains unsupported. Live GenRAC
-  REST/database sync remains unavailable until the client provides approved
-  access; the CSV adapter path is platform-ready under
+  remain deferred. **PDF board-pack export** is available alongside CSV
+  (`exports:read` gates both). **As-of** snapshot filters are available on
+  reports. **Inline evidence preview** (PDF/image) is available on Evidence
+  detail. **Approver delegation** (`/delegations`) routes out-of-office
+  approvals without weakening maker-checker. Tasks, Notifications and
+  tenant/settings polish remain deferred and hidden from production navigation
+  unless another lane has shipped them. Grid KPI actual entry, Gap bulk
+  actions, CAPA/Risk bulk, privilege review, bulk user import and session
+  management have shipped. Same-period Checkpoint Review correction remains
+  unsupported. Live GenRAC REST/database sync remains unavailable until the
+  client provides approved access; the CSV adapter path is platform-ready under
   `LOCAL_UPLOAD_DIR/.genrac`.
 - Bulk user import gives every person in one batch the **same initial
   password**, chosen by the administrator at commit time. The template carries
@@ -83,12 +88,18 @@ by UAT language or status-page presentation.
   actual Evidence attachment UI is available on the approval page (Slice 5.6).
   Configurations cannot combine `requiresEvidence=true` with
   `requiresApproval=false`. There is no approval override that skips those
-  gates. Evidence file upload/download works for local storage only. Policy
-  content/purpose/scope render as plain text only. Evidence links are mutable
-  only while DRAFT. Evidence review is limited to SUBMITTED rows with
-  creator/uploader/submitter self-review blocked.
-- Playwright Policy, Control, Checkpoint and Evidence suites use mocked HTTP
-  only. Backend PostgreSQL integration tests remain the database authority.
+  gates. Evidence file upload/download works for **local** storage by default;
+  an **S3 driver** is implemented behind `FILE_STORAGE_DRIVER=s3` with signed
+  download URLs and a malware-scan hook, but **this environment has no AWS
+  credentials** — only unit tests against an in-memory fake client are green.
+  Do not treat S3 as production-verified. Inline preview supports PDF and
+  images via `?disposition=inline`. Policy content/purpose/scope render as
+  plain text only. Evidence links are mutable only while DRAFT. Evidence review
+  is limited to SUBMITTED rows with creator/uploader/submitter self-review
+  blocked.
+- Default Playwright suites for Policy, Control, Checkpoint and Evidence still
+  use mocked HTTP for speed. Backend PostgreSQL integration tests remain the
+  database authority. The real-stack suite (item 3) is additive.
 - Checkpoint reviews are append-only and unique per Checkpoint/review period. A
   mistaken review cannot currently be edited, deleted or replaced for that
   period; a formal correction/supersession mechanism is deferred.

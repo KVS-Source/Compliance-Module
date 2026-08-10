@@ -724,6 +724,7 @@ export class EvidenceService {
     actorUserId: string,
     res: Response,
     context: AuditContext,
+    options: { disposition?: "attachment" | "inline" } = {},
   ) {
     const evidence = await this.repository.findEvidence(tenantId, evidenceId);
     if (!evidence) throw evidenceNotFound();
@@ -742,6 +743,18 @@ export class EvidenceService {
       );
     }
 
+    const contentType =
+      evidence.detectedMimeType || evidence.mimeType || "application/octet-stream";
+    const filename = evidence.originalFileName || "evidence-file.bin";
+    const disposition = options.disposition ?? "attachment";
+
+    // Inline preview is only for types the browser can render safely without
+    // a download prompt. Everything else falls back to attachment.
+    const previewable =
+      contentType.startsWith("image/") || contentType === "application/pdf";
+    const effectiveDisposition =
+      disposition === "inline" && previewable ? "inline" : "attachment";
+
     let stream;
     try {
       stream = await this.storage.getStream(evidence.storageKey);
@@ -753,13 +766,17 @@ export class EvidenceService {
       );
     }
 
-    const contentType = evidence.detectedMimeType || evidence.mimeType || "application/octet-stream";
-    const filename =
-      evidence.originalFileName || "evidence-file.bin";
     res.status(200);
     res.setHeader("Content-Type", contentType);
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Content-Disposition", buildContentDisposition(filename));
+    res.setHeader(
+      "Content-Disposition",
+      buildContentDisposition(filename, effectiveDisposition),
+    );
+    // CSP for embedded preview contexts: block script execution in PDF viewers.
+    if (effectiveDisposition === "inline") {
+      res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; object-src 'self'; frame-ancestors 'self'");
+    }
     if (evidence.byteSize != null) {
       res.setHeader("Content-Length", String(evidence.byteSize));
     }

@@ -75,4 +75,11 @@ export const reportApi = {
       `report-${key}.csv`,
     );
   },
+  /** PDF board pack — same rows as the table/CSV; requires exports:read. */
+  downloadPdf(key: string, filters: Record<string, string | undefined>) {
+    return apiBlobRequest(
+      `/reports/${encodeURIComponent(key)}/export.pdf${query(filters)}`,
+      `report-${key}.pdf`,
+    );
+  },
 };

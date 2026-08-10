@@ -5,10 +5,14 @@ import { Readable } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   LocalFileStorageProvider,
+  S3FileStorageProvider,
   StoragePathError,
   buildEvidenceStorageKey,
+  createFileStorageProvider,
   resolveContainedStoragePath,
 } from "../src/providers/file-storage/file-storage.js";
+import { InMemoryS3Client } from "../src/providers/file-storage/s3-client-port.js";
+import { MalwareDetectedError } from "../src/providers/file-storage/malware-scan.js";
 
 describe("file storage path containment", () => {
   const roots: string[] = [];
@@ -118,5 +122,49 @@ describe("file storage path containment", () => {
     await expect(readFile(provider.resolveContainedPath(key), "utf8")).resolves.toBe(
       "promoted",
     );
+  });
+});
+
+describe("S3 file storage (fake client only — no live AWS credentials)", () => {
+  const key =
+    "11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222/66666666-6666-4666-8666-666666666666";
+
+  it("puts, gets, signs and deletes through an injected S3 client", async () => {
+    const client = new InMemoryS3Client();
+    const provider = createFileStorageProvider({
+      driver: "s3",
+      localRoot: "/unused",
+      s3: { bucket: "evidence-test", region: "us-east-1", client },
+    });
+    await provider.checkReady();
+    await provider.put(key, Buffer.from("s3-payload"), "application/pdf");
+    await expect(provider.get(key)).resolves.toEqual(Buffer.from("s3-payload"));
+    const signed = await provider.getSignedDownloadUrl!({
+      key,
+      expiresInSeconds: 60,
+      contentType: "application/pdf",
+      contentDisposition: 'inline; filename="evidence.pdf"',
+    });
+    expect(signed).toContain("https://s3.test.local/");
+    expect(signed).toContain("signature=test-signature");
+    await provider.delete(key);
+    await expect(provider.get(key)).rejects.toThrow(/Storage read failed/);
+  });
+
+  it("refuses uploads the malware hook rejects", async () => {
+    const client = new InMemoryS3Client();
+    const provider = new S3FileStorageProvider({
+      bucket: "evidence-test",
+      client,
+      malwareScan: async () => ({
+        clean: false,
+        engine: "unit-test",
+        detail: "Synthetic malware verdict",
+      }),
+    });
+    await expect(
+      provider.put(key, Buffer.from("bad"), "application/pdf"),
+    ).rejects.toBeInstanceOf(MalwareDetectedError);
+    expect(client.objects.size).toBe(0);
   });
 });

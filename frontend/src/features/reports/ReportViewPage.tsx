@@ -115,6 +115,7 @@ export function ReportViewPage() {
     () => ({
       from: searchParams.get("from") ?? undefined,
       to: searchParams.get("to") ?? undefined,
+      asOf: searchParams.get("asOf") ?? undefined,
       frameworkId: searchParams.get("frameworkId") ?? undefined,
       departmentId: searchParams.get("departmentId") ?? undefined,
       status: searchParams.get("status") ?? undefined,
@@ -190,11 +191,14 @@ export function ReportViewPage() {
     });
   };
 
-  const download = async () => {
+  const download = async (format: "csv" | "pdf" = "csv") => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const result = await reportApi.downloadCsv(reportKey, filters);
+      const result =
+        format === "pdf"
+          ? await reportApi.downloadPdf(reportKey, filters)
+          : await reportApi.downloadCsv(reportKey, filters);
       const objectUrl = URL.createObjectURL(result.blob);
       const anchor = document.createElement("a");
       anchor.href = objectUrl;
@@ -204,14 +208,18 @@ export function ReportViewPage() {
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
-      showToast("success", "CSV ready", `${result.fileName} was downloaded.`);
+      showToast(
+        "success",
+        format === "pdf" ? "PDF ready" : "CSV ready",
+        `${result.fileName} was downloaded.`,
+      );
     } catch (error) {
       showToast(
         "error",
         "Export failed",
         error instanceof Error
           ? error.message
-          : "Unable to download the report CSV.",
+          : "Unable to download the report export.",
       );
     } finally {
       setDownloading(false);
@@ -241,12 +249,22 @@ export function ReportViewPage() {
               <ArrowLeft size={15} /> Report Hub
             </Link>
             <button
+              className="btn btn-secondary"
+              type="button"
+              disabled={downloading || !data}
+              data-testid="report-export-csv"
+              onClick={() => void download("csv")}
+            >
+              <Download size={15} /> {downloading ? "Exporting…" : "Export CSV"}
+            </button>
+            <button
               className="btn btn-primary"
               type="button"
               disabled={downloading || !data}
-              onClick={() => void download()}
+              data-testid="report-export-pdf"
+              onClick={() => void download("pdf")}
             >
-              <Download size={15} /> {downloading ? "Exporting…" : "Export CSV"}
+              <Download size={15} /> {downloading ? "Exporting…" : "Export PDF"}
             </button>
           </>
         }
@@ -275,6 +293,19 @@ export function ReportViewPage() {
                 value={filters.to ?? ""}
                 aria-label="Filter to date"
                 onChange={(event) => update("to", event.target.value)}
+              />
+            </label>
+          ) : null}
+          {available.includes("asOf") ? (
+            <label className="toolbar-select">
+              <span className="sr-only">As-of date</span>
+              <input
+                className="control"
+                type="date"
+                value={filters.asOf ?? ""}
+                aria-label="As-of snapshot date"
+                title="Point-in-time: rows created after this date are excluded"
+                onChange={(event) => update("asOf", event.target.value)}
               />
             </label>
           ) : null}

@@ -125,10 +125,14 @@ limitations.
 | Item | Why | Related |
 | --- | --- | --- |
 | **In-app notifications** model + optional email transport | Approvals and overdue CAPAs are time-sensitive | Gap register: no external delivery; Settings must not claim email until true |
-| **Report scheduling, subscriptions, PDF / board pack** | Monthly pack rebuilt by hand today | Known limitations; ten reports already run on demand + CSV |
-| **Object storage (S3)** + signed download URLs | Local volume is deadline fallback, not multi-host production | Known limitations storage section |
-| **Malware scanning** on evidence upload | Evidence is the trust root for gates | Known limitations |
-| **Inline file preview** (PDF/image) | Download-only friction for reviewers | Known limitations |
+| **Report scheduling, subscriptions** | Monthly pack rebuilt by hand today | PDF board pack and as-of filters shipped; scheduling still deferred |
+| **PDF / board pack** | On-demand board pack | **Shipped** — `GET /reports/:key/export.pdf` (`exports:read`) |
+| **As-of snapshot reports** | Point-in-time board questions | **Shipped** — `asOf` filter on report catalogue (derived from live tables) |
+| **Object storage (S3)** + signed download URLs | Local volume is deadline fallback | **Driver shipped** with fake-client unit tests; **not live-AWS verified** (no credentials) |
+| **Malware scanning** on evidence upload | Evidence is the trust root for gates | **Hook shipped** (noop default); no real scanner in this environment |
+| **Inline file preview** (PDF/image) | Download-only friction for reviewers | **Shipped** — `disposition=inline` + Evidence detail preview |
+| **Approver delegation** | Approvals block when approver is away | **Shipped** — `/delegations`; maker-checker preserved |
+| **Browser-to-PostgreSQL E2E** | Playwright mocks only | **Shipped** — `tests-real-stack` + `test:e2e:real-stack` runner |
 | **Browser-to-PostgreSQL E2E** (no API mocks) | Playwright proves UI against intercepts; human real-stack is still required | Limitation 3; Phase 3 of the old plan |
 | **Production bring-up** | TLS, DNS, secrets, log destination, alerting, disk encryption, RPO/RTO drill | Limitations 4–5; external inputs |
 | **GitHub branch protection evidence** | Workflow file alone is not protection | Limitation 6 |
