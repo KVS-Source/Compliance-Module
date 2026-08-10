@@ -155,9 +155,9 @@ assessor expectations.
 
 | Item | Why | Related |
 | --- | --- | --- |
-| **Pseudonymisation / right to erasure** | DPDPA/GDPR in framework list; offboarding ≠ erasure | [Gap register §3](../handover/gap-register.md#3-data-removal-and-the-right-to-erasure) |
-| **PostgreSQL RLS** | Defence in depth; missed predicate has no DB backstop | Limitation 2; old Phase 4 |
-| **SSO (SAML/OIDC) + MFA / step-up for approvals** | Enterprise identity baseline | Not started |
+| **Pseudonymisation / right to erasure** | DPDPA/GDPR in framework list; offboarding ≠ erasure | **Not started — deferred to V2.** Audit events are append-only by design, so erasure is pseudonymisation of personal fields, not history deletion. See [gap register §3](../handover/gap-register.md#3-data-removal-and-the-right-to-erasure) |
+| **PostgreSQL RLS** | Defence in depth; missed predicate has no DB backstop | **Policies shipped and proven, not activated** — see [limitation 2](../known-limitations.md); activation is a deployment step |
+| **SSO (SAML/OIDC) + MFA / step-up for approvals** | Enterprise identity baseline | **Not started — deferred to V2.** SSO additionally needs an identity provider that does not exist in this environment |
 | **Configurable master data tables** | Frequencies, evidence types, report definitions are code enums today | [Gap register §2](../handover/gap-register.md#2-data-dictionary--32-of-46-tables-implemented) |
 
 ### Product modules
