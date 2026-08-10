@@ -44,14 +44,25 @@ by UAT language or status-page presentation.
   editing). The Reports centre, KPI catalogue/analytics and Frequency master are
   operational but **read-only** for definitions; report scheduling/subscriptions
   and PDF output remain deferred. Tasks, Notifications and tenant/settings polish
-  remain deferred and hidden from production navigation. Grid KPI actual entry
-  and Gap bulk actions shipped (`a1f37d9`, `70989f2`); CAPA/Risk bulk, bulk user
-  import, session management, privilege access review and related V1.1 strong
-  additions remain open (see [completion plan](./status/completion-plan.md)).
+  remain deferred and hidden from production navigation. Grid KPI actual entry,
+  Gap bulk actions, CAPA/Risk bulk actions, whole-row overdue cues, the
+  privilege access review and bulk user import have shipped (`a1f37d9`,
+  `70989f2`, `1736809`, and this branch); session management UI, record
+  comments and saved named views remain open (see
+  [completion plan](./status/completion-plan.md)).
   Same-period Checkpoint Review correction remains unsupported. Live GenRAC
   REST/database sync remains unavailable until the client provides approved
   access; the CSV adapter path is platform-ready under
   `LOCAL_UPLOAD_DIR/.genrac`.
+- Bulk user import gives every person in one batch the **same initial
+  password**, chosen by the administrator at commit time. The template carries
+  no password column and the API returns no generated credentials, so nothing
+  can leak through a spreadsheet or a response body; the cost is a shared
+  starting secret until the administrator has each person change it. The import
+  dialog states this in place rather than hiding it. Per-user invitations
+  become possible once email transport lands (V1.5). Imported rows may also be
+  staged as `INVITED`, which cannot sign in at all until an administrator makes
+  them `ACTIVE`.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Register filter and sort state is URL-synced for Gaps, CAPAs, Risks,
   Evidence, Controls, Checkpoints, Policies, Operational Registers and Users.

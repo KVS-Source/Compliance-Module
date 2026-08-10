@@ -1,4 +1,4 @@
-import { ShieldCheck, UserPlus } from "lucide-react";
+import { ShieldCheck, Upload, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -18,6 +18,7 @@ import { ApiError } from "../../services/apiClient";
 import { masterDataApi } from "../../services/masterDataApi";
 import type { CompanyUser } from "../../types/api";
 import { UserFormModal } from "./UserFormModal";
+import { UserImportModal } from "./UserImportModal";
 
 const roleName = (role: CompanyUser["roles"][number]) =>
   typeof role === "string" ? role : role.name;
@@ -34,6 +35,7 @@ export function UsersPage() {
   const [editor, setEditor] = useState<
     null | { mode: "create" } | { mode: "edit"; user: CompanyUser }
   >(null);
+  const [importing, setImporting] = useState(false);
 
   const { values, orderBy, order, updateParams, toggleSort } =
     useRegisterQueryState({
@@ -169,19 +171,31 @@ export function UsersPage() {
         primaryLabel={canWrite ? "Add User" : undefined}
         onPrimary={canWrite ? () => setEditor({ mode: "create" }) : undefined}
         actions={
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() =>
-              showToast(
-                "info",
-                "Role authority",
-                "Database roles and permissions determine access in the active Company.",
-              )
-            }
-          >
-            <ShieldCheck size={15} /> Review access
-          </button>
+          <>
+            {canWrite ? (
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={() => setImporting(true)}
+                data-testid="users-import"
+              >
+                <Upload size={15} /> Import users
+              </button>
+            ) : null}
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() =>
+                showToast(
+                  "info",
+                  "Role authority",
+                  "Database roles and permissions determine access in the active Company.",
+                )
+              }
+            >
+              <ShieldCheck size={15} /> Review access
+            </button>
+          </>
         }
       />
       <SearchToolbar
@@ -280,6 +294,22 @@ export function UsersPage() {
             </div>
           </dl>
         </Modal>
+      ) : null}
+      {importing ? (
+        <UserImportModal
+          canAssignRole={canAssignRole}
+          onClose={() => setImporting(false)}
+          onImported={(report) => {
+            setListVersion((value) => value + 1);
+            showToast(
+              report.failed > 0 ? "info" : "success",
+              report.failed > 0
+                ? "Import finished with skipped rows"
+                : "Users imported",
+              `${report.created} created · ${report.failed} skipped · ${report.rolesAssigned} role${report.rolesAssigned === 1 ? "" : "s"} assigned for ${user?.activeCompany.name ?? "the active Company"}.`,
+            );
+          }}
+        />
       ) : null}
       {editor ? (
         <UserFormModal

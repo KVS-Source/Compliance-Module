@@ -13,11 +13,12 @@ routes require bearer authentication and active Company membership.
 | Auth | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me`; `POST /auth/tenant-context` |
 | Companies/dashboard | `GET /tenants`; `GET /dashboard/summary` |
 | Users | `GET /users`; `GET /users/:id`; `POST /users`; `PATCH /users/:id` |
+| Bulk user import | `GET /users/import/template` and `GET /users/import/template.csv` (`users:read`); `POST /users/import/preview` (dry run, `users:write`); `POST /users/import/commit` (`users:write`, plus `roles:assign` when any row carries a role). The file carries no password: `initialPassword` is supplied with the commit request and is never returned |
 | Organisation | `GET/POST /organisation/departments`; `PATCH /organisation/departments/:id`; equivalent `locations` and `units` paths |
 | Frameworks | `GET /frameworks`; `GET /frameworks/:id`; `GET /frameworks/:id/rules` |
 | KPI catalogue/compatibility | `GET /kpi-definitions`; `GET /kpi-goals` (compatibility read only) |
 | KPI catalogue, analytics and traceability | `GET /kpis/catalogue`; `GET /kpis/frequencies`; `GET /kpis/analytics` (read-only, `kpis:read`); `GET /kpis/traceability` (read-only derived graph; requires `kpis:read`, `evidence:read`, `controls:read`, `frameworks:read`, `policies:read` and `risk:read`) |
-| Role and access profiles | `GET /access/profiles` (read-only, `users:read`; response states `mutable: false`) |
+| Role and access profiles | `GET /access/profiles` (read-only, `users:read`; response states `mutable: false`); `GET /access/privilege-review` (`users:read`); `GET/PUT /access/users/:userId/roles` (read `users:read`, write `roles:assign`) |
 | Reports | `GET /reports` (catalogue with a per-report `available` flag); `GET /reports/:reportKey`; `GET /reports/:reportKey/export.csv`. `dashboard:read` plus the report's own module permission; CSV additionally requires `exports:read` |
 | KPI configuration | `GET/POST /kpi-configurations`; `GET /kpi-configurations/threshold-defaults`; `GET/PATCH/DELETE /kpi-configurations/:id` |
 | KPI Targets | `GET/POST /kpi-targets`; `GET/PATCH/DELETE /kpi-targets/:id`; `POST /kpi-targets/:id/submit`; `/approve`; `/reject`; `/versions` |

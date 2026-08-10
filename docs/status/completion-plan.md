@@ -49,6 +49,7 @@ found.
 | Create Company from UI | `80c8a3c` | `POST /tenants` + UI; caller becomes administrator of the new empty Company; `tenants:write`. |
 | Grid KPI actual entry | `a1f37d9` | Grid mode on KPI Actual Entry; rows submit one-by-one to `POST /kpi-actuals` so RAG, auto-risk and audit stay per record; mixed outcomes do not discard valid neighbours. |
 | Bulk actions (Gap Register) | `70989f2` | Select rows; reassign owner, set due date, close (`gaps:close` gated). Per-record endpoints only; toast survives register reload. |
+| Bulk user import | (this branch) | Approved CSV template, server-side dry-run preview with a per-row verdict, then one governed create per row. Role column accepts only sanctioned profile codes or names; `roles:assign` is required before any row may carry one. |
 
 **Exit criterion for Phase 1 (met).** A Company Administrator can create a user,
 assign a sanctioned role, and that user signs in to a correctly scoped
@@ -98,7 +99,7 @@ per-record permissions and audit events.
 | **Bulk actions on CAPA and Risk** | Same bar already exists | **Shipped** — CAPA owner/due-date/close; Risk owner (`risk:treat`) + close (`risk:close`) |
 | **Privilege access review report** | Auditor question: who holds `roles:assign`, who can approve | **Shipped** — `GET /access/privilege-review` + Role & Access section |
 | **Overdue visual cues** on list rows | Whole-row highlight beyond date text | **Shipped** — `register-row-overdue` on Gap/CAPA table rows and cards |
-| **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | CSV template + validation + role column limited to production profile codes |
+| **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | **Shipped** — `GET /users/import/template(.csv)`, `POST /users/import/preview` (dry run), `POST /users/import/commit`; role column limited to production profile codes; see [initial password note](#bulk-user-import-initial-password) |
 | **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | Complements disable-user; audit every revocation |
 | **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | Append-only comments; no silent edit of history |
 | **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
@@ -198,6 +199,30 @@ Documented so successors do not “fix” intentional design:
 - **GenRAC honesty** — do not claim live REST/DB until configured and approved.
 - Report scheduling, PDF, S3, malware scan, Tasks, Policy obsoletion, same-period checkpoint correction — deferred product decisions in
   [known limitations](../known-limitations.md), not incomplete stubs pretending to work.
+
+### Bulk user import initial password
+
+The import template carries **no password column**, and the platform returns
+**no generated credentials**. The administrator types one initial password with
+the commit request; it is hashed per user with a distinct salt and never
+echoed, logged or stored in plaintext.
+
+This is a deliberate trade-off, not an oversight:
+
+- A password column would put plaintext credentials in a spreadsheet that gets
+  emailed around an office and left on disk.
+- Per-user generated passwords would have to be returned in a response, which
+  contradicts the platform's own rule that `password` never appears in a
+  response body (`backend/tests/secret-safe-assertions.ts`).
+- One administrator-chosen password matches the existing `POST /users`
+  contract exactly, so bulk import adds no new credential-handling surface.
+
+The cost is that everyone in one batch starts with the same password. The
+dialog says so plainly and tells the administrator to distribute it privately
+and require a change at first sign-in. Per-user credentials become the better
+answer once email transport lands (V1.5) and an invitation can be delivered
+instead of read out. Recorded in
+[known limitations](../known-limitations.md).
 
 ---
 

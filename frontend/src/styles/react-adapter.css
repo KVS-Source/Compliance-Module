@@ -2389,3 +2389,56 @@ a.kpi-trace-node:focus-visible {
   border-color: var(--blue-500);
   background: var(--blue-50);
 }
+
+/* Bulk user import: three visible steps inside one dialog, so an
+   administrator can see the template rule, the per-row verdict and the
+   credential warning without leaving the review. */
+.user-import {
+  display: grid;
+  gap: 20px;
+}
+/* The review table carries prose reasons per row, so this dialog needs more
+   width than the shared wide modal before the Result column has to scroll. */
+.modal-wide:has(.user-import) {
+  width: min(1000px, 100%);
+}
+.user-import-step {
+  display: grid;
+  gap: 10px;
+}
+.user-import-step h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.user-import-step > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.user-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+/* The file input is driven by its label so it matches the button styling. */
+.user-import-file {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.user-import-file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.user-import-errors {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.2rem;
+  color: var(--red-700);
+  font-size: 12px;
+}

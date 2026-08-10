@@ -14,8 +14,18 @@ import {
 import { created, ok, pageMeta } from "../../common/responses/envelope.js";
 import { listOrderFields } from "../../common/list-order.js";
 import { paginationSchema } from "../../common/responses/pagination.js";
+import { importUploadRateLimiter } from "../../common/middleware/rate-limit.js";
 import type { SharedMasterProvider } from "../../providers/shared-master/provider.js";
+import { exportFilename } from "../exports/csv.js";
 import type { UsersRepository } from "./repository.js";
+import type { UserImportService } from "./import-service.js";
+import {
+  MAX_USER_IMPORT_BYTES,
+  MAX_USER_IMPORT_ROWS,
+  USER_IMPORT_STATUSES,
+  userImportTemplate,
+  userImportTemplateBody,
+} from "./import-template.js";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
@@ -49,6 +59,40 @@ const createUserSchema = z.object({
   status: statusSchema.default("ACTIVE"),
   departmentId: z.string().uuid().nullable().optional(),
 });
+
+const importPreviewSchema = z
+  .object({
+    csv: z.string().min(1).max(MAX_USER_IMPORT_BYTES),
+  })
+  .strict();
+
+const importCommitSchema = z
+  .object({
+    /**
+     * Supplied by the administrator with the request, never carried in the
+     * uploaded file and never returned. Same strength rule as every other
+     * password the platform stores.
+     */
+    initialPassword: passwordSchema,
+    rows: z
+      .array(
+        z
+          .object({
+            line: z.number().int().min(1).max(MAX_USER_IMPORT_ROWS).optional(),
+            code: z.string().trim().min(1).max(64),
+            name: z.string().trim().min(1).max(200),
+            email: z.string().trim().min(1).max(254),
+            phone: z.string().trim().max(64).nullable().optional(),
+            departmentId: z.string().uuid().nullable().optional(),
+            roleCode: z.string().trim().max(64).nullable().optional(),
+            status: z.enum(USER_IMPORT_STATUSES).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(MAX_USER_IMPORT_ROWS),
+  })
+  .strict();
 
 const updateUserSchema = z
   .object({
@@ -267,15 +311,89 @@ export class UsersController {
   };
 }
 
+/**
+ * Bulk import sits on its own sub-router mounted before `/:id`, so the literal
+ * `import` segment is never parsed as a user identifier.
+ */
+const userImportRoutes = (service: UserImportService) => {
+  const router = Router();
+
+  router.get(
+    "/template",
+    permit("users:read"),
+    asyncHandler(async (_req: Request, res: Response) =>
+      ok(res, userImportTemplate()),
+    ),
+  );
+
+  router.get(
+    "/template.csv",
+    permit("users:read"),
+    asyncHandler(async (_req: Request, res: Response) => {
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${exportFilename("user-import-template")}"`,
+      );
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      return res.send(userImportTemplateBody());
+    }),
+  );
+
+  router.post(
+    "/preview",
+    permit("users:write"),
+    importUploadRateLimiter(),
+    validate(importPreviewSchema),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(
+        res,
+        await service.preview(
+          req.auth!.tenantId,
+          req.auth!.permissions,
+          String(req.body.csv),
+        ),
+      ),
+    ),
+  );
+
+  router.post(
+    "/commit",
+    permit("users:write"),
+    importUploadRateLimiter(),
+    validate(importCommitSchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const userAgent = req.get("user-agent");
+      return ok(
+        res,
+        await service.commit(
+          req.auth!.tenantId,
+          req.auth!.userId,
+          req.auth!.permissions,
+          req.body as z.infer<typeof importCommitSchema>,
+          {
+            ...(req.ip ? { ip: req.ip } : {}),
+            ...(userAgent ? { userAgent } : {}),
+          },
+        ),
+      );
+    }),
+  );
+
+  return router;
+};
+
 export const usersRoutes = (
   provider: SharedMasterProvider,
   repository: UsersRepository,
+  userImports: UserImportService,
 ) => {
   const router = Router();
   const controller = new UsersController(
     new UsersService(provider, repository),
   );
   router.use(authenticate);
+  router.use("/import", userImportRoutes(userImports));
   router.get(
     "/",
     permit("users:read"),

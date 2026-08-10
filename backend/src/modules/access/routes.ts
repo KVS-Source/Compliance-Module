@@ -13,7 +13,10 @@ import {
   PRODUCTION_PERMISSIONS,
   isProductionRoleCode,
 } from "../../production/access-profile.js";
-import { RoleAssignmentService } from "./role-assignment-service.js";
+import {
+  bindUserToProductionRole,
+  provisionProductionRole,
+} from "./role-provisioning.js";
 
 const userParamsSchema = z.object({ userId: z.string().uuid() });
 const assignmentSchema = z.object({
@@ -273,71 +276,19 @@ export class AccessProfileService {
       );
     }
 
-    const profile = PRODUCTION_ACCESS_PROFILES[roleCode];
     return this.db.$transaction(async (transaction) => {
-      const permissionIds = new Map<string, string>();
-      for (const [code, description] of PRODUCTION_PERMISSIONS) {
-        const permission = await transaction.permission.upsert({
-          where: { code },
-          update: { name: description },
-          create: { code, name: description },
-        });
-        permissionIds.set(code, permission.id);
-      }
-
-      const role = await transaction.role.upsert({
-        where: { tenantId_code: { tenantId, code: roleCode } },
-        update: {
-          name: profile.name,
-          description: profile.description,
-          status: "ACTIVE",
-        },
-        create: {
-          tenantId,
-          code: roleCode,
-          name: profile.name,
-          description: profile.description,
-          status: "ACTIVE",
-        },
-      });
-
-      await transaction.rolePermission.deleteMany({
-        where: {
-          roleId: role.id,
-          permission: { code: { notIn: [...profile.permissions] } },
-        },
-      });
-      for (const permissionCode of profile.permissions) {
-        const permissionId = permissionIds.get(permissionCode);
-        if (!permissionId) {
-          throw new Error(
-            `Permission catalogue is incomplete: ${permissionCode}`,
-          );
-        }
-        await transaction.rolePermission.upsert({
-          where: { roleId_permissionId: { roleId: role.id, permissionId } },
-          update: {},
-          create: { roleId: role.id, permissionId },
-        });
-      }
-
-      const disabled = await transaction.userRole.updateMany({
-        where: {
+      const role = await provisionProductionRole(
+        transaction,
+        tenantId,
+        roleCode,
+      );
+      const { assignment, disabledAssignmentCount } =
+        await bindUserToProductionRole(transaction, {
           userId,
           tenantId,
-          roleId: { not: role.id },
-          status: "ACTIVE",
-        },
-        data: { status: "DISABLED" },
-      });
-      const assignment = await new RoleAssignmentService(
-        transaction,
-      ).upsertActive({
-        userId,
-        roleId: role.id,
-        tenantId,
-        assignedBy: actorUserId,
-      });
+          roleId: role.id,
+          assignedBy: actorUserId,
+        });
 
       await transaction.auditEvent.create({
         data: {
@@ -350,7 +301,7 @@ export class AccessProfileService {
             assignmentId: assignment.id,
             roleCode,
             roleId: role.id,
-            disabledAssignmentCount: disabled.count,
+            disabledAssignmentCount,
           } as Prisma.InputJsonValue,
           ...(context.ip ? { ipAddress: context.ip } : {}),
           ...(context.userAgent ? { userAgent: context.userAgent } : {}),

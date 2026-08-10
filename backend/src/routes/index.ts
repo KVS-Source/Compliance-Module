@@ -6,6 +6,7 @@ import { AuthRepository } from "../modules/auth/repository.js";
 import { AuthService } from "../modules/auth/service.js";
 import { tenantsRoutes } from "../modules/tenants/routes.js";
 import { usersRoutes } from "../modules/users/routes.js";
+import { UserImportService } from "../modules/users/import-service.js";
 import { UsersRepository } from "../modules/users/repository.js";
 import { organisationRoutes } from "../modules/organisation/routes.js";
 import { OrganisationRepository } from "../modules/organisation/repository.js";
@@ -105,6 +106,8 @@ export const apiRoutes = (
   const reports = new ReportService(db);
   const kpiCatalogue = new KpiCatalogueService(db);
   const accessProfiles = new AccessProfileService(db);
+  const usersRepository = new UsersRepository(db);
+  const userImports = new UserImportService(db, usersRepository);
   const auditTrail = new AuditTrailService(db);
   const genrac = new GenracSyncService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
@@ -165,7 +168,7 @@ export const apiRoutes = (
   router.use(authenticate, authorizeTenantContext(db));
   router.use("/tenants", tenantsRoutes(provider, db));
   router.use("/dashboard", dashboardRoutes(dashboard));
-  router.use("/users", usersRoutes(provider, new UsersRepository(db)));
+  router.use("/users", usersRoutes(provider, usersRepository, userImports));
   router.use(
     "/organisation",
     organisationRoutes(provider, new OrganisationRepository(db)),

@@ -301,6 +301,71 @@ export interface CreateUserInput {
   departmentId?: string | null;
 }
 
+export interface UserImportTemplate {
+  headers: string[];
+  maxRows: number;
+  statuses: UserStatus[];
+  roles: Array<{ code: string; name: string }>;
+}
+
+/** A row the API validated and is willing to create. */
+export interface UserImportCandidate {
+  line: number;
+  code: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  roleCode: string | null;
+  status: UserStatus;
+}
+
+export interface UserImportPreviewRow {
+  line: number;
+  valid: boolean;
+  errors: string[];
+  /** The raw cells as they were read, so an invalid row is still legible. */
+  source: {
+    line: number;
+    code: string;
+    name: string;
+    email: string;
+    phone: string;
+    department: string;
+    role: string;
+    status: string;
+  } | null;
+  candidate: UserImportCandidate | null;
+}
+
+export interface UserImportPreview {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  canAssignRoles: boolean;
+  rows: UserImportPreviewRow[];
+}
+
+export interface UserImportResult {
+  line: number;
+  code: string;
+  email: string;
+  outcome: "CREATED" | "FAILED";
+  userId?: string;
+  roleCode?: string;
+  roleAssigned?: boolean;
+  errors?: string[];
+}
+
+export interface UserImportReport {
+  totalRows: number;
+  created: number;
+  failed: number;
+  rolesAssigned: number;
+  results: UserImportResult[];
+}
+
 export interface UpdateUserInput {
   name?: string;
   email?: string;
