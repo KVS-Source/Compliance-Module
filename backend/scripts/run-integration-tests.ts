@@ -38,6 +38,7 @@ const INTEGRATION_FILES = [
   "tests/users-write.test.ts",
   "tests/user-import-api.test.ts",
   "tests/user-sessions-api.test.ts",
+  "tests/record-comments-api.test.ts",
   "tests/organisation-write.test.ts",
   "tests/kpi-management.test.ts",
   "tests/kpi-actuals.test.ts",

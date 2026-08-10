@@ -261,6 +261,9 @@ model Tenant {
   externalRecordMaps       ExternalRecordMap[]
   syncRuns                 SyncRun[]
   recordComments           RecordComment[]
+  savedViews               SavedView[]
+  notifications            Notification[]
+  tasks                    Task[]
 
   @@map("tenants")
 }
@@ -356,6 +359,11 @@ model User {
   createdRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordCreatedBy")
   updatedRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordUpdatedBy")
   startedImportBatches      ImportBatch[]          @relation("ImportBatchUploadedBy")
+  savedViews                SavedView[]             @relation("SavedViewOwner")
+  notifications             Notification[]          @relation("NotificationRecipient")
+  ownedTasks                Task[]                  @relation("TaskOwner")
+  createdTasks              Task[]                  @relation("TaskCreatedBy")
+  updatedTasks              Task[]                  @relation("TaskUpdatedBy")
 
   @@index([status, createdAt])
   @@map("users")
@@ -1377,6 +1385,97 @@ model RecordComment {
   @@index([tenantId, entityType, entityId, createdAt])
   @@index([tenantId, authorId, createdAt])
   @@map("record_comments")
+}
+
+/// A private, named snapshot of one register's URL-backed filters and sort.
+/// Views are deliberately user-scoped; sharing is not supported in this release.
+model SavedView {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  registerKey String   @map("register_key") @db.VarChar(64)
+  name        String   @db.VarChar(100)
+  query       Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User     @relation("SavedViewOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, registerKey, name])
+  @@index([tenantId, userId, registerKey, createdAt])
+  @@map("saved_views")
+}
+
+enum NotificationKind {
+  APPROVAL_REQUEST
+  OVERDUE_GAP
+  OVERDUE_CAPA
+  OWNERSHIP_ASSIGNMENT
+}
+
+/// Durable, personal in-app notification. There is intentionally no email
+/// delivery field: no SMTP transport is configured for this release.
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  kind       NotificationKind
+  title      String           @db.VarChar(200)
+  message    String           @db.Text
+  targetPath String           @map("target_path") @db.VarChar(500)
+  sourceType String           @map("source_type") @db.VarChar(64)
+  sourceId   String           @map("source_id") @db.Uuid
+  dedupeKey  String           @map("dedupe_key") @db.VarChar(180)
+  readAt     DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, dedupeKey])
+  @@index([tenantId, userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskLinkType {
+  GAP
+  CAPA
+  RISK
+  AUDIT
+}
+
+/// Assigned compliance work linked to one governed record. The service
+/// resolves `linkedEntityId` inside the authenticated Company for every write.
+model Task {
+  id               String       @id @default(uuid()) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  title            String       @db.VarChar(300)
+  description      String?      @db.Text
+  status           TaskStatus   @default(TODO)
+  dueDate          DateTime?    @map("due_date") @db.Date
+  ownerId          String?      @map("owner_id") @db.Uuid
+  linkedEntityType TaskLinkType @map("linked_entity_type")
+  linkedEntityId   String       @map("linked_entity_id") @db.Uuid
+  createdById      String       @map("created_by_id") @db.Uuid
+  updatedById      String       @map("updated_by_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  owner            User?        @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy        User         @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy        User         @relation("TaskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, status, dueDate, createdAt])
+  @@index([tenantId, ownerId, status, dueDate])
+  @@index([tenantId, linkedEntityType, linkedEntityId])
+  @@map("tasks")
 }
 
 model AuditEvent {
