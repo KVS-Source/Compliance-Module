@@ -398,10 +398,34 @@ describe("Gap and CAPA API", () => {
   });
 
   it("refuses an owner who is not a member of the company", async () => {
-    const outsider = await prisma.user.findFirstOrThrow({
-      where: { memberships: { none: { tenant: { code: "COM-001" } } } },
+    // The seed only places admin (all companies) and user001 (COM-001). An
+    // outsider must be planted here — a clean fixture never has one lying
+    // around, and finding "any user without COM-001 membership" only worked
+    // when earlier files left stray users behind.
+    const companyTwo = await prisma.tenant.findUniqueOrThrow({
+      where: { code: "COM-002" },
       select: { id: true },
     });
+    const passwordHash = (
+      await prisma.user.findUniqueOrThrow({
+        where: { email: "admin001@example.test" },
+        select: { passwordHash: true },
+      })
+    ).passwordHash;
+    const outsider = await prisma.user.create({
+      data: {
+        code: `OUT-${randomUUID().slice(0, 8)}`,
+        email: `outsider-${randomUUID()}@example.test`,
+        fullName: "Synthetic outsider",
+        passwordHash,
+        status: "ACTIVE",
+        memberships: {
+          create: { tenantId: companyTwo.id, status: "ACTIVE" },
+        },
+      },
+      select: { id: true },
+    });
+
     const response = await request(app)
       .post("/api/v1/gaps")
       .set("Authorization", `Bearer ${adminToken}`)
