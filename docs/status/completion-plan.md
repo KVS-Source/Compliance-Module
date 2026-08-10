@@ -101,7 +101,7 @@ per-record permissions and audit events.
 | **Overdue visual cues** on list rows | Whole-row highlight beyond date text | **Shipped** — `register-row-overdue` on Gap/CAPA table rows and cards |
 | **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | **Shipped** — `GET /users/import/template(.csv)`, `POST /users/import/preview` (dry run), `POST /users/import/commit`; role column limited to production profile codes; see [initial password note](#bulk-user-import-initial-password) |
 | **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | **Shipped** — `GET /users/:id/sessions`, revoke one / revoke all; IP/UA/`lastUsedAt` on refresh tips; family-wide revoke with audit |
-| **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | Append-only comments; no silent edit of history |
+| **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | **Shipped** — `GET/POST /records/:entityType/:entityId/comments`; append-only by route *and* by `record_comments_append_only` trigger; parent record's permission governs |
 | **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
 
 ### Explicitly deferred from V1.1

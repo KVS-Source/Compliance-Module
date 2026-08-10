@@ -50,6 +50,12 @@ async function installMock(
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
+    // Record comments render on every detail page; the mock answers with an
+    // empty conversation so the panel shows its empty state rather than an
+    // error that would collide with the page's own alerts.
+    if (/\/api\/v1\/records\/[A-Z]+\/[^/]+\/comments$/.test(path)) {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [] }) });
+    }
     if (path === "/api/v1/auth/refresh") {
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "token", user: { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "UAT Admin", email: "uat@example.test", phone: null, status: "ACTIVE", lastLogin: null, permissions: ["gaps:read", "gaps:write", "gaps:close", "capa:write", "users:read", "organisation:read", "exports:read"], activeCompany: company, companies: [company] } })) });
     }

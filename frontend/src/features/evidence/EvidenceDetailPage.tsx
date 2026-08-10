@@ -58,6 +58,7 @@ import {
   isEvidenceId,
   named,
 } from "./evidenceFormatting";
+import { RecordCommentsPanel } from "../comments/RecordCommentsPanel";
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 5_000;
@@ -963,6 +964,12 @@ export function EvidenceDetailPage() {
           onRetry={() => setAuditVersion((value) => value + 1)}
         />
       </div>
+
+      <RecordCommentsPanel
+        entityType="EVIDENCE"
+        entityId={evidence.id}
+        recordCode={evidence.code}
+      />
 
       {lifecycleConfirm ? (
         <Modal

@@ -181,6 +181,12 @@ async function installRiskMock(
     const url = new URL(request.url());
     const path = url.pathname;
     const method = request.method();
+    // Record comments render on every detail page; the mock answers with an
+    // empty conversation so the panel shows its empty state rather than an
+    // error that would collide with the page's own alerts.
+    if (/\/api\/v1\/records\/[A-Z]+\/[^/]+\/comments$/.test(path)) {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [] }) });
+    }
 
     if (["POST", "PATCH", "PUT", "DELETE"].includes(method)) {
       if (

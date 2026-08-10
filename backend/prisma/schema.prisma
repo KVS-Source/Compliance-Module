@@ -260,6 +260,7 @@ model Tenant {
   externalConnections      ExternalSystemConnection[]
   externalRecordMaps       ExternalRecordMap[]
   syncRuns                 SyncRun[]
+  recordComments           RecordComment[]
 
   @@map("tenants")
 }
@@ -284,6 +285,7 @@ model User {
   rolesAssigned             UserRole[]             @relation("AssignedRoles")
   refreshTokens             RefreshToken[]
   auditEvents               AuditEvent[]
+  recordComments            RecordComment[]        @relation("RecordCommentAuthor")
   ownedKpiConfigurations    KpiConfiguration[]     @relation("KpiConfigurationOwner")
   approverKpiConfigurations KpiConfiguration[]     @relation("KpiConfigurationApprover")
   createdKpiConfigurations  KpiConfiguration[]     @relation("KpiConfigurationCreatedBy")
@@ -1345,6 +1347,36 @@ model RefreshToken {
   @@index([tenantId, expiresAt])
   @@index([userId, tenantId, revokedAt])
   @@map("refresh_tokens")
+}
+
+/// The record a comment is attached to. Kept as an enum rather than four
+/// nullable foreign keys so one panel serves every register; the service
+/// resolves the row in its own module and refuses an id from another Company.
+enum CommentEntityType {
+  GAP
+  CAPA
+  RISK
+  EVIDENCE
+}
+
+/// Remediation conversation held inside the audit trail rather than in email.
+/// Rows are immutable: the `record_comments_append_only` trigger rejects UPDATE
+/// and DELETE, so a comment cannot be silently rewritten after it is read.
+/// There is deliberately no edit or delete API.
+model RecordComment {
+  id         String            @id @default(uuid()) @db.Uuid
+  tenantId   String            @map("tenant_id") @db.Uuid
+  entityType CommentEntityType @map("entity_type")
+  entityId   String            @map("entity_id") @db.Uuid
+  body       String
+  authorId   String?           @map("author_id") @db.Uuid
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  author     User?             @relation("RecordCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId, createdAt])
+  @@index([tenantId, authorId, createdAt])
+  @@map("record_comments")
 }
 
 model AuditEvent {

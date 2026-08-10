@@ -97,20 +97,27 @@ describe("Milestone 1 API", () => {
     expect(invalid.body.error?.code).toBe("UNAUTHORIZED");
     expect(invalid.body.error?.message).toBe("Incorrect email or password");
     expect(findForbiddenSecretPaths(invalid.body)).toEqual([]);
+    // `user001` is a shared fixture every later test file signs in as. The
+    // restore must run even when an assertion in this window fails, or one
+    // failure here leaves the account DISABLED and cascades into unrelated
+    // 401s across the rest of the suite.
     await prisma.user.update({
       where: { email: "user001@example.test" },
       data: { status: "DISABLED" },
     });
-    const disabled = await request(app)
-      .post("/api/v1/auth/login")
-      .send({ email: "user001@example.test", password: "User001!Secure" })
-      .expect(403);
-    expect(disabled.body.error.code).toBe("FORBIDDEN");
-    expect(findForbiddenSecretPaths(disabled.body)).toEqual([]);
-    await prisma.user.update({
-      where: { email: "user001@example.test" },
-      data: { status: "ACTIVE" },
-    });
+    try {
+      const disabled = await request(app)
+        .post("/api/v1/auth/login")
+        .send({ email: "user001@example.test", password: "User001!Secure" })
+        .expect(403);
+      expect(disabled.body.error.code).toBe("FORBIDDEN");
+      expect(findForbiddenSecretPaths(disabled.body)).toEqual([]);
+    } finally {
+      await prisma.user.update({
+        where: { email: "user001@example.test" },
+        data: { status: "ACTIVE" },
+      });
+    }
   });
 
   it("rotates refresh tokens and detects reuse", async () => {
@@ -404,22 +411,27 @@ describe("Milestone 1 API", () => {
       .expect(200);
     const userId = login.body.data.user.id as string;
     const tenantId = login.body.data.user.activeCompany.id as string;
+    // As above: the membership is shared fixture state, so it is restored in a
+    // `finally` rather than on the happy path only.
     await prisma.userCompany.update({
       where: { userId_tenantId: { userId, tenantId } },
       data: { status: "DISABLED" },
     });
-    const denied = await request(app)
-      .get("/api/v1/users")
-      .set("Authorization", `Bearer ${login.body.data.accessToken}`)
-      .expect(401);
-    expect(denied.body.error).toMatchObject({
-      code: "UNAUTHORIZED",
-      message: "Company context is no longer active",
-    });
-    await prisma.userCompany.update({
-      where: { userId_tenantId: { userId, tenantId } },
-      data: { status: "ACTIVE" },
-    });
+    try {
+      const denied = await request(app)
+        .get("/api/v1/users")
+        .set("Authorization", `Bearer ${login.body.data.accessToken}`)
+        .expect(401);
+      expect(denied.body.error).toMatchObject({
+        code: "UNAUTHORIZED",
+        message: "Company context is no longer active",
+      });
+    } finally {
+      await prisma.userCompany.update({
+        where: { userId_tenantId: { userId, tenantId } },
+        data: { status: "ACTIVE" },
+      });
+    }
   });
 
   it("enforces database tenant and append-only audit invariants", async () => {

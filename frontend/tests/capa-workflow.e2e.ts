@@ -21,6 +21,12 @@ async function installMock(
     const url = new URL(request.url());
     const path = url.pathname;
     const method = request.method();
+    // Record comments render on every detail page; the mock answers with an
+    // empty conversation so the panel shows its empty state rather than an
+    // error that would collide with the page's own alerts.
+    if (/\/api\/v1\/records\/[A-Z]+\/[^/]+\/comments$/.test(path)) {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [] }) });
+    }
     if (path === "/api/v1/auth/refresh") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success({ accessToken: "token", user: { id: "20000000-0000-4000-8000-000000000001", code: "USR-001", name: "UAT Admin", email: "uat@example.test", phone: null, status: "ACTIVE", lastLogin: null, permissions: ["capa:read", "capa:write", "capa:close", "gaps:read", "users:read", "organisation:read"], activeCompany: company, companies: [company] } })) });
     if (path === "/api/v1/capas" && method === "GET") { calls.push(request.url()); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(success([capa], { page: 1, pageSize: 20, total: 1, totalPages: 1 })) }); }
     if (path === "/api/v1/capas" && method === "POST") { calls.push("POST capa"); const input = request.postDataJSON() as { title: string }; capa = { ...capa, title: input.title }; return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(success(capa)) }); }

@@ -2521,3 +2521,49 @@ a.kpi-trace-node:focus-visible {
   color: var(--red-700);
   font-size: 12px;
 }
+
+/* Record comments: an append-only conversation held with the record. Rows are
+   deliberately plain — there is no edit affordance because there is no edit. */
+.record-comment-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.record-comment-list > li {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-muted, rgba(0, 0, 0, 0.02));
+}
+.record-comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.record-comment-meta strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.record-comment-body {
+  margin: 6px 0 0;
+  /* Author line breaks are meaningful in a remediation note; keep them without
+     letting a pasted wall of text escape its container. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.record-comment-form {
+  display: grid;
+  gap: 8px;
+}
+.record-comment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}

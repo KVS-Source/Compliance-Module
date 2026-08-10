@@ -6,6 +6,8 @@ import { AuthRepository } from "../modules/auth/repository.js";
 import { AuthService } from "../modules/auth/service.js";
 import { tenantsRoutes } from "../modules/tenants/routes.js";
 import { usersRoutes } from "../modules/users/routes.js";
+import { commentRoutes } from "../modules/comments/routes.js";
+import { RecordCommentService } from "../modules/comments/service.js";
 import { UserImportService } from "../modules/users/import-service.js";
 import { UserSessionService } from "../modules/users/session-service.js";
 import { UsersRepository } from "../modules/users/repository.js";
@@ -203,5 +205,8 @@ export const apiRoutes = (
   router.use("/exports", exportRoutes(exports));
   router.use("/audit-events", auditRoutes(auditTrail));
   router.use("/integrations/genrac", genracRoutes(genrac));
+  // Mounted last and matched on `/records/:entityType/...` so it cannot
+  // shadow a register's own routes.
+  router.use("/records", commentRoutes(new RecordCommentService(db)));
   return router;
 };

@@ -300,6 +300,19 @@ export interface UserSession {
   current: boolean;
 }
 
+/** The four registers that carry a remediation conversation. */
+export type CommentEntityType = "GAP" | "CAPA" | "RISK" | "EVIDENCE";
+
+export interface RecordComment {
+  id: string;
+  entityType: CommentEntityType;
+  entityId: string;
+  body: string;
+  createdAt: string;
+  /** Null once the author's account has been withdrawn or erased. */
+  author: { id: string; code: string; name: string } | null;
+}
+
 export type UserStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
 
 export interface CreateUserInput {
