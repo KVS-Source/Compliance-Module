@@ -1270,142 +1270,18 @@
   font-size: 12px;
 }
 
-/* Login */
-.login-page {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(480px, 1.08fr) minmax(440px, 0.92fr);
-}
-.login-hero {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 56px clamp(40px, 6vw, 92px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  color: var(--white);
-  background: var(--navy-950);
-}
-.login-grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.13;
-  background-image:
-    linear-gradient(rgba(96, 165, 250, 0.35) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 165, 250, 0.35) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(to bottom right, #000, transparent);
-}
-.login-glow {
-  position: absolute;
-  width: 420px;
-  height: 420px;
-  right: -120px;
-  top: 12%;
-  border-radius: 50%;
-  background: rgba(37, 99, 235, 0.22);
-  filter: blur(60px);
-}
-.login-hero .brand {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.login-hero h1 {
-  position: relative;
-  max-width: 650px;
-  margin: 54px 0 20px;
-  font-size: clamp(36px, 4vw, 58px);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-}
-.login-hero > p {
-  position: relative;
-  max-width: 600px;
-  color: #b9c8df;
-  font-size: 16px;
-}
-.preview-grid {
-  position: relative;
-  max-width: 590px;
-  margin-top: 48px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.preview-grid article {
-  padding: 16px;
-  border: 1px solid rgba(191, 219, 254, 0.14);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(8px);
-}
-.preview-grid span {
-  color: #b9c8df;
-  font-size: 13px;
-}
-.preview-grid strong {
-  display: block;
-  margin-top: 3px;
-  font-family: var(--font-sans);
-  font-size: 22px;
-  letter-spacing: -0.01em;
-}
-.hero-security {
-  position: relative;
-  margin-top: 25px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #9eb4d6;
-  font-size: 12px;
-}
-.login-side {
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 44px clamp(30px, 6vw, 88px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #fbfcfe;
-}
-.login-card {
-  width: 100%;
-  max-width: 500px;
-  margin: auto;
-}
+/* Login — full rules live in prototype.css (.login). Shared field helpers only. */
 .login-eyebrow {
-  color: var(--blue-700);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.login-card h2 {
-  margin: 7px 0 4px;
-  font-size: 32px;
-  letter-spacing: -0.03em;
-}
-.login-card > p {
-  color: var(--text-muted);
-}
-.field {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 .field > span:first-child {
   color: var(--grey-700);
   font-size: 13px;
   font-weight: 600;
-}
-.login-card .control {
-  min-height: 46px;
 }
 .password-control {
   position: relative;
@@ -1421,43 +1297,15 @@
   width: 34px;
   height: 34px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   color: var(--grey-500);
   background: transparent;
 }
-.login-row {
-  margin: 14px 0 7px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-}
-.login-row label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
 .form-error {
   min-height: 22px;
   color: var(--red-700);
-  font-size: 12px;
-}
-.security-note {
-  margin-top: 16px;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.login-foot {
-  margin-top: 32px;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  color: var(--text-muted);
   font-size: 12px;
 }
 .app-loading {
@@ -1565,27 +1413,6 @@
   .collapse-button {
     display: none;
   }
-  .login-page {
-    grid-template-columns: 1fr;
-  }
-  .login-hero {
-    min-height: auto;
-    padding: 28px;
-    justify-content: flex-start;
-  }
-  .login-hero h1 {
-    margin: 28px 0 10px;
-    font-size: 32px;
-  }
-  .login-hero > p,
-  .preview-grid,
-  .hero-security {
-    display: none;
-  }
-  .login-side {
-    min-height: auto;
-    padding: 34px 22px;
-  }
 }
 @media (max-width: 700px) {
   .global-search,
@@ -1647,12 +1474,6 @@
   }
   .profile-button {
     padding-inline: 2px;
-  }
-  .login-hero {
-    padding: 22px;
-  }
-  .login-hero h1 {
-    font-size: 27px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

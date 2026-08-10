@@ -1,9 +1,16 @@
 import type { KpiDirection, KpiFrequency } from "@prisma/client";
 import { PRODUCTION_ACCESS_PROFILES } from "../src/production/access-profile.js";
 
+/**
+ * The display name carries no "demo" wording so the workspace reads as an
+ * ordinary Company on screen. The `DEMO-UAT` code is deliberately unchanged:
+ * it is the business key every seeded record's code derives from and that the
+ * seed's conflict guards compare against, so it stays honest in the data layer
+ * where operators and the audit trail can see it.
+ */
 export const DEMO_TENANT = {
   code: "DEMO-UAT",
-  name: "GenBioCa Demo Organisation",
+  name: "GenBioCa Operations",
   industry: "Life Sciences and Healthcare",
   country: "India",
 } as const;

@@ -623,10 +623,17 @@
   width: 100%;
 }
 .login-card .error {
-  margin-top: 1px;
+  margin-top: 2px;
+}
+.login-card .error:empty {
+  min-height: 0;
+  margin: 0;
 }
 .login-foot button {
   font-size: inherit;
+}
+.login .control::placeholder {
+  color: var(--grey-400);
 }
 
 /* The live region must not cover controls while it has no interactive toast. */
@@ -1354,6 +1361,17 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+/**
+ * `.card-head` carries its own 18px inset, but the chart body did not, so the
+ * legend, bars and source note sat flush against the card border. Inset the
+ * body to match the header and close the card with the same padding.
+ */
+.chart-card > *:not(.card-head) {
+  padding-inline: 18px;
+}
+.chart-card > *:last-child {
+  padding-bottom: 18px;
 }
 .chart-empty {
   margin: 0;
