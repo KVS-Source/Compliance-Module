@@ -10,8 +10,24 @@ by UAT language or status-page presentation.
    the production initializer uses five explicit roles, and readiness refuses
    any active wildcard assignment. Existing assignments must be replaced before
    production readiness can pass.
-2. PostgreSQL RLS is not implemented. Tenant isolation currently depends on
-   application context/predicates plus database FKs, constraints and triggers.
+2. PostgreSQL RLS policies exist but are **not yet enforced at runtime**.
+   `20260811990000_row_level_security` enables and FORCEs row-level security on
+   every table carrying `tenant_id`, with a `tenant_isolation` policy comparing
+   it to the `app.tenant_id` setting, and creates the `genbioca_app` role.
+   `tests/rls-tenant-isolation.test.ts` proves, acting as that role, that a
+   Company sees only its own rows, that an unset context returns nothing rather
+   than everything, and that a cross-Company write is refused.
+   **The application still connects as a superuser, and superusers bypass RLS
+   entirely — including FORCE.** So today's protection remains the application
+   predicates plus FKs, constraints and triggers, exactly as before. Activating
+   the backstop needs two deployment steps, both part of production bring-up
+   (item 4): grant login to `genbioca_app` from the secret manager
+   (`ALTER ROLE genbioca_app LOGIN PASSWORD '<secret>'`) and point
+   `DATABASE_URL` at it. Until both are done, do not report RLS as active.
+   Application queries must also run inside `withTenantContext`
+   (`backend/src/common/security/tenant-context.ts`) once that switch is made,
+   because the policy denies every row when the setting is absent; that wiring
+   is not yet applied across the query paths.
 3. A real-stack Playwright suite exists (`frontend/tests-real-stack` +
    `playwright.real-stack.config.ts`, runner `frontend/scripts/run-real-stack-e2e.mjs`)
    that exercises the browser against a live API and disposable PostgreSQL with
