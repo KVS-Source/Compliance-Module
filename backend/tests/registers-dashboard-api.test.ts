@@ -238,24 +238,88 @@ describe("Operational registers, dashboard and CSV export", () => {
   });
 
   it("excludes actuals for disabled KPI configurations from compliance", async () => {
-    const candidate = await prisma.kpiActual.findFirstOrThrow({
-      where: {
-        tenantId: companyOne,
-        deletedAt: null,
-        configuration: {
-          enabled: true,
-          status: "ACTIVE",
-          deletedAt: null,
-          definition: { direction: { not: "INFORMATIONAL" } },
-        },
+    // Plant the measured actual here. The shared seed has none; looking up a
+    // pre-existing row only worked when another file left KPI data behind.
+    const unique = Date.now().toString();
+    const definition = await prisma.kpiDefinition.create({
+      data: {
+        code: `KPI-DASH-${unique}`,
+        name: "Synthetic dashboard compliance KPI",
+        unit: "%",
+        direction: "HIGHER_IS_BETTER",
+        frequency: "QUARTERLY",
+        status: "ACTIVE",
       },
-      select: { kpiConfigurationId: true },
     });
+    const configuration = await prisma.kpiConfiguration.create({
+      data: {
+        tenantId: companyOne,
+        kpiDefinitionId: definition.id,
+        ownerId: adminUserId,
+        reviewFrequency: "QUARTERLY",
+        effectiveFrom: new Date("2026-07-01"),
+        requiresEvidence: false,
+        requiresApproval: false,
+        enabled: true,
+        status: "ACTIVE",
+        createdById: adminUserId,
+        updatedById: adminUserId,
+      },
+    });
+    const target = await prisma.kpiTarget.create({
+      data: {
+        tenantId: companyOne,
+        kpiConfigurationId: configuration.id,
+        code: `KTG-DASH-${unique}`,
+        period: "FY26-27 Q1",
+        periodStart: new Date("2026-07-01"),
+        periodEnd: new Date("2026-09-30"),
+        targetValue: "100",
+        approvalStatus: "APPROVED",
+        approvedById: adminUserId,
+        approvedAt: new Date(),
+        effectiveFrom: new Date("2026-07-01"),
+        effectiveTo: new Date("2026-09-30"),
+        status: "ACTIVE",
+        createdById: adminUserId,
+        updatedById: adminUserId,
+      },
+    });
+    // Segregation of duties: submitter and approver must differ.
+    const submitter = await prisma.user.findUniqueOrThrow({
+      where: { email: "user001@example.test" },
+      select: { id: true },
+    });
+    await prisma.kpiActual.create({
+      data: {
+        tenantId: companyOne,
+        code: `ACT-DASH-${unique}`,
+        kpiConfigurationId: configuration.id,
+        kpiTargetId: target.id,
+        period: target.period,
+        periodStart: target.periodStart,
+        periodEnd: target.periodEnd,
+        targetValueSnapshot: target.targetValue,
+        actualValue: "90",
+        variance: "-10",
+        variancePercentage: "-10",
+        ragStatus: "AMBER",
+        targetMet: false,
+        approvalStatus: "APPROVED",
+        submittedById: submitter.id,
+        submittedAt: new Date(),
+        approvedById: adminUserId,
+        approvedAt: new Date(),
+        createdById: submitter.id,
+        updatedById: adminUserId,
+      },
+    });
+
     const configurationActuals = await prisma.kpiActual.count({
       where: {
         tenantId: companyOne,
         deletedAt: null,
-        kpiConfigurationId: candidate.kpiConfigurationId,
+        kpiConfigurationId: configuration.id,
       },
     });
     const before = await request(app)
@@ -264,7 +328,7 @@ describe("Operational registers, dashboard and CSV export", () => {
       .expect(200);
 
     await prisma.kpiConfiguration.update({
-      where: { id: candidate.kpiConfigurationId },
+      where: { id: configuration.id },
       data: { enabled: false },
     });
     try {
@@ -277,7 +341,7 @@ describe("Operational registers, dashboard and CSV export", () => {
       );
     } finally {
       await prisma.kpiConfiguration.update({
-        where: { id: candidate.kpiConfigurationId },
+        where: { id: configuration.id },
         data: { enabled: true },
       });
     }

@@ -371,13 +371,82 @@ describe("Risk review, treatment and closure Slice E", () => {
     const admin = await loginAs("admin001@example.test", "Admin001!Secure");
     const tenantId = admin.user.activeCompany.id;
 
-    const actual = await prisma.kpiActual.findFirst({
-      where: { tenantId, deletedAt: null },
+    // Plant a KPI actual in this test. The shared seed has no actuals; earlier
+    // "find first actual" only passed when a previous file left one behind.
+    const definition = await prisma.kpiDefinition.create({
+      data: {
+        code: `KPI-RISK-${randomUUID().slice(0, 8)}`,
+        name: "Synthetic risk-lineage KPI",
+        unit: "%",
+        direction: "HIGHER_IS_BETTER",
+        frequency: "QUARTERLY",
+        status: "ACTIVE",
+      },
+    });
+    const configuration = await prisma.kpiConfiguration.create({
+      data: {
+        tenantId,
+        kpiDefinitionId: definition.id,
+        ownerId: admin.user.id,
+        reviewFrequency: "QUARTERLY",
+        effectiveFrom: new Date("2026-07-01"),
+        requiresEvidence: false,
+        requiresApproval: false,
+        enabled: true,
+        status: "ACTIVE",
+        createdById: admin.user.id,
+        updatedById: admin.user.id,
+      },
+    });
+    const target = await prisma.kpiTarget.create({
+      data: {
+        tenantId,
+        kpiConfigurationId: configuration.id,
+        code: `KTG-RISK-${randomUUID().slice(0, 8)}`,
+        period: "FY26-27 Q1",
+        periodStart: new Date("2026-07-01"),
+        periodEnd: new Date("2026-09-30"),
+        targetValue: "100",
+        approvalStatus: "APPROVED",
+        approvedById: admin.user.id,
+        approvedAt: new Date(),
+        effectiveFrom: new Date("2026-07-01"),
+        effectiveTo: new Date("2026-09-30"),
+        status: "ACTIVE",
+        createdById: admin.user.id,
+        updatedById: admin.user.id,
+      },
+    });
+    // Segregation of duties: submitter and approver must differ.
+    const submitter = await prisma.user.findUniqueOrThrow({
+      where: { email: "user001@example.test" },
+      select: { id: true },
+    });
+    const actual = await prisma.kpiActual.create({
+      data: {
+        tenantId,
+        code: `ACT-RISK-${randomUUID().slice(0, 8)}`,
+        kpiConfigurationId: configuration.id,
+        kpiTargetId: target.id,
+        period: target.period,
+        periodStart: target.periodStart,
+        periodEnd: target.periodEnd,
+        targetValueSnapshot: target.targetValue,
+        actualValue: "80",
+        variance: "-20",
+        variancePercentage: "-20",
+        ragStatus: "RED",
+        targetMet: false,
+        approvalStatus: "APPROVED",
+        submittedById: submitter.id,
+        submittedAt: new Date(),
+        approvedById: admin.user.id,
+        approvedAt: new Date(),
+        createdById: submitter.id,
+        updatedById: admin.user.id,
+      },
       select: { id: true, kpiConfigurationId: true, kpiTargetId: true },
     });
-    if (!actual) {
-      throw new Error("Fixture requires at least one KPI actual in COM-001");
-    }
     const lineage = {
       kpiActualId: actual.id,
       kpiConfigurationId: actual.kpiConfigurationId,
@@ -502,8 +571,13 @@ describe("Risk review, treatment and closure Slice E", () => {
       closureReason: "Closed in Company 001",
     });
 
-    const company2Token = await switchCompany(admin.accessToken, company2!.id);
+    // Fresh login before switch so a prior test's session/token state cannot
+    // surface as 401 on COM-002 mutations under suite load.
+    const fresh = await loginAs("admin001@example.test", "Admin001!Secure");
+    const company2Token = await switchCompany(fresh.accessToken, company2!.id);
     const auth = { Authorization: `Bearer ${company2Token}` };
+    // Sanity: the switched token is authorised for COM-002 risk reads.
+    await request(app).get("/api/v1/risks").set(auth).expect(200);
 
     await request(app)
       .get(`/api/v1/risks/${risk.id}`)
