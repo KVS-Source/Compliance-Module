@@ -374,8 +374,15 @@ const userImportRoutes = (service: UserImportService) => {
   router.get(
     "/template",
     permit("users:read"),
-    asyncHandler(async (_req: Request, res: Response) =>
-      ok(res, userImportTemplate()),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(res, {
+        ...userImportTemplate(),
+        // Company-specific: Department is matched by name against this
+        // Company's own departments, so the template has to say which names
+        // exist. Without it a row can be refused for a reason the
+        // administrator cannot resolve from the screen they are looking at.
+        departments: await service.departmentNames(req.auth!.tenantId),
+      }),
     ),
   );
 

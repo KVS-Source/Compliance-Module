@@ -330,6 +330,8 @@ export interface UserImportTemplate {
   maxRows: number;
   statuses: UserStatus[];
   roles: Array<{ code: string; name: string }>;
+  /** Active department names in the active Company; Department matches by name. */
+  departments: string[];
 }
 
 /** A row the API validated and is willing to create. */

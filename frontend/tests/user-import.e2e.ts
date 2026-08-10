@@ -106,6 +106,7 @@ async function installImportMock(
           { code: "DEPARTMENT_OWNER", name: "Department Owner" },
           { code: "MANAGEMENT_VIEWER", name: "Read-only Management Viewer" },
         ],
+        departments: ["Compliance", "Quality / QMS"],
       });
     }
 
@@ -249,6 +250,13 @@ test("imports users from a CSV after reviewing the per-row verdict", async ({
   await expect(
     page.getByRole("heading", { name: "Import users" }),
   ).toBeVisible();
+
+  // Department is matched by name against this Company only, so the dialog
+  // must show the valid spellings. Without them a refused row is a dead end.
+  const departments = page.getByTestId("user-import-departments");
+  await expect(departments).toContainText("Compliance");
+  await expect(departments).toContainText("Quality / QMS");
+  await expect(departments).toContainText("refused rather than created");
 
   await page.getByTestId("user-import-file").setInputFiles({
     name: "staff.csv",

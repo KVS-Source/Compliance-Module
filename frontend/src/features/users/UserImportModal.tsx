@@ -200,6 +200,31 @@ export function UserImportModal({
               {template.headers.join(", ")}
             </p>
           ) : null}
+          {/* Department matches by name against this Company only, so the
+              exact spellings belong here. Otherwise a refused row sends the
+              administrator off to another screen to find out what is valid. */}
+          {template ? (
+            <p className="chart-source" data-testid="user-import-departments">
+              {template.departments.length > 0 ? (
+                <>
+                  Departments in this Company:{" "}
+                  {template.departments.map((name, index) => (
+                    <span key={name}>
+                      {index > 0 ? ", " : ""}
+                      <span className="mono">{name}</span>
+                    </span>
+                  ))}
+                  . Any other name is refused rather than created.
+                </>
+              ) : (
+                <>
+                  This Company has no departments yet, so leave the Department
+                  column empty. Departments are created on the Departments
+                  screen.
+                </>
+              )}
+            </p>
+          ) : null}
           {canAssignRole ? null : (
             <p className="chart-source">
               Your role cannot assign roles, so the Role column must be left

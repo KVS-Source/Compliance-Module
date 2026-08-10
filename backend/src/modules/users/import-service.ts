@@ -114,6 +114,21 @@ export class UserImportService {
     private readonly repository: UsersRepository,
   ) {}
 
+  /**
+   * The active department names in this Company, for the import dialog to
+   * show alongside the template. Department is matched by name, so the
+   * administrator needs the exact spellings in front of them rather than
+   * having to leave the dialog and go looking.
+   */
+  async departmentNames(tenantId: string) {
+    const departments = await this.db.orgDepartment.findMany({
+      where: { tenantId, status: "ACTIVE" },
+      select: { name: true },
+      orderBy: { name: "asc" },
+    });
+    return departments.map((department) => department.name);
+  }
+
   private async loadContext(
     tenantId: string,
     codes: readonly string[],
@@ -226,8 +241,21 @@ export class UserImportService {
         input.departmentName.trim().toLowerCase(),
       );
       if (!department) {
+        /**
+         * Name a near match but still refuse the row. "Quality" is almost
+         * certainly "Quality / QMS", but resolving it here would silently put
+         * a person in a department nobody chose. Suggest, never substitute.
+         */
+        const typed = input.departmentName.trim().toLowerCase();
+        const near = [...context.departmentsByName.values()].find(
+          (candidate) =>
+            candidate.name.toLowerCase().includes(typed) ||
+            typed.includes(candidate.name.toLowerCase()),
+        );
         errors.push(
-          `Department "${input.departmentName}" is not an active department in this Company`,
+          near
+            ? `Department "${input.departmentName}" is not an active department in this Company. Did you mean "${near.name}"?`
+            : `Department "${input.departmentName}" is not an active department in this Company`,
         );
       } else {
         departmentId = department.id;
