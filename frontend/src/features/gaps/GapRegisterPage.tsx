@@ -21,6 +21,10 @@ import {
   useDebouncedSearchParam,
   useRegisterQueryState,
 } from "../../hooks/useRegisterQueryState";
+import {
+  BulkActionBar,
+  type BulkAction,
+} from "../../components/tables/BulkActionBar";
 import { gapApi } from "../../services/gapApi";
 import type { Gap, GapSeverity, GapStatus } from "../../types/api";
 import { GapFormModal } from "./GapFormModal";
@@ -31,6 +35,45 @@ const label = (value: string) => value.replaceAll("_", " ");
 
 export function GapRegisterPage() {
   const { user, hasPermission } = useAuth();
+  const [selected, setSelected] = useState<string[]>([]);
+  const canBulk = hasPermission("gaps:write");
+  /**
+   * Each action calls the endpoint that already governs that change, so the
+   * per-record permission, validation and audit event are preserved. Closing is
+   * offered only with `gaps:close`, which is a separate permission from write.
+   */
+  const bulkActions: BulkAction[] = [
+    {
+      key: "owner",
+      label: "Reassign owner",
+      prompt: {
+        label: "Owner user id",
+        placeholder: "User id",
+        required: true,
+      },
+      run: (id, value) => gapApi.assignOwner(id, value),
+    },
+    {
+      key: "due-date",
+      label: "Set due date",
+      prompt: { label: "Due date", placeholder: "YYYY-MM-DD", required: true },
+      run: (id, value) => gapApi.update(id, { dueDate: value }),
+    },
+    ...(hasPermission("gaps:close")
+      ? [
+          {
+            key: "close",
+            label: "Close",
+            prompt: {
+              label: "Closure note",
+              placeholder: "Why these gaps are closed",
+              required: true,
+            },
+            run: (id: string, value: string) => gapApi.close(id, value),
+          },
+        ]
+      : []),
+  ];
   const { contextVersion } = useTenant();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -134,9 +177,7 @@ export function GapRegisterPage() {
           <select
             className="control"
             value={status}
-            onChange={(event) =>
-              updateParams({ status: event.target.value })
-            }
+            onChange={(event) => updateParams({ status: event.target.value })}
           >
             <option value="">All statuses</option>
             <option value="OPEN">OPEN</option>
@@ -150,9 +191,7 @@ export function GapRegisterPage() {
           <select
             className="control"
             value={severity}
-            onChange={(event) =>
-              updateParams({ severity: event.target.value })
-            }
+            onChange={(event) => updateParams({ severity: event.target.value })}
           >
             <option value="">All severities</option>
             <option value="CRITICAL">CRITICAL</option>
@@ -198,6 +237,26 @@ export function GapRegisterPage() {
             id="page-content"
             data-testid="gap-register-table"
           >
+            {canBulk ? (
+              <BulkActionBar
+                selectedIds={selected}
+                actions={bulkActions}
+                onClear={() => setSelected([])}
+                onCompleted={({ done, refused }) => {
+                  setSelected([]);
+                  setVersion((current) => current + 1);
+                  showToast(
+                    refused === 0 ? "success" : "warning",
+                    refused === 0
+                      ? `${done} gap${done === 1 ? "" : "s"} updated`
+                      : `${done} updated, ${refused} refused`,
+                    refused === 0
+                      ? "The register has been reloaded."
+                      : "Records you may not change were left untouched.",
+                  );
+                }}
+              />
+            ) : null}
             <div className="table-wrap">
               <table className="data-table">
                 <caption>
@@ -205,6 +264,25 @@ export function GapRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
+                    {canBulk ? (
+                      <th className="select-cell">
+                        <input
+                          type="checkbox"
+                          checked={
+                            rows.length > 0 && selected.length === rows.length
+                          }
+                          onChange={(event) =>
+                            setSelected(
+                              event.target.checked
+                                ? rows.map((gap) => gap.id)
+                                : [],
+                            )
+                          }
+                          aria-label="Select all gaps on this page"
+                          data-testid="gap-select-all"
+                        />
+                      </th>
+                    ) : null}
                     <SortableTh
                       column="title"
                       label="Gap"
@@ -243,6 +321,23 @@ export function GapRegisterPage() {
                 <tbody>
                   {rows.map((gap) => (
                     <tr key={gap.id}>
+                      {canBulk ? (
+                        <td className="select-cell">
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(gap.id)}
+                            onChange={(event) =>
+                              setSelected((current) =>
+                                event.target.checked
+                                  ? [...current, gap.id]
+                                  : current.filter((id) => id !== gap.id),
+                              )
+                            }
+                            aria-label={`Select ${gap.code}`}
+                            data-testid={`gap-select-${gap.code}`}
+                          />
+                        </td>
+                      ) : null}
                       <td>
                         <div className="cell-title">
                           <strong>{gap.title}</strong>
@@ -261,7 +356,9 @@ export function GapRegisterPage() {
                       <td>{gap.department?.name ?? "—"}</td>
                       <td>
                         {gap.dueDate ? (
-                          <span className={gap.overdue ? "deadline-overdue" : ""}>
+                          <span
+                            className={gap.overdue ? "deadline-overdue" : ""}
+                          >
                             {gap.dueDate}
                             {gap.overdue ? " · Overdue" : ""}
                           </span>
@@ -309,9 +406,7 @@ export function GapRegisterPage() {
                   <p>
                     <Badge>{gap.severity}</Badge>
                   </p>
-                  <p>
-                    {gap.owner?.name ?? gap.sourceOwnerRef ?? "Unassigned"}
-                  </p>
+                  <p>{gap.owner?.name ?? gap.sourceOwnerRef ?? "Unassigned"}</p>
                   <p className={gap.overdue ? "deadline-overdue" : ""}>
                     {gap.dueDate ?? "No due date"}
                     {gap.overdue ? " · Overdue" : ""}
