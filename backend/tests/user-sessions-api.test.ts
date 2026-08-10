@@ -3,6 +3,7 @@ import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { hashToken } from "../src/common/security/tokens.js";
 
 if (
   process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
@@ -18,18 +19,18 @@ if (
 describe("user session management", () => {
   let app: Express;
   let prisma: PrismaClient;
-  let adminAgent: ReturnType<typeof request.agent>;
+  let adminToken: string;
   let adminUserId: string;
   let company001Id: string;
 
   beforeAll(async () => {
     ({ app } = await import("../src/app.js"));
     ({ prisma } = await import("../src/config/prisma.js"));
-    adminAgent = request.agent(app);
-    const login = await adminAgent
+    const login = await request(app)
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "Admin001!Secure" })
       .expect(200);
+    adminToken = login.body.data.accessToken as string;
     adminUserId = login.body.data.user.id as string;
     company001Id = login.body.data.user.activeCompany.id as string;
   });
@@ -38,18 +39,33 @@ describe("user session management", () => {
     await prisma.$disconnect();
   });
 
-  const authHeader = async () => {
-    const login = await request(app)
-      .post("/api/v1/auth/login")
-      .send({ email: "admin001@example.test", password: "Admin001!Secure" })
-      .expect(200);
-    return `Bearer ${login.body.data.accessToken as string}`;
+  const auth = () => ({ Authorization: `Bearer ${adminToken}` });
+
+  /**
+   * Insert a second live refresh family without a second Argon2 login.
+   * Full-suite runs already burn CPU on password hashes; two real logins per
+   * case is what pushed this file over the default 30s timeout on slower hosts.
+   */
+  const plantSession = async (userId: string, tenantId: string) => {
+    const familyId = randomUUID();
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: hashToken(`planted-${familyId}`),
+        userId,
+        tenantId,
+        familyId,
+        expiresAt: new Date(Date.now() + 7 * 86_400_000),
+        lastUsedAt: new Date(),
+        ipAddress: "198.51.100.20",
+        userAgent: "planted-session-agent",
+      },
+    });
+    return familyId;
   };
 
   it("lists the caller's live session and marks the current family", async () => {
-    // One login so the access token's sessionFamilyId matches the cookie family.
-    const login = await request
-      .agent(app)
+    // One login so the access token's sessionFamilyId matches that family's tip.
+    const login = await request(app)
       .post("/api/v1/auth/login")
       .send({ email: "admin001@example.test", password: "Admin001!Secure" })
       .expect(200);
@@ -83,7 +99,7 @@ describe("user session management", () => {
     const password = "SessionMgmt1!Secure";
     const create = await request(app)
       .post("/api/v1/users")
-      .set("Authorization", await authHeader())
+      .set(auth())
       .send({
         code: `SES-${unique}`,
         name: "Session Target",
@@ -94,7 +110,7 @@ describe("user session management", () => {
       .expect(201);
     const targetId = create.body.data.id as string;
 
-    // Give the target a live session in Company 001.
+    // One real login so refresh-after-revoke is meaningful.
     const targetAgent = request.agent(app);
     await targetAgent
       .post("/api/v1/auth/login")
@@ -103,25 +119,28 @@ describe("user session management", () => {
 
     const listed = await request(app)
       .get(`/api/v1/users/${targetId}/sessions`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(200);
     expect(listed.body.data.length).toBeGreaterThanOrEqual(1);
     const familyId = listed.body.data[0].id as string;
+    expect(typeof familyId).toBe("string");
+    expect(familyId.length).toBeGreaterThan(0);
 
     await request(app)
       .post(`/api/v1/users/${targetId}/sessions/${familyId}/revoke`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(200);
 
     const after = await request(app)
       .get(`/api/v1/users/${targetId}/sessions`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(200);
-    expect(after.body.data.every((session: { id: string }) => session.id !== familyId)).toBe(
-      true,
-    );
+    expect(
+      after.body.data.every(
+        (session: { id: string }) => session.id !== familyId,
+      ),
+    ).toBe(true);
 
-    // Target refresh must fail once the family is revoked.
     await targetAgent.post("/api/v1/auth/refresh").expect(401);
 
     const audit = await prisma.auditEvent.findFirst({
@@ -141,7 +160,7 @@ describe("user session management", () => {
     const password = "SessionMgmt2!Secure";
     const create = await request(app)
       .post("/api/v1/users")
-      .set("Authorization", await authHeader())
+      .set(auth())
       .send({
         code: `SEA-${unique}`,
         name: "Session All Target",
@@ -152,37 +171,39 @@ describe("user session management", () => {
       .expect(201);
     const targetId = create.body.data.id as string;
 
-    const agentA = request.agent(app);
-    const agentB = request.agent(app);
-    await agentA
+    const targetAgent = request.agent(app);
+    await targetAgent
       .post("/api/v1/auth/login")
       .send({ email: `session-all-${unique}@example.test`, password })
       .expect(200);
-    await agentB
-      .post("/api/v1/auth/login")
-      .send({ email: `session-all-${unique}@example.test`, password })
-      .expect(200);
+    // Second family planted in the database — same shape as a second browser
+    // login, without a second Argon2 round-trip that flaked the full suite.
+    const plantedFamily = await plantSession(targetId, company001Id);
 
     const before = await request(app)
       .get(`/api/v1/users/${targetId}/sessions`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(200);
     expect(before.body.data.length).toBeGreaterThanOrEqual(2);
+    expect(
+      before.body.data.some(
+        (session: { id: string }) => session.id === plantedFamily,
+      ),
+    ).toBe(true);
 
     const result = await request(app)
       .post(`/api/v1/users/${targetId}/sessions/revoke-all`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(200);
     expect(result.body.data.sessionCount).toBeGreaterThanOrEqual(2);
 
     const after = await request(app)
       .get(`/api/v1/users/${targetId}/sessions`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(200);
     expect(after.body.data).toEqual([]);
 
-    await agentA.post("/api/v1/auth/refresh").expect(401);
-    await agentB.post("/api/v1/auth/refresh").expect(401);
+    await targetAgent.post("/api/v1/auth/refresh").expect(401);
 
     const audit = await prisma.auditEvent.findFirst({
       where: {
@@ -197,7 +218,9 @@ describe("user session management", () => {
   });
 
   it("refuses cross-Company session access and unauthenticated calls", async () => {
-    await request(app).get(`/api/v1/users/${adminUserId}/sessions`).expect(401);
+    await request(app)
+      .get(`/api/v1/users/${adminUserId}/sessions`)
+      .expect(401);
 
     const foreign = await prisma.user.findFirst({
       where: {
@@ -216,7 +239,7 @@ describe("user session management", () => {
 
     await request(app)
       .get(`/api/v1/users/${foreign.id}/sessions`)
-      .set("Authorization", await authHeader())
+      .set(auth())
       .expect(404);
   });
 });

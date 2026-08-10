@@ -38,17 +38,29 @@ export class UserSessionService {
         revokedAt: null,
         expiresAt: { gt: now },
       },
-      orderBy: [{ lastUsedAt: "desc" }, { createdAt: "desc" }],
+      // `id` is the stable tiebreaker: PostgreSQL CURRENT_TIMESTAMP is transaction
+      // start time, so two sessions issued in the same transaction can share
+      // identical lastUsedAt/createdAt and otherwise return in arbitrary order.
+      orderBy: [
+        { lastUsedAt: "desc" },
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
     });
 
     const currentFamilyId = options.currentSessionFamilyId ?? null;
 
     // One tip per family is the normal shape after rotation; if legacy data
-    // ever held two live tips, prefer the most recently used.
+    // ever held two live tips, prefer the most recently used (then id).
     const byFamily = new Map<string, (typeof tips)[number]>();
     for (const tip of tips) {
       const existing = byFamily.get(tip.familyId);
-      if (!existing || tip.lastUsedAt > existing.lastUsedAt) {
+      if (
+        !existing ||
+        tip.lastUsedAt > existing.lastUsedAt ||
+        (tip.lastUsedAt.getTime() === existing.lastUsedAt.getTime() &&
+          tip.id > existing.id)
+      ) {
         byFamily.set(tip.familyId, tip);
       }
     }
@@ -69,7 +81,13 @@ export class UserSessionService {
     }
 
     return [...byFamily.values()]
-      .sort((a, b) => b.lastUsedAt.getTime() - a.lastUsedAt.getTime())
+      .sort((a, b) => {
+        const byLastUsed = b.lastUsedAt.getTime() - a.lastUsedAt.getTime();
+        if (byLastUsed !== 0) return byLastUsed;
+        const byCreated = b.createdAt.getTime() - a.createdAt.getTime();
+        if (byCreated !== 0) return byCreated;
+        return b.id.localeCompare(a.id);
+      })
       .map((tip) => ({
         id: tip.familyId,
         createdAt: (
