@@ -17,8 +17,8 @@ import { routeDefinitions } from "../../app/routeDefinitions";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
-import { dashboardApi } from "../../services/dashboardApi";
-import type { DashboardSummary } from "../../types/api";
+import { notificationApi } from "../../services/notificationApi";
+import type { NotificationListResult } from "../../types/api";
 import type { ModuleStatus } from "../../types/navigation";
 import type { UiPreferences } from "../../hooks/useUiPreferences";
 
@@ -43,8 +43,8 @@ export function Topbar({
   const [search, setSearch] = useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationSummary, setNotificationSummary] =
-    useState<DashboardSummary | null>(null);
+  const [notificationData, setNotificationData] =
+    useState<NotificationListResult | null>(null);
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [notificationError, setNotificationError] = useState<string | null>(
     null,
@@ -93,25 +93,25 @@ export function Topbar({
     setSearch("");
     setMobileSearchOpen(false);
     setNotificationsOpen(false);
-    setNotificationSummary(null);
+    setNotificationData(null);
     setNotificationLoading(false);
     setNotificationError(null);
     setProfileOpen(false);
     setQuickAddOpen(false);
   }, [contextVersion]);
 
-  const loadNotificationSummary = useCallback(() => {
+  const loadNotifications = useCallback(() => {
     let active = true;
     setNotificationLoading(true);
     setNotificationError(null);
-    void dashboardApi
-      .summary()
-      .then((summary) => {
-        if (active) setNotificationSummary(summary);
+    void notificationApi
+      .list(10)
+      .then((result) => {
+        if (active) setNotificationData(result);
       })
       .catch((error: unknown) => {
         if (active) {
-          setNotificationSummary(null);
+          setNotificationData(null);
           setNotificationError(
             error instanceof Error
               ? error.message
@@ -129,11 +129,11 @@ export function Topbar({
 
   useEffect(() => {
     if (!user?.activeCompany.id || !hasPermission("dashboard:read")) return;
-    return loadNotificationSummary();
+    return loadNotifications();
   }, [
     contextVersion,
     hasPermission,
-    loadNotificationSummary,
+    loadNotifications,
     notificationVersion,
     user?.activeCompany.id,
   ]);
@@ -261,69 +261,6 @@ export function Topbar({
       )
       .slice(0, 6);
   }, [search]);
-
-  const workQueue = useMemo(() => {
-    const queue = notificationSummary?.analytics?.actionQueue ?? [];
-    const supported = queue.filter((item) =>
-      ["kpi-approval", "gap-open", "capa-overdue"].includes(item.key),
-    );
-    const present = new Set(supported.map((item) => item.key));
-    if (
-      !present.has("kpi-approval") &&
-      (notificationSummary?.kpis?.pendingApprovals ?? 0) > 0
-    ) {
-      supported.push({
-        key: "kpi-approval",
-        label: "KPI actuals awaiting approval",
-        description: "Submitted KPI actuals with no approval decision.",
-        count: notificationSummary!.kpis!.pendingApprovals,
-        to: "/kpi/approval",
-        tone: "blue",
-      });
-    }
-    if (
-      !present.has("gap-open") &&
-      (notificationSummary?.gaps?.open ?? 0) > 0
-    ) {
-      supported.push({
-        key: "gap-open",
-        label: "Open Gaps",
-        description: "Compliance gaps still awaiting remediation.",
-        count: notificationSummary!.gaps!.open,
-        to: "/compliance/gaps",
-        tone: "amber",
-      });
-    }
-    if (
-      !present.has("capa-overdue") &&
-      (notificationSummary?.capas?.overdue ?? 0) > 0
-    ) {
-      supported.push({
-        key: "capa-overdue",
-        label: "Overdue CAPAs",
-        description: "Open corrective actions past their recorded due date.",
-        count: notificationSummary!.capas!.overdue,
-        to: "/compliance/capa",
-        tone: "red",
-      });
-    }
-    return supported.sort(
-      (left, right) =>
-        right.count - left.count || left.key.localeCompare(right.key),
-    );
-  }, [notificationSummary]);
-  const workQueueCount = workQueue.reduce(
-    (total, item) => total + item.count,
-    0,
-  );
-  const hasVisibleWorkQueueSource = Boolean(
-    notificationSummary &&
-    [
-      notificationSummary.kpis,
-      notificationSummary.gaps,
-      notificationSummary.capas,
-    ].some((source) => source !== undefined && source !== null),
-  );
 
   const initials = (user?.name ?? "User")
     .split(/\s+/)
@@ -542,9 +479,11 @@ export function Topbar({
           }}
         >
           <Bell size={17} />
-          {!notificationLoading && notificationSummary ? (
+          {!notificationLoading && notificationData ? (
             <span className="counter" aria-hidden>
-              {workQueueCount > 99 ? "99+" : workQueueCount}
+              {notificationData.unreadCount > 99
+                ? "99+"
+                : notificationData.unreadCount}
             </span>
           ) : null}
         </button>
@@ -604,82 +543,69 @@ export function Topbar({
             role="dialog"
             aria-label="Notifications"
           >
-            <h3>Work queue</h3>
+            <h3>Notifications</h3>
             {notificationLoading ? (
               <div className="notification-state" role="status">
                 <LoaderCircle className="spin" size={17} />
-                Loading live Company work queue…
+                Loading in-app notifications…
               </div>
             ) : notificationError ? (
               <div className="notification-state state-error" role="alert">
                 <AlertTriangle size={17} />
                 {notificationError}
               </div>
-            ) : workQueue.length > 0 ? (
+            ) : (notificationData?.items.length ?? 0) > 0 ? (
               <div className="notification-summary">
-                {workQueue.map((item) => (
+                {notificationData!.items.map((item) => (
                   <button
-                    key={item.key}
-                    className="notification-item"
+                    key={item.id}
+                    className={`notification-item${item.read ? "" : " unread"}`}
                     type="button"
-                    onClick={() => openRoute(item.to)}
+                    onClick={() => {
+                      void (async () => {
+                        if (!item.read) {
+                          try {
+                            await notificationApi.markRead(item.id);
+                          } catch (reason) {
+                            showToast(
+                              "warning",
+                              "Notification was not marked read",
+                              reason instanceof Error ? reason.message : "",
+                            );
+                          }
+                        }
+                        openRoute(item.targetPath);
+                      })();
+                    }}
                   >
-                    {item.key === "kpi-approval" ? (
+                    {item.kind === "APPROVAL_REQUEST" ? (
                       <ClipboardCheck size={18} />
-                    ) : item.key === "gap-open" ? (
+                    ) : item.kind === "OWNERSHIP_ASSIGNMENT" ? (
                       <ShieldAlert size={18} />
                     ) : (
                       <AlertTriangle size={18} />
                     )}
                     <span>
-                      <strong>
-                        {item.count}{" "}
-                        {item.count === 1
-                          ? item.key === "kpi-approval"
-                            ? "KPI actual awaiting approval"
-                            : item.key === "gap-open"
-                              ? "Open Gap"
-                              : "Overdue CAPA"
-                          : item.label}
-                      </strong>
-                      <small>{item.description}</small>
+                      <strong>{item.title}</strong>
+                      <small>{item.message}</small>
                     </span>
                   </button>
                 ))}
               </div>
             ) : (
               <p className="notification-empty">
-                {hasVisibleWorkQueueSource
-                  ? "No pending KPI approvals, open gaps, or overdue CAPAs."
-                  : "No work-queue sources are visible with your current permissions."}
+                No in-app notifications for this Company.
               </p>
             )}
             <div className="notification-actions">
-              {hasPermission("kpis:read") ? (
+              <small>In-app only · email delivery is not configured.</small>
+              {hasPermission("registers:read") ? (
                 <button
                   className="btn btn-secondary"
                   type="button"
-                  onClick={() => openRoute("/kpi/approval")}
+                  onClick={() => openRoute("/tasks")}
                 >
-                  KPI Approval
-                </button>
-              ) : null}
-              {hasPermission("gaps:read") ? (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => openRoute("/compliance/gaps")}
-                >
-                  Gap Register
-                </button>
-              ) : null}
-              {hasPermission("capa:read") ? (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => openRoute("/compliance/capa")}
-                >
-                  CAPA Register
+                  Tasks
                 </button>
               ) : null}
             </div>

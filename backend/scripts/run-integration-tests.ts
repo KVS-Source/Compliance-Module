@@ -69,6 +69,9 @@ const INTEGRATION_FILES = [
   "tests/final-client-completion.test.ts",
   "tests/final-client-completion-http.test.ts",
   "tests/production-initializer.test.ts",
+  "tests/saved-views-api.test.ts",
+  "tests/notifications-api.test.ts",
+  "tests/tasks-api.test.ts",
 ] as const;
 
 const redact = (value: string) =>

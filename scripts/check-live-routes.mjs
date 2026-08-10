@@ -56,6 +56,7 @@ const requiredLiveRoutes = [
   { path: "/compliance/gaps", component: "GapRegisterPage" },
   { path: "/compliance/capa", component: "CapaRegisterPage" },
   { path: "/compliance/operational-registers", component: "OperationalRegistersPage" },
+  { path: "/tasks", component: "TasksPage" },
   { path: "/audit-trail", component: "AuditTrailPage" },
   { path: "/data/import", component: "ImportCentrePage" },
   { path: "/data/import-history", component: "ImportHistoryPage" },
@@ -143,7 +144,6 @@ const forbiddenVisibleFragments = [
   "/reports/attribution",
   "/reports/deals",
   "/reports/customer-outcomes",
-  "/tasks",
   "/notifications",
 ];
 
@@ -281,14 +281,14 @@ const protectedLivePatterns =
 // Submission navigation is LIVE-only: no In Development or Awaiting Access
 // badge may reach a client. Deferred routes live outside navigation metadata.
 if (
-  protectedLivePatterns !== 61 ||
+  protectedLivePatterns !== 62 ||
   statusCounts.IN_DEVELOPMENT !== 0 ||
   statusCounts.AWAITING_INTEGRATION !== 0 ||
   statusCounts.COMPATIBILITY !== 13 ||
-  visiblePaths.length !== 47
+  visiblePaths.length !== 48
 ) {
   failures.push(
-    `${displayPath(routeDefinitionsPath)} — expected 61 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 13 hidden COMPATIBILITY routes and 47 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
+    `${displayPath(routeDefinitionsPath)} — expected 62 protected LIVE route patterns, 0 visible IN_DEVELOPMENT routes, 0 AWAITING_INTEGRATION routes, 13 hidden COMPATIBILITY routes and 48 visible navigation routes; found ${JSON.stringify(statusCounts)}, ${visiblePaths.length} visible, ${protectedLivePatterns} protected LIVE patterns`,
   );
 }
 

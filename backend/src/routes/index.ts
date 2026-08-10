@@ -10,6 +10,12 @@ import { commentRoutes } from "../modules/comments/routes.js";
 import { RecordCommentService } from "../modules/comments/service.js";
 import { UserImportService } from "../modules/users/import-service.js";
 import { UserSessionService } from "../modules/users/session-service.js";
+import { SavedViewService } from "../modules/saved-views/service.js";
+import { savedViewRoutes } from "../modules/saved-views/routes.js";
+import { NotificationService } from "../modules/notifications/service.js";
+import { notificationRoutes } from "../modules/notifications/routes.js";
+import { TaskService } from "../modules/tasks/service.js";
+import { taskRoutes } from "../modules/tasks/routes.js";
 import { UsersRepository } from "../modules/users/repository.js";
 import { organisationRoutes } from "../modules/organisation/routes.js";
 import { OrganisationRepository } from "../modules/organisation/repository.js";
@@ -121,6 +127,9 @@ export const apiRoutes = (
     evidenceGate,
   );
   const evidence = new EvidenceService(new EvidenceRepository(db), fileStorage);
+  const savedViews = new SavedViewService(db);
+  const notifications = new NotificationService(db);
+  const tasks = new TaskService(db);
   const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
@@ -208,5 +217,8 @@ export const apiRoutes = (
   // Mounted last and matched on `/records/:entityType/...` so it cannot
   // shadow a register's own routes.
   router.use("/records", commentRoutes(new RecordCommentService(db)));
+  router.use("/saved-views", savedViewRoutes(savedViews));
+  router.use("/notifications", notificationRoutes(notifications));
+  router.use("/tasks", taskRoutes(tasks));
   return router;
 };
