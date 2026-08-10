@@ -31,25 +31,31 @@ by UAT language or status-page presentation.
   Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
   Checkpoint Register/detail (Slice 7), Gap/CAPA registers and details,
   Import Centre (browser XLSX/CSV preview+commit), Import History/detail,
-  Audit Trail, Operational Registers UI, and GenRAC integration status
-  (Not configured until credentials exist) are operational. Evidence metadata,
-  local file upload/download/submit, DRAFT-only link APIs, approve/reject review,
-  React Evidence routes (Library, Create, Detail, Review, link panels), and
-  Evidence gates for Checkpoint, Policy Version and KPI actual approval are
-  operational (Milestone 5). The Reports centre, KPI catalogue/analytics,
-  Frequency master and Role & Access pages are operational but **read-only**:
-  their APIs expose GET routes only, so role administration writes, report
-  scheduling/subscriptions and PDF output remain deferred. Tasks, Notifications
-  and tenant/settings polish remain deferred and hidden from production
-  navigation. Same-period
-  Checkpoint Review correction remains unsupported. Live GenRAC REST/database
-  sync remains unavailable until the client provides approved access; the CSV
-  adapter path is platform-ready under `LOCAL_UPLOAD_DIR/.genrac`.
+  Audit Trail, Operational Registers UI (browse **and** create/edit when
+  permitted), manual risk create, My Work, evidence expiry surfacing, Company
+  create (`POST /tenants`), and GenRAC integration status (Not configured until
+  credentials exist) are operational. Evidence metadata, local file
+  upload/download/submit, DRAFT-only link APIs, approve/reject review, React
+  Evidence routes (Library, Create, Detail, Review, link panels), and Evidence
+  gates for Checkpoint, Policy Version and KPI actual approval are operational
+  (Milestone 5). **User-to-role assignment** is operational
+  (`PUT /access/users/:id/roles`, `roles:assign`); the Role & Access page remains
+  a **read-only** catalogue of production profiles (no free-form permission
+  editing). The Reports centre, KPI catalogue/analytics and Frequency master are
+  operational but **read-only** for definitions; report scheduling/subscriptions
+  and PDF output remain deferred. Tasks, Notifications and tenant/settings polish
+  remain deferred and hidden from production navigation. Bulk register actions
+  and grid KPI actual entry remain open (see
+  [completion plan](./status/completion-plan.md) V1.1). Same-period Checkpoint
+  Review correction remains unsupported. Live GenRAC REST/database sync remains
+  unavailable until the client provides approved access; the CSV adapter path is
+  platform-ready under `LOCAL_UPLOAD_DIR/.genrac`.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Register filter and sort state is URL-synced for Gaps, CAPAs, Risks,
-  Evidence, Controls, Checkpoints, Policies, Operational Registers and Users. Control Checkpoint panels keep counts and, when
-  `checkpoints:read` is present, an Open Checkpoints link to
-  `/compliance/checkpoints` without controlId query or `location.state`.
+  Evidence, Controls, Checkpoints, Policies, Operational Registers and Users.
+  Control Checkpoint panels keep counts and, when `checkpoints:read` is present,
+  an Open Checkpoints link to `/compliance/checkpoints` without controlId query
+  or `location.state`.
 - Checkpoint reviews with `evidenceRequired=true` require qualifying APPROVED
   Evidence linked to that Checkpoint (409 `EVIDENCE_REQUIRED` /
   `EVIDENCE_COVERAGE_INCOMPLETE`). Policy approval with `requiresEvidence=true`

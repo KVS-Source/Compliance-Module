@@ -1,227 +1,202 @@
-# Completion plan — operable to fully usable
+# Completion plan — commercial roadmap
 
-Baseline date: 2026-08-08
+Baseline date: 2026-08-10
 
 ## Purpose
 
 [Current status and V1 scope](./current-status-and-v1-scope.md) records what is
-shipped. [Known limitations](../known-limitations.md) records what is not. This
-plan sequences the remaining work into phases that each end at a usable state,
-and it is ordered by what blocks an operator rather than by module.
+shipped at the module level. [Known limitations](../known-limitations.md)
+records constraints that must not be hidden from a client.
+[Gap register](../handover/gap-register.md) records specification versus
+implementation (workbook, data dictionary, erasure, infrastructure).
 
-Phase 1 is the only phase that blocks day-one operation. Everything after it
-raises quality, coverage or assurance.
+This document is the **forward roadmap**: what has closed since the 2026-08-08
+operable-to-usable plan, and what remains in three commercial tiers. Use it when
+handing the repository to the next owner so finished work is not re-listed as
+blocking.
 
-## Phase 1 — Close the user lifecycle
+### Commercial framing
 
-**Problem.** An administrator can create a user through Administration → Users,
-and that user can sign in, but no role can be assigned to them through any API
-or screen. `POST /users` in
-[`backend/src/modules/users/routes.ts`](../../backend/src/modules/users/routes.ts)
-accepts no role field, `/access` exposes `GET` only, and
-`RoleAssignmentService` in
-[`backend/src/modules/access/role-assignment-service.ts`](../../backend/src/modules/access/role-assignment-service.ts)
-is imported by `prisma/seed.ts`, `prisma/demo-seed.ts`,
-`prisma/uat-workbook-seed.ts` and `tests/api.test.ts` — never by
-`backend/src/`. The new user therefore signs in with no permissions and an
-empty navigation, and onboarding the second employee requires shell and
-database access through `npm run client:initialize`.
+| Tier | Meaning | Client line |
+| --- | --- | --- |
+| **Compliance engine** | Governed workflows, evidence gates, audit trail, KPI→risk, gap/CAPA, import, reports | Largely there |
+| **Daily software** | Personal queues, register ergonomics, bulk work, easy data entry, light collaboration | Remaining focus of V1.1 |
+| **Enterprise product** | SSO/MFA, email, PDF/scheduling, object storage, privacy erasure, RLS, deep integrations | V1.5–V2 |
 
-**Design constraint.** The deliberate decision documented in
-[`backend/src/modules/access/routes.ts`](../../backend/src/modules/access/routes.ts)
-is that `PRODUCTION_ACCESS_PROFILES` is the authority on what a role may do,
-and that a write path which only pretended to save would be worse than its
-absence. This phase does not weaken that. It adds **assignment of a user to one
-of the five sanctioned profiles**, not free-form role or permission editing.
-The profile catalogue stays the authority; only the user-to-role binding
-becomes mutable.
+Phase numbering from the earlier plan is preserved only as **history** under
+[Closed work](#closed-work-phases-1--2). New work is sequenced as **V1.1 / V1.5 /
+V2**.
 
-### 1.1 Role assignment API
+---
 
-Add to `backend/src/modules/access/routes.ts`:
+## Closed work (Phases 1–2)
 
-| Method | Path                          | Permission     | Behaviour                                                                      |
-| ------ | ----------------------------- | -------------- | ------------------------------------------------------------------------------ |
-| `GET`  | `/access/users/:userId/roles` | `users:read`   | Active and disabled assignments for the user in the active Company             |
-| `PUT`  | `/access/users/:userId/roles` | `roles:assign` | Sets the user's role to one profile code; disables any other active assignment |
+These items were the day-one and “connect the backend” blockers. They shipped
+and were verified in-browser. Do not re-open them as gaps unless a regression is
+found.
 
-Notes that matter for correctness:
+| Item | Commit | What shipped |
+| --- | --- | --- |
+| Role assignment API + UI | `b8a5f94` | `GET/PUT /access/users/:id/roles`, five production profiles only, `roles:assign`, self-escalation guard, audit event, integration + Playwright coverage. Admin can onboard a colleague end to end in the browser. |
+| Demo wildcard retirement (aligned) | `b8a5f94` | Demo roles aligned toward explicit production profile permissions so demo and production no longer diverge on `*`. |
+| Operational Registers write UI | `14eeeaf` | Create/edit against existing `registers:write` APIs; “Add record” works in the product UI. |
+| Manual risk create | `14eeeaf` | `POST /risks` + Risk Register create; continues the shared risk code sequence; source distinguished from KPI-linked automation. |
+| Register column sorting | `6989c1e` | Server-side allowlisted `orderBy` / `order`, `aria-sort` on headers. |
+| URL-synced filters | `6989c1e` | Register filter and sort state in the query string (e.g. `?orderBy=status&order=asc`). |
+| My Work personal queue | `6989c1e` | `/my-work` — five permission-gated sections, overdue first. |
+| Evidence expiry surfacing | `6989c1e` | Dashboard tile plus library filter (`expiringSoon` / related query params). |
+| Framework catalogue de-dupe | `413a4c5` | Demo seed no longer pollutes global frameworks with synthetic clauses; compliance percentages report real mapped numbers. |
+| Create Company from UI | `80c8a3c` | `POST /tenants` + UI; caller becomes administrator of the new empty Company; `tenants:write`. |
 
-- Reuse `RoleAssignmentService.upsertActive`. It already refuses assignment
-  without an active `userCompany` membership and refuses a role belonging to
-  another Company, returning `409 INVALID_ROLE_ASSIGNMENT`. Do not duplicate
-  those checks in the route.
-- Reject any `roleCode` that fails `isProductionRoleCode` from
-  [`backend/src/production/access-profile.ts`](../../backend/src/production/access-profile.ts),
-  and reject the wildcard `*` unconditionally, so this endpoint can never
-  create the state production readiness refuses.
-- Create the `Role` row from the profile on first assignment if the Company has
-  no row for that code yet, mirroring `client-initializer.ts` lines 100–125.
-  The Role & Access page already lists unassigned profiles at zero, so the
-  catalogue and this endpoint agree.
-- Follow the existing disable-others-then-upsert order used in
-  `prisma/demo-seed.ts` so a user never briefly holds two active roles.
-- Write an `AuditEvent` for every assignment. Role grants are the most
-  security-relevant mutation in the product and the audit trail is already
-  append-only.
+**Exit criterion for Phase 1 (met).** A Company Administrator can create a user,
+assign a sanctioned role, and that user signs in to a correctly scoped
+workspace without shell, seed, or direct database access.
 
-**New permission.** Add `roles:assign` to `PRODUCTION_PERMISSIONS` and grant it
-to `CLIENT_COMPANY_ADMINISTRATOR` only. Gating on the existing `users:write`
-would let anyone who can edit a phone number also grant themselves
-`COMPLIANCE_MANAGER`.
+**Not a gap — intentional product choice.** Self-service “forgot password”
+email reset is **not** planned as a hole. Login routes recovery to an
+administrator-set password, with copy that explains why a reset cannot be
+issued from an unverified email. Admins can set passwords today. Email-based
+reset is a future product decision, not an incomplete feature.
 
-**Self-escalation guard.** Refuse assignment where `:userId` equals the
-authenticated user. An administrator changing their own role should go through
-another administrator.
+In-app work-queue signalling improved with My Work and Topbar links; a full
+**notifications** model and **email transport** remain open (see V1.5).
 
-### 1.2 Role assignment UI
+---
 
-- [`frontend/src/features/users/UserFormModal.tsx`](../../frontend/src/features/users/UserFormModal.tsx)
-  currently offers `status` and `departmentId` only. Add a role select
-  populated from `GET /access/profiles`.
-- On create, submit the user first, then the role assignment. Surface a partial
-  failure honestly — a created user with no role must not report success.
-- Show the assigned role on the user detail view, and hide the control when the
-  caller lacks `roles:assign` rather than showing a disabled field.
-- [`frontend/src/features/users/UsersPage.tsx`](../../frontend/src/features/users/UsersPage.tsx)
-  already renders a `ROLE` column from `detailDto`, so no list change is needed.
+## V1.1 — Make daily work comfortable
 
-### 1.3 Retire the wildcard permission
+Near-term product work. None of this blocks reading the compliance engine; all
+of it changes how many hours a department owner spends fighting the UI.
 
-`DEMO_ROLES` in
-[`backend/prisma/demo-seed-data.ts`](../../backend/prisma/demo-seed-data.ts)
-still grants `"*"` to `COMPANY_ADMIN`. Production token issuance strips it,
-`client-initializer.ts` never assigns it, and readiness refuses it — so demo
-and production diverge on the single most security-relevant behaviour, and the
-demo cannot be used to validate the permission model.
+Cross-reference: several of these were called out in
+[customer-experience review](./customer-experience-review.md) (2026-08-08). That
+review still describes pre-`6989c1e` register UX in places; treat **this plan**
+as status authority for sorting, URL filters, My Work, and evidence expiry.
 
-Replace the wildcard with the explicit `CLIENT_COMPANY_ADMINISTRATOR`
-permission set and align the demo role codes with the five production profile
-codes. This is also the cheapest way to discover any screen that silently
-depends on `*`.
+### Must-have remaining (former P1)
 
-Removes limitation 1 in [known limitations](../known-limitations.md).
+| Item | Why | Notes |
+| --- | --- | --- |
+| **Bulk selection and bulk actions** on registers | Remediation is bulk work: reassign owners, extend due dates, batch-close verified CAPAs | Gaps, CAPAs, risks, evidence first; server must enforce the same gates as single-record actions |
+| **Grid / worklist KPI actual entry** | Highest-frequency screen is still one config → one period → one value | “Due this period, by me” grid; optional paste-from-spreadsheet; partial save |
 
-### 1.4 Tests
+### Strong V1.1 additions
 
-- Integration: assignment succeeds; cross-Company role rejected `409`;
-  wildcard rejected; non-profile code rejected; self-assignment rejected;
-  caller without `roles:assign` gets `403`; previous role is disabled, not
-  duplicated; audit event written.
-- Integration: a user created through `POST /users` and then assigned a role
-  can authenticate and reach a permitted route — the loop this phase exists to
-  close.
-- Playwright: create user, assign role, confirm the list reflects it.
+| Item | Why | Notes |
+| --- | --- | --- |
+| **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | CSV template + validation + role column limited to production profile codes |
+| **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | Complements disable-user; audit every revocation |
+| **Privilege access review report** | Auditor question: who holds `roles:assign`, who can approve | Small report on data already in roles, permissions, memberships |
+| **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | Append-only comments; no silent edit of history |
+| **Overdue visual cues** on list rows | Filter exists; past-due rows still look normal | Pure presentation + sort defaults |
+| **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
 
-**Exit criterion.** A Company Administrator can onboard a colleague end to end
-in the browser, and that colleague signs in to a correctly scoped workspace.
-No shell, no seed script, no direct database access.
+### Explicitly deferred from V1.1
 
-## Phase 2 — Connect the finished backends
+Email delivery, PDF/scheduling, S3, malware scan, SSO/MFA, Tasks module, CRM,
+free-form role design, GenRAC live REST/DB — see V1.5 / V2 and
+[known limitations](../known-limitations.md).
 
-Each item here has a working, tested API and no way to reach it.
+**V1.1 exit criterion.** A department owner can clear a week of KPI actuals
+without one-by-one forms, and a compliance manager can reassign or advance a
+batch of gaps/CAPAs without opening each detail page.
 
-### 2.1 Operational Registers write UI
+---
 
-`POST` and `PATCH` exist at
-[`backend/src/modules/registers/routes.ts`](../../backend/src/modules/registers/routes.ts)
-lines 75 and 94, gated on `registers:write`, and
-[`frontend/src/features/registers/OperationalRegistersPage.tsx`](../../frontend/src/features/registers/OperationalRegistersPage.tsx)
-is read-only. Add create and edit against the existing endpoints. No backend
-work.
+## V1.5 — Operational maturity
 
-### 2.2 Manual risk creation
+Makes the product runnable without constant ops workarounds. Aligns with
+[gap register §4](../handover/gap-register.md#4-other-known-gaps) and production
+limitations.
 
-Every write route in
-[`backend/src/modules/risks/routes.ts`](../../backend/src/modules/risks/routes.ts)
-is `/:id/...` — reviews, treatments, owner, close, reopen. There is no
-`POST /risks`, so a risk can only be born from a KPI miss or a workbook import,
-and a risk identified in a review meeting cannot be recorded at all. The
-`risk:write` permission already exists in the catalogue and is currently
-unreachable.
+| Item | Why | Related |
+| --- | --- | --- |
+| **In-app notifications** model + optional email transport | Approvals and overdue CAPAs are time-sensitive | Gap register: no external delivery; Settings must not claim email until true |
+| **Report scheduling, subscriptions, PDF / board pack** | Monthly pack rebuilt by hand today | Known limitations; ten reports already run on demand + CSV |
+| **Object storage (S3)** + signed download URLs | Local volume is deadline fallback, not multi-host production | Known limitations storage section |
+| **Malware scanning** on evidence upload | Evidence is the trust root for gates | Known limitations |
+| **Inline file preview** (PDF/image) | Download-only friction for reviewers | Known limitations |
+| **Browser-to-PostgreSQL E2E** (no API mocks) | Playwright proves UI against intercepts; human real-stack is still required | Limitation 3; Phase 3 of the old plan |
+| **Production bring-up** | TLS, DNS, secrets, log destination, alerting, disk encryption, RPO/RTO drill | Limitations 4–5; external inputs |
+| **GitHub branch protection evidence** | Workflow file alone is not protection | Limitation 6 |
+| **Delegation / out-of-office approver routing** | Approvals block when the only approver is away | Builds on existing approval workflows |
+| **As-of snapshot reports** | Audit asks “what did compliance look like on date D?” | Extends reports centre |
 
-Add `POST /risks` gated on `risk:write`, with `source` distinguishing a manual
-risk from a `KPI_LINKED` one so the automatic-risk invariants asserted in
-`prisma/demo-seed.ts` (exactly one server-generated risk per breaching actual)
-stay intact. Then add the create control to the Risk Register.
+**V1.5 exit criterion.** A release candidate can be proven on a real stack with
+automated critical-path E2E, evidence can live on object storage with scan
+hooks, and board packs can be produced without a spreadsheet rebuild.
 
-### 2.3 Notifications
+---
 
-The bell in
-[`frontend/src/components/navigation/Topbar.tsx`](../../frontend/src/components/navigation/Topbar.tsx)
-links to `/kpi/approval` and `/compliance/risks`. There is no notifications
-module and no mail transport anywhere in `backend/src`, so nothing reaches
-anyone who is not already looking at the application. Approvals and overdue
-CAPAs are time-sensitive, which makes this a real operational gap rather than
-polish.
+## V2 — Enterprise complete
 
-Smallest honest first step: an in-app work-queue count served from existing
-approval, gap and CAPA queries, replacing the static bell. Defer email until a
-transport and a delivery policy are agreed — the Settings page already states
-that external delivery is not configured, and it should keep saying so until it
-is true.
+Larger product and assurance programmes. Matches
+[gap register](../handover/gap-register.md) open specification items and
+assessor expectations.
 
-## Phase 3 — Verification you can trust
+### Privacy, security, assurance
 
-Playwright intercepts every API call, so the suites prove the React layer works
-against mocked responses. Backend integration tests are the database authority,
-and no automated test crosses the whole stack. This is limitation 3, and it is
-why a human real-stack walkthrough is required for every release candidate.
+| Item | Why | Related |
+| --- | --- | --- |
+| **Pseudonymisation / right to erasure** | DPDPA/GDPR in framework list; offboarding ≠ erasure | [Gap register §3](../handover/gap-register.md#3-data-removal-and-the-right-to-erasure) |
+| **PostgreSQL RLS** | Defence in depth; missed predicate has no DB backstop | Limitation 2; old Phase 4 |
+| **SSO (SAML/OIDC) + MFA / step-up for approvals** | Enterprise identity baseline | Not started |
+| **Configurable master data tables** | Frequencies, evidence types, report definitions are code enums today | [Gap register §2](../handover/gap-register.md#2-data-dictionary--32-of-46-tables-implemented) |
 
-Build a browser-to-PostgreSQL suite over the disposable database already used
-by `backend/scripts/run-integration-tests.ts`: migrate, seed a known fixture,
-run the real backend and built frontend, drive Playwright with no route
-interception. Cover the flows where a mock is least trustworthy — login and
-refresh rotation, the Phase 1 onboarding loop, KPI actual submission through
-approval, and an evidence-gated approval refusal.
+### Product modules
 
-Keep the mocked suites. They are fast and they cover rendering. This adds the
-layer they cannot reach.
+| Item | Why | Related |
+| --- | --- | --- |
+| **Tasks** module | Assigned work with due dates linked to gap/CAPA/risk/audit | Deferred route `/tasks`; no production Task model |
+| **CRM** (`customer_master`, `company_customers`, `deals`) | In signed data dictionary; prototype had titles only | [Gap register §2](../handover/gap-register.md#2-data-dictionary--32-of-46-tables-implemented) |
+| **Live GenRAC** REST/database adapters | CSV adapter only until client access | Known limitations; GenRAC page honesty rules |
+| **`evidence_versions`, `kpi_mappings`, `company_frameworks`** | Dictionary tables not modeled as first-class product | Gap register missing tables |
+| **Policy version obsoletion / INACTIVE transitions** | Lifecycle completeness | Known limitations |
+| **Same-period Checkpoint review correction** | Mistaken review is stuck for that period | Known limitations |
+| **SIEM / ticketing integrations**, webhooks | CAPA and incident hand-off | Not started |
+| **Custom role design** (beyond five profiles) | Only if the client requires it; profile catalogue is intentional authority today | Role & Access remains profile-bound |
 
-## Phase 4 — Tenant isolation defence in depth
+**V2 exit criterion.** An external assessor can be shown RLS, a designed erasure
+path, enterprise identity, and either live GenRAC or a written interface
+decision; dictionary modules the client bought are either built or formally
+descoped.
 
-Tenant isolation is enforced by authenticated tenant context, membership
-revalidation, repository predicates, composite foreign keys, constraints and
-triggers. It is carefully done, but a single missed predicate in a new
-repository method is a cross-tenant read with no backstop, and PostgreSQL RLS
-is the control an auditor will ask about (limitation 2).
+---
 
-Sequence: enable RLS on tenant-scoped tables in a migration, set the tenant
-context on the connection per request, add policies table by table, and run the
-existing cross-tenant negative tests as the gate. Expect this to touch every
-query path. It is a project in its own right and should not be bundled with
-feature work.
+## Sequencing summary
 
-## Phase 5 — Production bring-up
+| Tier | Effort (order of magnitude) | Blocks | Recommendation |
+| --- | --- | --- | --- |
+| Closed (Phase 1–2) | Done | Was day-one operation | Do not re-plan as open |
+| **V1.1** | Days–2 weeks | Daily usability | Next product work |
+| **V1.5** | Weeks | Ops comfort, release confidence, board packs | Before or with first serious production host |
+| **V2** | Project-sized | Audit posture, privacy, sold modules | Own programmes; do not mix into V1.1 PRs |
+| Production bring-up | External | Go-live | Parallel; needs infrastructure input |
 
-Not code. TLS certificate, DNS, secret manager, log destination, alerting,
-host and disk encryption, and a backup/restore drill against agreed RPO and RTO
-rather than the current mechanics-only local drill (limitations 4 and 5).
-Independent GitHub evidence for branch protection closes limitation 6.
+---
 
-## Sequencing
+## Deliberately scoped decisions (not accidental holes)
 
-| Phase                 | Effort   | Blocks             | Recommended                             |
-| --------------------- | -------- | ------------------ | --------------------------------------- |
-| 1 User lifecycle      | Days     | Day-one operation  | Do first                                |
-| 2 Connect backends    | Days     | Nothing            | Do next                                 |
-| 3 Real E2E            | ~1 week  | Release confidence | Before first production release         |
-| 4 RLS                 | Weeks    | Audit posture      | Schedule as its own project             |
-| 5 Production bring-up | External | Go-live            | In parallel; needs infrastructure input |
+Documented so successors do not “fix” intentional design:
 
-Phases 1 and 2 are days of work against APIs and services that already exist
-and are already tested. Phase 3 removes recurring manual release cost. Phase 4
-is the largest item and the one most likely to be demanded by an external
-assessor.
+- **Administrator-controlled password recovery** — implemented; email self-reset is optional future work.
+- **Five production access profiles** as permission authority — assignment is mutable; free-form permission editing is not V1.
+- **KPI-linked risk invariants** — automatic risk creation rules remain; manual risks use a distinct source.
+- **Append-only audit events** — no update/delete APIs; erasure is pseudonymisation of personal fields, not history deletion.
+- **GenRAC honesty** — do not claim live REST/DB until configured and approved.
+- Report scheduling, PDF, S3, malware scan, Tasks, Policy obsoletion, same-period checkpoint correction — deferred product decisions in
+  [known limitations](../known-limitations.md), not incomplete stubs pretending to work.
 
-## Deliberately not in this plan
+---
 
-Report scheduling, subscriptions and PDF output; Policy Version obsoletion and
-`INACTIVE` transitions; GenRAC live REST and database adapters; S3 object
-storage; malware scanning; inline file preview; same-period Checkpoint Review
-correction; Tasks. These are scoped-out product decisions recorded in
-[known limitations](../known-limitations.md), not loose ends, and none of them
-prevents daily operation.
+## Document map
 
-Administrator-controlled password recovery is also intentional and already
-implemented. It is not a gap.
+| Document | Role |
+| --- | --- |
+| This file | Forward roadmap (V1.1 / V1.5 / V2) and closed Phase 1–2 log |
+| [gap-register.md](../handover/gap-register.md) | Spec vs implementation (workbook, dictionary, erasure) |
+| [current-status-and-v1-scope.md](./current-status-and-v1-scope.md) | What is LIVE today |
+| [module-status.md](../handover/module-status.md) | Client-readable capability matrix |
+| [known-limitations.md](../known-limitations.md) | Constraints that must stay visible |
+| [customer-experience-review.md](./customer-experience-review.md) | UX findings (partially superseded by `6989c1e`) |
+| [START-HERE.md](../handover/START-HERE.md) | Handover entry point |

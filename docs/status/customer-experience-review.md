@@ -2,6 +2,24 @@
 
 Baseline date: 2026-08-08
 
+**Status note (2026-08-10).** Several findings below shipped after this review
+and must not be re-quoted as open gaps:
+
+| Finding in this review | Status after |
+| --- | --- |
+| No column sorting | Shipped (`6989c1e`) |
+| Filters do not survive in the URL | Shipped (`6989c1e`) |
+| No “my work” view | Shipped (`6989c1e`) |
+| Evidence expiry never surfaced | Shipped (`6989c1e`) |
+| Framework compliance reads as empty (duplicate frameworks) | Fixed (`413a4c5`) |
+| Role assignment / onboarding | Shipped (`b8a5f94`) |
+| Operational registers write / manual risk create | Shipped (`14eeeaf`) |
+
+Still accurate as open product work: bulk actions, grid KPI actual entry, bulk
+user import, session management, record comments, report scheduling/PDF, and
+the enterprise items in the
+[completion plan](./completion-plan.md).
+
 A walkthrough of the shipped pages from the position of a GRC buyer and a daily
 user, against the `DEMO-UAT` company with its full data set. Findings are
 grouped by how many pages they affect, because the cross-cutting items are worth

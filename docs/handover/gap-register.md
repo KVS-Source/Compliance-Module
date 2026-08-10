@@ -132,9 +132,14 @@ deliberate design task, not a delete button, and it must not be bolted on.
 
 ## 4. Other known gaps
 
-Recorded in [known limitations](../known-limitations.md) and unchanged:
+Recorded in [known limitations](../known-limitations.md). Forward sequencing
+(and what closed after the 2026-08-08 operable plan) lives in the
+[completion plan](../status/completion-plan.md) as **V1.1 / V1.5 / V2**.
 
-- no email or external notification delivery; work queues are in-app only
+Still open at this baseline:
+
+- no email or external notification delivery; in-app **My Work** and dashboard
+  queues exist, but there is no notifications module or mail transport
 - reports run on demand and export CSV; no scheduling, subscriptions or PDF
 - PostgreSQL row-level security is not enabled; tenant isolation is enforced by
   application context, repository predicates, composite foreign keys and
@@ -142,6 +147,20 @@ Recorded in [known limitations](../known-limitations.md) and unchanged:
 - Playwright intercepts API responses, so no automated test crosses the browser
   to PostgreSQL
 - production hosting, DNS, TLS, secret management and alerting are outstanding
+- bulk register actions and grid KPI actual entry remain (V1.1)
+- bulk user import, session management UI and privilege-access review report
+  are not built (V1.1 candidates)
+
+Closed after the prior operable plan (do not re-list as specification gaps):
+
+- browser role assignment (`b8a5f94`)
+- operational registers write UI and manual risk create (`14eeeaf`)
+- register sort, URL-synced filters, My Work, evidence expiry surfacing
+  (`6989c1e`)
+- framework catalogue de-dupe for real compliance percentages (`413a4c5`)
+- create Company from the UI (`80c8a3c`)
+
+Administrator-controlled password recovery is intentional, not a gap.
 
 ## 5. Verification status
 

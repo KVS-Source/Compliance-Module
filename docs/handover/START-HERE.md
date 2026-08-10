@@ -21,9 +21,10 @@ It runs. It is not deployed.
 | [gap-register.md](./gap-register.md)                                       | What is specified but not built, and what each needs |
 | [current-status-and-v1-scope.md](../status/current-status-and-v1-scope.md) | What is shipped, module by module                    |
 | [known-limitations.md](../known-limitations.md)                            | Constraints that must not be hidden from a client    |
-| [completion-plan.md](../status/completion-plan.md)                         | Sequenced plan for the remaining work                |
+| [completion-plan.md](../status/completion-plan.md)                         | **Forward roadmap** — closed Phase 1–2, V1.1 / V1.5 / V2 |
+| [module-status.md](./module-status.md)                                     | Client-readable “what can the user do” matrix        |
 | [client-demo-script.md](../status/client-demo-script.md)                   | A rehearsed 15-minute demonstration                  |
-| [customer-experience-review.md](../status/customer-experience-review.md)   | UX findings from a buyer's perspective               |
+| [customer-experience-review.md](../status/customer-experience-review.md)   | UX findings (partially superseded — see completion plan) |
 | [setup.md](../setup.md)                                                    | Environment and first run                            |
 
 ## Running it

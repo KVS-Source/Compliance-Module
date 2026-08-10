@@ -1,6 +1,6 @@
 # Current status and V1 scope
 
-Baseline date: 2026-08-07
+Baseline date: 2026-08-10
 
 ## Release classification
 
@@ -41,23 +41,34 @@ Client-readable module capabilities: [handover module status](../handover/module
 
 ## Implemented LIVE capability (shipped sidebar set)
 
+Forward remaining work: [completion plan](./completion-plan.md) (V1.1 / V1.5 /
+V2). Spec gaps: [gap register](../handover/gap-register.md).
+
 - authentication, refresh rotation, logout and active Company selection;
-- Companies (read), users (create/update including admin password set), and
-  organisation masters (departments, locations, units);
+- Companies (**read + create** via `POST /tenants` when permitted), users
+  (create/update including admin password set and **role assignment** to one of
+  the five production profiles), and organisation masters (departments,
+  locations, units);
 - **self-service password change** for any authenticated role (no permission
   code required), which revokes every session for that user on success;
-- frameworks and framework rules (read);
+  administrator-set password is the intentional recovery path (no email
+  forgot-password);
+- **My Work** personal queue (permission-gated sections, overdue first);
+- frameworks and framework rules (read); register **column sort** and
+  **URL-synced filters** on major registers;
 - Policy, Control and Checkpoint registers with lifecycle, mappings, reviews
   and scoped audit/traceability;
 - KPI configuration, versioned targets, actual entry, approval, and automatic
-  KPI-linked risks (Major/Minor) with Risk Register treatment workflow;
+  KPI-linked risks (Major/Minor) with Risk Register treatment workflow and
+  **manual risk create**;
 - Evidence library, create/upload, review queue, linking and gates for
-  Checkpoint, Policy Version and KPI actual approval;
+  Checkpoint, Policy Version and KPI actual approval; **evidence expiring soon**
+  on the dashboard and library filters;
 - **Gap Register and CAPA Register** (create, update, owner, close/reopen,
   evidence linkage; closure is evidence-gated);
 - **Audit Trail** (searchable company history and CSV export);
-- **Operational Registers** (read company register types and records; write API
-  exists but the UI is read-only in this release);
+- **Operational Registers** (browse, create and edit company register records
+  when permitted; also loadable by import);
 - **Data Import** (browser XLSX workbook and approved CSV template preview and
   commit) and **Import History**;
 - **GenRAC Integration** page: connector status, sync history, and CSV-adapter
@@ -78,9 +89,9 @@ Client-readable module capabilities: [handover module status](../handover/module
   report on screen;
 - **KPI catalogue and KPI analytics** pages (read-only) and the **Frequency
   master** (read-only);
-- **Role and access profiles** page (read-only). The API exposes no role
-  mutation path and states `mutable: false` in the response; production roles
-  are still provisioned by initialization, not by the UI;
+- **Role and access profiles** page (catalogue read-only; `mutable: false` for
+  permission sets). **User-to-profile assignment** is mutable via
+  `PUT /access/users/:id/roles` (`roles:assign`); free-form role design is not;
 - **Approved and Rejected Evidence** views alongside the existing review queue;
 - **Settings** utility with a per-Company working-location selector and regional
   date/time display preferences. These preferences are local and
@@ -94,17 +105,16 @@ path for it.
 ## Not operational / deferred
 
 The following are **not** client sidebar LIVE modules (hidden status pages or
-deferred scope):
+deferred scope). Sequenced remaining work is in the
+[completion plan](./completion-plan.md).
 
 - standalone Policy Versions navigation page (versions live inside Policy detail);
 - Tasks, Notifications, tenant-settings deep links and KPI mapping deep links;
-- **role and permission administration writes**: the role-access page reads
-  profiles only, so creating a role or changing a permission assignment is not
-  possible from the client;
+- **free-form role and permission design**: profiles are fixed; only assignment
+  of a user to a sanctioned profile is mutable;
 - **report scheduling, subscriptions and PDF output**: the Reports centre runs a
   report on demand and exports CSV only;
-- free-form manual risk **create** in the API (risks are auto-raised from KPI
-  misses and import; treatment/close work on the Risk Register);
+- **bulk register actions** and **grid KPI actual entry** (V1.1);
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
   place a file and configure via API);
 - Policy Version obsoletion and Policy `INACTIVE` transitions;
