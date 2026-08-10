@@ -15,9 +15,8 @@ import { toCsv, type CsvColumn } from "../exports/csv.js";
  *  - rows are bounded. An unbounded report is both a denial-of-service surface
  *    and a way to walk a whole company's data out of the product in one click.
  *
- * Scheduling, email delivery and PDF rendering are deliberately absent: none
- * of them exist in this release, and a button that only appeared to schedule
- * would be a false claim.
+ * Scheduling and email delivery remain absent. PDF board-pack export is
+ * available alongside CSV (same rows, different packaging).
  */
 export const REPORT_ROW_LIMIT = 5_000;
 
@@ -31,6 +30,10 @@ const dateOnly = (value: Date | null) =>
 
 const daysBetween = (from: Date, to: Date) =>
   Math.floor((to.getTime() - from.getTime()) / DAY_MS);
+
+/** Rows created after the as-of instant are excluded from snapshot reports. */
+const asOfCreated = (filters: ReportFilters) =>
+  filters.asOf ? { createdAt: { lte: filters.asOf } } : {};
 
 /** Age buckets shared by the Evidence and CAPA aging reports. */
 export const AGING_BUCKETS = [
@@ -50,6 +53,13 @@ export const agingBucket = (days: number) => {
 export interface ReportFilters {
   readonly from?: Date;
   readonly to?: Date;
+  /**
+   * Point-in-time bound: only rows whose governing timestamps are on or before
+   * this instant are included. Derived from live tables + audit timestamps
+   * rather than a separate snapshot table — the audit trail is already
+   * append-only, and a second snapshot store would drift from it.
+   */
+  readonly asOf?: Date;
   readonly frameworkId?: string;
   readonly departmentId?: string;
   readonly status?: string;
@@ -67,7 +77,7 @@ export const REPORT_CATALOGUE = [
     description:
       "Every measured KPI actual against the target snapshot it was judged on.",
     permissions: ["kpis:read"],
-    filters: ["period", "departmentId", "from", "to"],
+    filters: ["period", "departmentId", "from", "to", "asOf"],
   },
   {
     key: "kpi-variance",
@@ -75,7 +85,7 @@ export const REPORT_CATALOGUE = [
     description:
       "Achievement rate and variance by reporting period, derived from the actuals.",
     permissions: ["kpis:read"],
-    filters: ["period", "departmentId"],
+    filters: ["period", "departmentId", "asOf"],
   },
   {
     key: "framework-compliance",
@@ -83,7 +93,7 @@ export const REPORT_CATALOGUE = [
     description:
       "Mapped and implemented Controls, rules and open Gaps per framework.",
     permissions: ["frameworks:read", "controls:read"],
-    filters: ["frameworkId"],
+    filters: ["frameworkId", "asOf"],
   },
   {
     key: "evidence-status",
@@ -91,7 +101,7 @@ export const REPORT_CATALOGUE = [
     description:
       "Evidence lifecycle distribution and how long records have been waiting.",
     permissions: ["evidence:read"],
-    filters: ["status", "departmentId"],
+    filters: ["status", "departmentId", "asOf"],
   },
   {
     key: "risks",
@@ -99,14 +109,14 @@ export const REPORT_CATALOGUE = [
     description:
       "The Risk register with inherent and residual scoring and treatment state.",
     permissions: ["risk:read"],
-    filters: ["status"],
+    filters: ["status", "asOf"],
   },
   {
     key: "gaps",
     name: "Gaps",
     description: "The Gap register with severity, framework and due state.",
     permissions: ["gaps:read"],
-    filters: ["status", "severity", "frameworkId", "departmentId"],
+    filters: ["status", "severity", "frameworkId", "departmentId", "asOf"],
   },
   {
     key: "capa-aging",
@@ -114,7 +124,7 @@ export const REPORT_CATALOGUE = [
     description:
       "Open corrective actions by age against their recorded due date.",
     permissions: ["capa:read"],
-    filters: ["status", "priority", "departmentId"],
+    filters: ["status", "priority", "departmentId", "asOf"],
   },
   {
     key: "policy-review",
@@ -122,14 +132,14 @@ export const REPORT_CATALOGUE = [
     description:
       "Approved Policy Versions and the review date recorded against them.",
     permissions: ["policies:read"],
-    filters: ["from", "to"],
+    filters: ["from", "to", "asOf"],
   },
   {
     key: "audit-activity",
     name: "Audit activity",
     description: "Governed activity from the append-only audit trail.",
     permissions: ["audit:read"],
-    filters: ["from", "to"],
+    filters: ["from", "to", "asOf"],
   },
   {
     key: "operational-registers",
@@ -137,7 +147,7 @@ export const REPORT_CATALOGUE = [
     description:
       "Record counts and imported rows across this Company's active registers.",
     permissions: ["registers:read"],
-    filters: ["registerCode"],
+    filters: ["registerCode", "asOf"],
   },
 ] as const;
 
@@ -220,6 +230,40 @@ export class ReportService {
     return toCsv(columns, report.rows);
   }
 
+  /**
+   * PDF board pack for a report. Same permission model as CSV (`exports:read`
+   * is required at the route) and the same row set as the on-screen table.
+   */
+  async pdf(key: ReportKey, tenantId: string, filters: ReportFilters) {
+    const { buildReportPdf } = await import("./pdf.js");
+    const report = await this.run(key, tenantId, filters);
+    return buildReportPdf({
+      title: report.name,
+      subtitle: `Company report · ${key}`,
+      generatedAt: report.generatedAt.toISOString(),
+      ...(filters.asOf
+        ? { asOf: filters.asOf.toISOString().slice(0, 10) }
+        : {}),
+      columns: report.columns.map((column) => ({
+        key: column.key,
+        header: column.header,
+      })),
+      rows: report.rows.map((row) => {
+        const out: Record<string, string | number | null | undefined> = {};
+        for (const column of report.columns) {
+          const value = row[column.key];
+          out[column.key] =
+            value == null
+              ? null
+              : typeof value === "string" || typeof value === "number"
+                ? value
+                : String(value);
+        }
+        return out;
+      }),
+    });
+  }
+
   private meta(
     key: ReportKey,
     filters: ReportFilters,
@@ -233,6 +277,7 @@ export class ReportService {
       filters: {
         from: dateOnly(filters.from ?? null),
         to: dateOnly(filters.to ?? null),
+        asOf: dateOnly(filters.asOf ?? null),
         frameworkId: filters.frameworkId ?? null,
         departmentId: filters.departmentId ?? null,
         status: filters.status ?? null,
@@ -667,6 +712,7 @@ export class ReportService {
       where: {
         tenantId,
         deletedAt: null,
+        ...asOfCreated(filters),
         ...(filters.status ? { status: filters.status as never } : {}),
       },
       select: {
@@ -747,6 +793,7 @@ export class ReportService {
       where: {
         tenantId,
         deletedAt: null,
+        ...asOfCreated(filters),
         ...(filters.status ? { status: filters.status as never } : {}),
         ...(filters.severity ? { severity: filters.severity as never } : {}),
         ...(filters.frameworkId ? { frameworkId: filters.frameworkId } : {}),
@@ -1040,11 +1087,13 @@ export class ReportService {
     const events = await this.db.auditEvent.findMany({
       where: {
         tenantId,
-        ...(filters.from || filters.to
+        ...(filters.from || filters.to || filters.asOf
           ? {
               createdAt: {
                 ...(filters.from ? { gte: filters.from } : {}),
                 ...(filters.to ? { lte: filters.to } : {}),
+                // asOf is the exclusive upper bound for snapshot reports.
+                ...(filters.asOf ? { lte: filters.asOf } : {}),
               },
             }
           : {}),

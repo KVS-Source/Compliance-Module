@@ -449,6 +449,48 @@ export const evidenceApi = {
     return { fileName: resolvedName, byteSize: blob.size };
   },
 
+  /**
+   * Fetch an evidence file as a blob URL for inline preview (PDF/image).
+   * Caller must revoke the object URL when finished.
+   */
+  async previewEvidenceFile(evidenceId: string): Promise<{
+    objectUrl: string;
+    contentType: string;
+    byteSize: number;
+  }> {
+    const { blob } = await withSessionRetry(async () => {
+      const token = getAccessToken();
+      const response = await fetch(
+        `/api/v1/evidence/${encodeURIComponent(evidenceId)}/file?disposition=inline`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: "include",
+        },
+      );
+      if (!response.ok) {
+        throw new ApiError(
+          response.status === 401
+            ? "Session expired"
+            : "Evidence preview failed",
+          response.status,
+          "EVIDENCE_PREVIEW_FAILED",
+        );
+      }
+      const contentType =
+        response.headers.get("content-type") ?? "application/octet-stream";
+      const body = await response.blob();
+      return {
+        blob: new Blob([body], { type: contentType }),
+        fileName: "preview",
+      };
+    });
+    return {
+      objectUrl: URL.createObjectURL(blob),
+      contentType: blob.type,
+      byteSize: blob.size,
+    };
+  },
+
   async listControlLinks(
     evidenceId: string,
     query: { page?: number; pageSize?: number } = {},

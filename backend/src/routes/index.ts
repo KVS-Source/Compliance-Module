@@ -56,6 +56,8 @@ import { importRoutes } from "../modules/imports/routes.js";
 import { AccessProfileService, accessRoutes } from "../modules/access/routes.js";
 import { KpiCatalogueService } from "../modules/kpis/catalogue-service.js";
 import { kpiCatalogueRoutes } from "../modules/kpis/catalogue-routes.js";
+import { DelegationService } from "../modules/delegation/service.js";
+import { delegationRoutes } from "../modules/delegation/routes.js";
 import { ReportService } from "../modules/reports/service.js";
 import { reportRoutes } from "../modules/reports/routes.js";
 import { ExportService } from "../modules/exports/service.js";
@@ -118,6 +120,7 @@ export const apiRoutes = (
   const usersRepository = new UsersRepository(db);
   const userImports = new UserImportService(db, usersRepository);
   const userSessions = new UserSessionService(db);
+  const delegations = new DelegationService(db);
   const auditTrail = new AuditTrailService(db);
   const genrac = new GenracSyncService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
@@ -135,6 +138,7 @@ export const apiRoutes = (
     new KpiPerformanceService(),
     risks,
     evidenceGate,
+    delegations,
   );
   router.get("/health", (_req, res) =>
     res.json({
@@ -194,6 +198,7 @@ export const apiRoutes = (
     frameworksRoutes(provider, new FrameworksRepository(db)),
   );
   router.use("/access", accessRoutes(accessProfiles));
+  router.use("/delegations", delegationRoutes(delegations));
   router.use("/kpis", kpiCatalogueRoutes(kpiCatalogue));
   router.use("/reports", reportRoutes(reports));
   router.use("/kpi-definitions", kpiDefinitionRoutes(provider));

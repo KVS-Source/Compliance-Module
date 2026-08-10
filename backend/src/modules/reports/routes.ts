@@ -22,6 +22,7 @@ import {
 const toFilters = (query: ReportQuery): ReportFilters => ({
   ...(query.from ? { from: new Date(`${query.from}T00:00:00.000Z`) } : {}),
   ...(query.to ? { to: new Date(`${query.to}T23:59:59.999Z`) } : {}),
+  ...(query.asOf ? { asOf: new Date(`${query.asOf}T23:59:59.999Z`) } : {}),
   ...(query.frameworkId ? { frameworkId: query.frameworkId } : {}),
   ...(query.departmentId ? { departmentId: query.departmentId } : {}),
   ...(query.status ? { status: query.status } : {}),
@@ -149,6 +150,35 @@ export const reportRoutes = (service: ReportService) => {
       );
       // Without nosniff a browser may render the CSV inline, which turns a
       // text file into a stored-XSS vector on the API origin.
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      return res.send(body);
+    }),
+  );
+
+  /**
+   * PDF board pack. Same permission split as CSV: the report's module
+   * permissions plus `exports:read`. CSV is not replaced.
+   */
+  router.get(
+    "/:reportKey/export.pdf",
+    permit("dashboard:read"),
+    permit("exports:read"),
+    validate(reportParamsSchema, "params"),
+    validateReportQuery,
+    asyncHandler(async (req: Request, res: Response) => {
+      const reportKey = String(req.params.reportKey);
+      assertReportPermitted(reportKey, req.auth!.permissions);
+      if (!isReportKey(reportKey)) throw notFound("Report");
+      const body = await service.pdf(
+        reportKey,
+        req.auth!.tenantId,
+        toFilters(req.query as ReportQuery),
+      );
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${exportFilename(`report-${reportKey}`).replace(/\.csv$/i, "")}.pdf"`,
+      );
       res.setHeader("X-Content-Type-Options", "nosniff");
       return res.send(body);
     }),

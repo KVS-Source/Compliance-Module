@@ -67,6 +67,7 @@ export const buildReportQuerySchema = (reportKey: string) => {
     .object({
       from: dateSchema.optional(),
       to: dateSchema.optional(),
+      asOf: allowed.has("asOf") ? dateSchema.optional() : z.undefined().optional(),
       frameworkId: allowed.has("frameworkId")
         ? z.string().uuid().optional()
         : z.undefined().optional(),

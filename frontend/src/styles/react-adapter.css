@@ -1120,6 +1120,28 @@ tr.register-row-overdue > td:first-child {
   margin-right: 0.25rem;
 }
 
+.evidence-preview-frame {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.evidence-preview-image {
+  max-width: 100%;
+  max-height: 480px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--surface-2, #f9fafb);
+}
+
+.evidence-preview-iframe {
+  width: 100%;
+  min-height: 480px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .deadline-break {
   overflow-wrap: anywhere;
 }
