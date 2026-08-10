@@ -198,6 +198,53 @@ async function installPhase2Mock(
         }),
       );
     }
+    if (path === "/api/v1/notifications") {
+      return json(
+        route,
+        200,
+        success({
+          unreadCount: 6,
+          items: [
+            {
+              id: "92000000-0000-4000-8000-000000000001",
+              kind: "APPROVAL_REQUEST",
+              title: "KPI actual awaiting approval",
+              message: "Two submitted KPI actuals need a decision.",
+              targetPath: "/kpi/approval",
+              sourceType: "KPI_ACTUAL",
+              sourceId: "90000000-0000-4000-8000-000000000001",
+              read: false,
+              readAt: null,
+              createdAt: "2026-08-10T00:00:00.000Z",
+            },
+            {
+              id: "92000000-0000-4000-8000-000000000002",
+              kind: "OWNERSHIP_ASSIGNMENT",
+              title: "Gap assigned to you",
+              message: "Three open Gaps are assigned to you.",
+              targetPath: "/compliance/gaps",
+              sourceType: "GAP",
+              sourceId: "91000000-0000-4000-8000-000000000001",
+              read: false,
+              readAt: null,
+              createdAt: "2026-08-10T00:00:00.000Z",
+            },
+            {
+              id: "92000000-0000-4000-8000-000000000003",
+              kind: "OVERDUE_CAPA",
+              title: "CAPA is overdue",
+              message: "One corrective action is overdue.",
+              targetPath: "/compliance/capa",
+              sourceType: "CAPA",
+              sourceId: "93000000-0000-4000-8000-000000000001",
+              read: false,
+              readAt: null,
+              createdAt: "2026-08-10T00:00:00.000Z",
+            },
+          ],
+        }),
+      );
+    }
     if (path === "/api/v1/users" && method === "GET") {
       return json(route, 200, success(userRows, pageMeta(userRows.length)));
     }
@@ -320,9 +367,9 @@ test("creates a manual risk and shows the live work-queue count", async ({ page 
   await expect(page.locator(".top-notifications .counter")).toHaveText("6");
   await page.getByRole("button", { name: "Notifications" }).click();
   const queue = page.getByRole("dialog", { name: "Notifications" });
-  await expect(queue).toContainText("2 KPI actuals awaiting approval");
-  await expect(queue).toContainText("3 Open Gaps");
-  await expect(queue).toContainText("1 Overdue CAPA");
+  await expect(queue).toContainText("KPI actual awaiting approval");
+  await expect(queue).toContainText("Gap assigned to you");
+  await expect(queue).toContainText("CAPA is overdue");
   await page.getByRole("button", { name: "Notifications" }).click();
 
   await page.getByRole("button", { name: "Add risk" }).click();

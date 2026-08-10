@@ -102,7 +102,7 @@ per-record permissions and audit events.
 | **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | **Shipped** — `GET /users/import/template(.csv)`, `POST /users/import/preview` (dry run), `POST /users/import/commit`; role column limited to production profile codes; see [initial password note](#bulk-user-import-initial-password) |
 | **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | **Shipped** — `GET /users/:id/sessions`, revoke one / revoke all; IP/UA/`lastUsedAt` on refresh tips; family-wide revoke with audit |
 | **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | **Shipped** — `GET/POST /records/:entityType/:entityId/comments`; append-only by route *and* by `record_comments_append_only` trigger; parent record's permission governs |
-| **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
+| **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | **Shipped** — private per-user, per-Company views preserve validated filter and sort state; no sharing in this release |
 
 ### Explicitly deferred from V1.1
 
@@ -124,7 +124,7 @@ limitations.
 
 | Item | Why | Related |
 | --- | --- | --- |
-| **In-app notifications** model + optional email transport | Approvals and overdue CAPAs are time-sensitive | Gap register: no external delivery; Settings must not claim email until true |
+| **In-app notifications** model + optional email transport | Approvals and overdue CAPAs are time-sensitive | **In-app shipped** — approval, overdue Gap/CAPA and ownership signals with read state; email transport remains intentionally absent |
 | **Report scheduling, subscriptions, PDF / board pack** | Monthly pack rebuilt by hand today | Known limitations; ten reports already run on demand + CSV |
 | **Object storage (S3)** + signed download URLs | Local volume is deadline fallback, not multi-host production | Known limitations storage section |
 | **Malware scanning** on evidence upload | Evidence is the trust root for gates | Known limitations |
@@ -160,7 +160,7 @@ assessor expectations.
 
 | Item | Why | Related |
 | --- | --- | --- |
-| **Tasks** module | Assigned work with due dates linked to gap/CAPA/risk/audit | Deferred route `/tasks`; no production Task model |
+| **Tasks** module | Assigned work with due dates linked to gap/CAPA/risk/audit | **Shipped** — Company-scoped CRUD register at `/tasks`, governed links, audit events and existing register permissions |
 | **CRM** (`customer_master`, `company_customers`, `deals`) | In signed data dictionary; prototype had titles only | [Gap register §2](../handover/gap-register.md#2-data-dictionary--32-of-46-tables-implemented) |
 | **Live GenRAC** REST/database adapters | CSV adapter only until client access | Known limitations; GenRAC page honesty rules |
 | **`evidence_versions`, `kpi_mappings`, `company_frameworks`** | Dictionary tables not modeled as first-class product | Gap register missing tables |

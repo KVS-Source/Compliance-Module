@@ -105,6 +105,27 @@ export function useRegisterQueryState(spec: ParamSpec) {
     [order, orderBy, updateParams],
   );
 
+  const viewQuery = useMemo(() => {
+    const allowed = new Set([...spec.keys, "orderBy", "order"]);
+    return Object.fromEntries(
+      [...searchParams.entries()].filter(
+        ([key, value]) => allowed.has(key) && value !== "",
+      ),
+    );
+  }, [searchParams, spec.keys]);
+
+  const applyView = useCallback(
+    (query: Record<string, string>) => {
+      const allowed = new Set([...spec.keys, "orderBy", "order"]);
+      const next = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) {
+        if (allowed.has(key) && value !== "") next.set(key, value);
+      }
+      setSearchParams(next, { replace: true });
+    },
+    [setSearchParams, spec.keys],
+  );
+
   // Company switch drops every filter so no query survives a tenant change.
   const tenantKeyRef = useRef(`${activeCompanyId}:${contextVersion}`);
   useEffect(() => {
@@ -123,6 +144,8 @@ export function useRegisterQueryState(spec: ParamSpec) {
     setPage,
     toggleSort,
     searchParams,
+    viewQuery,
+    applyView,
   };
 }
 

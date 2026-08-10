@@ -240,6 +240,22 @@ async function installRiskMock(
       });
     }
 
+    if (path === "/api/v1/notifications" && method === "GET") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(success({ items: [], unreadCount: 0 })),
+      });
+    }
+
+    if (path === "/api/v1/saved-views" && method === "GET") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(success([])),
+      });
+    }
+
     if (path === "/api/v1/risks" && method === "GET") {
       listUrls.push(request.url());
       if (!canRead) {

@@ -559,6 +559,18 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     },
   ),
   live(
+    "/tasks",
+    "#tasks",
+    "Tasks",
+    "Audit & Operations",
+    "Assigned compliance work with due dates linked to Gaps, CAPAs, Risks and Audit events.",
+    ClipboardList,
+    {
+      permission: "registers:read",
+      api: "GET/POST /tasks · GET/PATCH/DELETE /tasks/:id",
+    },
+  ),
+  live(
     "/reports",
     "#reports",
     "Analytics & Reports",
@@ -709,18 +721,6 @@ const deferredRouteDefinitions: RouteDefinition[] = [
     { hidden: true },
   ),
   development(
-    "/tasks",
-    "#tasks",
-    "Tasks",
-    "Audit & Reporting",
-    "Assigned compliance work and due dates.",
-    ClipboardList,
-    {
-      hidden: true,
-      dependency: "Deferred — no production Task model in this release.",
-    },
-  ),
-  development(
     "/notifications",
     "#notifications",
     "Notifications",
@@ -827,6 +827,7 @@ export const clientNavigationPaths = new Set([
   "/data/genrac-integration",
   "/audit-trail",
   "/compliance/operational-registers",
+  "/tasks",
   "/reports",
   "/reports/kpi-variance",
   "/reports/framework-compliance",
@@ -904,6 +905,7 @@ export const migratedPaths = new Set([
   "/compliance/gaps",
   "/compliance/capa",
   "/compliance/operational-registers",
+  "/tasks",
   "/audit-trail",
   "/data/import",
   "/data/import-history",

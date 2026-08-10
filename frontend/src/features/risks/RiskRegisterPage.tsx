@@ -18,6 +18,7 @@ import {
   type BulkAction,
 } from "../../components/tables/BulkActionBar";
 import { SortableTh } from "../../components/tables/SortableTh";
+import { SavedViewToolbar } from "../../components/registers/SavedViewToolbar";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
@@ -93,8 +94,17 @@ export function RiskRegisterPage() {
   ];
   const canBulk = bulkActions.length > 0;
 
-  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
-    useRegisterQueryState({
+  const {
+    values,
+    page,
+    orderBy,
+    order,
+    updateParams,
+    setPage,
+    toggleSort,
+    viewQuery,
+    applyView,
+  } = useRegisterQueryState({
       keys: ["q", "lifecycle", "status", "kpiRiskClass", "generalLevel"],
       defaults: { lifecycle: "active" },
     });
@@ -183,6 +193,12 @@ export function RiskRegisterPage() {
             </button>
           </>
         }
+      />
+
+      <SavedViewToolbar
+        registerKey="RISKS"
+        currentQuery={viewQuery}
+        onApply={applyView}
       />
 
       <form

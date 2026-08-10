@@ -413,6 +413,50 @@ async function installMockApi(
         ),
       });
     }
+    if (path === "/api/v1/notifications") {
+      const unavailable =
+        typeof summary === "object" &&
+        summary !== null &&
+        "kpis" in summary &&
+        (summary as { kpis?: unknown }).kpis === null;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          success({
+            unreadCount: unavailable ? 0 : 5,
+            items: unavailable
+              ? []
+              : [
+                  {
+                    id: "92000000-0000-4000-8000-000000000001",
+                    kind: "APPROVAL_REQUEST",
+                    title: "KPI actual awaiting approval",
+                    message: "ACT-001 · Quarterly KPI",
+                    targetPath: "/kpi/approval",
+                    sourceType: "KPI_ACTUAL",
+                    sourceId: "90000000-0000-4000-8000-000000000001",
+                    read: false,
+                    readAt: null,
+                    createdAt: "2026-08-10T00:00:00.000Z",
+                  },
+                  {
+                    id: "92000000-0000-4000-8000-000000000002",
+                    kind: "OWNERSHIP_ASSIGNMENT",
+                    title: "Gap assigned to you",
+                    message: "GAP-001 · Access review",
+                    targetPath: "/compliance/gaps",
+                    sourceType: "GAP",
+                    sourceId: "91000000-0000-4000-8000-000000000001",
+                    read: false,
+                    readAt: null,
+                    createdAt: "2026-08-10T00:00:00.000Z",
+                  },
+                ],
+          }),
+        ),
+      });
+    }
     const data =
       path === "/api/v1/tenants"
         ? companies
@@ -796,6 +840,7 @@ const approvedPaths = [
   "/data/genrac-integration",
   "/audit-trail",
   "/compliance/operational-registers",
+  "/tasks",
   "/kpi/analytics",
   "/reports",
   "/reports/kpi-variance",
@@ -836,6 +881,7 @@ const livePaths = [
   ["/compliance/capa", "CAPA Register"],
   ["/audit-trail", "Audit Trail"],
   ["/compliance/operational-registers", "Operational Registers"],
+  ["/tasks", "Tasks"],
   ["/data/import", "Data Import"],
   ["/data/import-history", "Import History"],
   ["/data/genrac-integration", "GenRAC Integration"],
@@ -876,7 +922,7 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
   ).toHaveCount(0);
   // Role & Access is a real read-only page in this release, so it is visible.
   await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(1);
-  await expect(page.locator('a[href="/tasks"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/tasks"]')).toHaveCount(1);
   await expect(page.locator('a[href="/notifications"]')).toHaveCount(0);
   await expect(page.locator('a[href="/settings/tenant"]')).toHaveCount(0);
   await expect(page.locator('a[href="/master/customers"]')).toHaveCount(0);
@@ -1321,8 +1367,8 @@ test("desktop header controls are truthful, close correctly and do not write", a
   await notificationButton.click();
   const notifications = page.getByRole("dialog", { name: "Notifications" });
   await expect(notifications).toBeVisible();
-  await expect(notifications).toContainText("1 KPI actual awaiting approval");
-  await expect(notifications).toContainText("4 Open Gaps");
+  await expect(notifications).toContainText("KPI actual awaiting approval");
+  await expect(notifications).toContainText("Gap assigned to you");
   await expect(notificationButton.locator(".counter")).toHaveText("5");
   expect(undeclaredWrites).toEqual([]);
 
@@ -1365,7 +1411,7 @@ test("desktop header controls are truthful, close correctly and do not write", a
   await expect(page.locator(".global-search .search-results")).toHaveCount(0);
 });
 
-test("notification fallback is explicit when no supported summary is available", async ({
+test("notification empty state is explicit when no personal items are available", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -1381,19 +1427,13 @@ test("notification fallback is explicit when no supported summary is available",
   const notifications = page.getByRole("dialog", { name: "Notifications" });
   await expect(
     notifications.getByText(
-      "No work-queue sources are visible with your current permissions.",
+      "No in-app notifications for this Company.",
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(
-    notifications.getByRole("button", { name: "KPI Approval" }),
-  ).toBeVisible();
-  await expect(
-    notifications.getByRole("button", { name: "Gap Register" }),
-  ).toBeVisible();
-  await expect(
-    notifications.getByRole("button", { name: "CAPA Register" }),
-  ).toBeVisible();
+  await expect(notifications).toContainText(
+    "In-app only · email delivery is not configured.",
+  );
   expect(undeclaredWrites).toEqual([]);
 });
 
