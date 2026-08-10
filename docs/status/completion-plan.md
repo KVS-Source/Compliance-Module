@@ -20,7 +20,7 @@ blocking.
 | Tier | Meaning | Client line |
 | --- | --- | --- |
 | **Compliance engine** | Governed workflows, evidence gates, audit trail, KPI→risk, gap/CAPA, import, reports | Largely there |
-| **Daily software** | Personal queues, register ergonomics, bulk work, easy data entry, light collaboration | Remaining focus of V1.1 |
+| **Daily software** | Personal queues, register ergonomics, bulk work, easy data entry, light collaboration | V1.1 must-haves shipped; strong additions remain |
 | **Enterprise product** | SSO/MFA, email, PDF/scheduling, object storage, privacy erasure, RLS, deep integrations | V1.5–V2 |
 
 Phase numbering from the earlier plan is preserved only as **history** under
@@ -47,10 +47,17 @@ found.
 | Evidence expiry surfacing | `6989c1e` | Dashboard tile plus library filter (`expiringSoon` / related query params). |
 | Framework catalogue de-dupe | `413a4c5` | Demo seed no longer pollutes global frameworks with synthetic clauses; compliance percentages report real mapped numbers. |
 | Create Company from UI | `80c8a3c` | `POST /tenants` + UI; caller becomes administrator of the new empty Company; `tenants:write`. |
+| Grid KPI actual entry | `a1f37d9` | Grid mode on KPI Actual Entry; rows submit one-by-one to `POST /kpi-actuals` so RAG, auto-risk and audit stay per record; mixed outcomes do not discard valid neighbours. |
+| Bulk actions (Gap Register) | `70989f2` | Select rows; reassign owner, set due date, close (`gaps:close` gated). Per-record endpoints only; toast survives register reload. |
 
 **Exit criterion for Phase 1 (met).** A Company Administrator can create a user,
 assign a sanctioned role, and that user signs in to a correctly scoped
 workspace without shell, seed, or direct database access.
+
+**V1.1 must-haves (met).** A department owner can clear a reporting cycle on one
+screen, and a compliance manager can bulk-reassign or close gaps without opening
+each detail page. CAPA/Risk bulk wiring and remaining “strong additions” may
+still land in the same tier.
 
 **Not a gap — intentional product choice.** Self-service “forgot password”
 email reset is **not** planned as a hole. Login routes recovery to an
@@ -73,22 +80,27 @@ Cross-reference: several of these were called out in
 review still describes pre-`6989c1e` register UX in places; treat **this plan**
 as status authority for sorting, URL filters, My Work, and evidence expiry.
 
-### Must-have remaining (former P1)
+### Must-haves — shipped
 
-| Item | Why | Notes |
+| Item | Commit | Notes |
 | --- | --- | --- |
-| **Bulk selection and bulk actions** on registers | Remediation is bulk work: reassign owners, extend due dates, batch-close verified CAPAs | Gaps, CAPAs, risks, evidence first; server must enforce the same gates as single-record actions |
-| **Grid / worklist KPI actual entry** | Highest-frequency screen is still one config → one period → one value | “Due this period, by me” grid; optional paste-from-spreadsheet; partial save |
+| **Grid / worklist KPI actual entry** | `a1f37d9` | Mode on existing Actual Entry page; no batch API; no N+1 target pre-fetch |
+| **Bulk selection and bulk actions** | `70989f2` (Gaps) | Reusable `BulkActionBar`; extend to CAPA/Risk by wiring existing endpoints |
+
+Design rule for both: **one record, one governed request**. A multi-row
+transaction would either discard valid work when one row is refused, or bypass
+per-record permissions and audit events.
 
 ### Strong V1.1 additions
 
 | Item | Why | Notes |
 | --- | --- | --- |
+| **Bulk actions on CAPA and Risk** | Same bar already exists | **Shipped** — CAPA owner/due-date/close; Risk owner (`risk:treat`) + close (`risk:close`) |
+| **Privilege access review report** | Auditor question: who holds `roles:assign`, who can approve | **Shipped** — `GET /access/privilege-review` + Role & Access section |
+| **Overdue visual cues** on list rows | Whole-row highlight beyond date text | **Shipped** — `register-row-overdue` on Gap/CAPA table rows and cards |
 | **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | CSV template + validation + role column limited to production profile codes |
 | **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | Complements disable-user; audit every revocation |
-| **Privilege access review report** | Auditor question: who holds `roles:assign`, who can approve | Small report on data already in roles, permissions, memberships |
 | **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | Append-only comments; no silent edit of history |
-| **Overdue visual cues** on list rows | Filter exists; past-due rows still look normal | Pure presentation + sort defaults |
 | **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
 
 ### Explicitly deferred from V1.1
@@ -97,9 +109,9 @@ Email delivery, PDF/scheduling, S3, malware scan, SSO/MFA, Tasks module, CRM,
 free-form role design, GenRAC live REST/DB — see V1.5 / V2 and
 [known limitations](../known-limitations.md).
 
-**V1.1 exit criterion.** A department owner can clear a week of KPI actuals
-without one-by-one forms, and a compliance manager can reassign or advance a
-batch of gaps/CAPAs without opening each detail page.
+**V1.1 must-have exit criterion (met for Gaps + KPI grid).** Department owners
+have grid entry; compliance managers have Gap bulk actions. Full-tier exit also
+covers CAPA/Risk bulk, privilege review, and the other strong additions above.
 
 ---
 

@@ -60,6 +60,34 @@ describe("sanctioned user role assignments", () => {
     return response.body.data as { id: string; email: string };
   };
 
+  it("returns a privilege access review of sensitive permission holders", async () => {
+    const review = await request(app)
+      .get("/api/v1/access/privilege-review")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+
+    const permissions = review.body.data.permissions as Array<{
+      code: string;
+      holderCount: number;
+      holders: Array<{ id: string; email: string; roleCode: string }>;
+    }>;
+    expect(permissions.map((entry) => entry.code)).toContain("roles:assign");
+    expect(permissions.map((entry) => entry.code)).toContain(
+      "kpi-actual:approve",
+    );
+
+    const assign = permissions.find((entry) => entry.code === "roles:assign");
+    expect(assign).toBeDefined();
+    expect(assign!.holderCount).toBeGreaterThan(0);
+    expect(
+      assign!.holders.some((holder) => holder.id === adminUserId),
+    ).toBe(true);
+
+    await request(app)
+      .get("/api/v1/access/privilege-review")
+      .expect(401);
+  });
+
   it("assigns only production profiles, disables the previous role and audits each assignment", async () => {
     const target = await createUser(adminToken, "101");
     const profiles = await request(app)

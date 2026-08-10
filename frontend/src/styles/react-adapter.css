@@ -987,6 +987,37 @@
   font-weight: 700;
 }
 
+/* Whole-row overdue cue: date text alone is easy to miss in a dense register. */
+tr.register-row-overdue > td {
+  background: color-mix(in srgb, var(--red-100, #fee2e2) 72%, transparent);
+}
+
+tr.register-row-overdue > td:first-child {
+  box-shadow: inset 3px 0 0 var(--red-600, #dc2626);
+}
+
+.deadline-register-card.register-row-overdue,
+.risk-register-card.register-row-overdue {
+  border-color: color-mix(in srgb, var(--red-500, #ef4444) 45%, var(--border, #e5e7eb));
+  box-shadow: inset 3px 0 0 var(--red-600, #dc2626);
+}
+
+.privilege-holder-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.privilege-holder-list em {
+  font-style: normal;
+  color: var(--text-muted, #6b7280);
+}
+
+.muted {
+  color: var(--text-muted, #6b7280);
+}
+
 .deadline-break {
   overflow-wrap: anywhere;
 }

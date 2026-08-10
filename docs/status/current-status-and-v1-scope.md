@@ -58,14 +58,15 @@ V2). Spec gaps: [gap register](../handover/gap-register.md).
   **URL-synced filters** on major registers;
 - Policy, Control and Checkpoint registers with lifecycle, mappings, reviews
   and scoped audit/traceability;
-- KPI configuration, versioned targets, actual entry, approval, and automatic
-  KPI-linked risks (Major/Minor) with Risk Register treatment workflow and
-  **manual risk create**;
+- KPI configuration, versioned targets, actual entry (**single and grid modes**),
+  approval, and automatic KPI-linked risks (Major/Minor) with Risk Register
+  treatment workflow and **manual risk create**;
 - Evidence library, create/upload, review queue, linking and gates for
   Checkpoint, Policy Version and KPI actual approval; **evidence expiring soon**
   on the dashboard and library filters;
 - **Gap Register and CAPA Register** (create, update, owner, close/reopen,
-  evidence linkage; closure is evidence-gated);
+  evidence linkage; closure is evidence-gated; Gap Register supports **bulk**
+  owner/due-date/close against per-record endpoints);
 - **Audit Trail** (searchable company history and CSV export);
 - **Operational Registers** (browse, create and edit company register records
   when permitted; also loadable by import);
@@ -90,7 +91,9 @@ V2). Spec gaps: [gap register](../handover/gap-register.md).
 - **KPI catalogue and KPI analytics** pages (read-only) and the **Frequency
   master** (read-only);
 - **Role and access profiles** page (catalogue read-only; `mutable: false` for
-  permission sets). **User-to-profile assignment** is mutable via
+  permission sets) plus **privilege access review**
+  (`GET /access/privilege-review`) of who holds sensitive permissions.
+  **User-to-profile assignment** is mutable via
   `PUT /access/users/:id/roles` (`roles:assign`); free-form role design is not;
 - **Approved and Rejected Evidence** views alongside the existing review queue;
 - **Settings** utility with a per-Company working-location selector and regional
@@ -114,7 +117,8 @@ deferred scope). Sequenced remaining work is in the
   of a user to a sanctioned profile is mutable;
 - **report scheduling, subscriptions and PDF output**: the Reports centre runs a
   report on demand and exports CSV only;
-- **bulk register actions** and **grid KPI actual entry** (V1.1);
+- bulk user import, session management UI, record comments, saved views
+  (remaining V1.1 strong additions);
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
   place a file and configure via API);
 - Policy Version obsoletion and Policy `INACTIVE` transitions;

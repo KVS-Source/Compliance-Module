@@ -14,10 +14,12 @@ and must not be re-quoted as open gaps:
 | Framework compliance reads as empty (duplicate frameworks) | Fixed (`413a4c5`) |
 | Role assignment / onboarding | Shipped (`b8a5f94`) |
 | Operational registers write / manual risk create | Shipped (`14eeeaf`) |
+| Grid KPI actual entry | Shipped (`a1f37d9`) |
+| Bulk actions (Gap Register) | Shipped (`70989f2`) |
 
-Still accurate as open product work: bulk actions, grid KPI actual entry, bulk
-user import, session management, record comments, report scheduling/PDF, and
-the enterprise items in the
+Still accurate as open product work: CAPA/Risk bulk extension, bulk user import,
+session management, privilege access review, record comments, stronger whole-row
+overdue cues, report scheduling/PDF, and the enterprise items in the
 [completion plan](./completion-plan.md).
 
 A walkthrough of the shipped pages from the position of a GRC buyer and a daily

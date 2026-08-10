@@ -148,6 +148,109 @@ export class AccessProfileService {
     }));
   }
 
+  /**
+   * Privilege access review: who currently holds sensitive permissions.
+   *
+   * Built for the auditor question ("who can assign roles / approve?") from
+   * live RolePermission rows and ACTIVE user assignments — not from a static
+   * profile map alone, so non-profile roles (if any) still surface truthfully.
+   */
+  async privilegeReview(tenantId: string) {
+    const sensitive = [
+      "roles:assign",
+      "tenants:write",
+      "users:write",
+      "kpi-target:approve",
+      "kpi-actual:approve",
+      "policies:approve",
+      "evidence:review",
+      "gaps:close",
+      "capa:close",
+      "risk:close",
+    ] as const;
+
+    const descriptions = new Map(
+      PRODUCTION_PERMISSIONS.map(([code, description]) => [code, description]),
+    );
+
+    const assignments = await this.db.userRole.findMany({
+      where: {
+        tenantId,
+        status: "ACTIVE",
+        user: { status: "ACTIVE" },
+        role: { status: "ACTIVE" },
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            code: true,
+            fullName: true,
+            email: true,
+            status: true,
+          },
+        },
+        role: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            permissions: {
+              select: { permission: { select: { code: true } } },
+            },
+          },
+        },
+      },
+      orderBy: [{ user: { fullName: "asc" } }],
+    });
+
+    const holdersByPermission = new Map<
+      string,
+      Array<{
+        id: string;
+        code: string;
+        name: string;
+        email: string;
+        roleCode: string;
+        roleName: string;
+      }>
+    >();
+    for (const code of sensitive) {
+      holdersByPermission.set(code, []);
+    }
+
+    for (const assignment of assignments) {
+      const permissionCodes = new Set(
+        assignment.role.permissions.map((entry) => entry.permission.code),
+      );
+      // Wildcard (legacy seed debt) grants every published permission.
+      const holdsAll = permissionCodes.has("*");
+      for (const code of sensitive) {
+        if (!holdsAll && !permissionCodes.has(code)) continue;
+        const list = holdersByPermission.get(code)!;
+        if (list.some((holder) => holder.id === assignment.user.id)) continue;
+        list.push({
+          id: assignment.user.id,
+          code: assignment.user.code,
+          name: assignment.user.fullName,
+          email: assignment.user.email,
+          roleCode: assignment.role.code,
+          roleName: assignment.role.name,
+        });
+      }
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      permissions: sensitive.map((code) => ({
+        code,
+        description: descriptions.get(code) ?? code,
+        holderCount: holdersByPermission.get(code)?.length ?? 0,
+        holders: holdersByPermission.get(code) ?? [],
+      })),
+    };
+  }
+
   async assignUserRole(
     userId: string,
     tenantId: string,
@@ -278,6 +381,13 @@ export const accessRoutes = (service: AccessProfileService) => {
     permit("users:read"),
     asyncHandler(async (req: Request, res: Response) =>
       ok(res, await service.profiles(req.auth!.tenantId)),
+    ),
+  );
+  router.get(
+    "/privilege-review",
+    permit("users:read"),
+    asyncHandler(async (req: Request, res: Response) =>
+      ok(res, await service.privilegeReview(req.auth!.tenantId)),
     ),
   );
   router.get(

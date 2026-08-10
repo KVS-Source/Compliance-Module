@@ -13,6 +13,10 @@ import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
+import {
+  BulkActionBar,
+  type BulkAction,
+} from "../../components/tables/BulkActionBar";
 import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
@@ -51,6 +55,43 @@ export function RiskRegisterPage() {
   const navigate = useNavigate();
   const [listVersion, setListVersion] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  /**
+   * Risk bulk uses the same per-record endpoints as Gap/CAPA. Owner reassignment
+   * is gated on `risk:treat` (matching the API); close on `risk:close`. There is
+   * no bulk due-date action: risks have no dueDate on the list DTO.
+   */
+  const bulkActions: BulkAction[] = [
+    ...(hasPermission("risk:treat")
+      ? [
+          {
+            key: "owner",
+            label: "Reassign owner",
+            prompt: {
+              label: "Owner user id",
+              placeholder: "User id",
+              required: true,
+            },
+            run: (id: string, value: string) => riskApi.assignOwner(id, value),
+          },
+        ]
+      : []),
+    ...(hasPermission("risk:close")
+      ? [
+          {
+            key: "close",
+            label: "Close",
+            prompt: {
+              label: "Closure reason",
+              placeholder: "Why these risks are closed",
+              required: true,
+            },
+            run: (id: string, value: string) => riskApi.close(id, value),
+          },
+        ]
+      : []),
+  ];
+  const canBulk = bulkActions.length > 0;
 
   const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
     useRegisterQueryState({
@@ -255,6 +296,26 @@ export function RiskRegisterPage() {
             id="page-content"
             data-testid="risk-register-table"
           >
+            {canBulk && bulkActions.length > 0 ? (
+              <BulkActionBar
+                selectedIds={selected}
+                actions={bulkActions}
+                onClear={() => setSelected([])}
+                onCompleted={({ done, refused }) => {
+                  setSelected([]);
+                  setListVersion((current) => current + 1);
+                  showToast(
+                    refused === 0 ? "success" : "warning",
+                    refused === 0
+                      ? `${done} risk${done === 1 ? "" : "s"} updated`
+                      : `${done} updated, ${refused} refused`,
+                    refused === 0
+                      ? "The register has been reloaded."
+                      : "Records you may not change were left untouched.",
+                  );
+                }}
+              />
+            ) : null}
             <div className="table-wrap">
               <table className="data-table">
                 <caption>
@@ -265,6 +326,25 @@ export function RiskRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
+                    {canBulk && bulkActions.length > 0 ? (
+                      <th className="select-cell">
+                        <input
+                          type="checkbox"
+                          checked={
+                            rows.length > 0 && selected.length === rows.length
+                          }
+                          onChange={(event) =>
+                            setSelected(
+                              event.target.checked
+                                ? rows.map((risk) => risk.id)
+                                : [],
+                            )
+                          }
+                          aria-label="Select all risks on this page"
+                          data-testid="risk-select-all"
+                        />
+                      </th>
+                    ) : null}
                     <SortableTh
                       column="title"
                       label="Risk"
@@ -302,6 +382,15 @@ export function RiskRegisterPage() {
                     <RiskRow
                       key={risk.id}
                       risk={risk}
+                      selectable={canBulk && bulkActions.length > 0}
+                      selected={selected.includes(risk.id)}
+                      onSelect={(checked) =>
+                        setSelected((current) =>
+                          checked
+                            ? [...current, risk.id]
+                            : current.filter((id) => id !== risk.id),
+                        )
+                      }
                       onOpen={() => navigate(`/compliance/risks/${risk.id}`)}
                     />
                   ))}
@@ -440,11 +529,34 @@ function RiskPager({
   );
 }
 
-function RiskRow({ risk, onOpen }: { risk: Risk; onOpen: () => void }) {
+function RiskRow({
+  risk,
+  onOpen,
+  selectable = false,
+  selected = false,
+  onSelect,
+}: {
+  risk: Risk;
+  onOpen: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
+}) {
   const configuration = risk.source.configuration;
   const actual = risk.source.actual;
   return (
     <tr>
+      {selectable ? (
+        <td className="select-cell">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(event) => onSelect?.(event.target.checked)}
+            aria-label={`Select ${risk.code}`}
+            data-testid={`risk-select-${risk.code}`}
+          />
+        </td>
+      ) : null}
       <td>
         <div className="cell-title">
           <strong>{risk.title}</strong>

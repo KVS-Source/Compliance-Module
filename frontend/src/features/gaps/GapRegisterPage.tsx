@@ -320,7 +320,11 @@ export function GapRegisterPage() {
                 </thead>
                 <tbody>
                   {rows.map((gap) => (
-                    <tr key={gap.id}>
+                    <tr
+                      key={gap.id}
+                      className={gap.overdue ? "register-row-overdue" : undefined}
+                      data-overdue={gap.overdue ? "true" : "false"}
+                    >
                       {canBulk ? (
                         <td className="select-cell">
                           <input
@@ -394,7 +398,11 @@ export function GapRegisterPage() {
             data-testid="gap-register-cards"
           >
             {rows.map((gap) => (
-              <article className="card deadline-register-card" key={gap.id}>
+              <article
+                className={`card deadline-register-card${gap.overdue ? " register-row-overdue" : ""}`}
+                key={gap.id}
+                data-overdue={gap.overdue ? "true" : "false"}
+              >
                 <header className="card-head">
                   <div>
                     <h2>{gap.title}</h2>

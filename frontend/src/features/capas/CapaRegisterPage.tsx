@@ -12,6 +12,10 @@ import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
+import {
+  BulkActionBar,
+  type BulkAction,
+} from "../../components/tables/BulkActionBar";
 import { SortableTh } from "../../components/tables/SortableTh";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
@@ -35,7 +39,41 @@ export function CapaRegisterPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [version, setVersion] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
   const [initialGapId, setInitialGapId] = useState<string | undefined>();
+  const canBulk = hasPermission("capa:write");
+  const bulkActions: BulkAction[] = [
+    {
+      key: "owner",
+      label: "Reassign owner",
+      prompt: {
+        label: "Owner user id",
+        placeholder: "User id",
+        required: true,
+      },
+      run: (id, value) => capaApi.assignOwner(id, value),
+    },
+    {
+      key: "due-date",
+      label: "Set due date",
+      prompt: { label: "Due date", placeholder: "YYYY-MM-DD", required: true },
+      run: (id, value) => capaApi.update(id, { dueDate: value }),
+    },
+    ...(hasPermission("capa:close")
+      ? [
+          {
+            key: "close",
+            label: "Close",
+            prompt: {
+              label: "Closure note",
+              placeholder: "Why these CAPAs are closed",
+              required: true,
+            },
+            run: (id: string, value: string) => capaApi.close(id, value),
+          },
+        ]
+      : []),
+  ];
 
   const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
     useRegisterQueryState({
@@ -205,6 +243,26 @@ export function CapaRegisterPage() {
             id="page-content"
             data-testid="capa-register-table"
           >
+            {canBulk ? (
+              <BulkActionBar
+                selectedIds={selected}
+                actions={bulkActions}
+                onClear={() => setSelected([])}
+                onCompleted={({ done, refused }) => {
+                  setSelected([]);
+                  setVersion((current) => current + 1);
+                  showToast(
+                    refused === 0 ? "success" : "warning",
+                    refused === 0
+                      ? `${done} CAPA${done === 1 ? "" : "s"} updated`
+                      : `${done} updated, ${refused} refused`,
+                    refused === 0
+                      ? "The register has been reloaded."
+                      : "Records you may not change were left untouched.",
+                  );
+                }}
+              />
+            ) : null}
             <div className="table-wrap">
               <table className="data-table">
                 <caption>
@@ -212,6 +270,25 @@ export function CapaRegisterPage() {
                 </caption>
                 <thead>
                   <tr>
+                    {canBulk ? (
+                      <th className="select-cell">
+                        <input
+                          type="checkbox"
+                          checked={
+                            rows.length > 0 && selected.length === rows.length
+                          }
+                          onChange={(event) =>
+                            setSelected(
+                              event.target.checked
+                                ? rows.map((capa) => capa.id)
+                                : [],
+                            )
+                          }
+                          aria-label="Select all CAPAs on this page"
+                          data-testid="capa-select-all"
+                        />
+                      </th>
+                    ) : null}
                     <SortableTh
                       column="title"
                       label="CAPA"
@@ -250,7 +327,30 @@ export function CapaRegisterPage() {
                 </thead>
                 <tbody>
                   {rows.map((capa) => (
-                    <tr key={capa.id}>
+                    <tr
+                      key={capa.id}
+                      className={
+                        capa.overdue ? "register-row-overdue" : undefined
+                      }
+                      data-overdue={capa.overdue ? "true" : "false"}
+                    >
+                      {canBulk ? (
+                        <td className="select-cell">
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(capa.id)}
+                            onChange={(event) =>
+                              setSelected((current) =>
+                                event.target.checked
+                                  ? [...current, capa.id]
+                                  : current.filter((id) => id !== capa.id),
+                              )
+                            }
+                            aria-label={`Select ${capa.code}`}
+                            data-testid={`capa-select-${capa.code}`}
+                          />
+                        </td>
+                      ) : null}
                       <td>
                         <div className="cell-title">
                           <strong>{capa.title}</strong>
@@ -320,7 +420,11 @@ export function CapaRegisterPage() {
             data-testid="capa-register-cards"
           >
             {rows.map((capa) => (
-              <article className="card deadline-register-card" key={capa.id}>
+              <article
+                className={`card deadline-register-card${capa.overdue ? " register-row-overdue" : ""}`}
+                key={capa.id}
+                data-overdue={capa.overdue ? "true" : "false"}
+              >
                 <header className="card-head">
                   <div>
                     <h2>{capa.title}</h2>

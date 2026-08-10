@@ -147,9 +147,8 @@ Still open at this baseline:
 - Playwright intercepts API responses, so no automated test crosses the browser
   to PostgreSQL
 - production hosting, DNS, TLS, secret management and alerting are outstanding
-- bulk register actions and grid KPI actual entry remain (V1.1)
-- bulk user import, session management UI and privilege-access review report
-  are not built (V1.1 candidates)
+- bulk user import, session management UI, record comments and saved named
+  views remain V1.1 strong additions
 
 Closed after the prior operable plan (do not re-list as specification gaps):
 
@@ -159,6 +158,10 @@ Closed after the prior operable plan (do not re-list as specification gaps):
   (`6989c1e`)
 - framework catalogue de-dupe for real compliance percentages (`413a4c5`)
 - create Company from the UI (`80c8a3c`)
+- grid KPI actual entry (`a1f37d9`)
+- Gap Register bulk actions (`70989f2`)
+- CAPA/Risk bulk actions, whole-row overdue cues, privilege access review
+  (follow-on to V1.1 strong additions)
 
 Administrator-controlled password recovery is intentional, not a gap.
 

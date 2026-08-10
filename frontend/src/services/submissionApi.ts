@@ -5,6 +5,7 @@ import type {
   KpiCatalogueEntry,
   KpiFrequencyEntry,
   KpiTraceability,
+  PrivilegeAccessReview,
   ReportCatalogueEntry,
   ReportResult,
 } from "../types/api";
@@ -28,6 +29,10 @@ const query = (filters: Record<string, string | undefined>) => {
 export const accessApi = {
   async profiles() {
     return (await apiRequest<AccessProfileResponse>("/access/profiles")).data;
+  },
+  async privilegeReview() {
+    return (await apiRequest<PrivilegeAccessReview>("/access/privilege-review"))
+      .data;
   },
 };
 

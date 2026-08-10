@@ -1950,6 +1950,27 @@ export interface ImportBatchError { id: string; sheet: string; rowNumber: number
 export interface ImportBatchErrorListResult { data: ImportBatchError[]; meta: PageMeta; }
 
 /** Read-only Role & Access matrix. The API states `mutable: false` itself. */
+export interface PrivilegeAccessHolder {
+  id: string;
+  code: string;
+  name: string;
+  email: string;
+  roleCode: string;
+  roleName: string;
+}
+
+export interface PrivilegeAccessPermission {
+  code: string;
+  description: string;
+  holderCount: number;
+  holders: PrivilegeAccessHolder[];
+}
+
+export interface PrivilegeAccessReview {
+  generatedAt: string;
+  permissions: PrivilegeAccessPermission[];
+}
+
 export interface AccessProfileResponse {
   profiles: Array<{
     code: string;

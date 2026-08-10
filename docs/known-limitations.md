@@ -44,12 +44,14 @@ by UAT language or status-page presentation.
   editing). The Reports centre, KPI catalogue/analytics and Frequency master are
   operational but **read-only** for definitions; report scheduling/subscriptions
   and PDF output remain deferred. Tasks, Notifications and tenant/settings polish
-  remain deferred and hidden from production navigation. Bulk register actions
-  and grid KPI actual entry remain open (see
-  [completion plan](./status/completion-plan.md) V1.1). Same-period Checkpoint
-  Review correction remains unsupported. Live GenRAC REST/database sync remains
-  unavailable until the client provides approved access; the CSV adapter path is
-  platform-ready under `LOCAL_UPLOAD_DIR/.genrac`.
+  remain deferred and hidden from production navigation. Grid KPI actual entry
+  and Gap bulk actions shipped (`a1f37d9`, `70989f2`); CAPA/Risk bulk, bulk user
+  import, session management, privilege access review and related V1.1 strong
+  additions remain open (see [completion plan](./status/completion-plan.md)).
+  Same-period Checkpoint Review correction remains unsupported. Live GenRAC
+  REST/database sync remains unavailable until the client provides approved
+  access; the CSV adapter path is platform-ready under
+  `LOCAL_UPLOAD_DIR/.genrac`.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Register filter and sort state is URL-synced for Gaps, CAPAs, Risks,
   Evidence, Controls, Checkpoints, Policies, Operational Registers and Users.

@@ -1,4 +1,4 @@
-import { Check, Lock, ShieldCheck, Users } from "lucide-react";
+import { Check, Lock, ShieldAlert, ShieldCheck, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -14,7 +14,8 @@ import { accessApi } from "../../services/submissionApi";
  * The production access profiles are the authority on what each role may do,
  * and cannot be edited here. Sanctioned profile assignments are managed from
  * `frontend/src/features/users/UsersPage.tsx` without making this catalogue
- * mutable.
+ * mutable. The privilege access review answers the auditor question of who
+ * currently holds sensitive permissions (assign roles, approve, close).
  */
 export function RoleAccessPage() {
   const { user } = useAuth();
@@ -24,7 +25,12 @@ export function RoleAccessPage() {
     contextVersion,
     user?.activeCompany.id,
   ]);
+  const privilegeResource = useApiResource(accessApi.privilegeReview, [
+    contextVersion,
+    user?.activeCompany.id,
+  ]);
   const data = resource.data;
+  const privilege = privilegeResource.data;
 
   const modules = useMemo(
     () =>
@@ -105,6 +111,86 @@ export function RoleAccessPage() {
               </article>
             ))}
           </div>
+
+          {privilegeResource.loading ? (
+            <LoadingState label="Loading privilege access review…" />
+          ) : privilegeResource.error ? (
+            <ErrorState error={privilegeResource.error} />
+          ) : privilege ? (
+            <section
+              className="card"
+              data-testid="privilege-access-review"
+              aria-label="Privilege access review"
+            >
+              <header className="card-head">
+                <div>
+                  <h2>
+                    <ShieldAlert size={18} aria-hidden /> Privilege access review
+                  </h2>
+                  <p>
+                    Active users who currently hold sensitive permissions in{" "}
+                    {user?.activeCompany.name ?? "this Company"}. Generated{" "}
+                    {new Date(privilege.generatedAt).toLocaleString()}.
+                  </p>
+                </div>
+              </header>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <caption>Sensitive permission holders</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Permission</th>
+                      <th scope="col">Holders</th>
+                      <th scope="col">People</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {privilege.permissions.map((entry) => (
+                      <tr
+                        key={entry.code}
+                        data-testid={`privilege-row-${entry.code}`}
+                      >
+                        <th scope="row">
+                          <span className="mono">{entry.code}</span>
+                          <em className="access-permission-note">
+                            {entry.description}
+                          </em>
+                        </th>
+                        <td>
+                          <Badge
+                            tone={entry.holderCount > 0 ? "amber" : "grey"}
+                          >
+                            {entry.holderCount}
+                          </Badge>
+                        </td>
+                        <td>
+                          {entry.holders.length === 0 ? (
+                            <span className="muted">No active holders</span>
+                          ) : (
+                            <ul className="privilege-holder-list">
+                              {entry.holders.map((holder) => (
+                                <li key={`${entry.code}:${holder.id}`}>
+                                  <strong>{holder.name}</strong>
+                                  <span className="mono">
+                                    {" "}
+                                    · {holder.email}
+                                  </span>
+                                  <em>
+                                    {" "}
+                                    · {holder.roleName} ({holder.roleCode})
+                                  </em>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
 
           {data.additionalRoles.length > 0 ? (
             <section className="card">
