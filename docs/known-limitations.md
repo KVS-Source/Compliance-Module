@@ -46,9 +46,9 @@ by UAT language or status-page presentation.
   and PDF output remain deferred. Tasks, Notifications and tenant/settings polish
   remain deferred and hidden from production navigation. Grid KPI actual entry,
   Gap bulk actions, CAPA/Risk bulk actions, whole-row overdue cues, the
-  privilege access review and bulk user import have shipped (`a1f37d9`,
-  `70989f2`, `1736809`, and this branch); session management UI, record
-  comments and saved named views remain open (see
+  privilege access review, bulk user import and session management have
+  shipped (`a1f37d9`, `70989f2`, `1736809`, `7773818`, and this branch);
+  record comments and saved named views remain open (see
   [completion plan](./status/completion-plan.md)).
   Same-period Checkpoint Review correction remains unsupported. Live GenRAC
   REST/database sync remains unavailable until the client provides approved
@@ -62,7 +62,9 @@ by UAT language or status-page presentation.
   dialog states this in place rather than hiding it. Per-user invitations
   become possible once email transport lands (V1.5). Imported rows may also be
   staged as `INVITED`, which cannot sign in at all until an administrator makes
-  them `ACTIVE`.
+  them `ACTIVE`. Session management (list/revoke one/revoke all on user detail)
+  is the compensating control if that shared secret is suspected to have leaked
+  before passwords are changed.
 - Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
   deferred. Register filter and sort state is URL-synced for Gaps, CAPAs, Risks,
   Evidence, Controls, Checkpoints, Policies, Operational Registers and Users.

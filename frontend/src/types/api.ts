@@ -289,6 +289,17 @@ export interface CompanyUser {
   lastLogin: string | null;
 }
 
+/** One live refresh-token family for a Company user. Token hashes are never included. */
+export interface UserSession {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string;
+  expiresAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  current: boolean;
+}
+
 export type UserStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
 
 export interface CreateUserInput {

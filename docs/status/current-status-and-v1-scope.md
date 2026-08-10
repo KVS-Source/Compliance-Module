@@ -117,8 +117,7 @@ deferred scope). Sequenced remaining work is in the
   of a user to a sanctioned profile is mutable;
 - **report scheduling, subscriptions and PDF output**: the Reports centre runs a
   report on demand and exports CSV only;
-- bulk user import, session management UI, record comments, saved views
-  (remaining V1.1 strong additions);
+- record comments and saved named views (remaining V1.1 strong additions);
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
   place a file and configure via API);
 - Policy Version obsoletion and Policy `INACTIVE` transitions;

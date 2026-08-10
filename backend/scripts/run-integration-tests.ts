@@ -68,6 +68,7 @@ run(
     "tests/auth-change-password.test.ts",
     "tests/users-write.test.ts",
     "tests/user-import-api.test.ts",
+    "tests/user-sessions-api.test.ts",
     "tests/organisation-write.test.ts",
     "tests/kpi-management.test.ts",
     "tests/kpi-actuals.test.ts",

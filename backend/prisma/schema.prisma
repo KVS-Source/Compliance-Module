@@ -1328,12 +1328,22 @@ model RefreshToken {
   expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
   replacedBy String?   @map("replaced_by") @db.Uuid
+  /// Client address observed when the session was issued or last rotated.
+  /// Nullable for tokens created before session management shipped.
+  ipAddress  String?   @map("ip_address")
+  /// User-Agent string captured at issue/rotate. Not parsed into a device
+  /// catalogue — the raw value is enough for an administrator to recognise a
+  /// browser. Nullable for tokens created before session management shipped.
+  userAgent  String?   @map("user_agent") @db.Text
+  /// Updated on every successful refresh rotation so "last used" is real.
+  lastUsedAt DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([userId, familyId])
   @@index([tenantId, expiresAt])
+  @@index([userId, tenantId, revokedAt])
   @@map("refresh_tokens")
 }
 

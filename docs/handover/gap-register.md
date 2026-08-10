@@ -147,8 +147,7 @@ Still open at this baseline:
 - Playwright intercepts API responses, so no automated test crosses the browser
   to PostgreSQL
 - production hosting, DNS, TLS, secret management and alerting are outstanding
-- bulk user import, session management UI, record comments and saved named
-  views remain V1.1 strong additions
+- record comments and saved named views remain V1.1 strong additions
 
 Closed after the prior operable plan (do not re-list as specification gaps):
 

@@ -19,6 +19,7 @@ import { masterDataApi } from "../../services/masterDataApi";
 import type { CompanyUser } from "../../types/api";
 import { UserFormModal } from "./UserFormModal";
 import { UserImportModal } from "./UserImportModal";
+import { UserSessionsPanel } from "./UserSessionsPanel";
 
 const roleName = (role: CompanyUser["roles"][number]) =>
   typeof role === "string" ? role : role.name;
@@ -293,6 +294,11 @@ export function UsersPage() {
               </dd>
             </div>
           </dl>
+          <UserSessionsPanel
+            userId={detail.id}
+            canWrite={canWrite}
+            onToast={showToast}
+          />
         </Modal>
       ) : null}
       {importing ? (

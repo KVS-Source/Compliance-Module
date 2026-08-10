@@ -19,6 +19,7 @@ import type { SharedMasterProvider } from "../../providers/shared-master/provide
 import { exportFilename } from "../exports/csv.js";
 import type { UsersRepository } from "./repository.js";
 import type { UserImportService } from "./import-service.js";
+import { UserSessionService } from "./session-service.js";
 import {
   MAX_USER_IMPORT_BYTES,
   MAX_USER_IMPORT_ROWS,
@@ -28,7 +29,10 @@ import {
 } from "./import-template.js";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
-
+const sessionParamsSchema = z.object({
+  id: z.string().uuid(),
+  sessionId: z.string().uuid(),
+});
 const userListSchema = paginationSchema
   .extend({
     ...listOrderFields([
@@ -268,7 +272,10 @@ export class UsersService {
 }
 
 export class UsersController {
-  constructor(private readonly service: UsersService) {}
+  constructor(
+    private readonly service: UsersService,
+    private readonly sessions: UserSessionService,
+  ) {}
 
   list = async (req: Request, res: Response) => {
     const result = await this.service.list(
@@ -308,6 +315,52 @@ export class UsersController {
       },
     );
     return ok(res, updated);
+  };
+
+  listSessions = async (req: Request, res: Response) => {
+    return ok(
+      res,
+      await this.sessions.listSessions(
+        String(req.params.id),
+        req.auth!.tenantId,
+        req.auth!.sessionFamilyId
+          ? { currentSessionFamilyId: req.auth!.sessionFamilyId }
+          : {},
+      ),
+    );
+  };
+
+  revokeSession = async (req: Request, res: Response) => {
+    const userAgent = req.get("user-agent");
+    return ok(
+      res,
+      await this.sessions.revokeSession(
+        String(req.params.id),
+        req.auth!.tenantId,
+        String(req.params.sessionId),
+        req.auth!.userId,
+        {
+          ...(req.ip ? { ip: req.ip } : {}),
+          ...(userAgent ? { userAgent } : {}),
+        },
+      ),
+    );
+  };
+
+  revokeAllSessions = async (req: Request, res: Response) => {
+    const userAgent = req.get("user-agent");
+    return ok(
+      res,
+      await this.sessions.revokeAllSessions(
+        String(req.params.id),
+        req.auth!.tenantId,
+        req.auth!.userId,
+        {
+          ...(req.ip ? { ip: req.ip } : {}),
+          ...(userAgent ? { userAgent } : {}),
+        },
+      ),
+    );
   };
 }
 
@@ -387,10 +440,12 @@ export const usersRoutes = (
   provider: SharedMasterProvider,
   repository: UsersRepository,
   userImports: UserImportService,
+  sessions: UserSessionService,
 ) => {
   const router = Router();
   const controller = new UsersController(
     new UsersService(provider, repository),
+    sessions,
   );
   router.use(authenticate);
   router.use("/import", userImportRoutes(userImports));
@@ -399,6 +454,26 @@ export const usersRoutes = (
     permit("users:read"),
     validate(userListSchema, "query"),
     asyncHandler(controller.list),
+  );
+  // Session routes before bare `/:id` is fine — Express matches path length —
+  // but keep them explicit so revoke-all is never captured as a user id.
+  router.get(
+    "/:id/sessions",
+    permit("users:read"),
+    validate(paramsSchema, "params"),
+    asyncHandler(controller.listSessions),
+  );
+  router.post(
+    "/:id/sessions/revoke-all",
+    permit("users:write"),
+    validate(paramsSchema, "params"),
+    asyncHandler(controller.revokeAllSessions),
+  );
+  router.post(
+    "/:id/sessions/:sessionId/revoke",
+    permit("users:write"),
+    validate(sessionParamsSchema, "params"),
+    asyncHandler(controller.revokeSession),
   );
   router.get(
     "/:id",

@@ -25,6 +25,9 @@ export const authenticate: RequestHandler = (req, _res, next) => {
         env.NODE_ENV === "production"
           ? claims.permissions.filter((permission) => permission !== "*")
           : claims.permissions,
+      ...(claims.sessionFamilyId
+        ? { sessionFamilyId: claims.sessionFamilyId }
+        : {}),
     };
     next();
   } catch {

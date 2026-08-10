@@ -14,6 +14,7 @@ routes require bearer authentication and active Company membership.
 | Companies/dashboard | `GET /tenants`; `GET /dashboard/summary` |
 | Users | `GET /users`; `GET /users/:id`; `POST /users`; `PATCH /users/:id` |
 | Bulk user import | `GET /users/import/template` and `GET /users/import/template.csv` (`users:read`); `POST /users/import/preview` (dry run, `users:write`); `POST /users/import/commit` (`users:write`, plus `roles:assign` when any row carries a role). The file carries no password: `initialPassword` is supplied with the commit request and is never returned |
+| User sessions | `GET /users/:id/sessions` (`users:read`); `POST /users/:id/sessions/:sessionId/revoke`; `POST /users/:id/sessions/revoke-all` (`users:write`). Session id is the refresh-token family. Response never includes token material. Login/refresh store IP, User-Agent and `lastUsedAt` on the tip row |
 | Organisation | `GET/POST /organisation/departments`; `PATCH /organisation/departments/:id`; equivalent `locations` and `units` paths |
 | Frameworks | `GET /frameworks`; `GET /frameworks/:id`; `GET /frameworks/:id/rules` |
 | KPI catalogue/compatibility | `GET /kpi-definitions`; `GET /kpi-goals` (compatibility read only) |

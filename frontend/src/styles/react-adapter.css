@@ -1018,6 +1018,85 @@ tr.register-row-overdue > td:first-child {
   color: var(--text-muted, #6b7280);
 }
 
+.user-sessions-panel {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.user-sessions-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.user-sessions-head h3 {
+  margin: 0 0 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.user-sessions-head p {
+  margin: 0;
+  max-width: 42rem;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.85rem;
+}
+
+.user-sessions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.user-sessions-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--surface-2, #f9fafb);
+}
+
+.user-sessions-list > li.is-current {
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 35%, var(--border, #e5e7eb));
+  background: color-mix(in srgb, var(--blue-50, #eff6ff) 80%, transparent);
+}
+
+.user-session-main {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.user-session-main strong {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+  vertical-align: -2px;
+  margin-right: 0.25rem;
+}
+
 .deadline-break {
   overflow-wrap: anywhere;
 }

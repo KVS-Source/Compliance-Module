@@ -100,7 +100,7 @@ per-record permissions and audit events.
 | **Privilege access review report** | Auditor question: who holds `roles:assign`, who can approve | **Shipped** — `GET /access/privilege-review` + Role & Access section |
 | **Overdue visual cues** on list rows | Whole-row highlight beyond date text | **Shipped** — `register-row-overdue` on Gap/CAPA table rows and cards |
 | **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | **Shipped** — `GET /users/import/template(.csv)`, `POST /users/import/preview` (dry run), `POST /users/import/commit`; role column limited to production profile codes; see [initial password note](#bulk-user-import-initial-password) |
-| **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | Complements disable-user; audit every revocation |
+| **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | **Shipped** — `GET /users/:id/sessions`, revoke one / revoke all; IP/UA/`lastUsedAt` on refresh tips; family-wide revoke with audit |
 | **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | Append-only comments; no silent edit of history |
 | **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
 
