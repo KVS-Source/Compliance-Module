@@ -268,13 +268,52 @@ describe("submission modules", () => {
 
     it("keeps the framework report limited to the active in-scope catalogue", async () => {
       const admin = await login("admin001@example.test", "Admin001!Secure");
-      const { data } = await get(
-        admin.accessToken,
-        "/reports/framework-compliance",
-      );
-      expect(data.rows.length).toBeGreaterThan(0);
-      for (const row of data.rows) {
-        expect(isFrameworkActiveInScope(row.scopeStatus)).toBe(true);
+      /**
+       * Frameworks are a global shared master with no `tenant_id`, and the
+       * deterministic fixture seeds `FRM-001` with a null `scopeStatus` — so
+       * nothing is in scope on a clean database. This test must plant its own
+       * in-scope row and remove it again; depending on whichever other file
+       * ran first and left one behind makes the result an artefact of the
+       * runner's file order rather than of the report.
+       */
+      const unique = Date.now().toString();
+      const planted = await prisma.framework.create({
+        data: {
+          code: `RPT-IN-SCOPE-${unique}`,
+          name: "Synthetic in-scope framework for the report",
+          version: "1",
+          status: "ACTIVE",
+          scopeStatus: "Active – In Scope",
+        },
+        select: { id: true },
+      });
+      const outOfScope = await prisma.framework.create({
+        data: {
+          code: `RPT-PLANNING-${unique}`,
+          name: "Synthetic planning framework for the report",
+          version: "1",
+          status: "ACTIVE",
+          scopeStatus: "Planning",
+        },
+        select: { id: true },
+      });
+      try {
+        const { data } = await get(
+          admin.accessToken,
+          "/reports/framework-compliance",
+        );
+        expect(data.rows.length).toBeGreaterThan(0);
+        for (const row of data.rows) {
+          expect(isFrameworkActiveInScope(row.scopeStatus)).toBe(true);
+        }
+        // The planted in-scope row is reported; the Planning one is excluded.
+        const codes = data.rows.map((row: { code: string }) => row.code);
+        expect(codes).toContain(`RPT-IN-SCOPE-${unique}`);
+        expect(codes).not.toContain(`RPT-PLANNING-${unique}`);
+      } finally {
+        await prisma.framework.deleteMany({
+          where: { id: { in: [planted.id, outOfScope.id] } },
+        });
       }
     });
 
