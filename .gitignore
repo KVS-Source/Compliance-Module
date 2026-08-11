@@ -68,11 +68,14 @@ gitleaks-report.json
 **/.DS_Store
 Thumbs.db
 .idea/
+.vscode/
+.cursor/
+
+# Local developer tool configuration and scratch instructions. Ignored so a
+# contributor's editor or assistant setup never reaches the repository.
 CLAUDE.md
 AGENTS.md
-.cursor/
 .claude/
-.vscode/
 *.swp
 *~
 

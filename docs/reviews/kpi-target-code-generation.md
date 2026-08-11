@@ -12,7 +12,7 @@ owns:
 - KPI actual codes (`ACT-001`, …) allocated from `Tenant.nextKpiActualNumber`
 - Risk codes (`RSK-001`, …) allocated from the equivalent tenant counter
 
-`docs/claude-tasks/02-kpi-risk-schema.md` section 3.3 records why actual codes
+`docs/domain/02-kpi-risk-schema.md` section 3.3 records why actual codes
 moved server-side: callers collide with each other and invent inconsistent
 schemes. Targets are periodic and multi-version, so they carry the same risk.
 
@@ -52,5 +52,5 @@ migration plus a breaking request-shape change.
 
 ## Related
 
-- `docs/claude-tasks/02-kpi-risk-schema.md` sections 3.2 and 3.3
+- `docs/domain/02-kpi-risk-schema.md` sections 3.2 and 3.3
 - `docs/architecture/overview.md`, "Target snapshot and codes"

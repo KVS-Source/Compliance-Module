@@ -7,7 +7,7 @@
 --
 -- Treatment rows are immutable. Completing a treatment inserts a new COMPLETED
 -- row that supersedes the original, so the current treatment is the latest
--- row. See docs/claude-tasks/02-kpi-risk-schema.md section 3.7.
+-- row. See docs/domain/02-kpi-risk-schema.md section 3.7.
 
 BEGIN;
 

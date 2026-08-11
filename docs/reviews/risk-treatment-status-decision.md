@@ -1,6 +1,6 @@
 # RiskTreatmentStatus values were chosen by us, not by the client
 
-`docs/claude-tasks/02-kpi-risk-schema.md` section 3.7 lists a `status` field on
+`docs/domain/02-kpi-risk-schema.md` section 3.7 lists a `status` field on
 `RiskTreatment` without naming a type or its values. The client workbook defines
 `CAPA_Status` but has no treatment status column, so there was nothing to copy.
 
@@ -35,4 +35,4 @@ worth confirming with the client before the register carries real data.
 Related:
 
 - `docs/reviews/risk-reopen-active-duplicate-decision.md`
-- `docs/claude-tasks/02-kpi-risk-schema.md` section 3.7
+- `docs/domain/02-kpi-risk-schema.md` section 3.7

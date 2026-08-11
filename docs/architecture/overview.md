@@ -283,7 +283,7 @@ When ambiguous:
 ## KPI domain business rules (summary)
 
 Full vocabulary and schema notes:
-[`docs/claude-tasks/02-kpi-risk-schema.md`](../claude-tasks/02-kpi-risk-schema.md).
+[`docs/domain/02-kpi-risk-schema.md`](../domain/02-kpi-risk-schema.md).
 Creation policy and backfill decisions: `docs/reviews/kpi-*.md`.
 
 ### Directions (`KpiDirection`)
@@ -339,7 +339,7 @@ fail closed until Evidence exists.
 
 - [`authoritative-runtime.md`](./authoritative-runtime.md)
 - [`user-role-membership-invariant.md`](./user-role-membership-invariant.md)
-- [`docs/claude-tasks/02-kpi-risk-schema.md`](../claude-tasks/02-kpi-risk-schema.md)
+- [`docs/domain/02-kpi-risk-schema.md`](../domain/02-kpi-risk-schema.md)
 - [`docs/reviews/`](../reviews/) — recorded product/architecture decisions
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
 - [`README.md`](../../README.md) — setup, live vs prototype routes

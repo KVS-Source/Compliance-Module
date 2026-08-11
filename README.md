@@ -419,6 +419,6 @@ Migrations and seed remain separate. Never seed production.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — architecture, tenancy, security, workflow
 - `docs/architecture/authoritative-runtime.md`
 - `docs/frontend-route-mapping.md`
-- `docs/claude-tasks/02-kpi-risk-schema.md` — KPI/Risk domain vocabulary
+- `docs/domain/02-kpi-risk-schema.md` — KPI/Risk domain vocabulary
 
 Deployment to AWS (or any cloud) is **out of scope** for this README.
