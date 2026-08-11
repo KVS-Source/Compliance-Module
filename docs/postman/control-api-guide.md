@@ -15,8 +15,8 @@ only.
 4. Ensure at least one Policy has a `currentApprovedVersion` (the governance seed
    creates a synthetic approved Policy per Company). Capture its Version ID into
    `policyVersionId` via step 4, or paste it manually.
-5. Optional archive-rejection demo: copy the ID of a seeded Control that still
-   has an ACTIVE Checkpoint (for example the synthetic `DEMO-CTL-001` /
+5. Optional archive-rejection sample: copy the ID of a seeded Control that still
+   has an ACTIVE Checkpoint (for example the synthetic `SMP-CTL-001` /
    `CTL-001` Control in a seeded Company) into
    `controlWithActiveCheckpointId`. Leave the placeholder empty until then.
    There is no Checkpoint API in this collection.

@@ -1,6 +1,6 @@
 # UAT-only accepted limitation: wildcard administrator permission
 
-The development, test, and UAT demo seeds currently grant `COMPANY_ADMIN` the
+The development, test, and UAT sample seeds currently grant `COMPANY_ADMIN` the
 legacy `"*"` permission. This is an accepted UAT-only limitation and must not be
 presented as production-ready. Removing it requires a separate, reviewed
 permission migration across every existing capability.

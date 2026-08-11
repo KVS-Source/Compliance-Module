@@ -132,7 +132,7 @@ The negative safety unit test proving refusal of the normal development database
 
 Every route rendered through `PrototypeRoutePage` now displays:
 
-> Prototype module — demonstration data only. Changes are not saved.
+> Prototype module — sample data only. Changes are not saved.
 
 Dashboard, users, and frameworks do not display this banner because they use API-connected route components. Prototype toast notifications identify their actions as simulations and state that no PostgreSQL data was changed. Existing prototype interactions and mock data remain available for design reference, and no new APIs were added.
 
@@ -340,7 +340,7 @@ None identified in this batch.
 
 ## 20. Known limitations
 
-- Prototype modules remain demonstrations and intentionally do not persist changes.
+- Prototype modules remain non-persistent samples and intentionally do not save changes.
 - No new prototype write APIs were implemented.
 - Dormant code remains in the repository for later workflow review.
 - The local containers use development-mode cookie settings; production rejects those settings.

@@ -3,7 +3,7 @@ import { notFound } from "../../common/errors/app-error.js";
 import { toCsv, type CsvColumn } from "./csv.js";
 
 /**
- * CSV exports for the registers the demo shows.
+ * CSV exports for the operational registers.
  *
  * Every query is company-scoped from the authenticated token, and every export
  * is bounded: an unbounded export is a denial-of-service surface and a way to

@@ -1,10 +1,10 @@
-# UAT demo seed
+# UAT sample seed
 
 This page describes the synthetic KPI/Risk walkthrough seed. For the separate
 GenBioCa Company seed plus actual workbook import, use
 [`backend-data-mvp-contract-and-uat.md`](../backend-data-mvp-contract-and-uat.md#repeatable-genbioca-uat-load).
 
-The demo seed is an explicit operator action. It is never called by application
+The sample seed is an explicit operator action. It is never called by application
 startup, Docker startup, or a migration.
 
 ## Run
@@ -16,7 +16,7 @@ startup, Docker startup, or a migration.
    supplying the password only through the environment:
 
    ```sh
-   NODE_ENV=development DEMO_SEED_PASSWORD='<temporary-uat-password>' npm run seed:demo
+   NODE_ENV=development SAMPLE_SEED_PASSWORD='<temporary-uat-password>' npm run seed:sample
    ```
 
 5. Run the exact command a second time. Entity counts must not increase.
@@ -24,30 +24,30 @@ startup, Docker startup, or a migration.
 The seed accepts only `NODE_ENV=development` or `NODE_ENV=test`.
 `NODE_ENV=production` is always refused and has no override. UAT operators must
 use an isolated database and the explicit non-production mode shown above;
-production runtime settings must never be weakened to run demonstration data.
+production runtime settings must never be weakened to run walkthrough data.
 
 ## Synthetic login identities
 
-| Email | Demonstration role |
+| Email | Sample role |
 |---|---|
-| `demo-admin@example.test` | Company Admin |
-| `demo-compliance@example.test` | Compliance Manager |
-| `demo-kpi-owner@example.test` | KPI Owner |
-| `demo-kpi-approver@example.test` | KPI Approver |
-| `demo-risk-manager@example.test` | Risk Manager |
-| `demo-viewer@example.test` | Viewer |
+| `sample-admin@example.test` | Company Admin |
+| `sample-compliance@example.test` | Compliance Manager |
+| `sample-kpi-owner@example.test` | KPI Owner |
+| `sample-kpi-approver@example.test` | KPI Approver |
+| `sample-risk-manager@example.test` | Risk Manager |
+| `sample-viewer@example.test` | Viewer |
 
-All identities use the runtime `DEMO_SEED_PASSWORD`. The seed never prints that
+All identities use the runtime `SAMPLE_SEED_PASSWORD`. The seed never prints that
 password, and no plaintext credential is stored in the repository.
 
 ## Suggested live walkthrough
 
 The seed reserves approved `2026-Q4` targets without actuals for:
 
-- `DEMO-KPI-001` — submit `90` to demonstrate GREEN with no risk;
-- `DEMO-KPI-003` — submit `14` to demonstrate RED and automatic risk creation.
+- `SMP-KPI-001` — submit `90` to demonstrate GREEN with no risk;
+- `SMP-KPI-003` — submit `14` to demonstrate RED and automatic risk creation.
 
-Use the demo administrator for tenant, organisation, framework, KPI and Risk
+Use the sample administrator for tenant, organisation, framework, KPI and Risk
 Register screens. Because self-approval is forbidden, use the KPI Approver
 identity to approve an actual submitted by the administrator. The administrator
 or Risk Manager can then demonstrate owner assignment, append-only review and
@@ -62,7 +62,7 @@ UAT workflow history.
 - All identities and organisation data are synthetic.
 - The seed uses deterministic codes and upserts for mutable master data.
 - Approved KPI targets are never updated. If an existing approved target differs
-  from the reviewed demo definition, the seed stops with a conflict.
+  from the reviewed sample definition, the seed stops with a conflict.
 - KPI actuals, derived values, automatic risks, approval history, reviews,
   treatments, closure, and reopening use the real application services.
 - Re-running the seed checks existing workflow rows and does not append duplicate

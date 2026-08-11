@@ -1,9 +1,9 @@
-# pgAdmin demo — Checkpoint API
+# pgAdmin sample — Checkpoint API
 
 Use this walkthrough after running the Checkpoint Postman collection against a
 local seeded database. Synthetic `.test` identities and codes only.
 
-Do not edit rows or schema in pgAdmin during the demo. The REST API and database
+Do not edit rows or schema in pgAdmin during the sample. The REST API and database
 triggers are the authority.
 
 ## 1. Send a Postman request
@@ -48,7 +48,7 @@ ORDER BY submitted_at DESC, id DESC;
 
 After duplicate-period attempts, only one row exists per
 `(tenant_id, checkpoint_id, review_period)`. Observation and recommendation
-text are readable here for local demo inspection, but they must never appear in
+text are readable here for local sample inspection, but they must never appear in
 audit metadata or API list rows.
 
 ## 5. Verify latest-review summary

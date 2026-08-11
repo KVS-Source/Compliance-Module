@@ -80,8 +80,8 @@ automatic. If synthetic development fixtures are required, run explicitly:
 npm run prisma:seed:dev --prefix backend
 ```
 
-Never seed production. The UAT demo seed has a separate explicit procedure in
-[uat-demo-seed.md](./operations/uat-demo-seed.md).
+Never seed production. The UAT sample seed has a separate explicit procedure in
+[uat-sample-seed.md](./operations/uat-sample-seed.md).
 
 ## Start
 

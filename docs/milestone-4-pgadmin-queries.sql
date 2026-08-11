@@ -1,4 +1,4 @@
--- Milestone 4 pgAdmin demonstration queries
+-- Milestone 4 pgAdmin walkthrough queries
 -- SELECT-only. Synthetic data. No passwords, connection strings, or real client data.
 -- Replace :tenant_id with the active Company UUID (tenants.id for COM-001, etc.).
 -- Prisma table and column names only.

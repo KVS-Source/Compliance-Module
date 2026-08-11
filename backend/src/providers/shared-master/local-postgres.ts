@@ -88,7 +88,8 @@ export class LocalPostgresSharedMasterProvider implements SharedMasterProvider {
 
   async listFrameworks(page: PageInput) {
     // Operational lists show only ACTIVE catalogue rows. DISABLED legacy
-    // DEMO-FRM-* duplicates stay in the database for remapping history but
+    // Legacy synthetic framework duplicates stay in the database for remapping
+    // history but
     // must not appear beside workbook-named frameworks in filters.
     const where = { status: "ACTIVE" as const };
     const [items, total] = await this.db.$transaction([

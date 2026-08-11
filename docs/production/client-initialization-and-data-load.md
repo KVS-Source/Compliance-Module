@@ -42,7 +42,7 @@ duplicate code/email and any `.test` address. It never prints the password.
 The schema has no forced-password-change flag. Deliver the one-time password
 through the client's approved secret channel, require an immediate operator-led
 password rotation, securely remove the password file, and record completion in
-the release ticket. Do not use the UAT/demo seed or credentials.
+the release ticket. Do not use the UAT/sample seed or credentials.
 
 ## Authoritative workbook sequence
 

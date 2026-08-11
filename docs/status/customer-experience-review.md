@@ -23,7 +23,7 @@ overdue cues, report scheduling/PDF, and the enterprise items in the
 [completion plan](./completion-plan.md).
 
 A walkthrough of the shipped pages from the position of a GRC buyer and a daily
-user, against the `DEMO-UAT` company with its full data set. Findings are
+user, against the `SAMPLE-CO` company with its full data set. Findings are
 grouped by how many pages they affect, because the cross-cutting items are worth
 more than any single screen.
 
@@ -104,7 +104,7 @@ Every framework in the widget shows `0 mapped controls` and `No mapped Control`,
 including ISO 27001 with 116 rules.
 
 The controls **are** mapped, but to duplicate framework records. The database
-holds both `DEMO-FRM-002 / ISO 27001` (seeded, 2 mapped controls) and
+holds both `SMP-FRM-002 / ISO 27001` (seeded, 2 mapped controls) and
 `ISO 27001 / ISO 27001 2022` (workbook-imported, 0 mapped). The widget lists the
 imported set, so a headline GRC view reads as entirely unmapped.
 
@@ -133,7 +133,7 @@ The default view is dominated by `AUTH_LOGIN` rows. There is a source filter and
 an action filter, but no quick way to say "business events only", and no
 grouping by record.
 
-An auditor asking "what happened to DEMO-GAP-004" must already know to filter by
+An auditor asking "what happened to SMP-GAP-004" must already know to filter by
 entity. Record-level history surfaced on each record's own detail page would
 serve that better than a global log.
 
@@ -182,7 +182,7 @@ Ordered by daily impact rather than build cost.
 | 8        | Record comments              | Moves conversation into the audit trail     |
 
 Items 3, 6 and 7 are small. Item 2 is a data decision — whether the seeded
-`DEMO-FRM-*` frameworks should exist at all now that the workbook supplies real
+`SMP-FRM-*` frameworks should exist at all now that the workbook supplies real
 ones. Items 1, 4, 5 and 8 are genuine features.
 
 None of these is a defect. The workflows underneath are correct and the audit

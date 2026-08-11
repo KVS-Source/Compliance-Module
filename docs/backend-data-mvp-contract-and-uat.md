@@ -551,7 +551,7 @@ cd backend
 npm run prisma:validate
 npm run prisma:generate
 npm run prisma:migrate
-NODE_ENV=development DEMO_SEED_PASSWORD='<runtime value>' npm run seed:uat:genbioca
+NODE_ENV=development SAMPLE_SEED_PASSWORD='<runtime value>' npm run seed:uat:genbioca
 npm run import:workbook:preview -- --file "/Users/praneetsharma/Downloads/Updated2_GenBioCa_Compliance_Platform 22June2026 (2).xlsx"
 npm run import:workbook:commit -- --file "/Users/praneetsharma/Downloads/Updated2_GenBioCa_Compliance_Platform 22June2026 (2).xlsx" --tenant GENBIOCA --actor uat-admin@genbioca.test
 npm run import:workbook:report -- --tenant GENBIOCA
@@ -590,7 +590,7 @@ Run the exact commit command again. It must return the original batch with
 `alreadyImported=true`; domain counts must not increase. A revised workbook is
 upserted by Company-scoped business key rather than duplicated.
 
-## Demo flow
+## Sample flow
 
 1. Sign in as the UAT administrator with the runtime password.
 2. Open the database-backed dashboard summary and show KPI RAG, Major/Minor
@@ -601,7 +601,7 @@ upserted by Company-scoped business key rather than duplicated.
 4. Open a Gap and its linked CAPA. Show owner, due date, lifecycle and the
    honest Evidence file state.
 5. Attempt closure without qualifying Evidence and show the 409 gate. Upload,
-   submit and independently approve real Evidence before the closure demo.
+   submit and independently approve real Evidence before the closure sample.
 6. List one populated operational register and download its protected CSV.
 7. Open the import batch/report and rerun commit to demonstrate idempotency.
 

@@ -23,7 +23,7 @@ It runs. It is not deployed.
 | [known-limitations.md](../known-limitations.md)                            | Constraints that must not be hidden from a client    |
 | [completion-plan.md](../status/completion-plan.md)                         | **Forward roadmap** — closed Phase 1–2, V1.1 / V1.5 / V2 |
 | [module-status.md](./module-status.md)                                     | Client-readable “what can the user do” matrix        |
-| [client-demo-script.md](../status/client-demo-script.md)                   | A rehearsed 15-minute demonstration                  |
+| [client-walkthrough-script.md](../status/client-walkthrough-script.md)                   | A rehearsed 15-minute walkthrough                  |
 | [customer-experience-review.md](../status/customer-experience-review.md)   | UX findings (partially superseded — see completion plan) |
 | [setup.md](../setup.md)                                                    | Environment and first run                            |
 
@@ -39,12 +39,12 @@ npm run dev --prefix frontend
 ```
 
 Seeding requires the password at runtime; it is deliberately not stored in the
-repository. The demonstration data in this environment was seeded with
+repository. The sample data in this environment was seeded with
 `DemoSeed!2026Local`:
 
 ```
-NODE_ENV=development DEMO_SEED_PASSWORD='DemoSeed!2026Local' npm run seed:demo --prefix backend
-NODE_ENV=development DEMO_SEED_PASSWORD='DemoSeed!2026Local' npm run seed:uat:genbioca --prefix backend
+NODE_ENV=development SAMPLE_SEED_PASSWORD='DemoSeed!2026Local' npm run seed:sample --prefix backend
+NODE_ENV=development SAMPLE_SEED_PASSWORD='DemoSeed!2026Local' npm run seed:uat:genbioca --prefix backend
 ```
 
 Re-seeding with a different password changes every account's password.
@@ -54,18 +54,18 @@ Re-seeding with a different password changes every account's password.
 **GENBIOCA** — the client's imported workbook. 13 departments, 13 frameworks,
 340 framework rules, 92 KPI definitions, 91 configurations, 32 risks, 18
 policies, 20 evidence records, 10 gaps, 10 CAPAs and 9 operational registers
-holding 106 records. No demonstration labelling anywhere.
+holding 106 records. No sample-data labelling anywhere.
 
 Sign in as `uat-admin@genbioca.test` (Rajesh Menon).
 
-**DEMO-UAT**, shown as _GenBioCa Operations_ — a complete synthetic showcase
+**SAMPLE-CO**, shown as _GenBioCa Operations_ — a complete synthetic showcase
 covering every module, including the Controls, Checkpoints and Evidence chain
 that GENBIOCA lacks. Fourteen invented personas on `.test` addresses.
 
 Sign in as `aarav.deshmukh@example.test` (Aarav Deshmukh, administrator).
 
 A user belongs to one Company. Aarav cannot see GENBIOCA and Rajesh cannot see
-the demonstration Company; showing both needs two sign-ins.
+the sample Company; showing both needs two sign-ins.
 
 ## Verification
 
@@ -134,7 +134,7 @@ resolves it permanently.
 | `ed99666` | Design system applied across remaining pages              |
 | `97987e1` | Dashboard redesign, frozen RAG colours, working Quick Add |
 | `0e382cd` | Test fixture prunes undeclared role permissions           |
-| `413a4c5` | Demo data no longer leaks into client frameworks          |
+| `413a4c5` | Sample data no longer leaks into client frameworks          |
 
 ## If work resumes
 

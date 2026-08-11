@@ -586,7 +586,7 @@ const synchroniseKpiRisk = async (
  *
  * The sheet carries its own Variance, Variance % and RAG columns. They are
  * deliberately ignored: variance and RAG are recomputed by
- * `KpiPerformanceService` so the demo shows backend logic, and so a stale
+ * `KpiPerformanceService` so the product uses one evaluation path, and so a stale
  * spreadsheet formula cannot contradict the database.
  */
 export const kpiActualImporter: SheetImporter = {

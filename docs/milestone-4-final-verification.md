@@ -68,8 +68,8 @@ Frontend gates are UX only. Backend `permit(...)` remains authoritative.
 | Playwright (`frontend/tests/*`, including `milestone4-integration.e2e.ts`) | Deterministic mocked `/api/v1/**` only; in-memory actor/permission switch simulates UI flows, not JWT/auth or PostgreSQL authority |
 | Backend unit tests | Domain/validator behaviour without full stack |
 | Backend PostgreSQL integration | Database, permissions, and API authority |
-| Postman `Milestone-4-E2E` | Real local API demonstration |
-| pgAdmin SQL (`docs/milestone-4-pgadmin-demo.sql`) | Stored-row confirmation |
+| Postman `Milestone-4-E2E` | Real local API walkthrough |
+| pgAdmin SQL (`docs/milestone-4-pgadmin-queries.sql`) | Stored-row confirmation |
 
 ## Tenant isolation
 
@@ -126,6 +126,6 @@ deployment, PostgreSQL RLS, production deployment, dashboard redesign.
 - `postman/Milestone-4-E2E.postman_collection.json`
 - `postman/Milestone-4-E2E.postman_environment.json`
 - `postman/README.md`
-- `docs/milestone-4-pgadmin-demo.sql`
-- `docs/milestone-4-client-demo.md`
+- `docs/milestone-4-pgadmin-queries.sql`
+- `docs/milestone-4-client-walkthrough.md`
 - this document

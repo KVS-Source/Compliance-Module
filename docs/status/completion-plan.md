@@ -38,14 +38,14 @@ found.
 | Item | Commit | What shipped |
 | --- | --- | --- |
 | Role assignment API + UI | `b8a5f94` | `GET/PUT /access/users/:id/roles`, five production profiles only, `roles:assign`, self-escalation guard, audit event, integration + Playwright coverage. Admin can onboard a colleague end to end in the browser. |
-| Demo wildcard retirement (aligned) | `b8a5f94` | Demo roles aligned toward explicit production profile permissions so demo and production no longer diverge on `*`. |
+| Sample wildcard retirement (aligned) | `b8a5f94` | Sample roles aligned toward explicit production profile permissions so sample and production no longer diverge on `*`. |
 | Operational Registers write UI | `14eeeaf` | Create/edit against existing `registers:write` APIs; “Add record” works in the product UI. |
 | Manual risk create | `14eeeaf` | `POST /risks` + Risk Register create; continues the shared risk code sequence; source distinguished from KPI-linked automation. |
 | Register column sorting | `6989c1e` | Server-side allowlisted `orderBy` / `order`, `aria-sort` on headers. |
 | URL-synced filters | `6989c1e` | Register filter and sort state in the query string (e.g. `?orderBy=status&order=asc`). |
 | My Work personal queue | `6989c1e` | `/my-work` — five permission-gated sections, overdue first. |
 | Evidence expiry surfacing | `6989c1e` | Dashboard tile plus library filter (`expiringSoon` / related query params). |
-| Framework catalogue de-dupe | `413a4c5` | Demo seed no longer pollutes global frameworks with synthetic clauses; compliance percentages report real mapped numbers. |
+| Framework catalogue de-dupe | `413a4c5` | Sample seed no longer pollutes global frameworks with synthetic clauses; compliance percentages report real mapped numbers. |
 | Create Company from UI | `80c8a3c` | `POST /tenants` + UI; caller becomes administrator of the new empty Company; `tenants:write`. |
 | Grid KPI actual entry | `a1f37d9` | Grid mode on KPI Actual Entry; rows submit one-by-one to `POST /kpi-actuals` so RAG, auto-risk and audit stay per record; mixed outcomes do not discard valid neighbours. |
 | Bulk actions (Gap Register) | `70989f2` | Select rows; reassign owner, set due date, close (`gaps:close` gated). Per-record endpoints only; toast survives register reload. |

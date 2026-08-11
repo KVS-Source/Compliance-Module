@@ -1,4 +1,4 @@
-# pgAdmin Policy API demonstration
+# pgAdmin Policy API walkthrough
 
 Use this flow after calling Policy APIs from Postman. pgAdmin is inspection only.
 Do not create, alter or delete schema objects or business rows through pgAdmin.

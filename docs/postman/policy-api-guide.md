@@ -13,7 +13,7 @@ only.
    - `adminPassword`
    - `approverPassword`
 4. Ensure the approver identity has `policies:approve` in the active Company.
-   Integration tests grant this to `COMPANY_USER` temporarily. For a local demo,
+   Integration tests grant this to `COMPANY_USER` temporarily. For a local sample,
    grant the same permission to `user001@example.test` before step 12.
 
 Synthetic emails already in the environment:

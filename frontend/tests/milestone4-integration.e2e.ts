@@ -196,7 +196,7 @@ async function installM4IntegrationMock(
       id: POLICY_ID,
       code: "POL-001",
       title: "M4 Integration Policy",
-      description: "Cross-module demonstration policy",
+      description: "Cross-module walkthrough policy",
       lifecycleStatus: "ACTIVE",
       owner: {
         id: submitter.id,

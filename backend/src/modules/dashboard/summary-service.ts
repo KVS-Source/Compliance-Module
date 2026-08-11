@@ -37,7 +37,7 @@ export const compliancePercentage = (measured: number, targetMet: number) =>
   measured === 0 ? 0 : Math.round((targetMet / measured) * 1000) / 10;
 
 /**
- * The single dashboard endpoint the demo runs on.
+ * The single dashboard endpoint the overview screen runs on.
  *
  * Sections mirror their source module's permission, so a user without
  * `gaps:read` receives `gaps: null` rather than aggregate counts about records

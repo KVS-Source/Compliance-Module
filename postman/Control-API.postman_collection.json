@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "GenBioCa Control API",
-    "description": "Milestone 4 Slice 3 Control register, lifecycle and mapping demo. Use synthetic .test identities only. Populate password variables locally; never commit secrets. Optional archive-rejection step uses a seeded Control with an ACTIVE Checkpoint — copy its ID into controlWithActiveCheckpointId from seed/pgAdmin.",
+    "description": "Milestone 4 Slice 3 Control register, lifecycle and mapping sample. Use synthetic .test identities only. Populate password variables locally; never commit secrets. Optional archive-rejection step uses a seeded Control with an ACTIVE Checkpoint — copy its ID into controlWithActiveCheckpointId from seed/pgAdmin.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -338,7 +338,7 @@
         ],
         "body": { "mode": "raw", "raw": "{}" },
         "url": "{{baseUrl}}/controls/{{controlWithActiveCheckpointId}}/archive",
-        "description": "Optional. Set controlWithActiveCheckpointId from the synthetic seeded Control that owns an ACTIVE Checkpoint (for example DEMO-CTL-001 / CTL-001 in seeded Companies). Expect CONTROL_HAS_ACTIVE_CHECKPOINTS. Leave the placeholder empty until you copy the ID from seed/pgAdmin."
+        "description": "Optional. Set controlWithActiveCheckpointId from the synthetic seeded Control that owns an ACTIVE Checkpoint (for example SMP-CTL-001 / CTL-001 in seeded Companies). Expect CONTROL_HAS_ACTIVE_CHECKPOINTS. Leave the placeholder empty until you copy the ID from seed/pgAdmin."
       }
     },
     {

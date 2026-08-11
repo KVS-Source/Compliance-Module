@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "GenBioCa Policy API",
-    "description": "Milestone 4 Slice 2 Policy workflow demo. Use synthetic .test identities only. Populate password variables locally; never commit secrets.",
+    "description": "Milestone 4 Slice 2 Policy workflow sample. Use synthetic .test identities only. Populate password variables locally; never commit secrets.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -73,7 +73,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Postman Controlled Policy\",\n  \"content\": \"Synthetic policy body for client demonstration.\",\n  \"requiresEvidence\": false,\n  \"frameworkIds\": [\"{{frameworkId}}\"]\n}"
+          "raw": "{\n  \"title\": \"Postman Controlled Policy\",\n  \"content\": \"Synthetic policy body for client walkthrough.\",\n  \"requiresEvidence\": false,\n  \"frameworkIds\": [\"{{frameworkId}}\"]\n}"
         },
         "url": "{{baseUrl}}/policies"
       }
@@ -281,7 +281,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"comments\": \"Synthetic rejection reason for demonstration.\"\n}"
+          "raw": "{\n  \"comments\": \"Synthetic rejection reason for walkthrough.\"\n}"
         },
         "url": "{{baseUrl}}/policy-versions/{{versionId}}/reject"
       }

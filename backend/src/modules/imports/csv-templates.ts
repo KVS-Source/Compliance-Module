@@ -48,7 +48,7 @@ const templates: readonly CsvTemplate[] = [
     label: "KPI Actuals",
     sheetKey: "kpi_actuals",
     headers: planHeaders(planForKey("kpi_actuals")!, ["notes"]),
-    sampleRow: ["DEMO-KPI-001", "2026-Q1", "95", ""],
+    sampleRow: ["KPI-001", "2026-Q1", "95", ""],
   },
   {
     type: "GAPS",

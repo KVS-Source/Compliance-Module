@@ -6,7 +6,7 @@ import { isFrameworkActiveInScope } from "./framework-scope.js";
  *
  * Every figure here is a query against this tenant's rows. Nothing is read
  * from the workbook's `09_Compliance_Dashboard` or `17_KPI_Dashboard` sheets:
- * those are spreadsheet formulas over a snapshot, and a demo that replayed
+ * those are spreadsheet formulas over a snapshot, and a dashboard that replayed
  * them would show numbers the registers underneath cannot justify.
  *
  * Two rules run through the whole file:

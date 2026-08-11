@@ -45,7 +45,7 @@ interface GovernanceSeedInput {
   departmentId: string;
   frameworkId: string;
   frameworkRuleId: string;
-  codePrefix?: "DEMO-";
+  codePrefix?: "SMP-";
 }
 
 const ensureAudit = async (
@@ -124,7 +124,7 @@ export async function seedGovernanceFoundation(
       content:
         "# Synthetic Governance Policy\n\nThis bounded Markdown record contains no private data.",
       purpose: "Exercise the Milestone 4 database invariants.",
-      scope: "Synthetic test and demonstration data only.",
+      scope: "Synthetic test and sample data only.",
       changeSummary: "Initial controlled version.",
       status: "DRAFT",
       effectiveDate: new Date("2026-07-01T00:00:00.000Z"),
@@ -247,7 +247,7 @@ export async function seedGovernanceFoundation(
       version.supersededById !== current.id
     ) {
       throw new Error(
-        "Demo seed conflict: the governance foundation supersession is inconsistent",
+        "Showcase seed conflict: the governance foundation supersession is inconsistent",
       );
     }
   } else if (version.status !== "APPROVED") {
@@ -419,18 +419,18 @@ export async function seedGovernanceFoundation(
   return { policy, version, control, checkpoint };
 }
 
-export interface DemoGovernanceActor {
+export interface GovernanceShowcaseActor {
   userId: string;
   departmentId: string;
 }
 
-interface DemoGovernanceShowcaseInput {
+interface GovernanceShowcaseInput {
   tenantId: string;
-  actors: readonly DemoGovernanceActor[];
+  actors: readonly GovernanceShowcaseActor[];
 }
 
 const showcaseConflict = (message: string): never => {
-  throw new Error(`Demo seed conflict: ${message}`);
+  throw new Error(`Showcase seed conflict: ${message}`);
 };
 
 const date = (value: string) => new Date(`${value}T00:00:00.000Z`);
@@ -449,18 +449,18 @@ const canonicalJson = (value: unknown): string => {
   }
   return JSON.stringify(value) ?? "undefined";
 };
-const showcaseContext = { userAgent: "explicit-demo-governance-seed" };
+const showcaseContext = { userAgent: "explicit-governance-showcase-seed" };
 
 const POLICY_SHOWCASE = [
   {
-    code: "DEMO-POL-001",
+    code: "SMP-POL-001",
     title: "Synthetic Governance Policy",
     description: "Synthetic Policy used only for deterministic verification.",
     frameworkCode: "ISO 9001",
     desiredStatus: "APPROVED" as PolicyVersionStatus,
   },
   {
-    code: "DEMO-POL-002",
+    code: "SMP-POL-002",
     title: "Information Security and Access Policy",
     description:
       "Defines the synthetic organisation's access-control expectations.",
@@ -468,22 +468,22 @@ const POLICY_SHOWCASE = [
     desiredStatus: "DRAFT" as PolicyVersionStatus,
   },
   {
-    code: "DEMO-POL-003",
+    code: "SMP-POL-003",
     title: "Environmental Management Policy",
     description:
-      "Sets environmental objectives for the demonstration workspace.",
+      "Sets environmental objectives for the sample workspace.",
     frameworkCode: "ISO 14001",
     desiredStatus: "SUBMITTED" as PolicyVersionStatus,
   },
   {
-    code: "DEMO-POL-004",
+    code: "SMP-POL-004",
     title: "Occupational Health and Safety Policy",
     description: "Governs workplace hazard identification and response.",
     frameworkCode: "ISO 45001",
     desiredStatus: "APPROVED" as PolicyVersionStatus,
   },
   {
-    code: "DEMO-POL-005",
+    code: "SMP-POL-005",
     title: "Business Continuity Policy",
     description:
       "Defines resilience, recovery and continuity responsibilities.",
@@ -491,7 +491,7 @@ const POLICY_SHOWCASE = [
     desiredStatus: "APPROVED" as PolicyVersionStatus,
   },
   {
-    code: "DEMO-POL-006",
+    code: "SMP-POL-006",
     title: "Responsible Workplace Policy",
     description: "Documents fair-work and ethical labour commitments.",
     frameworkCode: "SA 8000",
@@ -516,7 +516,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
   inactive: boolean;
 }> = [
   {
-    code: "DEMO-CTL-001",
+    code: "SMP-CTL-001",
     title: "Synthetic Document Control",
     description: "Synthetic Control for database verification.",
     objective: "Verify governed Policy requirements are implemented.",
@@ -527,12 +527,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     frequency: "MONTHLY",
     verificationMethod: "Review the synthetic Checkpoint result.",
     requiresEvidence: false,
-    policyCode: "DEMO-POL-001",
+    policyCode: "SMP-POL-001",
     frameworkCode: "ISO 9001",
     inactive: false,
   },
   {
-    code: "DEMO-CTL-002",
+    code: "SMP-CTL-002",
     title: "Privileged Access Recertification",
     description:
       "Quarterly recertification of privileged business-system access.",
@@ -546,12 +546,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod:
       "Inspect reviewer sign-off and sampled entitlement evidence.",
     requiresEvidence: true,
-    policyCode: "DEMO-POL-001",
+    policyCode: "SMP-POL-001",
     frameworkCode: "ISO 27001",
     inactive: false,
   },
   {
-    code: "DEMO-CTL-003",
+    code: "SMP-CTL-003",
     title: "Environmental Aspect Review",
     description:
       "Reviews significant environmental aspects and mitigation actions.",
@@ -566,12 +566,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod:
       "Compare the aspect register with action closure evidence.",
     requiresEvidence: true,
-    policyCode: "DEMO-POL-004",
+    policyCode: "SMP-POL-004",
     frameworkCode: "ISO 14001",
     inactive: false,
   },
   {
-    code: "DEMO-CTL-004",
+    code: "SMP-CTL-004",
     title: "Workplace Safety Inspection",
     description: "Monthly inspection of synthetic workplace safety safeguards.",
     objective:
@@ -584,12 +584,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod:
       "Review completed inspection checklists and action logs.",
     requiresEvidence: true,
-    policyCode: "DEMO-POL-004",
+    policyCode: "SMP-POL-004",
     frameworkCode: "ISO 45001",
     inactive: false,
   },
   {
-    code: "DEMO-CTL-005",
+    code: "SMP-CTL-005",
     title: "Continuity Recovery Exercise",
     description:
       "Exercises recovery procedures for priority business services.",
@@ -604,12 +604,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod:
       "Inspect exercise results, exceptions and approved remediation.",
     requiresEvidence: true,
-    policyCode: "DEMO-POL-005",
+    policyCode: "SMP-POL-005",
     frameworkCode: "ISO 22301",
     inactive: false,
   },
   {
-    code: "DEMO-CTL-006",
+    code: "SMP-CTL-006",
     title: "Supplier Compliance Review",
     description:
       "Reviews critical suppliers against contractual compliance obligations.",
@@ -622,12 +622,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod:
       "Sample due-diligence packs and remediation commitments.",
     requiresEvidence: true,
-    policyCode: "DEMO-POL-005",
+    policyCode: "SMP-POL-005",
     frameworkCode: "SA 8000",
     inactive: false,
   },
   {
-    code: "DEMO-CTL-007",
+    code: "SMP-CTL-007",
     title: "Legacy Visitor Log Review",
     description:
       "Historic manual visitor-log review retained for traceability.",
@@ -641,12 +641,12 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     verificationMethod:
       "Inspect the final manual log review before deactivation.",
     requiresEvidence: false,
-    policyCode: "DEMO-POL-001",
+    policyCode: "SMP-POL-001",
     frameworkCode: "ISO 27001",
     inactive: true,
   },
   {
-    code: "DEMO-CTL-008",
+    code: "SMP-CTL-008",
     title: "Retired Paper Complaint Routing",
     description: "Superseded paper-based complaint escalation procedure.",
     objective: "Retain historic assurance for the retired intake channel.",
@@ -658,7 +658,7 @@ const CONTROL_SHOWCASE: ReadonlyArray<{
     frequency: "PER_EVENT",
     verificationMethod: "Review the final migration reconciliation.",
     requiresEvidence: false,
-    policyCode: "DEMO-POL-001",
+    policyCode: "SMP-POL-001",
     frameworkCode: "ISO 9001",
     inactive: true,
   },
@@ -675,8 +675,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
   outcome: CheckpointOutcome;
 }> = [
   {
-    code: "DEMO-CHK-001",
-    controlCode: "DEMO-CTL-001",
+    code: "SMP-CHK-001",
+    controlCode: "SMP-CTL-001",
     title: "Synthetic Monthly Verification",
     actorIndex: 1,
     evidenceRequired: false,
@@ -685,8 +685,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PASS",
   },
   {
-    code: "DEMO-CHK-002",
-    controlCode: "DEMO-CTL-002",
+    code: "SMP-CHK-002",
+    controlCode: "SMP-CTL-002",
     title: "Privileged account population reconciled",
     actorIndex: 6,
     evidenceRequired: false,
@@ -695,8 +695,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PASS",
   },
   {
-    code: "DEMO-CHK-003",
-    controlCode: "DEMO-CTL-003",
+    code: "SMP-CHK-003",
+    controlCode: "SMP-CTL-003",
     title: "Environmental actions supported by evidence",
     actorIndex: 7,
     evidenceRequired: true,
@@ -705,8 +705,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "FAIL",
   },
   {
-    code: "DEMO-CHK-004",
-    controlCode: "DEMO-CTL-004",
+    code: "SMP-CHK-004",
+    controlCode: "SMP-CTL-004",
     title: "Emergency exits and signage inspected",
     actorIndex: 2,
     evidenceRequired: false,
@@ -715,8 +715,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PASS",
   },
   {
-    code: "DEMO-CHK-005",
-    controlCode: "DEMO-CTL-004",
+    code: "SMP-CHK-005",
+    controlCode: "SMP-CTL-004",
     title: "Safety observations assigned for remediation",
     actorIndex: 3,
     evidenceRequired: false,
@@ -725,8 +725,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PARTIAL",
   },
   {
-    code: "DEMO-CHK-006",
-    controlCode: "DEMO-CTL-005",
+    code: "SMP-CHK-006",
+    controlCode: "SMP-CTL-005",
     title: "Recovery time objective achieved",
     actorIndex: 5,
     evidenceRequired: false,
@@ -735,8 +735,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PASS",
   },
   {
-    code: "DEMO-CHK-007",
-    controlCode: "DEMO-CTL-006",
+    code: "SMP-CHK-007",
+    controlCode: "SMP-CTL-006",
     title: "Critical supplier attestations current",
     actorIndex: 10,
     evidenceRequired: true,
@@ -745,8 +745,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "FAIL",
   },
   {
-    code: "DEMO-CHK-008",
-    controlCode: "DEMO-CTL-006",
+    code: "SMP-CHK-008",
+    controlCode: "SMP-CTL-006",
     title: "Supplier remediation actions sampled",
     actorIndex: 8,
     evidenceRequired: false,
@@ -755,8 +755,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PARTIAL",
   },
   {
-    code: "DEMO-CHK-009",
-    controlCode: "DEMO-CTL-007",
+    code: "SMP-CHK-009",
+    controlCode: "SMP-CTL-007",
     title: "Final visitor log reconciliation",
     actorIndex: 9,
     evidenceRequired: false,
@@ -765,8 +765,8 @@ const CHECKPOINT_SHOWCASE: ReadonlyArray<{
     outcome: "PASS",
   },
   {
-    code: "DEMO-CHK-010",
-    controlCode: "DEMO-CTL-008",
+    code: "SMP-CHK-010",
+    controlCode: "SMP-CTL-008",
     title: "Paper complaint migration reconciled",
     actorIndex: 11,
     evidenceRequired: false,
@@ -786,111 +786,111 @@ const EVIDENCE_SHOWCASE: ReadonlyArray<{
   linkToKpiActual: boolean;
 }> = [
   {
-    code: "DEMO-EVD-001",
+    code: "SMP-EVD-001",
     title: "Document control review pack",
     actorIndex: 0,
     lifecycleStatus: "APPROVED",
-    controlCode: "DEMO-CTL-001",
-    checkpointCode: "DEMO-CHK-001",
+    controlCode: "SMP-CTL-001",
+    checkpointCode: "SMP-CHK-001",
     linkToKpiActual: true,
   },
   {
-    code: "DEMO-EVD-002",
+    code: "SMP-EVD-002",
     title: "Privileged access recertification export",
     actorIndex: 6,
     lifecycleStatus: "APPROVED",
-    controlCode: "DEMO-CTL-002",
-    checkpointCode: "DEMO-CHK-002",
+    controlCode: "SMP-CTL-002",
+    checkpointCode: "SMP-CHK-002",
     linkToKpiActual: true,
   },
   {
-    code: "DEMO-EVD-003",
+    code: "SMP-EVD-003",
     title: "Environmental action closure photographs",
     actorIndex: 7,
     lifecycleStatus: "APPROVED",
-    controlCode: "DEMO-CTL-003",
-    checkpointCode: "DEMO-CHK-003",
+    controlCode: "SMP-CTL-003",
+    checkpointCode: "SMP-CHK-003",
     linkToKpiActual: true,
   },
   {
-    code: "DEMO-EVD-004",
+    code: "SMP-EVD-004",
     title: "Workplace safety inspection checklist",
     actorIndex: 2,
     lifecycleStatus: "APPROVED",
-    controlCode: "DEMO-CTL-004",
-    checkpointCode: "DEMO-CHK-004",
+    controlCode: "SMP-CTL-004",
+    checkpointCode: "SMP-CHK-004",
     linkToKpiActual: true,
   },
   {
-    code: "DEMO-EVD-005",
+    code: "SMP-EVD-005",
     title: "Continuity exercise observer report",
     actorIndex: 5,
     lifecycleStatus: "SUBMITTED",
-    controlCode: "DEMO-CTL-005",
-    checkpointCode: "DEMO-CHK-006",
+    controlCode: "SMP-CTL-005",
+    checkpointCode: "SMP-CHK-006",
     linkToKpiActual: true,
   },
   {
-    code: "DEMO-EVD-006",
+    code: "SMP-EVD-006",
     title: "Supplier compliance attestation bundle",
     actorIndex: 10,
     lifecycleStatus: "APPROVED",
-    controlCode: "DEMO-CTL-006",
-    checkpointCode: "DEMO-CHK-007",
+    controlCode: "SMP-CTL-006",
+    checkpointCode: "SMP-CHK-007",
     linkToKpiActual: true,
   },
   {
-    code: "DEMO-EVD-007",
+    code: "SMP-EVD-007",
     title: "Supplier remediation sample",
     actorIndex: 8,
     lifecycleStatus: "SUBMITTED",
-    controlCode: "DEMO-CTL-006",
-    checkpointCode: "DEMO-CHK-008",
+    controlCode: "SMP-CTL-006",
+    checkpointCode: "SMP-CHK-008",
     linkToKpiActual: false,
   },
   {
-    code: "DEMO-EVD-008",
+    code: "SMP-EVD-008",
     title: "Visitor log reconciliation",
     actorIndex: 9,
     lifecycleStatus: "REJECTED",
-    controlCode: "DEMO-CTL-007",
-    checkpointCode: "DEMO-CHK-009",
+    controlCode: "SMP-CTL-007",
+    checkpointCode: "SMP-CHK-009",
     linkToKpiActual: false,
   },
   {
-    code: "DEMO-EVD-009",
+    code: "SMP-EVD-009",
     title: "Complaint migration validation",
     actorIndex: 11,
     lifecycleStatus: "REJECTED",
-    controlCode: "DEMO-CTL-008",
-    checkpointCode: "DEMO-CHK-010",
+    controlCode: "SMP-CTL-008",
+    checkpointCode: "SMP-CHK-010",
     linkToKpiActual: false,
   },
   {
-    code: "DEMO-EVD-010",
+    code: "SMP-EVD-010",
     title: "Draft access exception sample",
     actorIndex: 4,
     lifecycleStatus: "DRAFT",
-    controlCode: "DEMO-CTL-002",
-    checkpointCode: "DEMO-CHK-002",
+    controlCode: "SMP-CTL-002",
+    checkpointCode: "SMP-CHK-002",
     linkToKpiActual: false,
   },
   {
-    code: "DEMO-EVD-011",
+    code: "SMP-EVD-011",
     title: "Draft safety briefing attendance",
     actorIndex: 3,
     lifecycleStatus: "DRAFT",
-    controlCode: "DEMO-CTL-004",
-    checkpointCode: "DEMO-CHK-005",
+    controlCode: "SMP-CTL-004",
+    checkpointCode: "SMP-CHK-005",
     linkToKpiActual: false,
   },
   {
-    code: "DEMO-EVD-012",
+    code: "SMP-EVD-012",
     title: "Continuity action owner confirmation",
     actorIndex: 1,
     lifecycleStatus: "SUBMITTED",
-    controlCode: "DEMO-CTL-005",
-    checkpointCode: "DEMO-CHK-006",
+    controlCode: "SMP-CTL-005",
+    checkpointCode: "SMP-CHK-006",
     linkToKpiActual: false,
   },
 ];
@@ -907,90 +907,90 @@ const GAP_SHOWCASE: ReadonlyArray<{
   evidenceCode: string | null;
 }> = [
   {
-    code: "DEMO-GAP-001",
+    code: "SMP-GAP-001",
     title: "Environmental actions lack complete closure evidence",
     actorIndex: 7,
     severity: "MAJOR",
     desiredStatus: "OPEN",
-    controlCode: "DEMO-CTL-003",
-    checkpointCode: "DEMO-CHK-003",
+    controlCode: "SMP-CTL-003",
+    checkpointCode: "SMP-CHK-003",
     frameworkCode: "ISO 14001",
-    evidenceCode: "DEMO-EVD-003",
+    evidenceCode: "SMP-EVD-003",
   },
   {
-    code: "DEMO-GAP-002",
+    code: "SMP-GAP-002",
     title: "Privileged access review contains stale accounts",
     actorIndex: 6,
     severity: "MINOR",
     desiredStatus: "IN_PROGRESS",
-    controlCode: "DEMO-CTL-002",
+    controlCode: "SMP-CTL-002",
     checkpointCode: null,
     frameworkCode: "ISO 27001",
-    evidenceCode: "DEMO-EVD-002",
+    evidenceCode: "SMP-EVD-002",
   },
   {
-    code: "DEMO-GAP-003",
+    code: "SMP-GAP-003",
     title: "Safety signage inventory was incomplete",
     actorIndex: 2,
     severity: "OBSERVATION",
     desiredStatus: "CLOSED",
-    controlCode: "DEMO-CTL-004",
-    checkpointCode: "DEMO-CHK-004",
+    controlCode: "SMP-CTL-004",
+    checkpointCode: "SMP-CHK-004",
     frameworkCode: "ISO 45001",
-    evidenceCode: "DEMO-EVD-004",
+    evidenceCode: "SMP-EVD-004",
   },
   {
-    code: "DEMO-GAP-004",
+    code: "SMP-GAP-004",
     title: "Critical supplier attestations are overdue",
     actorIndex: 10,
     severity: "CRITICAL",
     desiredStatus: "OPEN",
-    controlCode: "DEMO-CTL-006",
-    checkpointCode: "DEMO-CHK-007",
+    controlCode: "SMP-CTL-006",
+    checkpointCode: "SMP-CHK-007",
     frameworkCode: "SA 8000",
-    evidenceCode: "DEMO-EVD-006",
+    evidenceCode: "SMP-EVD-006",
   },
   {
-    code: "DEMO-GAP-005",
+    code: "SMP-GAP-005",
     title: "Recovery exercise exception owner is unconfirmed",
     actorIndex: 5,
     severity: "MAJOR",
     desiredStatus: "IN_PROGRESS",
-    controlCode: "DEMO-CTL-005",
+    controlCode: "SMP-CTL-005",
     checkpointCode: null,
     frameworkCode: "ISO 22301",
     evidenceCode: null,
   },
   {
-    code: "DEMO-GAP-006",
+    code: "SMP-GAP-006",
     title: "Document review reminder routing was inconsistent",
     actorIndex: 1,
     severity: "OFI",
     desiredStatus: "CLOSED",
-    controlCode: "DEMO-CTL-001",
-    checkpointCode: "DEMO-CHK-001",
+    controlCode: "SMP-CTL-001",
+    checkpointCode: "SMP-CHK-001",
     frameworkCode: "ISO 9001",
-    evidenceCode: "DEMO-EVD-001",
+    evidenceCode: "SMP-EVD-001",
   },
   {
-    code: "DEMO-GAP-007",
+    code: "SMP-GAP-007",
     title: "Safety observation escalation needs clarification",
     actorIndex: 3,
     severity: "MINOR",
     desiredStatus: "OPEN",
-    controlCode: "DEMO-CTL-004",
-    checkpointCode: "DEMO-CHK-005",
+    controlCode: "SMP-CTL-004",
+    checkpointCode: "SMP-CHK-005",
     frameworkCode: "ISO 45001",
     evidenceCode: null,
   },
   {
-    code: "DEMO-GAP-008",
+    code: "SMP-GAP-008",
     title: "Supplier remediation sample size is below plan",
     actorIndex: 8,
     severity: "OBSERVATION",
     desiredStatus: "IN_PROGRESS",
-    controlCode: "DEMO-CTL-006",
-    checkpointCode: "DEMO-CHK-008",
+    controlCode: "SMP-CTL-006",
+    checkpointCode: "SMP-CHK-008",
     frameworkCode: "SA 8000",
     evidenceCode: null,
   },
@@ -1009,43 +1009,43 @@ const CAPA_SHOWCASE: ReadonlyArray<{
   evidenceCode: string | null;
 }> = [
   {
-    code: "DEMO-CAPA-001",
+    code: "SMP-CAPA-001",
     title: "Complete environmental closure evidence",
     actorIndex: 7,
     priority: "HIGH",
     desiredStatus: "OPEN",
-    gapCode: "DEMO-GAP-001",
+    gapCode: "SMP-GAP-001",
     frameworkCode: "ISO 14001",
     dueDate: "2026-07-15",
     completionPercentage: 20,
     evidenceCode: null,
   },
   {
-    code: "DEMO-CAPA-002",
+    code: "SMP-CAPA-002",
     title: "Remove stale privileged accounts",
     actorIndex: 6,
     priority: "CRITICAL",
     desiredStatus: "IN_PROGRESS",
-    gapCode: "DEMO-GAP-002",
+    gapCode: "SMP-GAP-002",
     frameworkCode: "ISO 27001",
     dueDate: "2026-07-25",
     completionPercentage: 55,
     evidenceCode: null,
   },
   {
-    code: "DEMO-CAPA-003",
+    code: "SMP-CAPA-003",
     title: "Validate continuity exception ownership",
     actorIndex: 5,
     priority: "HIGH",
     desiredStatus: "PENDING_VERIFICATION",
-    gapCode: "DEMO-GAP-005",
+    gapCode: "SMP-GAP-005",
     frameworkCode: "ISO 22301",
     dueDate: "2026-09-15",
     completionPercentage: 90,
-    evidenceCode: "DEMO-EVD-001",
+    evidenceCode: "SMP-EVD-001",
   },
   {
-    code: "DEMO-CAPA-004",
+    code: "SMP-CAPA-004",
     title: "Replace missing safety signage",
     actorIndex: 2,
     priority: "MEDIUM",
@@ -1054,46 +1054,46 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     frameworkCode: "ISO 45001",
     dueDate: "2026-07-30",
     completionPercentage: 80,
-    evidenceCode: "DEMO-EVD-004",
+    evidenceCode: "SMP-EVD-004",
   },
   {
-    code: "DEMO-CAPA-005",
+    code: "SMP-CAPA-005",
     title: "Clarify safety escalation matrix",
     actorIndex: 3,
     priority: "MEDIUM",
     desiredStatus: "OPEN",
-    gapCode: "DEMO-GAP-007",
+    gapCode: "SMP-GAP-007",
     frameworkCode: "ISO 45001",
     dueDate: "2026-09-30",
     completionPercentage: 10,
     evidenceCode: null,
   },
   {
-    code: "DEMO-CAPA-006",
+    code: "SMP-CAPA-006",
     title: "Expand supplier remediation sample",
     actorIndex: 8,
     priority: "LOW",
     desiredStatus: "IN_PROGRESS",
-    gapCode: "DEMO-GAP-008",
+    gapCode: "SMP-GAP-008",
     frameworkCode: "SA 8000",
     dueDate: "2026-10-15",
     completionPercentage: 45,
     evidenceCode: null,
   },
   {
-    code: "DEMO-CAPA-007",
+    code: "SMP-CAPA-007",
     title: "Publish access review exception guidance",
     actorIndex: 4,
     priority: "MEDIUM",
     desiredStatus: "PENDING_VERIFICATION",
-    gapCode: "DEMO-GAP-002",
+    gapCode: "SMP-GAP-002",
     frameworkCode: "ISO 27001",
     dueDate: "2026-09-10",
     completionPercentage: 85,
-    evidenceCode: "DEMO-EVD-002",
+    evidenceCode: "SMP-EVD-002",
   },
   {
-    code: "DEMO-CAPA-008",
+    code: "SMP-CAPA-008",
     title: "Automate document review reminders",
     actorIndex: 1,
     priority: "LOW",
@@ -1102,73 +1102,73 @@ const CAPA_SHOWCASE: ReadonlyArray<{
     frameworkCode: "ISO 9001",
     dueDate: "2026-07-20",
     completionPercentage: 75,
-    evidenceCode: "DEMO-EVD-001",
+    evidenceCode: "SMP-EVD-001",
   },
 ];
 
 const REGISTER_SHOWCASE = [
   {
-    code: "DEMO-REG-TRAINING",
+    code: "SMP-REG-TRAINING",
     name: "Training and Competency Register",
-    prefix: "DEMO-TRN",
+    prefix: "SMP-TRN",
     subject: "Controlled procedure training",
     statuses: ["SCHEDULED", "COMPLETED", "OVERDUE"],
   },
   {
-    code: "DEMO-REG-INCIDENT",
+    code: "SMP-REG-INCIDENT",
     name: "Incident Register",
-    prefix: "DEMO-INC",
+    prefix: "SMP-INC",
     subject: "Operational incident review",
     statuses: ["OPEN", "INVESTIGATING", "CLOSED"],
   },
   {
-    code: "DEMO-REG-SUPPLIER",
+    code: "SMP-REG-SUPPLIER",
     name: "Supplier Assurance Register",
-    prefix: "DEMO-SUP",
+    prefix: "SMP-SUP",
     subject: "Critical supplier assessment",
     statuses: ["APPROVED", "CONDITIONAL", "REVIEW_DUE"],
   },
   {
-    code: "DEMO-REG-COMPLAINT",
+    code: "SMP-REG-COMPLAINT",
     name: "Complaint Register",
-    prefix: "DEMO-CMP",
+    prefix: "SMP-CMP",
     subject: "Customer complaint investigation",
     statuses: ["RECEIVED", "IN_PROGRESS", "RESOLVED"],
   },
   {
-    code: "DEMO-REG-AUDIT-FINDING",
+    code: "SMP-REG-AUDIT-FINDING",
     name: "Audit Finding Register",
-    prefix: "DEMO-AUD",
+    prefix: "SMP-AUD",
     subject: "Internal audit finding",
     statuses: ["OPEN", "ACTIONED", "VERIFIED"],
   },
 ] as const;
 
 /**
- * Adds the browser-facing governance showcase only to the explicit DEMO-UAT
+ * Adds the browser-facing governance showcase only to the explicit SAMPLE-CO
  * Company. The caller supplies Company-scoped users/departments so no lookup
  * can accidentally borrow a client identity from another tenant.
  */
-export async function seedDemoGovernanceShowcase(
+export async function seedGovernanceShowcase(
   db: PrismaClient,
-  input: DemoGovernanceShowcaseInput,
+  input: GovernanceShowcaseInput,
 ) {
   if (input.actors.length < 12) {
     showcaseConflict(
-      "the governance showcase requires all twelve demo personas",
+      "the governance showcase requires all twelve showcase personas",
     );
   }
   const tenant = await db.tenant.findUnique({
     where: { id: input.tenantId },
     select: { code: true },
   });
-  if (tenant?.code !== "DEMO-UAT") {
-    showcaseConflict("the governance showcase may only target DEMO-UAT");
+  if (tenant?.code !== "SAMPLE-CO") {
+    showcaseConflict("the governance showcase may only target SAMPLE-CO");
   }
 
-  const actorFor = (index: number): DemoGovernanceActor => {
+  const actorFor = (index: number): GovernanceShowcaseActor => {
     const actor = input.actors[index % input.actors.length];
-    if (!actor) showcaseConflict(`demo persona ${index + 1} is missing`);
+    if (!actor) showcaseConflict(`showcase persona ${index + 1} is missing`);
     return actor!;
   };
 
@@ -1184,10 +1184,10 @@ export async function seedDemoGovernanceShowcase(
   );
   /**
    * The showcase anchors to each framework's first real clause rather than to
-   * a synthetic `DEMO-R1`. Frameworks are global, so a rule invented for the
-   * demo would appear inside every Company sharing that framework — including
-   * one holding real client data. `DEMO-R1` is still accepted as a fallback
-   * for a demo-only database where nothing has been imported.
+   * a synthetic `SMP-R1`. Frameworks are global, so a rule invented for the
+   * sample data would appear inside every Company sharing that framework — including
+   * one holding real client data. `SMP-R1` is still accepted as a fallback
+   * for a sample-only database where nothing has been imported.
    */
   const candidateRules = await db.frameworkRule.findMany({
     where: {
@@ -1207,11 +1207,11 @@ export async function seedDemoGovernanceShowcase(
   const frameworkRules = new Map<string, (typeof candidateRules)[number]>();
   for (const rule of candidateRules) {
     const chosen = frameworkRules.get(rule.framework.code);
-    // First real clause by code wins; DEMO-R1 is only kept when a framework
-    // has nothing else, which is the demo-only database case.
+    // First real clause by code wins; SMP-R1 is only kept when a framework
+    // has nothing else, which is the sample-only database case.
     if (
       chosen === undefined ||
-      (chosen.code === "DEMO-R1" && rule.code !== "DEMO-R1")
+      (chosen.code === "SMP-R1" && rule.code !== "SMP-R1")
     ) {
       frameworkRules.set(rule.framework.code, rule);
     }
@@ -1306,13 +1306,13 @@ export async function seedDemoGovernanceShowcase(
         tenantId_policyId_versionMajor_versionMinor: {
           tenantId: input.tenantId,
           policyId: policy.id,
-          versionMajor: definition.code === "DEMO-POL-001" ? 2 : 1,
+          versionMajor: definition.code === "SMP-POL-001" ? 2 : 1,
           versionMinor: 0,
         },
       },
     });
-    const content = `# ${definition.title}\n\nThis is invented DEMO-UAT content for a controlled client demonstration.`;
-    if (!version && definition.code === "DEMO-POL-001") {
+    const content = `# ${definition.title}\n\nInvented SAMPLE-CO content. No customer data is contained in this file.`;
+    if (!version && definition.code === "SMP-POL-001") {
       const created = await policyService.createVersion(
         input.tenantId,
         policy.id,
@@ -1320,9 +1320,9 @@ export async function seedDemoGovernanceShowcase(
         {
           bump: "MAJOR",
           content,
-          purpose: "Demonstrate governed policy supersession.",
-          scope: "Synthetic DEMO-UAT operations only.",
-          changeSummary: "Expanded assurance scope for the demonstration.",
+          purpose: "Show governed policy supersession.",
+          scope: "Synthetic SAMPLE-CO operations only.",
+          changeSummary: "Expanded assurance scope for the sample workspace.",
           effectiveDate: "2026-07-15",
           reviewDate: "2027-07-15",
           requestedApproverId: approver.userId,
@@ -1343,8 +1343,8 @@ export async function seedDemoGovernanceShowcase(
           versionMajor: 1,
           versionMinor: 0,
           content,
-          purpose: "Demonstrate a realistic governance lifecycle.",
-          scope: "Synthetic DEMO-UAT operations only.",
+          purpose: "Show a realistic governance lifecycle.",
+          scope: "Synthetic SAMPLE-CO operations only.",
           changeSummary: "Initial controlled version.",
           status: "DRAFT",
           effectiveDate: date("2026-07-01"),
@@ -1404,7 +1404,7 @@ export async function seedDemoGovernanceShowcase(
         });
       } else {
         // Submitted/approved lineage cannot gain a new framework id. Accept an
-        // existing active mapping (historical DEMO-FRM-* ids) so re-seeds after
+        // existing active mapping (historical SMP-FRM-* ids) so re-seeds after
         // the catalogue consolidation do not fail.
         const historical = await db.policyFramework.findFirst({
           where: {
@@ -1615,7 +1615,7 @@ export async function seedDemoGovernanceShowcase(
       );
     }
     const fileContent = Buffer.from(
-      `Synthetic DEMO-UAT evidence artifact ${definition.code}. No customer data is contained in this file.\n`,
+      `Synthetic SAMPLE-CO evidence artifact ${definition.code}. No customer data is contained in this file.\n`,
       "utf8",
     );
     const contentSha256 = createHash("sha256")
@@ -1641,7 +1641,7 @@ export async function seedDemoGovernanceShowcase(
           tenantId: input.tenantId,
           code: definition.code,
           title: definition.title,
-          description: "Invented assurance artifact for the DEMO-UAT showcase.",
+          description: "Invented assurance artifact for the SAMPLE-CO showcase.",
           lifecycleStatus: "DRAFT",
           ownerId: actor.userId,
           departmentId: actor.departmentId,
@@ -1751,10 +1751,10 @@ export async function seedDemoGovernanceShowcase(
   }
 
   const kpiDefinition = await db.kpiDefinition.findUnique({
-    where: { code: "DEMO-KPI-001" },
+    where: { code: "SMP-KPI-001" },
     select: { id: true },
   });
-  if (!kpiDefinition) showcaseConflict("DEMO-KPI-001 is missing");
+  if (!kpiDefinition) showcaseConflict("SMP-KPI-001 is missing");
   const kpiConfiguration = await db.kpiConfiguration.findFirst({
     where: {
       tenantId: input.tenantId,
@@ -1764,7 +1764,7 @@ export async function seedDemoGovernanceShowcase(
     select: { id: true, ownerId: true, approverId: true },
   });
   if (!kpiConfiguration?.ownerId || !kpiConfiguration.approverId) {
-    showcaseConflict("DEMO-KPI-001 configuration actors are missing");
+    showcaseConflict("SMP-KPI-001 configuration actors are missing");
   }
   const showcaseConfiguration = kpiConfiguration!;
   const q4Target = await db.kpiTarget.findFirst({
@@ -1777,7 +1777,7 @@ export async function seedDemoGovernanceShowcase(
     },
     select: { id: true },
   });
-  if (!q4Target) showcaseConflict("DEMO-KPI-001 Q4 target is missing");
+  if (!q4Target) showcaseConflict("SMP-KPI-001 Q4 target is missing");
   const showcaseTarget = q4Target!;
   let showcaseActual = await db.kpiActual.findFirst({
     where: {
@@ -1810,7 +1810,7 @@ export async function seedDemoGovernanceShowcase(
     showcaseActual.ragStatus !== "GREEN"
   ) {
     showcaseConflict(
-      "DEMO-KPI-001 Q4 actual differs from the approved showcase",
+      "SMP-KPI-001 Q4 actual differs from the approved showcase",
     );
   }
 
@@ -1877,7 +1877,7 @@ export async function seedDemoGovernanceShowcase(
         input.tenantId,
         evidence.id,
         reviewer.userId,
-        { comment: "Approved for the synthetic DEMO-UAT assurance record." },
+        { comment: "Approved for the synthetic SAMPLE-CO assurance record." },
         showcaseContext,
       );
       evidence = await db.evidence.findUniqueOrThrow({
@@ -1925,7 +1925,7 @@ export async function seedDemoGovernanceShowcase(
   }
   if (showcaseActual.approvalStatus !== "APPROVED") {
     showcaseConflict(
-      `DEMO-KPI-001 Q4 actual is ${showcaseActual.approvalStatus}, not APPROVED`,
+      `SMP-KPI-001 Q4 actual is ${showcaseActual.approvalStatus}, not APPROVED`,
     );
   }
 
@@ -1952,8 +1952,8 @@ export async function seedDemoGovernanceShowcase(
           outcome: definition.outcome,
           observation:
             definition.outcome === "FAIL"
-              ? "The sample exposed a controlled demonstration finding."
-              : "The sample was completed for the demonstration period.",
+              ? "The checkpoint review exposed a controlled finding."
+              : "The checkpoint review was completed for the period.",
           recommendation:
             definition.outcome === "PASS"
               ? "Continue the scheduled verification."
@@ -1993,7 +1993,7 @@ export async function seedDemoGovernanceShowcase(
           code: definition.code,
           title: definition.title,
           description:
-            "Invented demonstration finding with no customer source data.",
+            "Invented finding with no customer source data.",
           source: checkpoint
             ? "Checkpoint Review"
             : "Internal Compliance Review",
@@ -2001,7 +2001,7 @@ export async function seedDemoGovernanceShowcase(
           frameworkRuleId: frameworkRule.id,
           controlId: control.id,
           checkpointId: checkpoint?.id ?? null,
-          clauseRef: "DEMO-R1",
+          clauseRef: "SMP-R1",
           recommendedAction:
             "Complete the assigned remediation and retain approval evidence.",
           severity: definition.severity,
@@ -2114,13 +2114,13 @@ export async function seedDemoGovernanceShowcase(
           tenantId: input.tenantId,
           code: definition.code,
           title: definition.title,
-          description: "Invented corrective action for the DEMO-UAT showcase.",
+          description: "Invented corrective action for the SAMPLE-CO showcase.",
           gapId: gap?.id ?? null,
           source: "Compliance Review",
-          sourceRef: definition.gapCode ?? `DEMO-ACTION-${index + 1}`,
+          sourceRef: definition.gapCode ?? `SMP-ACTION-${index + 1}`,
           frameworkId: framework.id,
           rootCause:
-            "The demonstration process lacked a consistently applied verification step.",
+            "The process lacked a consistently applied verification step.",
           correctiveAction:
             "Complete the assigned correction and submit objective evidence.",
           preventiveAction:
@@ -2238,7 +2238,7 @@ export async function seedDemoGovernanceShowcase(
           tenantId: input.tenantId,
           code: definition.code,
           name: definition.name,
-          description: `Invented ${definition.name.toLowerCase()} data for the DEMO-UAT showcase.`,
+          description: `Invented ${definition.name.toLowerCase()} data for the SAMPLE-CO showcase.`,
           sourceSheet: null,
           fieldConfiguration,
           active: true,
@@ -2267,7 +2267,7 @@ export async function seedDemoGovernanceShowcase(
             ? "High assurance attention"
             : "Routine monitoring",
         reviewNote:
-          "Invented record for a client demonstration; no customer data.",
+          "Invented sample record; no customer data.",
       };
       const existing = await db.operationalRegisterRecord.findUnique({
         where: {

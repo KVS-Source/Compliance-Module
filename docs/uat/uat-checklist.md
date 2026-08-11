@@ -10,7 +10,7 @@ does not establish production or AWS readiness.
 - [ ] Database name independently confirmed as non-production.
 - [ ] All ten Prisma migrations applied with `prisma migrate deploy`.
 - [ ] Only synthetic identities and `.test` email addresses are present.
-- [ ] Demo seed run explicitly with a temporary password and then rerun with
+- [ ] Sample seed run explicitly with a temporary password and then rerun with
       identical baseline entity counts.
 - [ ] Backend `/api/v1/health` and `/api/v1/ready` return success.
 - [ ] Required CI checks pass on the pull request.

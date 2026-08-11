@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseEnvironment } from "../src/config/env.js";
 import { assertSeedExecutionAllowed } from "../prisma/seed-safety.js";
-import { assertDemoSeedExecutionAllowed } from "../prisma/demo-seed-safety.js";
+import { assertSampleSeedExecutionAllowed } from "../prisma/sample-seed-safety.js";
 import { refreshCookieOptions } from "../src/modules/auth/routes.js";
 import { createFileStorageProvider } from "../src/providers/file-storage/file-storage.js";
 import { databaseRuntimeUrl } from "../src/config/prisma.js";
@@ -308,58 +308,58 @@ describe("seed execution safety", () => {
   });
 });
 
-describe("demo seed execution safety", () => {
+describe("sample seed execution safety", () => {
   it("allows approved non-production modes with a strong runtime password", () => {
     for (const NODE_ENV of ["development", "test"]) {
       expect(
-        assertDemoSeedExecutionAllowed({
+        assertSampleSeedExecutionAllowed({
           NODE_ENV,
-          DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+          SAMPLE_SEED_PASSWORD: "Synthetic-Only-001!",
         }),
       ).toEqual({ password: "Synthetic-Only-001!" });
     }
   });
 
-  it("rejects missing or weak demo credentials", () => {
+  it("rejects missing or weak sample credentials", () => {
     expect(() =>
-      assertDemoSeedExecutionAllowed({ NODE_ENV: "development" }),
-    ).toThrow(/DEMO_SEED_PASSWORD/);
+      assertSampleSeedExecutionAllowed({ NODE_ENV: "development" }),
+    ).toThrow(/SAMPLE_SEED_PASSWORD/);
     expect(() =>
-      assertDemoSeedExecutionAllowed({
+      assertSampleSeedExecutionAllowed({
         NODE_ENV: "development",
-        DEMO_SEED_PASSWORD: "too-short",
+        SAMPLE_SEED_PASSWORD: "too-short",
       }),
-    ).toThrow(/DEMO_SEED_PASSWORD/);
+    ).toThrow(/SAMPLE_SEED_PASSWORD/);
   });
 
   it("always rejects production, including the retired override input", () => {
     expect(() =>
-      assertDemoSeedExecutionAllowed({
+      assertSampleSeedExecutionAllowed({
         NODE_ENV: "production",
-        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+        SAMPLE_SEED_PASSWORD: "Synthetic-Only-001!",
       }),
     ).toThrow(/disabled in production/);
 
     const retiredOverrideEnvironment = {
       NODE_ENV: "production",
       ALLOW_DEMO_SEED: "true",
-      DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+      SAMPLE_SEED_PASSWORD: "Synthetic-Only-001!",
     };
     expect(() =>
-      assertDemoSeedExecutionAllowed(retiredOverrideEnvironment),
+      assertSampleSeedExecutionAllowed(retiredOverrideEnvironment),
     ).toThrow(/disabled in production/);
   });
 
   it("rejects missing or unapproved execution modes", () => {
     expect(() =>
-      assertDemoSeedExecutionAllowed({
-        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+      assertSampleSeedExecutionAllowed({
+        SAMPLE_SEED_PASSWORD: "Synthetic-Only-001!",
       }),
     ).toThrow(/only in development or test/);
     expect(() =>
-      assertDemoSeedExecutionAllowed({
+      assertSampleSeedExecutionAllowed({
         NODE_ENV: "staging",
-        DEMO_SEED_PASSWORD: "Synthetic-Only-001!",
+        SAMPLE_SEED_PASSWORD: "Synthetic-Only-001!",
       }),
     ).toThrow(/only in development or test/);
   });
@@ -377,6 +377,6 @@ describe("demo seed execution safety", () => {
       readFileSync(resolve(repositoryRoot, "docker-compose.yml"), "utf8"),
     ].join("\n");
 
-    expect(startupSources).not.toMatch(/seed:demo|demo-seed/);
+    expect(startupSources).not.toMatch(/seed:sample|sample-seed/);
   });
 });
