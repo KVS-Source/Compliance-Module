@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "GenBioCa Milestone 4 E2E",
-    "description": "Complete Milestone 4 demonstration: Policy \u2192 Version \u2192 Approval \u2192 Control \u2192 Checkpoint \u2192 Review \u2192 Traceability \u2192 Audit. Synthetic .test identities only. Populate password variables locally; never commit secrets.",
+    "description": "Complete Milestone 4 walkthrough: Policy \u2192 Version \u2192 Approval \u2192 Control \u2192 Checkpoint \u2192 Review \u2192 Traceability \u2192 Audit. Synthetic .test identities only. Populate password variables locally; never commit secrets.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -187,7 +187,7 @@
             "url": "{{baseUrl}}/policies",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"M4 E2E Synthetic Policy\",\n  \"description\": \"Cross-module demonstration Policy\",\n  \"content\": \"Synthetic controlled policy content for Milestone 4 E2E.\",\n  \"purpose\": \"Demonstrate Policy to Checkpoint workflow\",\n  \"scope\": \"Synthetic demo tenants only\",\n  \"requiresEvidence\": false,\n  \"frameworkIds\": [\"{{frameworkId}}\"]\n}"
+              "raw": "{\n  \"title\": \"M4 E2E Synthetic Policy\",\n  \"description\": \"Cross-module walkthrough Policy\",\n  \"content\": \"Synthetic controlled policy content for Milestone 4 E2E.\",\n  \"purpose\": \"Demonstrate Policy to Checkpoint workflow\",\n  \"scope\": \"Synthetic sample tenants only\",\n  \"requiresEvidence\": false,\n  \"frameworkIds\": [\"{{frameworkId}}\"]\n}"
             }
           },
           "event": [
@@ -323,7 +323,7 @@
             "url": "{{baseUrl}}/policies/{{policyId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"M4 E2E Synthetic Policy (updated)\",\n  \"description\": \"Updated cross-module demonstration Policy\"\n}"
+              "raw": "{\n  \"title\": \"M4 E2E Synthetic Policy (updated)\",\n  \"description\": \"Updated cross-module walkthrough Policy\"\n}"
             }
           },
           "event": [
@@ -367,7 +367,7 @@
             "url": "{{baseUrl}}/policies/{{policyId}}/versions",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bump\": \"MINOR\",\n  \"content\": \"Revised synthetic policy content for approval demo.\",\n  \"changeSummary\": \"Minor revision for M4 E2E\",\n  \"requiresEvidence\": false\n}"
+              "raw": "{\n  \"bump\": \"MINOR\",\n  \"content\": \"Revised synthetic policy content for approval sample.\",\n  \"changeSummary\": \"Minor revision for M4 E2E\",\n  \"requiresEvidence\": false\n}"
             }
           },
           "event": [
@@ -777,7 +777,7 @@
             "url": "{{baseUrl}}/controls/{{controlId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"M4 E2E Synthetic Control (updated)\",\n  \"implementationNotes\": \"Updated during Milestone 4 demonstration\"\n}"
+              "raw": "{\n  \"title\": \"M4 E2E Synthetic Control (updated)\",\n  \"implementationNotes\": \"Updated during Milestone 4 walkthrough\"\n}"
             }
           },
           "event": [
@@ -1001,7 +1001,7 @@
             "url": "{{baseUrl}}/checkpoints/{{checkpointId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"M4 E2E Synthetic Checkpoint (updated)\",\n  \"expectedResult\": \"Updated expected result for demonstration\"\n}"
+              "raw": "{\n  \"title\": \"M4 E2E Synthetic Checkpoint (updated)\",\n  \"expectedResult\": \"Updated expected result for walkthrough\"\n}"
             }
           },
           "event": [
@@ -1227,7 +1227,7 @@
             "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/reviews",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"reviewPeriod\": \"2026-08\",\n  \"reviewDate\": \"2026-08-15\",\n  \"outcome\": \"FAIL\",\n  \"observation\": \"Synthetic finding for demonstration only\",\n  \"recommendation\": \"Retest in next period\",\n  \"nextReviewDate\": \"2026-09-15\"\n}"
+              "raw": "{\n  \"reviewPeriod\": \"2026-08\",\n  \"reviewDate\": \"2026-08-15\",\n  \"outcome\": \"FAIL\",\n  \"observation\": \"Synthetic finding for walkthrough only\",\n  \"recommendation\": \"Retest in next period\",\n  \"nextReviewDate\": \"2026-09-15\"\n}"
             }
           },
           "event": [
@@ -1465,7 +1465,7 @@
       ]
     },
     {
-      "name": "08 \u2014 Permission and Error Demonstration",
+      "name": "08 \u2014 Permission and Error Coverage",
       "item": [
         {
           "name": "Missing token \u2192 401",
@@ -1644,7 +1644,7 @@
     },
     {
       "name": "09 \u2014 Optional Cleanup or Archive",
-      "description": "Destructive terminal lifecycle actions. Keep separate from the happy-path sequence. Run only when intentionally cleaning synthetic demo data.",
+      "description": "Destructive terminal lifecycle actions. Keep separate from the happy-path sequence. Run only when intentionally cleaning synthetic sample data.",
       "item": [
         {
           "name": "OPTIONAL \u2014 Archive Checkpoint",
@@ -1673,7 +1673,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('checkpointId present', function () { pm.expect(pm.environment.get('checkpointId')).to.be.ok; });",
-                  "// Optional folder: skip in happy-path demos"
+                  "// Optional folder: skip in happy-path samples"
                 ]
               }
             },

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "GenBioCa Checkpoint API",
-    "description": "Milestone 4 Slice 4 Checkpoint register, lifecycle and Review demo. Use synthetic .test identities only. Populate password variables locally; never commit secrets.",
+    "description": "Milestone 4 Slice 4 Checkpoint register, lifecycle and Review sample. Use synthetic .test identities only. Populate password variables locally; never commit secrets.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -54,7 +54,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Postman Synthetic Control for Checkpoints\",\n  \"objective\": \"Parent Control for Checkpoint API demonstration\",\n  \"implementationStatus\": \"NOT_STARTED\",\n  \"controlType\": \"PREVENTIVE\",\n  \"frequency\": \"MONTHLY\",\n  \"verificationMethod\": \"Review synthetic Checkpoint outcomes\"\n}"
+          "raw": "{\n  \"title\": \"Postman Synthetic Control for Checkpoints\",\n  \"objective\": \"Parent Control for Checkpoint API walkthrough\",\n  \"implementationStatus\": \"NOT_STARTED\",\n  \"controlType\": \"PREVENTIVE\",\n  \"frequency\": \"MONTHLY\",\n  \"verificationMethod\": \"Review synthetic Checkpoint outcomes\"\n}"
         },
         "url": "{{baseUrl}}/controls"
       }

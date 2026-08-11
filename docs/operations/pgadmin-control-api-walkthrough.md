@@ -1,9 +1,9 @@
-# pgAdmin demo — Control API
+# pgAdmin sample — Control API
 
 Use this walkthrough after running the Control Postman collection against a
 local seeded database. Synthetic `.test` identities and codes only.
 
-Do not edit rows or schema in pgAdmin during the demo. The REST API and database
+Do not edit rows or schema in pgAdmin during the sample. The REST API and database
 triggers are the authority.
 
 ## 1. Send a Postman request
@@ -89,13 +89,13 @@ WHERE tenant_id = '<company-tenant-uuid>'
 
 If any Checkpoint is `ACTIVE`, `POST /controls/:id/archive` returns
 `409 CONTROL_HAS_ACTIVE_CHECKPOINTS`. Seeded Companies may already include a
-synthetic Control (for example `DEMO-CTL-001` / `CTL-001`) with an ACTIVE
+synthetic Control (for example `SMP-CTL-001` / `CTL-001`) with an ACTIVE
 Checkpoint — use that ID in the Postman `controlWithActiveCheckpointId`
-placeholder for the optional rejection demo.
+placeholder for the optional rejection sample.
 
 ## 7. Warnings
 
 - Do not manually UPDATE or DELETE Controls, mappings, Checkpoints or audit
-  rows for demo “fixes”.
+  rows for sample “fixes”.
 - Do not change migrations or constraints from pgAdmin.
 - Cross-tenant IDs must not appear when you filter by the active Company.

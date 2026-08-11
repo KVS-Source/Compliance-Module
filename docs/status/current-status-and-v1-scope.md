@@ -144,7 +144,7 @@ bring-up still requires human infrastructure and secrets.
 - Development/test seed data may still assign `COMPANY_ADMIN` with wildcard
   permission `"*"` (UAT-only technical debt). Production initialization uses
   five explicit roles only; readiness refuses active wildcard assignments.
-  Seed wildcards must never be used for a production or client-demo load.
+  Seed wildcards must never be used for a production or client-sample load.
 - Access tokens are memory-only. Opaque refresh tokens are hashed at rest and
   transported only by an HTTP-only, `SameSite=Strict` cookie; production
   requires `Secure`.
@@ -172,5 +172,5 @@ See:
 - [Security baseline](../security/security-baseline.md)
 - [Coverage matrix](../testing/coverage-matrix.md)
 - [Known limitations](../known-limitations.md)
-- [Evidence demo and release readiness](../evidence-demo-and-release-readiness.md)
+- [Evidence sample and release readiness](../evidence-walkthrough-and-release-readiness.md)
 - [UAT checklist](../uat/uat-checklist.md)

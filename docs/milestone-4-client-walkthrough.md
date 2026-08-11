@@ -1,4 +1,4 @@
-# Milestone 4 client demonstration (10–15 minutes)
+# Milestone 4 client walkthrough (10–15 minutes)
 
 Use synthetic `.test` identities only. Do not share passwords or access tokens
 on screen. Hide Postman environment secrets while presenting.
@@ -36,7 +36,7 @@ on screen. Hide Postman environment secrets while presenting.
 10. **Postman (optional)** — run folders 00→07 quickly to show envelopes and
     captured IDs (`baseUrl` `http://localhost:8000/api/v1`).
 11. **pgAdmin (optional)** — run selected SELECT queries from
-    `docs/milestone-4-pgadmin-demo.sql` for the Policy, Control, Checkpoint and
+    `docs/milestone-4-pgadmin-queries.sql` for the Policy, Control, Checkpoint and
     Review just created.
 
 ## Talking points
@@ -48,9 +48,9 @@ on screen. Hide Postman environment secrets while presenting.
 - Playwright uses deterministic mocked APIs; in-memory actor/permission switches
   are UI-flow simulation only, not auth or PostgreSQL authority. This walkthrough
   and backend PostgreSQL integration tests are the real-stack proof.
-- Evidence, Gap, CAPA, GenRAC, RLS and production hosting are not in this demo.
+- Evidence, Gap, CAPA, GenRAC, RLS and production hosting are not in this sample.
 
-## After the demo
+## After the sample
 
 - Clear Postman tokens.
 - Optionally run folder 09 archives on synthetic records only.

@@ -61,16 +61,33 @@ onboarding, once the Company decides which controls it operates.
 **Action:** none required of the platform. Populating Controls and Checkpoints
 is an onboarding activity with the client.
 
-## 2. Data dictionary — 32 of 46 tables implemented
+## 2. Data dictionary — 34 of 46 tables implemented
+
+Verified against the client's `GRC_Data_Dictionary.xlsx` (46 tables in
+`Tables Overview`). `notifications`, `tasks` and `comments` have since been
+built, which is why this is 34 rather than the 32 previously recorded; our
+`comments` equivalent is named `record_comments`.
 
 | Domain              | Missing tables                                                                 |
 | ------------------- | ------------------------------------------------------------------------------ |
 | CRM                 | `customer_master`, `company_customers`, `deals`                                |
-| Operations          | `notifications`, `tasks`, `comments`, `report_runs`                            |
+| Operations          | `report_runs`                                                                  |
 | Master Data         | `frequencies`, `evidence_types`, `evidence_requirements`, `report_definitions` |
-| Evidence            | `evidence_versions`                                                            |
+| Evidence            | `evidence_versions`, `evidence_links`                                          |
 | KPI & Performance   | `kpi_mappings`                                                                 |
 | Policies & Controls | `company_frameworks`                                                           |
+
+`evidence_links` is a naming difference rather than absent capability: the
+dictionary specifies one polymorphic link table, and this implementation uses
+typed tables instead (`evidence_control_links`, `evidence_checkpoint_links`,
+`evidence_kpi_actual_links`, `gap_evidence_links`, `capa_evidence_links`), which
+lets the database enforce each target with a real foreign key. Worth confirming
+with the client rather than silently counting it as delivered.
+
+Several other tables carry different names from the dictionary for the same
+reason — `companies`→`tenants`, `regulatory_frameworks`→`frameworks`,
+`kpis`→`kpi_definitions`, `capa_records`→`capas`, `audit_logs`→`audit_events`,
+`upload_batches`→`import_batches`, `upload_errors`→`import_batch_rows`.
 
 ### CRM is specified scope, not optional
 
@@ -174,4 +191,4 @@ Measured at this baseline:
 | Backend integration   | 354 passed                                 |
 | Playwright end-to-end | 596 passed, 6 skipped — desktop and mobile |
 | Live-route guard      | 61 LIVE patterns, 0 non-live visible       |
-| Demo seed             | idempotent across repeated runs            |
+| Sample seed             | idempotent across repeated runs            |

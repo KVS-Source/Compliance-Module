@@ -2,20 +2,20 @@ import type { KpiDirection, KpiFrequency } from "@prisma/client";
 import { PRODUCTION_ACCESS_PROFILES } from "../src/production/access-profile.js";
 
 /**
- * The display name carries no "demo" wording so the workspace reads as an
- * ordinary Company on screen. The `DEMO-UAT` code is deliberately unchanged:
+ * The display name carries no "sample" wording so the workspace reads as an
+ * ordinary Company on screen. The `SAMPLE-CO` code is deliberately unchanged:
  * it is the business key every seeded record's code derives from and that the
  * seed's conflict guards compare against, so it stays honest in the data layer
  * where operators and the audit trail can see it.
  */
 export const DEMO_TENANT = {
-  code: "DEMO-UAT",
+  code: "SAMPLE-CO",
   name: "GenBioCa Operations",
   industry: "Life Sciences and Healthcare",
   country: "India",
 } as const;
 
-export const DEMO_PERMISSIONS = [
+export const SAMPLE_PERMISSIONS = [
   ["tenants:read", "Read Companies"],
   ["users:read", "Read Company users"],
   ["users:write", "Create and update Company users"],
@@ -70,7 +70,7 @@ export const DEMO_PERMISSIONS = [
 
 /**
  * Roles are declared once, separately from the people who hold them, so that
- * several demo users can share a role without the seed re-deriving a different
+ * several sample users can share a role without the seed re-deriving a different
  * permission set per person.
  */
 export const DEMO_ROLES = [
@@ -97,7 +97,7 @@ export const DEMO_ROLES = [
 ] as const;
 
 /**
- * Invented personas for the demo workspace. The names are fictional and every
+ * Invented personas for the sample workspace. The names are fictional and every
  * address stays on the non-routable `.test` domain, so no real customer or
  * employee identity enters the repository.
  *
@@ -112,144 +112,144 @@ export const DEMO_ROLES = [
  */
 export const DEMO_USERS = [
   {
-    code: "DEMO-USR-001",
+    code: "SMP-USR-001",
     email: "aarav.deshmukh@example.test",
     name: "Aarav Deshmukh",
     phone: "+91 98765 40001",
     roleCode: "CLIENT_COMPANY_ADMINISTRATOR",
-    departmentCode: "DEMO-DEP-001",
+    departmentCode: "SMP-DEP-001",
     lastLoginMinutesAgo: 35,
   },
   {
-    code: "DEMO-USR-002",
+    code: "SMP-USR-002",
     email: "priya.nair@example.test",
     name: "Priya Nair",
     phone: "+91 98765 40002",
     roleCode: "COMPLIANCE_MANAGER",
-    departmentCode: "DEMO-DEP-001",
+    departmentCode: "SMP-DEP-001",
     lastLoginMinutesAgo: 95,
   },
   {
-    code: "DEMO-USR-003",
+    code: "SMP-USR-003",
     email: "rohan.iyer@example.test",
     name: "Rohan Iyer",
     phone: "+91 98765 40003",
     roleCode: "DEPARTMENT_OWNER",
-    departmentCode: "DEMO-DEP-002",
+    departmentCode: "SMP-DEP-002",
     lastLoginMinutesAgo: 210,
   },
   {
-    code: "DEMO-USR-004",
+    code: "SMP-USR-004",
     email: "ananya.verma@example.test",
     name: "Ananya Verma",
     phone: "+91 98765 40004",
     roleCode: "REVIEWER_APPROVER",
-    departmentCode: "DEMO-DEP-001",
+    departmentCode: "SMP-DEP-001",
     lastLoginMinutesAgo: 400,
   },
   {
-    code: "DEMO-USR-005",
+    code: "SMP-USR-005",
     email: "vikram.chandran@example.test",
     name: "Vikram Chandran",
     phone: "+91 98765 40005",
     roleCode: "COMPLIANCE_MANAGER",
-    departmentCode: "DEMO-DEP-001",
+    departmentCode: "SMP-DEP-001",
     lastLoginMinutesAgo: 1500,
   },
   {
-    code: "DEMO-USR-006",
+    code: "SMP-USR-006",
     email: "meera.joshi@example.test",
     name: "Meera Joshi",
     phone: "+91 98765 40006",
     roleCode: "MANAGEMENT_VIEWER",
-    departmentCode: "DEMO-DEP-008",
+    departmentCode: "SMP-DEP-008",
     lastLoginMinutesAgo: 2600,
   },
   {
-    code: "DEMO-USR-007",
+    code: "SMP-USR-007",
     email: "karthik.reddy@example.test",
     name: "Karthik Reddy",
     phone: "+91 98765 40007",
     roleCode: "DEPARTMENT_OWNER",
-    departmentCode: "DEMO-DEP-007",
+    departmentCode: "SMP-DEP-007",
     lastLoginMinutesAgo: 150,
   },
   {
-    code: "DEMO-USR-008",
+    code: "SMP-USR-008",
     email: "sneha.kulkarni@example.test",
     name: "Sneha Kulkarni",
     phone: "+91 98765 40008",
     roleCode: "DEPARTMENT_OWNER",
-    departmentCode: "DEMO-DEP-003",
+    departmentCode: "SMP-DEP-003",
     lastLoginMinutesAgo: 320,
   },
   {
-    code: "DEMO-USR-009",
+    code: "SMP-USR-009",
     email: "arjun.malhotra@example.test",
     name: "Arjun Malhotra",
     phone: "+91 98765 40009",
     roleCode: "REVIEWER_APPROVER",
-    departmentCode: "DEMO-DEP-004",
+    departmentCode: "SMP-DEP-004",
     lastLoginMinutesAgo: 1180,
   },
   {
-    code: "DEMO-USR-010",
+    code: "SMP-USR-010",
     email: "divya.rangarajan@example.test",
     name: "Divya Rangarajan",
     phone: "+91 98765 40010",
     roleCode: "DEPARTMENT_OWNER",
-    departmentCode: "DEMO-DEP-006",
+    departmentCode: "SMP-DEP-006",
     lastLoginMinutesAgo: 60,
   },
   {
-    code: "DEMO-USR-011",
+    code: "SMP-USR-011",
     email: "imran.shaikh@example.test",
     name: "Imran Shaikh",
     phone: "+91 98765 40011",
     roleCode: "MANAGEMENT_VIEWER",
-    departmentCode: "DEMO-DEP-005",
+    departmentCode: "SMP-DEP-005",
     lastLoginMinutesAgo: 4300,
   },
   {
-    code: "DEMO-USR-012",
+    code: "SMP-USR-012",
     email: "neha.bhattacharya@example.test",
     name: "Neha Bhattacharya",
     phone: "+91 98765 40012",
     roleCode: "COMPLIANCE_MANAGER",
-    departmentCode: "DEMO-DEP-002",
+    departmentCode: "SMP-DEP-002",
     lastLoginMinutesAgo: 700,
   },
 ] as const;
 
 export const DEMO_UNITS = [
-  ["DEMO-UNIT-001", "Corporate"],
-  ["DEMO-UNIT-002", "Life Sciences"],
-  ["DEMO-UNIT-003", "Healthcare"],
-  ["DEMO-UNIT-004", "Digital Transformation"],
+  ["SMP-UNIT-001", "Corporate"],
+  ["SMP-UNIT-002", "Life Sciences"],
+  ["SMP-UNIT-003", "Healthcare"],
+  ["SMP-UNIT-004", "Digital Transformation"],
 ] as const;
 
 /**
- * The persona who owns every demo risk. Held separate from the role lookup so
+ * The persona who owns every sample risk. Held separate from the role lookup so
  * that reordering or re-roling the roster never reassigns risks that a seeded
  * workspace has already recorded.
  */
-export const DEMO_RISK_MANAGER_CODE = "DEMO-USR-005";
+export const DEMO_RISK_MANAGER_CODE = "SMP-USR-005";
 
 /** `[code, name, headName]` — heads are drawn from `DEMO_USERS` above. */
 export const DEMO_DEPARTMENTS = [
-  ["DEMO-DEP-001", "Compliance", "Priya Nair"],
-  ["DEMO-DEP-002", "Quality / QMS", "Neha Bhattacharya"],
-  ["DEMO-DEP-003", "Human Resources", "Sneha Kulkarni"],
-  ["DEMO-DEP-004", "Finance", "Arjun Malhotra"],
-  ["DEMO-DEP-005", "Sales", "Imran Shaikh"],
-  ["DEMO-DEP-006", "Customer Support", "Divya Rangarajan"],
-  ["DEMO-DEP-007", "Information Technology", "Karthik Reddy"],
-  ["DEMO-DEP-008", "Operations", "Meera Joshi"],
+  ["SMP-DEP-001", "Compliance", "Priya Nair"],
+  ["SMP-DEP-002", "Quality / QMS", "Neha Bhattacharya"],
+  ["SMP-DEP-003", "Human Resources", "Sneha Kulkarni"],
+  ["SMP-DEP-004", "Finance", "Arjun Malhotra"],
+  ["SMP-DEP-005", "Sales", "Imran Shaikh"],
+  ["SMP-DEP-006", "Customer Support", "Divya Rangarajan"],
+  ["SMP-DEP-007", "Information Technology", "Karthik Reddy"],
+  ["SMP-DEP-008", "Operations", "Meera Joshi"],
 ] as const;
 
 export const DEMO_LOCATIONS = [
   {
-    code: "DEMO-LOC-001",
+    code: "SMP-LOC-001",
     name: "Thane (India)",
     city: "Thane",
     state: "Maharashtra",
@@ -257,7 +257,7 @@ export const DEMO_LOCATIONS = [
     type: "Office",
   },
   {
-    code: "DEMO-LOC-002",
+    code: "SMP-LOC-002",
     name: "USA",
     city: null,
     state: null,
@@ -267,11 +267,11 @@ export const DEMO_LOCATIONS = [
 ] as const;
 
 /**
- * Canonical framework catalogue for the demo seed.
+ * Canonical framework catalogue for the sample seed.
  *
  * Codes match the client workbook importer (`code === Framework label`) so a
  * workspace that already imported ISO 27001 / GDPR / HIPAA reuses those rows
- * instead of minting a parallel DEMO-FRM-* catalogue. The dashboard framework
+ * instead of minting a parallel SMP-FRM-* catalogue. The dashboard framework
  * compliance widget and Control Register filter then see a single set.
  *
  * Tuple: `[code, name, preferredVersion]`. When a row with the same code
@@ -293,8 +293,8 @@ export const DEMO_FRAMEWORKS = [
   ["ADA / WCAG", "ADA / WCAG", "2.1 AA"],
 ] as const;
 
-/** Synthetic rule code attached to every demo framework for control mapping. */
-export const DEMO_FRAMEWORK_RULE_CODE = "DEMO-R1";
+/** Synthetic rule code attached to every sample framework for control mapping. */
+export const DEMO_FRAMEWORK_RULE_CODE = "SMP-R1";
 
 export type DemoRiskScenario =
   | "OPEN"
@@ -324,7 +324,7 @@ export interface DemoKpi {
 
 export const DEMO_KPIS: readonly DemoKpi[] = [
   {
-    code: "DEMO-KPI-001",
+    code: "SMP-KPI-001",
     name: "Customer Satisfaction Index",
     description: "Synthetic customer experience measure for UAT.",
     unit: "%",
@@ -333,12 +333,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "85",
     actualValue: "90",
     expectedRag: "GREEN",
-    departmentCode: "DEMO-DEP-006",
-    unitCode: "DEMO-UNIT-003",
+    departmentCode: "SMP-DEP-006",
+    unitCode: "SMP-UNIT-003",
     rejectionHistory: true,
   },
   {
-    code: "DEMO-KPI-002",
+    code: "SMP-KPI-002",
     name: "Total Revenue",
     description: "Synthetic revenue measure for UAT.",
     unit: "INR Cr",
@@ -347,11 +347,11 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "120",
     actualValue: "116",
     expectedRag: "GREEN",
-    departmentCode: "DEMO-DEP-004",
-    unitCode: "DEMO-UNIT-001",
+    departmentCode: "SMP-DEP-004",
+    unitCode: "SMP-UNIT-001",
   },
   {
-    code: "DEMO-KPI-003",
+    code: "SMP-KPI-003",
     name: "Revenue Growth Rate",
     description: "Synthetic growth measure for UAT.",
     unit: "%",
@@ -360,12 +360,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "18",
     actualValue: "14",
     expectedRag: "RED",
-    departmentCode: "DEMO-DEP-004",
-    unitCode: "DEMO-UNIT-001",
+    departmentCode: "SMP-DEP-004",
+    unitCode: "SMP-UNIT-001",
     riskScenario: "OPEN",
   },
   {
-    code: "DEMO-KPI-004",
+    code: "SMP-KPI-004",
     name: "Employee Satisfaction Index",
     description: "Synthetic workforce experience measure for UAT.",
     unit: "%",
@@ -374,12 +374,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "80",
     actualValue: "75",
     expectedRag: "AMBER",
-    departmentCode: "DEMO-DEP-003",
-    unitCode: "DEMO-UNIT-001",
+    departmentCode: "SMP-DEP-003",
+    unitCode: "SMP-UNIT-001",
     riskScenario: "UNDER_REVIEW",
   },
   {
-    code: "DEMO-KPI-005",
+    code: "SMP-KPI-005",
     name: "Attrition Rate",
     description: "Synthetic workforce attrition measure for UAT.",
     unit: "%",
@@ -388,12 +388,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "12",
     actualValue: "12.8",
     expectedRag: "AMBER",
-    departmentCode: "DEMO-DEP-003",
-    unitCode: "DEMO-UNIT-001",
+    departmentCode: "SMP-DEP-003",
+    unitCode: "SMP-UNIT-001",
     riskScenario: "TREATMENT_PLANNED",
   },
   {
-    code: "DEMO-KPI-006",
+    code: "SMP-KPI-006",
     name: "Response Time to Customer Issues",
     description: "Synthetic customer response-time measure for UAT.",
     unit: "Hours",
@@ -402,12 +402,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "8",
     actualValue: "9",
     expectedRag: "RED",
-    departmentCode: "DEMO-DEP-006",
-    unitCode: "DEMO-UNIT-003",
+    departmentCode: "SMP-DEP-006",
+    unitCode: "SMP-UNIT-003",
     riskScenario: "TREATMENT_IN_PROGRESS",
   },
   {
-    code: "DEMO-KPI-007",
+    code: "SMP-KPI-007",
     name: "CAPAs Closed Within SLA",
     description: "Synthetic remediation-timeliness measure for UAT.",
     unit: "%",
@@ -416,12 +416,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "90",
     actualValue: "84",
     expectedRag: "AMBER",
-    departmentCode: "DEMO-DEP-002",
-    unitCode: "DEMO-UNIT-002",
+    departmentCode: "SMP-DEP-002",
+    unitCode: "SMP-UNIT-002",
     riskScenario: "CLOSED",
   },
   {
-    code: "DEMO-KPI-008",
+    code: "SMP-KPI-008",
     name: "Product Release Variance",
     description: "Synthetic exact-band release timing measure for UAT.",
     unit: "Days",
@@ -432,12 +432,12 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     minValue: "-1",
     maxValue: "1",
     expectedRag: "RED",
-    departmentCode: "DEMO-DEP-007",
-    unitCode: "DEMO-UNIT-004",
+    departmentCode: "SMP-DEP-007",
+    unitCode: "SMP-UNIT-004",
     riskScenario: "REOPENED",
   },
   {
-    code: "DEMO-KPI-009",
+    code: "SMP-KPI-009",
     name: "Training Sessions Delivered",
     description: "Synthetic informational activity measure for UAT.",
     unit: "Count",
@@ -446,7 +446,7 @@ export const DEMO_KPIS: readonly DemoKpi[] = [
     targetValue: "0",
     actualValue: "42",
     expectedRag: null,
-    departmentCode: "DEMO-DEP-003",
-    unitCode: "DEMO-UNIT-001",
+    departmentCode: "SMP-DEP-003",
+    unitCode: "SMP-UNIT-001",
   },
 ];

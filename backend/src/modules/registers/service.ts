@@ -16,7 +16,7 @@ import type {
  * privacy, meetings and action items differ only in their columns, so they
  * share this code path and are distinguished by their register type's
  * `fieldConfiguration`. Building eight workflow engines for this MVP would
- * have bought nothing the demo needs.
+ * have bought nothing this Company needs.
  */
 
 const dateOnly = (value: Date | null) =>

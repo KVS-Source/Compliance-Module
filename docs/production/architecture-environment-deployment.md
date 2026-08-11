@@ -61,7 +61,7 @@ docker compose --env-file <protected-env-file> \
   -f docker-compose.production.yml ps
 ```
 
-Do not run `migrate dev`, reset, a development seed or the demo seed. Inspect
+Do not run `migrate dev`, reset, a development seed or the sample seed. Inspect
 `/api/v1/health` and `/api/v1/ready` through HTTPS before allowing client
 access. Readiness verifies PostgreSQL, a write/read/delete Evidence-volume
 probe, and that no active production user is assigned a wildcard role.

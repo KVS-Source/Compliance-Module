@@ -230,7 +230,7 @@ describe("sheet plan", () => {
 
 describe("sheet table", () => {
   const sheet = {
-    name: "Demo",
+    name: "Sample",
     position: 1,
     rows: [
       ["BANNER"],

@@ -1573,7 +1573,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"controlId\": \"{{controlId}}\",\n  \"title\": \"Postman Checkpoint {{runSuffix}}\",\n  \"expectedResult\": \"Gate demo expected result remains true\",\n  \"verificationFrequency\": \"MONTHLY\",\n  \"evidenceRequired\": true,\n  \"initialReviewDate\": \"2026-07-01\"\n}",
+              "raw": "{\n  \"controlId\": \"{{controlId}}\",\n  \"title\": \"Postman Checkpoint {{runSuffix}}\",\n  \"expectedResult\": \"Gate sample expected result remains true\",\n  \"verificationFrequency\": \"MONTHLY\",\n  \"evidenceRequired\": true,\n  \"initialReviewDate\": \"2026-07-01\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2743,7 +2743,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Postman Policy Gate {{runSuffix}}\",\n  \"content\": \"Synthetic policy content for Evidence gate demonstration with sufficient length for validation.\",\n  \"requiresEvidence\": true\n}",
+              "raw": "{\n  \"title\": \"Postman Policy Gate {{runSuffix}}\",\n  \"content\": \"Synthetic policy content for Evidence gate walkthrough with sufficient length for validation.\",\n  \"requiresEvidence\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3440,7 +3440,7 @@
     },
     {
       "name": "H. KPI Evidence gate (manual Actual IDs)",
-      "description": "MANUAL PREREQUISITES (not auto-created):\n- kpiNoLinkActualId: PENDING_APPROVAL KPI Actual on a configuration with requiresEvidence=true and no Evidence links.\n- kpiIneligibleActualId: separate PENDING_APPROVAL Actual (requiresEvidence=true) for DRAFT/ineligible link demo.\n- kpiSuccessActualId: separate PENDING_APPROVAL Actual (requiresEvidence=true) for successful approval.\nPrefer three distinct Actuals so failure scenarios do not poison the success path.\nReviewer needs kpi-actual:approve. Maker-checker still applies.",
+      "description": "MANUAL PREREQUISITES (not auto-created):\n- kpiNoLinkActualId: PENDING_APPROVAL KPI Actual on a configuration with requiresEvidence=true and no Evidence links.\n- kpiIneligibleActualId: separate PENDING_APPROVAL Actual (requiresEvidence=true) for DRAFT/ineligible link sample.\n- kpiSuccessActualId: separate PENDING_APPROVAL Actual (requiresEvidence=true) for successful approval.\nPrefer three distinct Actuals so failure scenarios do not poison the success path.\nReviewer needs kpi-actual:approve. Maker-checker still applies.",
       "item": [
         {
           "name": "H0. List KPI Actuals (optional picker)",

@@ -5,7 +5,7 @@ import { type PrismaClient } from "@prisma/client";
  * Every dashboard number is computed from PostgreSQL here. The workbook's
  * `09_Compliance_Dashboard` and `17_KPI_Dashboard` sheets are deliberately not
  * imported: their values are spreadsheet formulas over a snapshot, and the
- * demo must show live figures that agree with the registers beneath them.
+ * dashboard must show live figures that agree with the registers beneath them.
  */
 
 export interface SummaryFilters {

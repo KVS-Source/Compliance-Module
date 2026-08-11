@@ -1,4 +1,4 @@
-# Milestone 5 Evidence demo and release readiness (DRAFT)
+# Milestone 5 Evidence sample and release readiness (DRAFT)
 
 Baseline: Milestone 5 Slice 5.7 hardening. This guide is for human review before
 production promotion. Follow links in order; do not skip status vocabulary or
@@ -39,7 +39,7 @@ npm run test:e2e
 Backend integration uses isolated PostgreSQL with all **14** migrations.
 Playwright suites use mocked browser APIs only.
 
-## 4. Postman demonstration
+## 4. Postman walkthrough
 
 Import and run in order:
 
@@ -94,7 +94,7 @@ See [Known limitations](./known-limitations.md) production blockers:
 
 Malware scanning, S3 object storage, inline preview, reverse Control/Checkpoint
 Evidence list APIs, notifications, Gap/CAPA/Import/Tasks/Reports, GenRAC live
-sync, and seed changes for demo convenience.
+sync, and seed changes for sample convenience.
 
 ## 8. Security checks (document pre-existing)
 

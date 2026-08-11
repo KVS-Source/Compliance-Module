@@ -6,8 +6,8 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const company = {
   id: "10000000-0000-4000-8000-000000000001",
-  code: "DEMO-UAT",
-  name: "Demo UAT",
+  code: "SAMPLE-CO",
+  name: "Sample UAT",
 };
 const userId = "20000000-0000-4000-8000-000000000001";
 const otherUserId = "20000000-0000-4000-8000-000000000099";

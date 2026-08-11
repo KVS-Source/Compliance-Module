@@ -19,8 +19,8 @@ KPI Mapping.
 - Restored the populated GenBioCa dashboard and made the Company data scope
   explicit.
 - Counted KPI definitions configured for the active Company instead of unrelated
-  shared/demo definitions.
-- Removed out-of-scope demo frameworks from GenBioCa dashboard analytics and
+  shared/sample definitions.
+- Removed out-of-scope sample frameworks from GenBioCa dashboard analytics and
   reports while retaining operational `Active – In Scope` and `Certified`
   framework rows.
 - Added a working Settings centre for location and regional display preferences,

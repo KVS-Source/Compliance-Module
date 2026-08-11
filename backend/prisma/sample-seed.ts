@@ -16,7 +16,7 @@ import {
   DEMO_FRAMEWORKS,
   DEMO_KPIS,
   DEMO_LOCATIONS,
-  DEMO_PERMISSIONS,
+  SAMPLE_PERMISSIONS,
   DEMO_RISK_MANAGER_CODE,
   DEMO_ROLES,
   DEMO_TENANT,
@@ -24,15 +24,15 @@ import {
   DEMO_USERS,
   type DemoKpi,
   type DemoRiskScenario,
-} from "./demo-seed-data.js";
-import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
+} from "./sample-seed-data.js";
+import { assertSampleSeedExecutionAllowed } from "./sample-seed-safety.js";
 import { PRODUCTION_PERMISSIONS } from "../src/production/access-profile.js";
 import {
-  seedDemoGovernanceShowcase,
+  seedGovernanceShowcase,
   seedGovernanceFoundation,
 } from "./governance-seed.js";
 
-const { password } = assertDemoSeedExecutionAllowed();
+const { password } = assertSampleSeedExecutionAllowed();
 const db = new PrismaClient();
 const roleAssignments = new RoleAssignmentService(db);
 const management = new KpiManagementService(new KpiManagementRepository(db));
@@ -43,7 +43,7 @@ const actuals = new KpiActualService(
   risks,
   new EvidenceGateService(),
 );
-const auditContext = { userAgent: "explicit-demo-seed" };
+const auditContext = { userAgent: "explicit-sample-seed" };
 type DemoPeriod = {
   name: string;
   start: string;
@@ -70,7 +70,7 @@ const decimalMatches = (
     : value !== null && value.equals(new Prisma.Decimal(expected));
 
 const conflict = (message: string): never => {
-  throw new Error(`Demo seed conflict: ${message}`);
+  throw new Error(`Showcase seed conflict: ${message}`);
 };
 
 async function seedOrganisation(tenantId: string) {
@@ -119,7 +119,7 @@ async function seedAccess(
   const permissionIds = new Map<string, string>();
   // PRODUCTION_PERMISSIONS is included so every code the production profiles
   // declare exists before a role is granted it — `tenants:write` among them.
-  for (const [code, name] of [...DEMO_PERMISSIONS, ...PRODUCTION_PERMISSIONS]) {
+  for (const [code, name] of [...SAMPLE_PERMISSIONS, ...PRODUCTION_PERMISSIONS]) {
     const permission = await db.permission.upsert({
       where: { code },
       update: { name },
@@ -157,7 +157,7 @@ async function seedAccess(
       const permissionId = permissionIds.get(permissionCode);
       if (permissionId === undefined) {
         throw new Error(
-          `Demo seed conflict: missing permission ${permissionCode}`,
+          `Showcase seed conflict: missing permission ${permissionCode}`,
         );
       }
       await db.rolePermission.upsert({
@@ -182,13 +182,13 @@ async function seedAccess(
     const departmentId = departments.get(definition.departmentCode);
     if (departmentId === undefined) {
       throw new Error(
-        `Demo seed conflict: missing ${definition.departmentCode}`,
+        `Showcase seed conflict: missing ${definition.departmentCode}`,
       );
     }
     const roleId = roleIds.get(definition.roleCode);
     if (roleId === undefined) {
       throw new Error(
-        `Demo seed conflict: missing role ${definition.roleCode}`,
+        `Showcase seed conflict: missing role ${definition.roleCode}`,
       );
     }
     const lastLoginAt = new Date(
@@ -257,21 +257,21 @@ async function seedAccess(
 }
 
 /**
- * Seeds the shared framework catalogue using workbook-shaped codes so demo
+ * Seeds the shared framework catalogue using workbook-shaped codes so sample
  * controls and workbook-imported rules share one row per standard. Legacy
- * DEMO-FRM-* rows from earlier seeds are remapped and disabled.
+ * SMP-FRM-* rows from earlier seeds are remapped and disabled.
  */
 /**
  * The rule the showcase anchors its Controls, Gaps and CAPAs to.
  *
  * An imported framework already carries its real clauses — ISO 27001 has 116 —
- * so the demo adopts the first of them rather than writing a synthetic rule
+ * so the sample adopts the first of them rather than writing a synthetic rule
  * into it. Frameworks are global rather than tenant-scoped, so a rule invented
  * here would surface inside every Company that shares the framework, including
  * one holding real client data.
  *
- * `DEMO-R1` is created only for a framework with no rules at all, which is the
- * demo-only case where nothing has been imported.
+ * `SMP-R1` is created only for a framework with no rules at all, which is the
+ * sample-only case where nothing has been imported.
  */
 async function resolveAnchorRuleId(frameworkId: string) {
   const existing = await db.frameworkRule.findFirst({
@@ -292,9 +292,9 @@ async function resolveAnchorRuleId(frameworkId: string) {
     create: {
       frameworkId,
       code: DEMO_FRAMEWORK_RULE_CODE,
-      title: "Demonstration compliance requirement",
+      title: "Sample compliance requirement",
       description:
-        "Synthetic requirement for navigation and catalogue demonstration.",
+        "Synthetic requirement for navigation and catalogue coverage.",
       status: "ACTIVE",
     },
   });
@@ -320,7 +320,7 @@ async function seedFrameworks() {
           version,
           description: "Synthetic UAT framework catalogue entry.",
           status: "ACTIVE",
-          // Demo-only environments need the dashboard widget without a
+          // Sample-only environments need the dashboard widget without a
           // workbook import; workbook imports overwrite scopeStatus later.
           scopeStatus: "Active – In Scope",
         },
@@ -342,7 +342,7 @@ async function seedFrameworks() {
   }
 
   const legacy = await db.framework.findMany({
-    where: { code: { startsWith: "DEMO-FRM-" } },
+    where: { code: { startsWith: "SMP-FRM-" } },
   });
   for (const old of legacy) {
     const targetId = canonicalByName.get(old.name);
@@ -358,7 +358,7 @@ async function seedFrameworks() {
         data: { isActive: false },
       });
       // Policy↔framework lineage is immutable after submission; leave those
-      // rows on the disabled DEMO-FRM id. Showcase re-maps draft/submitted
+      // rows on the disabled SMP-FRM id. Showcase re-maps draft/submitted
       // versions via PolicyService; approved lineage stays historical.
 
       const targetRuleId =
@@ -381,7 +381,7 @@ async function seedFrameworks() {
   }
 
   // Gaps remapped in an earlier partial seed may already point at the
-  // canonical framework id while still holding the old DEMO-FRM rule id.
+  // canonical framework id while still holding the old SMP-FRM rule id.
   const mismatchedGaps = await db.gap.findMany({
     where: {
       frameworkId: { not: null },
@@ -447,7 +447,7 @@ async function ensureConfiguration(
       !existing.requiresApproval ||
       existing.status !== "ACTIVE"
     ) {
-      conflict(`${kpi.code} configuration differs from the approved demo data`);
+      conflict(`${kpi.code} configuration differs from the approved sample data`);
     }
     return existing;
   }
@@ -464,7 +464,7 @@ async function ensureConfiguration(
       ownerId,
       approverId,
       enabled: true,
-      currency: kpi.code === "DEMO-KPI-002" ? "INR" : null,
+      currency: kpi.code === "SMP-KPI-002" ? "INR" : null,
       reviewFrequency: kpi.frequency,
       amberThresholdPct: "5",
       redThresholdPct: "10",
@@ -486,7 +486,7 @@ async function ensureApprovedTarget(
   ownerId: string,
   approverId: string,
   targetPeriod = period,
-  code = kpi.code.replace("DEMO-KPI-", "DEMO-KTG-"),
+  code = kpi.code.replace("SMP-KPI-", "SMP-KTG-"),
 ) {
   let target = await db.kpiTarget.findUnique({
     where: { tenantId_code: { tenantId, code } },
@@ -594,7 +594,7 @@ async function ensureActual(
     actual.ragStatus !== kpi.expectedRag ||
     !actual.code.match(/^ACT-\d+$/)
   ) {
-    conflict(`${kpi.code} actual differs from the service-calculated demo row`);
+    conflict(`${kpi.code} actual differs from the service-calculated sample row`);
   }
 
   const decisions = await db.kpiApproval.findMany({
@@ -818,7 +818,7 @@ async function applyRiskScenario(
           tenantId,
           riskId,
           riskManagerId,
-          { reason: "Synthetic UAT closure before reopen demonstration." },
+          { reason: "Synthetic UAT closure before reopen." },
           auditContext,
         );
       }
@@ -852,7 +852,7 @@ async function seedKpiWorkflow(
    * workspace seeded earlier then rejects at `ensureOwner`.
    */
   const riskManagerId = access.byCode.get(DEMO_RISK_MANAGER_CODE);
-  const locationId = locations.get("DEMO-LOC-001");
+  const locationId = locations.get("SMP-LOC-001");
   if (
     ownerId === undefined ||
     approverId === undefined ||
@@ -860,7 +860,7 @@ async function seedKpiWorkflow(
     locationId === undefined
   ) {
     throw new Error(
-      "Demo seed conflict: demo workflow actors or location are missing",
+      "Showcase seed conflict: sample workflow actors or location are missing",
     );
   }
 
@@ -899,7 +899,7 @@ async function seedKpiWorkflow(
     const unitId = units.get(kpi.unitCode);
     if (departmentId === undefined || unitId === undefined) {
       throw new Error(
-        `Demo seed conflict: ${kpi.code} organisation scope is missing`,
+        `Showcase seed conflict: ${kpi.code} organisation scope is missing`,
       );
     }
     const definition = await db.kpiDefinition.upsert({
@@ -947,7 +947,7 @@ async function seedKpiWorkflow(
       kpiOwnerId,
       kpiApproverId,
     );
-    if (kpi.code === "DEMO-KPI-001" || kpi.code === "DEMO-KPI-003") {
+    if (kpi.code === "SMP-KPI-001" || kpi.code === "SMP-KPI-003") {
       await ensureApprovedTarget(
         tenantId,
         kpi,
@@ -955,7 +955,7 @@ async function seedKpiWorkflow(
         kpiOwnerId,
         kpiApproverId,
         uatEntryPeriod,
-        `${kpi.code.replace("DEMO-KPI-", "DEMO-KTG-")}-Q4`,
+        `${kpi.code.replace("SMP-KPI-", "SMP-KTG-")}-Q4`,
       );
     }
     const linkedRisks = await db.risk.findMany({
@@ -974,7 +974,7 @@ async function seedKpiWorkflow(
       !linkedRisk.code.match(/^RSK-\d+$/)
     ) {
       throw new Error(
-        `Demo seed conflict: ${kpi.code} must have exactly one server-generated risk`,
+        `Showcase seed conflict: ${kpi.code} must have exactly one server-generated risk`,
       );
     }
     const expectedClass = kpi.expectedRag === "AMBER" ? "MINOR" : "MAJOR";
@@ -984,7 +984,7 @@ async function seedKpiWorkflow(
     const scenario = kpi.riskScenario;
     if (scenario === undefined) {
       throw new Error(
-        `Demo seed conflict: ${kpi.code} risk scenario is missing`,
+        `Showcase seed conflict: ${kpi.code} risk scenario is missing`,
       );
     }
     await applyRiskScenario(tenantId, linkedRisk.id, scenario, riskManagerId);
@@ -1029,7 +1029,7 @@ async function counts(tenantId: string) {
         },
       },
     }),
-    db.kpiDefinition.count({ where: { code: { startsWith: "DEMO-KPI-" } } }),
+    db.kpiDefinition.count({ where: { code: { startsWith: "SMP-KPI-" } } }),
     db.kpiConfiguration.count({ where: { tenantId, deletedAt: null } }),
     db.kpiTarget.count({ where: { tenantId, deletedAt: null } }),
     db.kpiActual.count({ where: { tenantId, deletedAt: null } }),
@@ -1101,14 +1101,14 @@ async function main() {
   const anchorRuleByFramework = await seedFrameworks();
   const governanceOwnerId = access.roles.get("COMPLIANCE_MANAGER")?.id;
   const governanceApproverId = access.roles.get("REVIEWER_APPROVER")?.id;
-  const governanceDepartmentId = organisation.departments.get("DEMO-DEP-001");
+  const governanceDepartmentId = organisation.departments.get("SMP-DEP-001");
   if (
     governanceOwnerId === undefined ||
     governanceApproverId === undefined ||
     governanceDepartmentId === undefined
   ) {
     throw new Error(
-      "Demo seed conflict: governance actors or scope are missing",
+      "Showcase seed conflict: governance actors or scope are missing",
     );
   }
   const governanceFramework = await db.framework.findFirstOrThrow({
@@ -1118,7 +1118,7 @@ async function main() {
   const governanceRuleId = anchorRuleByFramework.get(governanceFramework.id);
   if (governanceRuleId === undefined) {
     throw new Error(
-      "Demo seed conflict: the governance framework has no anchor rule",
+      "Showcase seed conflict: the governance framework has no anchor rule",
     );
   }
   await seedGovernanceFoundation(db, {
@@ -1128,7 +1128,7 @@ async function main() {
     departmentId: governanceDepartmentId,
     frameworkId: governanceFramework.id,
     frameworkRuleId: governanceRuleId,
-    codePrefix: "DEMO-",
+    codePrefix: "SMP-",
   });
   await seedKpiWorkflow(
     tenant.id,
@@ -1137,34 +1137,34 @@ async function main() {
     organisation.locations,
     access,
   );
-  await seedDemoGovernanceShowcase(db, {
+  await seedGovernanceShowcase(db, {
     tenantId: tenant.id,
     actors: DEMO_USERS.map((user) => {
       const userId = access.byCode.get(user.code);
       const departmentId = organisation.departments.get(user.departmentCode);
       if (!userId || !departmentId) {
         throw new Error(
-          `Demo seed conflict: showcase actor ${user.code} is incomplete`,
+          `Showcase seed conflict: showcase actor ${user.code} is incomplete`,
         );
       }
       return { userId, departmentId };
     }),
   });
-  console.log("Deterministic UAT demo seed complete");
+  console.log("Deterministic UAT sample seed complete");
   console.log(JSON.stringify(await counts(tenant.id), null, 2));
   console.log("Login identities:");
   for (const { name, email, roleCode } of DEMO_USERS) {
     console.log(`  ${name} <${email}> — ${roleCode}`);
   }
   console.log(
-    "Passwords are not printed; use the runtime DEMO_SEED_PASSWORD value.",
+    "Passwords are not printed; use the runtime SAMPLE_SEED_PASSWORD value.",
   );
 }
 
 main()
   .catch((error: unknown) => {
     console.error(
-      error instanceof Error ? error.message : "Deterministic demo seed failed",
+      error instanceof Error ? error.message : "Deterministic sample seed failed",
     );
     process.exitCode = 1;
   })

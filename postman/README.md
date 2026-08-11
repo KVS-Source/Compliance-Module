@@ -3,9 +3,9 @@
 Synthetic `.test` identities only. Never commit real passwords, tokens, client
 names, employee data, production URLs, or database credentials.
 
-## Milestone 4 end-to-end demonstration
+## Milestone 4 end-to-end walkthrough
 
-Primary demonstration assets:
+Primary walkthrough assets:
 
 | File | Purpose |
 | --- | --- |
@@ -54,9 +54,9 @@ Company before **Approve Version** succeeds.
 - Seed defaults do **not** give Company User `policies:approve`.
 - A `403` on Approve usually means the approver is missing `policies:approve`
   (after login), not a broken request body.
-- Grant the permission locally for the demo (same temporary approach backend
+- Grant the permission locally for the sample (same temporary approach backend
   integration tests use). Do not change seed defaults in a shared commit for a
-  one-off demo.
+  one-off sample.
 - Re-login the approver after granting so the JWT includes the permission.
 
 After Docker rebuild or token expiry, re-run **Admin login** and **Approver
@@ -76,7 +76,7 @@ Run folders in order:
 | 05 — Checkpoint | create / list / view / update | `201`/`200` |
 | 06 — Checkpoint Review | PASS, latest, history, duplicate `409`, FAIL | `201`/`200`/`409` |
 | 07 — Traceability and Audit | Checkpoint / Control / Policy | `200` |
-| 08 — Permission and Error Demonstration | `401` / `403` / `400` / `404` / `409` | negative statuses |
+| 08 — Permission and Error Coverage | `401` / `403` / `400` / `404` / `409` | negative statuses |
 | 09 — Optional Cleanup or Archive | terminal archive actions | optional; keep off happy path |
 
 Variables (`policyId`, `versionId`, `controlId`, `checkpointId`, `reviewId`,
@@ -104,20 +104,20 @@ when demonstrating.
 
 Clear: `accessToken`, `approverToken`, `frameworkId`, `frameworkRuleId`,
 `policyId`, `versionId`, `controlId`, `checkpointId`, `reviewId`. Keep
-`reviewPeriod` (default `2026-07`) or choose a fresh period after a prior demo
+`reviewPeriod` (default `2026-07`) or choose a fresh period after a prior sample
 in the same database.
 
 ## Postman vs pgAdmin
 
 - **Postman** exercises the real local HTTP API and response envelopes.
 - **pgAdmin** confirms stored rows with read-only SQL
-  (`docs/milestone-4-pgadmin-demo.sql`).
+  (`docs/milestone-4-pgadmin-queries.sql`).
 - **Playwright** uses deterministic mocked browser APIs; in-memory actor
   switches simulate UI flows only and are not auth/PostgreSQL authority.
 - Backend PostgreSQL integration tests remain the automated permissions, auth
   and database authority.
 
-## Short client demo flow
+## Short client sample flow
 
 1. Login (folder 00).
 2. Create or retrieve Policy (folder 02).

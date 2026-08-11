@@ -1,8 +1,8 @@
-# Client demonstration script
+# Client walkthrough script
 
 Baseline date: 2026-08-08
 
-Runs on the `DEMO-UAT` company (GenBioCa Demo Organisation), which carries a
+Runs on the `SAMPLE-CO` company (GenBioCa Sample Organisation), which carries a
 complete synthetic data set across every module. `GENBIOCA` holds the client's
 imported workbook and is shown separately in step 7.
 
@@ -24,7 +24,7 @@ Three things to tidy first, or be ready to explain:
 
 - the account `cd-0001 / rahul / rahul@email.com` is a manual test row and does
   not follow the `.test` fixture convention;
-- `DEMO-USR-013 / Ritu Sharma` is `DISABLED` from an offboarding test — either
+- `SMP-USR-013 / Ritu Sharma` is `DISABLED` from an offboarding test — either
   re-enable her or use her deliberately in step 5;
 - **every KPI actual is `APPROVED`.** The KPI Approval Centre is therefore
   empty. Do not open it cold; step 3 creates the pending item first.
@@ -81,7 +81,7 @@ working on the very next request, not when a token expires.
 ### 6. Audit trail — the record behind all of it
 
 Audit & Operations → Audit Trail. Filter to the last few minutes and show the
-events the demonstration just produced. State that audit events, approval
+events the walkthrough just produced. State that audit events, approval
 history, checkpoint reviews and evidence decisions are **append-only in
 PostgreSQL** — enforced by database triggers, not by application code.
 
@@ -90,10 +90,10 @@ Export to CSV to close the loop.
 ### 7. Their own data
 
 **Sign out and sign in as Rajesh Menon (`uat-admin@genbioca.test`).** Aarav holds
-membership in `DEMO-UAT` only, so the company switcher will not offer `GENBIOCA`
+membership in `SAMPLE-CO` only, so the company switcher will not offer `GENBIOCA`
 — this step needs a different account, not a company switch. Have the second
 session ready in another browser profile if you would rather not sign out
-mid-demonstration.
+mid-walkthrough.
 
 This company is their workbook, imported: 91 KPI configurations, 32 risks, 18
 policies, 9 operational registers with 106 records, 10 gaps, 10 CAPAs.

@@ -115,7 +115,7 @@ See [constraints-and-triggers.md](../database/constraints-and-triggers.md).
 
 - production rejects weak/placeholder JWT secrets, insecure cookies,
   permissive proxy trust and disabled rate limiting;
-- seeds are explicit and production demo seeding is permanently prohibited;
+- seeds are explicit and production sample seeding is permanently prohibited;
 - integration execution refuses the development or production database;
 - local file storage is the only active provider;
 - unknown storage names and recognised-but-unimplemented S3 selection fail

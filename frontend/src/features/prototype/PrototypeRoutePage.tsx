@@ -94,7 +94,7 @@ function PrototypeModuleBanner() {
     >
       <Info size={18} />
       <strong>
-        Prototype module — demonstration data only. Changes are not saved.
+        Prototype module — sample data only. Changes are not saved.
       </strong>
     </div>
   );

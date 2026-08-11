@@ -1,6 +1,6 @@
 # Evidence API Postman guide (Milestone 5)
 
-Authoritative HTTP demonstration for Milestone 5 Evidence lifecycle, typed
+Authoritative HTTP walkthrough for Milestone 5 Evidence lifecycle, typed
 links, and Evidence gates. Synthetic `.test` identities only.
 
 ## Authoritative assets
@@ -42,7 +42,7 @@ The same user who creates/submits Evidence cannot approve or reject it.
 
 ### Local permission grants (not seed changes)
 
-Grant only in the local database for demos:
+Grant only in the local database for samples:
 
 - `evidence:review` — required for approve/reject and review queue
 - `policies:approve` — Policy Version approve steps
@@ -68,7 +68,7 @@ Do not upload real employee, client, or production documents.
 | Variable | Owner folder | Purpose |
 | --- | --- | --- |
 | `approvedEvidenceId` | B | File-backed path: metadata, upload, submit, approve, **download**, audit, review-decisions |
-| `draftEvidenceId` | E → F | DRAFT link/unlink demos and Checkpoint gate success path |
+| `draftEvidenceId` | E → F | DRAFT link/unlink samples and Checkpoint gate success path |
 | `rejectedEvidenceId` | C | Separate reject + review-decision history |
 | `archivableEvidenceId` | D | Separate DRAFT archive path |
 | `policyCoverageEvidenceId` | G | Qualifying Evidence for Policy gate success |
@@ -213,7 +213,7 @@ filesystem paths. Evidence gates return HTTP **409** `EVIDENCE_REQUIRED`, never
 
 ## Related
 
-- `docs/evidence-demo-and-release-readiness.md` — demo and release readiness
+- `docs/evidence-walkthrough-and-release-readiness.md` — sample and release readiness
 - `postman/Checkpoint-API.postman_collection.json` — Checkpoint-only drills
 - `postman/Policy-API.postman_collection.json` — Policy-only drills
 - `postman/Milestone-4-E2E.postman_collection.json` — Policy → Control → Checkpoint

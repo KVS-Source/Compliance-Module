@@ -6,8 +6,8 @@ import {
   PRODUCTION_ACCESS_PROFILES,
   PRODUCTION_PERMISSIONS,
 } from "../src/production/access-profile.js";
-import { DEMO_PERMISSIONS } from "./demo-seed-data.js";
-import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
+import { SAMPLE_PERMISSIONS } from "./sample-seed-data.js";
+import { assertSampleSeedExecutionAllowed } from "./sample-seed-safety.js";
 
 /**
  * Creates the GenBioCa UAT company, its roles and its synthetic login
@@ -15,19 +15,19 @@ import { assertDemoSeedExecutionAllowed } from "./demo-seed-safety.js";
  * frameworks, KPIs, risks, gaps, CAPAs and registers all arrive from the
  * client workbook through `npm run import:workbook:commit`.
  *
- * Keeping this separate from `prisma/demo-seed.ts` matters because the
+ * Keeping this separate from `prisma/sample-seed.ts` matters because the
  * workbook's own business codes (RSK-001, POL-001, …) collide with the
- * synthetic demo fixtures. Loading the workbook into its own company keeps
+ * synthetic sample fixtures. Loading the workbook into its own company keeps
  * both data sets intact and truthful.
  *
- *   NODE_ENV=development DEMO_SEED_PASSWORD='<runtime value>' \
+ *   NODE_ENV=development SAMPLE_SEED_PASSWORD='<runtime value>' \
  *     npm run seed:uat:genbioca
  *
- * No password is stored in this file. `assertDemoSeedExecutionAllowed` refuses
+ * No password is stored in this file. `assertSampleSeedExecutionAllowed` refuses
  * to run in production and requires the password at execution time.
  */
 
-const { password } = assertDemoSeedExecutionAllowed();
+const { password } = assertSampleSeedExecutionAllowed();
 const db = new PrismaClient();
 const roleAssignments = new RoleAssignmentService(db);
 
@@ -168,7 +168,7 @@ const main = async () => {
   // PRODUCTION_PERMISSIONS is included so every code the administrator profile
   // declares — `roles:assign` among them — exists before it is granted.
   for (const [code, name] of [
-    ...DEMO_PERMISSIONS,
+    ...SAMPLE_PERMISSIONS,
     ...NEW_PERMISSIONS,
     ...PRODUCTION_PERMISSIONS,
   ]) {
@@ -274,7 +274,7 @@ const main = async () => {
     console.log(`  ${name} <${email}> — ${roleName}`);
   }
   console.log(
-    "Passwords are not printed; use the runtime DEMO_SEED_PASSWORD value.",
+    "Passwords are not printed; use the runtime SAMPLE_SEED_PASSWORD value.",
   );
   console.log(
     "Next: npm run import:workbook:commit -- --file <workbook.xlsx> " +
