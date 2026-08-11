@@ -13,6 +13,7 @@ import { Badge } from "../../components/feedback/Badge";
 import { PageHeader } from "../../components/feedback/PageHeader";
 import { CsvExportButton } from "../../components/actions/CsvExportButton";
 import { SortableTh } from "../../components/tables/SortableTh";
+import { SavedViewToolbar } from "../../components/registers/SavedViewToolbar";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
@@ -80,8 +81,17 @@ export function GapRegisterPage() {
   const [version, setVersion] = useState(0);
   const [creating, setCreating] = useState(false);
 
-  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
-    useRegisterQueryState({
+  const {
+    values,
+    page,
+    orderBy,
+    order,
+    updateParams,
+    setPage,
+    toggleSort,
+    viewQuery,
+    applyView,
+  } = useRegisterQueryState({
       keys: ["q", "status", "severity", "overdue", "ownerId"],
     });
   const search = values.q ?? "";
@@ -157,6 +167,12 @@ export function GapRegisterPage() {
             </button>
           </>
         }
+      />
+
+      <SavedViewToolbar
+        registerKey="GAPS"
+        currentQuery={viewQuery}
+        onApply={applyView}
       />
 
       <form className="filter-bar deadline-filter-bar" onSubmit={applySearch}>

@@ -38,6 +38,7 @@ const INTEGRATION_FILES = [
   "tests/users-write.test.ts",
   "tests/user-import-api.test.ts",
   "tests/user-sessions-api.test.ts",
+  "tests/record-comments-api.test.ts",
   "tests/organisation-write.test.ts",
   "tests/kpi-management.test.ts",
   "tests/kpi-actuals.test.ts",
@@ -68,6 +69,11 @@ const INTEGRATION_FILES = [
   "tests/final-client-completion.test.ts",
   "tests/final-client-completion-http.test.ts",
   "tests/production-initializer.test.ts",
+  "tests/saved-views-api.test.ts",
+  "tests/notifications-api.test.ts",
+  "tests/tasks-api.test.ts",
+  "tests/delegation-api.test.ts",
+  "tests/rls-tenant-isolation.test.ts",
 ] as const;
 
 const redact = (value: string) =>

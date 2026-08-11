@@ -157,6 +157,13 @@ export const environmentSchema = z
       .default(5),
     S3_ENDPOINT: z.string().url().optional(),
     S3_BUCKET: z.string().optional(),
+    S3_REGION: z.string().optional(),
+    /**
+     * When true, FILE_STORAGE_DRIVER=s3 is allowed only if an injected client
+     * is provided at process bootstrap (tests). Default false so production
+     * without a wired client cannot accidentally select s3 and crash.
+     */
+    S3_ALLOW_INJECTED_CLIENT: z.enum(["true", "false"]).default("false"),
   })
   .superRefine((value, context) => {
     const evidenceExtensions = parseEvidenceExtensions(
@@ -175,12 +182,24 @@ export const environmentSchema = z
       });
     }
     if (value.FILE_STORAGE_DRIVER === "s3") {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["FILE_STORAGE_DRIVER"],
-        message:
-          "FILE_STORAGE_DRIVER=s3 is recognised but not implemented; use local",
-      });
+      if (!value.S3_BUCKET?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["S3_BUCKET"],
+          message: "S3_BUCKET is required when FILE_STORAGE_DRIVER=s3",
+        });
+      }
+      // Real AWS credentials are not available in this environment. S3 is
+      // selectable only when a process injects a client (unit tests) or a
+      // future production bootstrap wires one. Default remains local.
+      if (value.S3_ALLOW_INJECTED_CLIENT !== "true" && value.NODE_ENV === "production") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["FILE_STORAGE_DRIVER"],
+          message:
+            "FILE_STORAGE_DRIVER=s3 requires a production S3 client bootstrap; use local until credentials and client wiring exist",
+        });
+      }
     }
     if (value.NODE_ENV !== "production") return;
     if (

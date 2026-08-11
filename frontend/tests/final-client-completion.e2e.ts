@@ -423,7 +423,7 @@ test("GenRAC Not configured disables actions with explanatory titles", async ({
   );
 });
 
-test("desktop and mobile nav hide unfinished modules", async ({ page }) => {
+test("desktop and mobile nav expose live modules and hide unfinished modules", async ({ page }) => {
   for (const viewport of [
     { width: 1280, height: 900 },
     { width: 390, height: 844 },
@@ -436,9 +436,9 @@ test("desktop and mobile nav hide unfinished modules", async ({ page }) => {
     }
     await expect(page.locator(".nav-status-badge")).toHaveCount(0);
     // Role & Access is now a real read-only page, so it belongs in navigation.
-    // Tasks, deferred tenant-settings and Customer/Deal prototype routes do not.
+    // Tasks is now live; deferred tenant-settings and Customer/Deal prototype routes are not.
     await expect(page.locator('a[href="/admin/roles"]')).toHaveCount(1);
-    await expect(page.locator('a[href="/tasks"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/tasks"]')).toHaveCount(1);
     await expect(page.locator('a[href="/settings/tenant"]')).toHaveCount(0);
     await expect(page.locator('a[href="/master/customers"]')).toHaveCount(0);
     await expect(page.locator('a[href="/reports/deals"]')).toHaveCount(0);

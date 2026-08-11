@@ -23,13 +23,23 @@ const prototypeReference = (): Plugin => ({
   },
 });
 
+/**
+ * The dev server port and its API proxy target are configurable so a second
+ * stack can run alongside the default one — parallel worktrees, or the
+ * real-stack E2E runner bringing up its own API on a spare port. Defaults are
+ * unchanged, so an ordinary `npm run dev` behaves exactly as before.
+ */
+const devPort = Number(process.env.VITE_DEV_PORT ?? 5173);
+const apiProxyTarget =
+  process.env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8000";
+
 export default defineConfig({
   plugins: [react(), prototypeReference()],
   server: {
-    port: 5173,
+    port: devPort,
     strictPort: true,
     proxy: {
-      "/api": "http://127.0.0.1:8000",
+      "/api": apiProxyTarget,
     },
   },
   preview: {

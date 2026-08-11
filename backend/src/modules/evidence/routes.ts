@@ -142,12 +142,16 @@ export const evidenceRoutes = (service: EvidenceService) => {
     permit("evidence:download"),
     validate(evidenceIdParamsSchema, "params"),
     asyncHandler(async (req: Request, res: Response) => {
+      const dispositionRaw = String(req.query.disposition ?? "attachment");
+      const disposition =
+        dispositionRaw === "inline" ? ("inline" as const) : ("attachment" as const);
       await service.downloadFile(
         req.auth!.tenantId,
         String(req.params.evidenceId),
         req.auth!.userId,
         res,
         auditContext(req),
+        { disposition },
       );
     }),
   );

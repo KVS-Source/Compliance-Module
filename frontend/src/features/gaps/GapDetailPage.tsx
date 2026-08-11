@@ -22,6 +22,7 @@ import { gapApi } from "../../services/gapApi";
 import { masterDataApi } from "../../services/masterDataApi";
 import type { CompanyUser, Gap } from "../../types/api";
 import { GapFormModal } from "./GapFormModal";
+import { RecordCommentsPanel } from "../comments/RecordCommentsPanel";
 
 const display = (value: string | null | undefined) => value?.trim() || "Not provided";
 const named = (value: { code: string; name?: string; title?: string } | null) =>
@@ -95,6 +96,8 @@ export function GapDetailPage() {
       <section className="card deadline-section"><header className="card-head"><div><h2>Closure Evidence</h2><p>The backend accepts only approved Evidence with stored file bytes.</p></div><Link className="btn btn-secondary" to="/evidence"><LinkIcon size={15} /> Evidence library</Link></header><div className="card-pad">{gap.evidence.length ? <div className="deadline-link-list">{gap.evidence.map((evidence) => <Link key={evidence.linkId} to={`/evidence/${evidence.id}`}><span><strong>{evidence.title}</strong><small className="mono">{evidence.code} · {evidence.file.available ? "File available" : "Metadata only"}</small></span><Badge>{evidence.lifecycleStatus}</Badge></Link>)}</div> : <p className="muted">No Evidence is linked. Closure will be rejected until qualifying Evidence is linked.</p>}</div></section>
 
       <section className="card deadline-actions"><div><h2>Workflow actions</h2><p>Status transitions and Evidence validation remain backend-controlled.</p></div><div className="button-row">{hasPermission("gaps:write") && gap.status !== "CLOSED" ? <button className="btn btn-secondary" type="button" onClick={() => setOwnerOpen(true)}><UserRound size={15} /> Assign owner</button> : null}{hasPermission("gaps:close") && gap.status !== "CLOSED" ? <button className="btn btn-primary" type="button" onClick={() => setClosing(true)}><CheckCircle2 size={15} /> Close Gap</button> : null}{hasPermission("gaps:close") && gap.status === "CLOSED" ? <button className="btn btn-secondary" type="button" onClick={() => setReopening(true)}><RefreshCw size={15} /> Reopen Gap</button> : null}</div></section>
+
+      <RecordCommentsPanel entityType="GAP" entityId={gap.id} recordCode={gap.code} />
 
       {editing ? <GapFormModal gap={gap} onClose={() => setEditing(false)} onSaved={(saved) => { setEditing(false); reload(); showToast("success", "Gap updated", `${saved.code} was updated.`); }} /> : null}
       {ownerOpen ? <OwnerModal gap={gap} onClose={() => setOwnerOpen(false)} onSaved={() => { setOwnerOpen(false); reload(); showToast("success", "Owner updated", "The Gap owner was updated."); }} /> : null}

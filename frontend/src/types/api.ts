@@ -300,6 +300,19 @@ export interface UserSession {
   current: boolean;
 }
 
+/** The four registers that carry a remediation conversation. */
+export type CommentEntityType = "GAP" | "CAPA" | "RISK" | "EVIDENCE";
+
+export interface RecordComment {
+  id: string;
+  entityType: CommentEntityType;
+  entityId: string;
+  body: string;
+  createdAt: string;
+  /** Null once the author's account has been withdrawn or erased. */
+  author: { id: string; code: string; name: string } | null;
+}
+
 export type UserStatus = "ACTIVE" | "DISABLED" | "INVITED" | "LOCKED";
 
 export interface CreateUserInput {
@@ -317,6 +330,8 @@ export interface UserImportTemplate {
   maxRows: number;
   statuses: UserStatus[];
   roles: Array<{ code: string; name: string }>;
+  /** Active department names in the active Company; Department matches by name. */
+  departments: string[];
 }
 
 /** A row the API validated and is willing to create. */
@@ -2247,4 +2262,96 @@ export interface ReportResult {
   rowLimit: number;
   truncated: boolean;
   summary: Array<{ label: string; value: string }>;
+}
+
+export type SavedViewRegisterKey =
+  | "GAPS"
+  | "CAPAS"
+  | "RISKS"
+  | "POLICIES"
+  | "CONTROLS"
+  | "CHECKPOINTS"
+  | "EVIDENCE"
+  | "KPI_ACTUALS"
+  | "KPI_TARGETS"
+  | "OPERATIONAL_REGISTERS"
+  | "TASKS";
+
+export interface SavedView {
+  id: string;
+  registerKey: SavedViewRegisterKey;
+  name: string;
+  query: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NotificationKind =
+  | "APPROVAL_REQUEST"
+  | "OVERDUE_GAP"
+  | "OVERDUE_CAPA"
+  | "OWNERSHIP_ASSIGNMENT";
+
+export interface InAppNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  message: string;
+  targetPath: string;
+  sourceType: string;
+  sourceId: string;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationListResult {
+  items: InAppNotification[];
+  unreadCount: number;
+}
+
+export type TaskStatus = "TODO" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+export type TaskLinkType = "GAP" | "CAPA" | "RISK" | "AUDIT";
+
+export interface ComplianceTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  dueDate: string | null;
+  overdue: boolean;
+  owner: { id: string; code: string; name: string } | null;
+  linked: { type: TaskLinkType; id: string; code: string; title: string };
+  createdBy: { id: string; code: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskInput {
+  title: string;
+  description?: string | null;
+  status?: TaskStatus;
+  dueDate?: string | null;
+  ownerId?: string | null;
+  linkedEntityType: TaskLinkType;
+  linkedEntityId: string;
+}
+
+export type UpdateTaskInput = Partial<TaskInput>;
+
+export interface TaskListQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: TaskStatus;
+  ownerId?: string;
+  linkedEntityType?: TaskLinkType;
+  overdue?: boolean;
+  orderBy?: "title" | "status" | "dueDate" | "createdAt";
+  order?: "asc" | "desc";
+}
+
+export interface TaskListResult {
+  data: ComplianceTask[];
+  meta: PageMeta;
 }

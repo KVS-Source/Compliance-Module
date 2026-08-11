@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import type {
@@ -2192,14 +2192,21 @@ describe("Milestone 4 Policy, Control and Checkpoint database foundation", () =>
       WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
     `;
     expect(migrationRows).toHaveLength(1);
-    // 14 through Milestone 5, plus 20260802120000_deadline_backend_data, which
-    // adds the Gap, CAPA, operational register and workbook import schema, plus
-    // 20260804120000_final_client_completion for GenRAC sync metadata, plus
-    // 20260807120000_kpi_master_workbook_columns for the three `14_KPI_Master`
-    // columns (framework mapping, default data source, owner suggestion), plus
-    // 20260807170000_kpi_configuration_source_owner for the traceable workbook
-    // owner token on per-Company KPI configuration, plus
-    // 20260810120000_user_session_management for refresh-token client metadata.
-    expect(Number(migrationRows[0]?.count)).toBe(19);
+
+    /**
+     * Derived from the migrations directory rather than hardcoded.
+     *
+     * The invariant worth testing is "every migration on disk is applied, and
+     * the database carries no others" — not a count of how many exist today.
+     * A literal number restated the history in a single line that every new
+     * migration had to edit, which turns a shared file into a merge conflict
+     * for anyone working in parallel.
+     */
+    const migrationsOnDisk = readdirSync(
+      join(backendDirectory, "prisma", "migrations"),
+      { withFileTypes: true },
+    ).filter((entry) => entry.isDirectory()).length;
+    expect(migrationsOnDisk).toBeGreaterThan(0);
+    expect(Number(migrationRows[0]?.count)).toBe(migrationsOnDisk);
   });
 });

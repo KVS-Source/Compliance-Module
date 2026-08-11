@@ -58,6 +58,7 @@ import {
   isEvidenceId,
   named,
 } from "./evidenceFormatting";
+import { RecordCommentsPanel } from "../comments/RecordCommentsPanel";
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 5_000;
@@ -114,6 +115,11 @@ export function EvidenceDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [preview, setPreview] = useState<{
+    objectUrl: string;
+    contentType: string;
+  } | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
 
   const [editForm, setEditForm] = useState({
     title: "",
@@ -352,6 +358,34 @@ export function EvidenceDetailPage() {
       setActionError(evidenceActionError(error, "evidence:download"));
     } finally {
       setDownloadBusy(false);
+    }
+  };
+
+  const runPreview = async (evidence: EvidenceDetail) => {
+    const mime = evidence.file?.detectedMimeType ?? evidence.file?.mimeType ?? "";
+    const previewable =
+      mime.startsWith("image/") || mime === "application/pdf";
+    if (!previewable) {
+      showToast(
+        "info",
+        "Preview unavailable",
+        "Only PDF and image Evidence can be previewed inline. Use Download for other types.",
+      );
+      return;
+    }
+    setPreviewBusy(true);
+    setActionError(null);
+    try {
+      if (preview) URL.revokeObjectURL(preview.objectUrl);
+      const result = await evidenceApi.previewEvidenceFile(evidenceId);
+      setPreview({
+        objectUrl: result.objectUrl,
+        contentType: result.contentType,
+      });
+    } catch (error) {
+      setActionError(evidenceActionError(error, "evidence:download"));
+    } finally {
+      setPreviewBusy(false);
     }
   };
 
@@ -879,12 +913,51 @@ export function EvidenceDetailPage() {
                 <button
                   className="btn btn-secondary"
                   type="button"
+                  disabled={previewBusy}
+                  data-testid="evidence-preview"
+                  onClick={() => void runPreview(evidence)}
+                >
+                  {previewBusy ? "Loading preview…" : "Preview file"}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
                   disabled={downloadBusy}
                   data-testid="evidence-download"
                   onClick={() => void runDownload(evidence)}
                 >
                   <Download size={15} />{" "}
                   {downloadBusy ? "Preparing…" : "Download file"}
+                </button>
+              </div>
+            ) : null}
+            {preview ? (
+              <div
+                className="evidence-preview-frame"
+                data-testid="evidence-preview-frame"
+              >
+                {preview.contentType.startsWith("image/") ? (
+                  <img
+                    src={preview.objectUrl}
+                    alt="Evidence file preview"
+                    className="evidence-preview-image"
+                  />
+                ) : (
+                  <iframe
+                    title="Evidence file preview"
+                    src={preview.objectUrl}
+                    className="evidence-preview-iframe"
+                  />
+                )}
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  onClick={() => {
+                    URL.revokeObjectURL(preview.objectUrl);
+                    setPreview(null);
+                  }}
+                >
+                  Close preview
                 </button>
               </div>
             ) : null}
@@ -963,6 +1036,12 @@ export function EvidenceDetailPage() {
           onRetry={() => setAuditVersion((value) => value + 1)}
         />
       </div>
+
+      <RecordCommentsPanel
+        entityType="EVIDENCE"
+        entityId={evidence.id}
+        recordCode={evidence.code}
+      />
 
       {lifecycleConfirm ? (
         <Modal

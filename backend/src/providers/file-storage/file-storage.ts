@@ -12,7 +12,13 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { randomUUID } from "node:crypto";
-import type { Readable } from "node:stream";
+import { Readable } from "node:stream";
+import {
+  MalwareDetectedError,
+  noopMalwareScanHook,
+  type MalwareScanHook,
+} from "./malware-scan.js";
+import type { S3ClientPort } from "./s3-client-port.js";
 
 export interface StoredFile {
   key: string;
@@ -39,11 +45,31 @@ export interface FileStorageProvider {
   ): Promise<StoredFile>;
   resolveContainedPath(key: string): string;
   getRoot(): string;
+  /**
+   * Optional signed download URL (S3). Local storage returns null so callers
+   * fall back to the authenticated streaming endpoint.
+   */
+  getSignedDownloadUrl?(input: {
+    key: string;
+    expiresInSeconds: number;
+    contentType?: string;
+    contentDisposition?: string;
+  }): Promise<string | null>;
 }
 
 export type FileStorageConfiguration = {
   driver: string;
   localRoot: string;
+  s3?: {
+    bucket: string;
+    region: string;
+    endpoint?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    /** Injected client for unit tests; production omits this. */
+    client?: S3ClientPort;
+  };
+  malwareScan?: MalwareScanHook;
 };
 
 export class StoragePathError extends Error {
@@ -243,59 +269,152 @@ export class LocalFileStorageProvider implements FileStorageProvider {
   }
 }
 
-export class S3CompatibleFileStorageProvider implements FileStorageProvider {
-  checkReady(): Promise<void> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+/**
+ * S3-compatible object storage behind the same FileStorageProvider contract.
+ *
+ * Requires an injected {@link S3ClientPort}. Unit tests use InMemoryS3Client.
+ * This environment has no AWS credentials, so the live S3 path is untested
+ * against real buckets — only the fake client is exercised.
+ */
+export class S3FileStorageProvider implements FileStorageProvider {
+  private readonly bucket: string;
+  private readonly client: S3ClientPort;
+  private readonly scan: MalwareScanHook;
+
+  constructor(config: {
+    bucket: string;
+    client: S3ClientPort;
+    malwareScan?: MalwareScanHook;
+  }) {
+    this.bucket = config.bucket;
+    this.client = config.client;
+    this.scan = config.malwareScan ?? noopMalwareScanHook;
   }
-  put(): Promise<StoredFile> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+
+  getRoot() {
+    return `s3://${this.bucket}`;
   }
-  putStream(): Promise<StoredFile> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+
+  resolveContainedPath(key: string) {
+    // S3 keys still use the same logical containment rules as local keys.
+    resolveContainedStoragePath("/s3-virtual-root", key);
+    return key;
   }
-  get(): Promise<Buffer> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+
+  async checkReady() {
+    await this.client.headBucket(this.bucket);
   }
-  getStream(): Promise<Readable> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+
+  private async scanBeforePromote(
+    key: string,
+    contentType: string,
+    body: Buffer,
+  ) {
+    const verdict = await this.scan({
+      key,
+      contentType,
+      size: body.length,
+      sample: body.subarray(0, Math.min(body.length, 65_536)),
+    });
+    if (!verdict.clean) {
+      throw new MalwareDetectedError(verdict);
+    }
   }
-  delete(): Promise<void> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+
+  async put(key: string, content: Buffer, contentType: string) {
+    this.resolveContainedPath(key);
+    await this.scanBeforePromote(key, contentType, content);
+    await this.client.putObject({
+      bucket: this.bucket,
+      key,
+      body: content,
+      contentType,
+    });
+    return { key, size: content.length, contentType };
   }
-  promoteTempFile(): Promise<StoredFile> {
-    return Promise.reject(
-      new Error("S3 adapter is not configured in Milestone 1"),
-    );
+
+  async putStream(key: string, source: Readable, contentType: string) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of source) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    const body = Buffer.concat(chunks);
+    return this.put(key, body, contentType);
   }
-  resolveContainedPath(): string {
-    throw new Error("S3 adapter is not configured in Milestone 1");
+
+  async promoteTempFile(
+    tempAbsolutePath: string,
+    key: string,
+    contentType: string,
+  ) {
+    // S3 has no local temp promotion path; read the temp file then put.
+    const body = await readFile(tempAbsolutePath);
+    return this.put(key, body, contentType);
   }
-  getRoot(): string {
-    throw new Error("S3 adapter is not configured in Milestone 1");
+
+  async get(key: string) {
+    this.resolveContainedPath(key);
+    const object = await this.client.getObject({
+      bucket: this.bucket,
+      key,
+    });
+    return object.body;
+  }
+
+  async getStream(key: string) {
+    const body = await this.get(key);
+    return Readable.from(body);
+  }
+
+  async delete(key: string) {
+    this.resolveContainedPath(key);
+    await this.client.deleteObject({ bucket: this.bucket, key });
+  }
+
+  async getSignedDownloadUrl(input: {
+    key: string;
+    expiresInSeconds: number;
+    contentType?: string;
+    contentDisposition?: string;
+  }) {
+    this.resolveContainedPath(input.key);
+    return this.client.getSignedDownloadUrl({
+      bucket: this.bucket,
+      key: input.key,
+      expiresInSeconds: input.expiresInSeconds,
+      ...(input.contentType
+        ? { responseContentType: input.contentType }
+        : {}),
+      ...(input.contentDisposition
+        ? { responseContentDisposition: input.contentDisposition }
+        : {}),
+    });
   }
 }
 
 export const createFileStorageProvider = ({
   driver,
   localRoot,
+  s3,
+  malwareScan,
 }: FileStorageConfiguration): FileStorageProvider => {
   if (driver === "local") return new LocalFileStorageProvider(localRoot);
   if (driver === "s3") {
-    throw new Error(
-      "FILE_STORAGE_DRIVER=s3 is recognised but not implemented; use local",
-    );
+    if (!s3?.bucket?.trim()) {
+      throw new Error(
+        "FILE_STORAGE_DRIVER=s3 requires S3_BUCKET (and an injected or configured client)",
+      );
+    }
+    if (!s3.client) {
+      throw new Error(
+        "FILE_STORAGE_DRIVER=s3 requires an S3 client. This environment has no AWS credentials; inject a client for tests or configure production separately. Use FILE_STORAGE_DRIVER=local as the default.",
+      );
+    }
+    return new S3FileStorageProvider({
+      bucket: s3.bucket,
+      client: s3.client,
+      ...(malwareScan ? { malwareScan } : {}),
+    });
   }
   throw new Error(`Unknown FILE_STORAGE_DRIVER: ${driver}`);
 };

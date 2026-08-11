@@ -17,6 +17,7 @@ import {
   type BulkAction,
 } from "../../components/tables/BulkActionBar";
 import { SortableTh } from "../../components/tables/SortableTh";
+import { SavedViewToolbar } from "../../components/registers/SavedViewToolbar";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useToast } from "../../context/ToastContext";
@@ -75,8 +76,17 @@ export function CapaRegisterPage() {
       : []),
   ];
 
-  const { values, page, orderBy, order, updateParams, setPage, toggleSort } =
-    useRegisterQueryState({
+  const {
+    values,
+    page,
+    orderBy,
+    order,
+    updateParams,
+    setPage,
+    toggleSort,
+    viewQuery,
+    applyView,
+  } = useRegisterQueryState({
       keys: ["q", "status", "priority", "overdue"],
     });
   const search = values.q ?? "";
@@ -163,6 +173,11 @@ export function CapaRegisterPage() {
             </button>
           </>
         }
+      />
+      <SavedViewToolbar
+        registerKey="CAPAS"
+        currentQuery={viewQuery}
+        onApply={applyView}
       />
       <form className="filter-bar deadline-filter-bar" onSubmit={applySearch}>
         <label className="filter-search">

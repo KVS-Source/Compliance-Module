@@ -69,6 +69,17 @@ describe("bulk user import API", () => {
     expect(
       meta.body.data.roles.map((role: { code: string }) => role.code),
     ).not.toContain("*");
+    // Department matches by name against this Company, so the template must
+    // report the names that exist rather than leaving the admin to guess.
+    expect(Array.isArray(meta.body.data.departments)).toBe(true);
+    expect(meta.body.data.departments).toContain("Compliance");
+    const foreign = await prisma.orgDepartment.findFirst({
+      where: { tenantId: { not: company001Id }, status: "ACTIVE" },
+      select: { name: true },
+    });
+    if (foreign && !["Compliance"].includes(foreign.name)) {
+      expect(meta.body.data.departments).not.toContain(foreign.name);
+    }
 
     const file = await request(app)
       .get("/api/v1/users/import/template.csv")

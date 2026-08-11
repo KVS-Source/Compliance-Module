@@ -2,7 +2,7 @@
 
 Date: 2026-08-07
 
-Branch: `codex/settings-analytics-center`
+Branch: `integration/all-lanes`
 
 Classification: controlled client submission candidate; not a production deployment
 
@@ -132,6 +132,6 @@ values are not recorded in this report or in source control.
 
 ## Git handoff
 
-The work is intentionally uncommitted on `codex/settings-analytics-center` so a
+The work is intentionally uncommitted on `integration/all-lanes` so a
 human can review the complete diff before staging, committing or pushing. No
 merge or deployment was performed.

@@ -101,8 +101,8 @@ per-record permissions and audit events.
 | **Overdue visual cues** on list rows | Whole-row highlight beyond date text | **Shipped** — `register-row-overdue` on Gap/CAPA table rows and cards |
 | **Bulk user import** | Onboarding ~60 staff one-by-one is a sales objection | **Shipped** — `GET /users/import/template(.csv)`, `POST /users/import/preview` (dry run), `POST /users/import/commit`; role column limited to production profile codes; see [initial password note](#bulk-user-import-initial-password) |
 | **Session management UI** | Admin cannot list or revoke another user’s refresh sessions | **Shipped** — `GET /users/:id/sessions`, revoke one / revoke all; IP/UA/`lastUsedAt` on refresh tips; family-wide revoke with audit |
-| **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | Append-only comments; no silent edit of history |
-| **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | Builds on URL-synced filters |
+| **Record comments** (gap / CAPA / risk / evidence) | Moves remediation conversation into the audit trail | **Shipped** — `GET/POST /records/:entityType/:entityId/comments`; append-only by route *and* by `record_comments_append_only` trigger; parent record's permission governs |
+| **Saved named views** | “Overdue critical gaps” as a bookmarkable named filter | **Shipped** — private per-user, per-Company views preserve validated filter and sort state; no sharing in this release |
 
 ### Explicitly deferred from V1.1
 
@@ -124,11 +124,15 @@ limitations.
 
 | Item | Why | Related |
 | --- | --- | --- |
-| **In-app notifications** model + optional email transport | Approvals and overdue CAPAs are time-sensitive | Gap register: no external delivery; Settings must not claim email until true |
-| **Report scheduling, subscriptions, PDF / board pack** | Monthly pack rebuilt by hand today | Known limitations; ten reports already run on demand + CSV |
-| **Object storage (S3)** + signed download URLs | Local volume is deadline fallback, not multi-host production | Known limitations storage section |
-| **Malware scanning** on evidence upload | Evidence is the trust root for gates | Known limitations |
-| **Inline file preview** (PDF/image) | Download-only friction for reviewers | Known limitations |
+| **In-app notifications** model + optional email transport | Approvals and overdue CAPAs are time-sensitive | **In-app shipped** — approval, overdue Gap/CAPA and ownership signals with read state; email transport remains intentionally absent |
+| **Report scheduling, subscriptions** | Monthly pack rebuilt by hand today | PDF board pack and as-of filters shipped; scheduling still deferred |
+| **PDF / board pack** | On-demand board pack | **Shipped** — `GET /reports/:key/export.pdf` (`exports:read`) |
+| **As-of snapshot reports** | Point-in-time board questions | **Shipped** — `asOf` filter on report catalogue (derived from live tables) |
+| **Object storage (S3)** + signed download URLs | Local volume is deadline fallback | **Driver shipped** with fake-client unit tests; **not live-AWS verified** (no credentials) |
+| **Malware scanning** on evidence upload | Evidence is the trust root for gates | **Hook shipped** (noop default); no real scanner in this environment |
+| **Inline file preview** (PDF/image) | Download-only friction for reviewers | **Shipped** — `disposition=inline` + Evidence detail preview |
+| **Approver delegation** | Approvals block when approver is away | **Shipped** — `/delegations`; maker-checker preserved |
+| **Browser-to-PostgreSQL E2E** | Playwright mocks only | **Shipped** — `tests-real-stack` + `test:e2e:real-stack` runner |
 | **Browser-to-PostgreSQL E2E** (no API mocks) | Playwright proves UI against intercepts; human real-stack is still required | Limitation 3; Phase 3 of the old plan |
 | **Production bring-up** | TLS, DNS, secrets, log destination, alerting, disk encryption, RPO/RTO drill | Limitations 4–5; external inputs |
 | **GitHub branch protection evidence** | Workflow file alone is not protection | Limitation 6 |
@@ -151,16 +155,16 @@ assessor expectations.
 
 | Item | Why | Related |
 | --- | --- | --- |
-| **Pseudonymisation / right to erasure** | DPDPA/GDPR in framework list; offboarding ≠ erasure | [Gap register §3](../handover/gap-register.md#3-data-removal-and-the-right-to-erasure) |
-| **PostgreSQL RLS** | Defence in depth; missed predicate has no DB backstop | Limitation 2; old Phase 4 |
-| **SSO (SAML/OIDC) + MFA / step-up for approvals** | Enterprise identity baseline | Not started |
+| **Pseudonymisation / right to erasure** | DPDPA/GDPR in framework list; offboarding ≠ erasure | **Not started — deferred to V2.** Audit events are append-only by design, so erasure is pseudonymisation of personal fields, not history deletion. See [gap register §3](../handover/gap-register.md#3-data-removal-and-the-right-to-erasure) |
+| **PostgreSQL RLS** | Defence in depth; missed predicate has no DB backstop | **Policies shipped and proven, not activated** — see [limitation 2](../known-limitations.md); activation is a deployment step |
+| **SSO (SAML/OIDC) + MFA / step-up for approvals** | Enterprise identity baseline | **Not started — deferred to V2.** SSO additionally needs an identity provider that does not exist in this environment |
 | **Configurable master data tables** | Frequencies, evidence types, report definitions are code enums today | [Gap register §2](../handover/gap-register.md#2-data-dictionary--32-of-46-tables-implemented) |
 
 ### Product modules
 
 | Item | Why | Related |
 | --- | --- | --- |
-| **Tasks** module | Assigned work with due dates linked to gap/CAPA/risk/audit | Deferred route `/tasks`; no production Task model |
+| **Tasks** module | Assigned work with due dates linked to gap/CAPA/risk/audit | **Shipped** — Company-scoped CRUD register at `/tasks`, governed links, audit events and existing register permissions |
 | **CRM** (`customer_master`, `company_customers`, `deals`) | In signed data dictionary; prototype had titles only | [Gap register §2](../handover/gap-register.md#2-data-dictionary--32-of-46-tables-implemented) |
 | **Live GenRAC** REST/database adapters | CSV adapter only until client access | Known limitations; GenRAC page honesty rules |
 | **`evidence_versions`, `kpi_mappings`, `company_frameworks`** | Dictionary tables not modeled as first-class product | Gap register missing tables |

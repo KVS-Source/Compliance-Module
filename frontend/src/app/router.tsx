@@ -59,6 +59,7 @@ import { ReportHubPage } from "../features/reports/ReportHubPage";
 import { ReportViewPage } from "../features/reports/ReportViewPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { UsersPage } from "../features/users/UsersPage";
+import { TasksPage } from "../features/tasks/TasksPage";
 import { migratedPaths, routeDefinitions } from "./routeDefinitions";
 
 function ProtectedShell() {
@@ -374,6 +375,7 @@ const migratedRoutes: RouteObject[] = [
   { path: "compliance/operational-registers", element: <PermissionBoundary permission="registers:read"><OperationalRegistersPage /></PermissionBoundary> },
   { path: "compliance/operational-registers/:registerCode", element: <PermissionBoundary permission="registers:read"><OperationalRegistersPage /></PermissionBoundary> },
   { path: "compliance/operational-registers/:registerCode/records/:recordId", element: <PermissionBoundary permission="registers:read"><OperationalRegisterDetailPage /></PermissionBoundary> },
+  { path: "tasks", element: <PermissionBoundary permission="registers:read"><TasksPage /></PermissionBoundary> },
   {
     path: "compliance/policy-register",
     element: (

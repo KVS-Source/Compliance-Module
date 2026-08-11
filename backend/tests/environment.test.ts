@@ -215,7 +215,7 @@ describe("environment validation", () => {
     ).toThrow(/EVIDENCE_ALLOWED_EXTENSIONS/);
   });
 
-  it("fails closed for unknown and unimplemented storage providers", () => {
+  it("fails closed for unknown storage providers and unconfigured S3", () => {
     expect(() =>
       parseEnvironment({
         ...validDevelopment,
@@ -223,8 +223,11 @@ describe("environment validation", () => {
       }),
     ).toThrow(/FILE_STORAGE_DRIVER/);
     expect(() =>
-      parseEnvironment({ ...validDevelopment, FILE_STORAGE_DRIVER: "s3" }),
-    ).toThrow(/recognised but not implemented/);
+      parseEnvironment({
+        ...validDevelopment,
+        FILE_STORAGE_DRIVER: "s3",
+      }),
+    ).toThrow(/S3_BUCKET/);
     expect(() =>
       createFileStorageProvider({
         driver: "unknown",
@@ -235,8 +238,9 @@ describe("environment validation", () => {
       createFileStorageProvider({
         driver: "s3",
         localRoot: "/synthetic/not-used",
+        s3: { bucket: "test-bucket", region: "us-east-1" },
       }),
-    ).toThrow(/recognised but not implemented/);
+    ).toThrow(/requires an S3 client/);
   });
 
   it("supports the configured local storage provider", async () => {

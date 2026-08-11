@@ -14,6 +14,7 @@ import { capaApi } from "../../services/capaApi";
 import { masterDataApi } from "../../services/masterDataApi";
 import type { Capa, CompanyUser } from "../../types/api";
 import { CapaFormModal } from "./CapaFormModal";
+import { RecordCommentsPanel } from "../comments/RecordCommentsPanel";
 
 const display = (value: string | null | undefined) => value?.trim() || "Not provided";
 const named = (value: { code: string; name?: string; title?: string } | null) => value ? `${value.name ?? value.title ?? value.code} (${value.code})` : "Not linked";
@@ -48,6 +49,8 @@ export function CapaDetailPage() {
       </div>
       <section className="card deadline-section"><header className="card-head"><div><h2>Closure Evidence</h2><p>The backend accepts only approved Evidence with stored file bytes.</p></div><Link className="btn btn-secondary" to="/evidence"><LinkIcon size={15} /> Evidence library</Link></header><div className="card-pad">{capa.evidence.length ? <div className="deadline-link-list">{capa.evidence.map((evidence) => <Link key={evidence.linkId} to={`/evidence/${evidence.id}`}><span><strong>{evidence.title}</strong><small className="mono">{evidence.code} · {evidence.file.available ? "File available" : "Metadata only"}</small></span><Badge>{evidence.lifecycleStatus}</Badge></Link>)}</div> : <p className="muted">No Evidence is linked. Closure will be rejected until qualifying Evidence is linked.</p>}</div></section>
       <section className="card deadline-actions"><div><h2>Workflow actions</h2><p>Status transitions and Evidence validation remain backend-controlled.</p></div><div className="button-row">{hasPermission("capa:write") && capa.status !== "CLOSED" ? <button className="btn btn-secondary" type="button" onClick={() => setOwnerOpen(true)}><UserRound size={15} /> Assign owner</button> : null}{hasPermission("capa:close") && capa.status !== "CLOSED" ? <button className="btn btn-primary" type="button" onClick={() => setClosing(true)}><CheckCircle2 size={15} /> Close CAPA</button> : null}{hasPermission("capa:close") && capa.status === "CLOSED" ? <button className="btn btn-secondary" type="button" onClick={() => setReopening(true)}><RefreshCw size={15} /> Reopen CAPA</button> : null}</div></section>
+
+      <RecordCommentsPanel entityType="CAPA" entityId={capa.id} recordCode={capa.code} />
       {editing ? <CapaFormModal capa={capa} onClose={() => setEditing(false)} onSaved={(saved) => { setEditing(false); reload(); showToast("success", "CAPA updated", `${saved.code} was updated.`); }} /> : null}
       {ownerOpen ? <OwnerModal capa={capa} onClose={() => setOwnerOpen(false)} onSaved={() => { setOwnerOpen(false); reload(); showToast("success", "Owner updated", "The CAPA owner was updated."); }} /> : null}
       {closing ? <TransitionModal title={`Close ${capa.code}`} label="Closure note" actionLabel="Close CAPA" help="At least 10 characters. The server will verify file-backed approved Evidence." onClose={() => setClosing(false)} onSubmit={(note) => capaApi.close(capa.id, note)} errorMessage={closureMessage} onSaved={() => { setClosing(false); reload(); showToast("success", "CAPA closed", `${capa.code} is closed at 100% completion.`); }} /> : null}

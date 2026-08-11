@@ -32,6 +32,7 @@ import {
   RiskReviewHistory,
   RiskTreatmentHistory,
 } from "./RiskWorkflowHistory";
+import { RecordCommentsPanel } from "../comments/RecordCommentsPanel";
 
 const STRATEGIES: RiskTreatmentStrategy[] = [
   "AVOID",
@@ -582,6 +583,12 @@ export function RiskDetailPage() {
           onComplete={(treatment) => openAction("complete", treatment)}
         />
       </div>
+
+      <RecordCommentsPanel
+        entityType="RISK"
+        entityId={risk.id}
+        recordCode={risk.code}
+      />
 
       {action ? (
         <Modal

@@ -16,7 +16,8 @@
     "guard:boundaries": "node ../scripts/check-active-boundaries.mjs",
     "guard:routes": "node ../scripts/check-live-routes.mjs",
     "guard:production-api": "node ../scripts/check-production-api.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:real-stack": "node scripts/run-real-stack-e2e.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

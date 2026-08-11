@@ -6,8 +6,16 @@ import { AuthRepository } from "../modules/auth/repository.js";
 import { AuthService } from "../modules/auth/service.js";
 import { tenantsRoutes } from "../modules/tenants/routes.js";
 import { usersRoutes } from "../modules/users/routes.js";
+import { commentRoutes } from "../modules/comments/routes.js";
+import { RecordCommentService } from "../modules/comments/service.js";
 import { UserImportService } from "../modules/users/import-service.js";
 import { UserSessionService } from "../modules/users/session-service.js";
+import { SavedViewService } from "../modules/saved-views/service.js";
+import { savedViewRoutes } from "../modules/saved-views/routes.js";
+import { NotificationService } from "../modules/notifications/service.js";
+import { notificationRoutes } from "../modules/notifications/routes.js";
+import { TaskService } from "../modules/tasks/service.js";
+import { taskRoutes } from "../modules/tasks/routes.js";
 import { UsersRepository } from "../modules/users/repository.js";
 import { organisationRoutes } from "../modules/organisation/routes.js";
 import { OrganisationRepository } from "../modules/organisation/repository.js";
@@ -48,6 +56,8 @@ import { importRoutes } from "../modules/imports/routes.js";
 import { AccessProfileService, accessRoutes } from "../modules/access/routes.js";
 import { KpiCatalogueService } from "../modules/kpis/catalogue-service.js";
 import { kpiCatalogueRoutes } from "../modules/kpis/catalogue-routes.js";
+import { DelegationService } from "../modules/delegation/service.js";
+import { delegationRoutes } from "../modules/delegation/routes.js";
 import { ReportService } from "../modules/reports/service.js";
 import { reportRoutes } from "../modules/reports/routes.js";
 import { ExportService } from "../modules/exports/service.js";
@@ -110,6 +120,7 @@ export const apiRoutes = (
   const usersRepository = new UsersRepository(db);
   const userImports = new UserImportService(db, usersRepository);
   const userSessions = new UserSessionService(db);
+  const delegations = new DelegationService(db);
   const auditTrail = new AuditTrailService(db);
   const genrac = new GenracSyncService(db);
   const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
@@ -119,11 +130,15 @@ export const apiRoutes = (
     evidenceGate,
   );
   const evidence = new EvidenceService(new EvidenceRepository(db), fileStorage);
+  const savedViews = new SavedViewService(db);
+  const notifications = new NotificationService(db);
+  const tasks = new TaskService(db);
   const kpiActuals = new KpiActualService(
     new KpiActualRepository(db),
     new KpiPerformanceService(),
     risks,
     evidenceGate,
+    delegations,
   );
   router.get("/health", (_req, res) =>
     res.json({
@@ -183,6 +198,7 @@ export const apiRoutes = (
     frameworksRoutes(provider, new FrameworksRepository(db)),
   );
   router.use("/access", accessRoutes(accessProfiles));
+  router.use("/delegations", delegationRoutes(delegations));
   router.use("/kpis", kpiCatalogueRoutes(kpiCatalogue));
   router.use("/reports", reportRoutes(reports));
   router.use("/kpi-definitions", kpiDefinitionRoutes(provider));
@@ -203,5 +219,11 @@ export const apiRoutes = (
   router.use("/exports", exportRoutes(exports));
   router.use("/audit-events", auditRoutes(auditTrail));
   router.use("/integrations/genrac", genracRoutes(genrac));
+  // Mounted last and matched on `/records/:entityType/...` so it cannot
+  // shadow a register's own routes.
+  router.use("/records", commentRoutes(new RecordCommentService(db)));
+  router.use("/saved-views", savedViewRoutes(savedViews));
+  router.use("/notifications", notificationRoutes(notifications));
+  router.use("/tasks", taskRoutes(tasks));
   return router;
 };

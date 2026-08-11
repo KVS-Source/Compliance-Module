@@ -115,17 +115,22 @@ deferred scope). Sequenced remaining work is in the
 - Tasks, Notifications, tenant-settings deep links and KPI mapping deep links;
 - **free-form role and permission design**: profiles are fixed; only assignment
   of a user to a sanctioned profile is mutable;
-- **report scheduling, subscriptions and PDF output**: the Reports centre runs a
-  report on demand and exports CSV only;
-- record comments and saved named views (remaining V1.1 strong additions);
+- **report scheduling and subscriptions**: a report runs on demand and exports
+  CSV or PDF; scheduled delivery and subscriptions remain deferred;
 - GenRAC live REST or PostgreSQL adapters (CSV file adapter only; operator must
   place a file and configure via API);
 - Policy Version obsoletion and Policy `INACTIVE` transitions;
-- malware scanning, S3 object storage, inline file preview;
-- same-period Checkpoint Review correction.
+- same-period Checkpoint Review correction;
+- pseudonymisation / right to erasure, and MFA / SSO (both V2, not started).
 
-S3 is not active. Local file storage is the only usable provider; selecting S3
-fails configuration closed.
+Record comments, saved named views, in-app notifications, the Tasks module,
+inline file preview, PDF report output, as-of snapshot reports and approver
+delegation are implemented on this branch.
+
+An S3 storage driver and a malware-scan hook exist behind the storage
+abstraction, but local file storage remains the default and only verified
+provider: the S3 path is unit-tested against a fake client and has never run
+against real AWS, because no credentials exist in this environment.
 
 This documentation describes shipped software capability. Hosted production
 bring-up still requires human infrastructure and secrets.
@@ -149,10 +154,16 @@ bring-up still requires human infrastructure and secrets.
 ## Test boundary
 
 Backend integration tests use real disposable PostgreSQL and all applied
-migrations (18 folders under `backend/prisma/migrations/`). Automated
-Playwright uses browser-intercepted API responses and is not
-browser-to-PostgreSQL E2E. A human real-stack browser walkthrough remains
-required for each release candidate.
+migrations (25 folders under `backend/prisma/migrations/`), with the schema
+dropped, migrated and reseeded before every one of the 44 test files so no
+file inherits another's state.
+
+The default Playwright suite intercepts API responses and is therefore a
+rendering check, not proof the product works. A separate real-stack suite
+(`frontend/tests-real-stack`, `npm run test:e2e:real-stack`) drives the browser
+against a live API and real PostgreSQL with no intercepts, and runs in CI. It
+currently covers the evidence-gate refusal path; a human walkthrough is still
+required for the breadth of a release candidate.
 
 See:
 

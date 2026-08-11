@@ -260,6 +260,11 @@ model Tenant {
   externalConnections      ExternalSystemConnection[]
   externalRecordMaps       ExternalRecordMap[]
   syncRuns                 SyncRun[]
+  recordComments           RecordComment[]
+  savedViews               SavedView[]
+  notifications            Notification[]
+  tasks                    Task[]
+  approverDelegations      ApproverDelegation[]
 
   @@map("tenants")
 }
@@ -284,6 +289,7 @@ model User {
   rolesAssigned             UserRole[]             @relation("AssignedRoles")
   refreshTokens             RefreshToken[]
   auditEvents               AuditEvent[]
+  recordComments            RecordComment[]        @relation("RecordCommentAuthor")
   ownedKpiConfigurations    KpiConfiguration[]     @relation("KpiConfigurationOwner")
   approverKpiConfigurations KpiConfiguration[]     @relation("KpiConfigurationApprover")
   createdKpiConfigurations  KpiConfiguration[]     @relation("KpiConfigurationCreatedBy")
@@ -354,9 +360,46 @@ model User {
   createdRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordCreatedBy")
   updatedRegisterRecords    OperationalRegisterRecord[] @relation("RegisterRecordUpdatedBy")
   startedImportBatches      ImportBatch[]          @relation("ImportBatchUploadedBy")
+  savedViews                SavedView[]             @relation("SavedViewOwner")
+  notifications             Notification[]          @relation("NotificationRecipient")
+  ownedTasks                Task[]                  @relation("TaskOwner")
+  createdTasks              Task[]                  @relation("TaskCreatedBy")
+  updatedTasks              Task[]                  @relation("TaskUpdatedBy")
+  delegationsAsDelegator    ApproverDelegation[]   @relation("DelegationDelegator")
+  delegationsAsDelegate     ApproverDelegation[]   @relation("DelegationDelegate")
+  delegationsCreated        ApproverDelegation[]   @relation("DelegationCreatedBy")
+  delegationsRevoked        ApproverDelegation[]   @relation("DelegationRevokedBy")
 
   @@index([status, createdAt])
   @@map("users")
+}
+
+/// Temporary out-of-office routing: the delegate may approve on behalf of the
+/// configured approver while the window is ACTIVE. Maker-checker still forbids
+/// a person approving their own submission even when they hold a delegation.
+model ApproverDelegation {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  delegatorUserId String       @map("delegator_user_id") @db.Uuid
+  delegateUserId  String       @map("delegate_user_id") @db.Uuid
+  startsAt        DateTime     @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime     @map("ends_at") @db.Timestamptz(6)
+  status          RecordStatus @default(ACTIVE)
+  reason          String?      @db.Text
+  createdById     String       @map("created_by_id") @db.Uuid
+  revokedAt       DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  revokedById     String?      @map("revoked_by_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  delegator       User         @relation("DelegationDelegator", fields: [delegatorUserId], references: [id], onDelete: Restrict)
+  delegate        User         @relation("DelegationDelegate", fields: [delegateUserId], references: [id], onDelete: Restrict)
+  createdBy       User         @relation("DelegationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  revokedBy       User?        @relation("DelegationRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, delegateUserId, status, startsAt, endsAt])
+  @@index([tenantId, delegatorUserId, status])
+  @@map("approver_delegations")
 }
 
 model UserCompany {
@@ -1345,6 +1388,127 @@ model RefreshToken {
   @@index([tenantId, expiresAt])
   @@index([userId, tenantId, revokedAt])
   @@map("refresh_tokens")
+}
+
+/// The record a comment is attached to. Kept as an enum rather than four
+/// nullable foreign keys so one panel serves every register; the service
+/// resolves the row in its own module and refuses an id from another Company.
+enum CommentEntityType {
+  GAP
+  CAPA
+  RISK
+  EVIDENCE
+}
+
+/// Remediation conversation held inside the audit trail rather than in email.
+/// Rows are immutable: the `record_comments_append_only` trigger rejects UPDATE
+/// and DELETE, so a comment cannot be silently rewritten after it is read.
+/// There is deliberately no edit or delete API.
+model RecordComment {
+  id         String            @id @default(uuid()) @db.Uuid
+  tenantId   String            @map("tenant_id") @db.Uuid
+  entityType CommentEntityType @map("entity_type")
+  entityId   String            @map("entity_id") @db.Uuid
+  body       String
+  authorId   String?           @map("author_id") @db.Uuid
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  author     User?             @relation("RecordCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId, createdAt])
+  @@index([tenantId, authorId, createdAt])
+  @@map("record_comments")
+}
+
+/// A private, named snapshot of one register's URL-backed filters and sort.
+/// Views are deliberately user-scoped; sharing is not supported in this release.
+model SavedView {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  registerKey String   @map("register_key") @db.VarChar(64)
+  name        String   @db.VarChar(100)
+  query       Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User     @relation("SavedViewOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, registerKey, name])
+  @@index([tenantId, userId, registerKey, createdAt])
+  @@map("saved_views")
+}
+
+enum NotificationKind {
+  APPROVAL_REQUEST
+  OVERDUE_GAP
+  OVERDUE_CAPA
+  OWNERSHIP_ASSIGNMENT
+}
+
+/// Durable, personal in-app notification. There is intentionally no email
+/// delivery field: no SMTP transport is configured for this release.
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  kind       NotificationKind
+  title      String           @db.VarChar(200)
+  message    String           @db.Text
+  targetPath String           @map("target_path") @db.VarChar(500)
+  sourceType String           @map("source_type") @db.VarChar(64)
+  sourceId   String           @map("source_id") @db.Uuid
+  dedupeKey  String           @map("dedupe_key") @db.VarChar(180)
+  readAt     DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, dedupeKey])
+  @@index([tenantId, userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskLinkType {
+  GAP
+  CAPA
+  RISK
+  AUDIT
+}
+
+/// Assigned compliance work linked to one governed record. The service
+/// resolves `linkedEntityId` inside the authenticated Company for every write.
+model Task {
+  id               String       @id @default(uuid()) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  title            String       @db.VarChar(300)
+  description      String?      @db.Text
+  status           TaskStatus   @default(TODO)
+  dueDate          DateTime?    @map("due_date") @db.Date
+  ownerId          String?      @map("owner_id") @db.Uuid
+  linkedEntityType TaskLinkType @map("linked_entity_type")
+  linkedEntityId   String       @map("linked_entity_id") @db.Uuid
+  createdById      String       @map("created_by_id") @db.Uuid
+  updatedById      String       @map("updated_by_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  owner            User?        @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy        User         @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy        User         @relation("TaskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, status, dueDate, createdAt])
+  @@index([tenantId, ownerId, status, dueDate])
+  @@index([tenantId, linkedEntityType, linkedEntityId])
+  @@map("tasks")
 }
 
 model AuditEvent {
