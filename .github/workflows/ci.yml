@@ -126,6 +126,71 @@ jobs:
         working-directory: frontend
         run: npm run test:e2e
 
+  real-stack:
+    name: Real-stack browser E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      DATABASE_URL_TEST: postgresql://genbioca_test:ci_test_only@127.0.0.1:5432/genbioca_ci_test
+      DATABASE_URL: postgresql://ci_guard:ci_test_only@127.0.0.1:5432/genbioca_development_guard
+      JWT_ACCESS_TTL: 15m
+      JWT_ISSUER: genbioca-compliance-ci
+      REFRESH_TOKEN_DAYS: "7"
+      COOKIE_SECURE: "false"
+      FILE_STORAGE_DRIVER: local
+      LOCAL_UPLOAD_DIR: ./uploads
+      LOG_LEVEL: silent
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: genbioca_ci_test
+          POSTGRES_USER: genbioca_test
+          POSTGRES_PASSWORD: ci_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U genbioca_test -d genbioca_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Create ephemeral JWT test secret
+        shell: bash
+        run: |
+          generated_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$generated_secret"
+          echo "JWT_ACCESS_SECRET=$generated_secret" >> "$GITHUB_ENV"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npm run prisma:generate
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install bundled Chromium
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+      # Brings up the disposable database, the API and the app itself, then
+      # runs the suite with no request intercepts. A failure here means the
+      # product is broken rather than a mock having drifted.
+      - name: Run real-stack E2E
+        working-directory: frontend
+        run: npm run test:e2e:real-stack
+
   guard:
     name: Architecture guards
     runs-on: ubuntu-latest
