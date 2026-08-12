@@ -105,10 +105,14 @@ by UAT language or status-page presentation.
   Configurations cannot combine `requiresEvidence=true` with
   `requiresApproval=false`. There is no approval override that skips those
   gates. Evidence file upload/download works for **local** storage by default;
-  an **S3 driver** is implemented behind `FILE_STORAGE_DRIVER=s3` with signed
-  download URLs and a malware-scan hook, but **this environment has no AWS
-  credentials** — only unit tests against an in-memory fake client are green.
-  Do not treat S3 as production-verified. Inline preview supports PDF and
+  an **S3 driver** is implemented behind `FILE_STORAGE_DRIVER=s3`, together with
+  a signed-download-URL hook and a malware-scan hook. Both remain hooks: no real
+  S3 client ships (no AWS SDK dependency, only an in-memory test fake), the
+  signed-URL hook is not wired into any download route, and the default
+  malware-scan hook is a no-op that accepts everything. Only unit tests against
+  the fake client are green, so **S3 is not production-verified** — see
+  [Storage and operations](#storage-and-operations) for the precise breakdown.
+  Inline preview supports PDF and
   images via `?disposition=inline`. Policy content/purpose/scope render as
   plain text only. Evidence links are mutable only while DRAFT. Evidence review
   is limited to SUBMITTED rows with creator/uploader/submitter self-review
@@ -132,13 +136,46 @@ by UAT language or status-page presentation.
   object storage. Production Compose mounts the private `production_evidence`
   volume; host/disk encryption, restricted access and the combined encrypted
   database-plus-Evidence backup procedure are mandatory compensating controls.
-- S3 is recognised but unimplemented and is rejected during configuration.
+- **S3 status, stated precisely** — the four facts below are distinct and have
+  been read as contradicting each other before:
+  1. *The abstraction is implemented.* Evidence storage sits behind the
+     `FileStorageProvider` contract with two providers,
+     `LocalFileStorageProvider` and `S3FileStorageProvider`
+     (`backend/src/providers/file-storage/file-storage.ts`). Object operations
+     are declared by the `S3ClientPort` interface
+     (`backend/src/providers/file-storage/s3-client-port.ts`), and the same
+     key-containment rules apply to S3 keys as to local paths.
+  2. *There is no production-ready real S3 client.* The repository declares no
+     AWS SDK dependency. The only implementation of `S3ClientPort` is
+     `InMemoryS3Client`, a test fake. `createFileStorageProvider` throws unless
+     a client is injected, and environment validation refuses
+     `FILE_STORAGE_DRIVER=s3` in production unless
+     `S3_ALLOW_INJECTED_CLIENT=true`. Selecting `s3` therefore fails at
+     configuration for want of a client — not because the driver is missing.
+  3. *A signed-URL hook exists but is not wired.* `getSignedDownloadUrl` is
+     declared on `S3ClientPort` and implemented on `S3FileStorageProvider`, and
+     local storage returns null by contract. No route or service calls it: all
+     Evidence downloads, inline preview included, still stream through the API.
+     The only implementation behind it is the fake's fixed `test-signature`
+     string, which performs no cryptographic signing.
+  4. *S3 is not production-verified.* Green unit tests exercise the in-memory
+     fake only. No test, and no environment here, has run against live S3.
 - Evidence upload max is 10 MiB with a code-controlled type allowlist. Abrupt
   process termination may leave temporary files under `.tmp` (no periodic
   orphan scrubber in Slice 5.2).
-- Malware scanning, signed download URLs, inline preview, retention enforcement,
-  encryption key policy and cloud object-level tenant controls are not
-  implemented.
+- **Malware scanning is a hook, and the default hook scans nothing.** The
+  `MalwareScanHook` contract and a `MalwareDetectedError` rejection path exist
+  (`backend/src/providers/file-storage/malware-scan.ts`), and
+  `S3FileStorageProvider` calls the hook before promoting content. The default
+  wired everywhere today is `noopMalwareScanHook`, which accepts every object
+  and reports engine `"noop"`. No scanner ships with the platform; production
+  must inject a real implementation (ClamAV, vendor API) before any upload can
+  be described as scanned. Do not report uploads as malware-checked.
+- Signed download URLs are a declared hook only, not an active delivery path —
+  see the S3 item above. Retention enforcement, encryption key policy and cloud
+  object-level tenant controls are not implemented at all. Inline preview
+  (PDF/image via `?disposition=inline`) **is** implemented and streams through
+  the API.
 - pgAdmin is administrative tooling only; Prisma migrations remain the schema
   authority.
 - `prisma migrate diff` reports pre-existing name-only differences for several
