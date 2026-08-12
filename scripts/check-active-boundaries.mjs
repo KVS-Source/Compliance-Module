@@ -85,10 +85,23 @@ function walk(directory) {
     if (!entry.isFile() || !sourceExtensions.has(extname(entry.name))) continue;
 
     const source = readFileSync(path, "utf8");
-    const importReferencesLegacy =
-      /\bfrom\s*["'][^"']*legacy(?:\/|["'])/.test(source) ||
-      /\bimport\s*\(\s*["'][^"']*legacy(?:\/|["'])/.test(source) ||
-      /\brequire\s*\(\s*["'][^"']*legacy(?:\/|["'])/.test(source);
+    const importSpecifiers = [
+      ...source.matchAll(/\bfrom\s*["']([^"']+)["']/g),
+      ...source.matchAll(/\bimport\s*\(\s*["']([^"']+)["']/g),
+      ...source.matchAll(/\brequire\s*\(\s*["']([^"']+)["']/g),
+    ].map((match) => match[1]);
+
+    // This guard exists to keep active code out of the retired root runtime in
+    // `legacy/`, so only repository paths count. A bare package specifier such
+    // as `pdfjs-dist/legacy/build/pdf.mjs` names a node_modules subpath of a
+    // declared dependency, which this rule was never about.
+    const importReferencesLegacy = importSpecifiers.some(
+      (specifier) =>
+        (specifier.startsWith(".") ||
+          specifier.startsWith("/") ||
+          specifier.startsWith("legacy/")) &&
+        /(?:^|\/)legacy(?:\/|$)/.test(specifier),
+    );
     if (importReferencesLegacy) {
       failures.push(
         `${relative(repositoryRoot, path)} — active runtime imports from legacy/`,
