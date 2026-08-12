@@ -24,5 +24,9 @@ fails the suite rather than passing unnoticed.
 Allowlisting by path rather than by commit fingerprint is deliberate: a
 fingerprint in .gitleaksignore is tied to a commit SHA and stops matching as
 soon as the pull request is squashed or rebased.
+
+The pattern is end-anchored. Without the trailing $ the regex is a substring
+match, so a path that merely starts with it — noto-sans-regular.ts.bak, say —
+would also be skipped, and a secret parked there would go unreported.
 """
-paths = ['''backend/src/modules/reports/fonts/noto-sans-regular\.ts''']
+paths = ['''backend/src/modules/reports/fonts/noto-sans-regular\.ts$''']
