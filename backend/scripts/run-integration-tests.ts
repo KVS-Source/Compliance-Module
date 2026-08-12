@@ -61,6 +61,7 @@ const INTEGRATION_FILES = [
   "tests/policy-lifecycle-lock-api.test.ts",
   "tests/kpi-evidence-gate-api.test.ts",
   "tests/kpi-evidence-concurrency-api.test.ts",
+  "tests/genrac-status-concurrency-api.test.ts",
   "tests/gap-capa-api.test.ts",
   "tests/list-order-and-owner.test.ts",
   "tests/workbook-import-api.test.ts",

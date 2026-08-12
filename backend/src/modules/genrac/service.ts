@@ -1,6 +1,6 @@
 import { access } from "node:fs/promises";
 import { basename, isAbsolute, resolve, sep } from "node:path";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { AppError, notFound } from "../../common/errors/app-error.js";
 import { env } from "../../config/env.js";
 import { pageMeta } from "../../common/responses/envelope.js";
@@ -127,22 +127,59 @@ const sanitiseConfig = (config: unknown) => {
 export class GenracSyncService {
   constructor(private readonly db: PrismaClient) {}
 
+  /**
+   * Returns this Company's GenRAC connection row, creating the NOT_CONFIGURED
+   * placeholder on first use.
+   *
+   * `upsert` cannot be used here. Prisma only compiles an upsert down to a
+   * native `INSERT ... ON CONFLICT` when the `update` clause is non-empty; with
+   * the no-op `update: {}` this needs, it falls back to SELECT-then-INSERT.
+   * Concurrent first loads then all miss the SELECT, all attempt the INSERT,
+   * and every request but one fails P2002 — surfaced to the browser as a 409.
+   * Giving `update` a value instead would write on every read of a GET route.
+   *
+   * So the insert is attempted directly and a unique violation is recovered by
+   * re-reading: the losing request reads the row the winner just committed.
+   * The unique key stays `(tenantId, systemCode)`, so the recovery read can
+   * only ever return this Company's own row.
+   */
   async ensurePlaceholder(tenantId: string) {
-    return this.db.externalSystemConnection.upsert({
-      where: {
-        tenantId_systemCode: { tenantId, systemCode: SYSTEM_CODE },
-      },
-      update: {},
-      create: {
-        tenantId,
-        systemCode: SYSTEM_CODE,
-        displayName: "GenRAC",
-        connectorType: "CSV_FILE",
-        status: "NOT_CONFIGURED",
-        config: {},
-        secretRefKeys: [],
-      },
+    const where = {
+      tenantId_systemCode: { tenantId, systemCode: SYSTEM_CODE },
+    };
+
+    const existing = await this.db.externalSystemConnection.findUnique({
+      where,
     });
+    if (existing) return existing;
+
+    try {
+      return await this.db.externalSystemConnection.create({
+        data: {
+          tenantId,
+          systemCode: SYSTEM_CODE,
+          displayName: "GenRAC",
+          connectorType: "CSV_FILE",
+          status: "NOT_CONFIGURED",
+          config: {},
+          secretRefKeys: [],
+        },
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2002"
+      ) {
+        throw error;
+      }
+      // A concurrent request committed the placeholder first. P2002 means the
+      // row is present, so this read resolves rather than racing again.
+      const raced = await this.db.externalSystemConnection.findUnique({
+        where,
+      });
+      if (raced) return raced;
+      throw error;
+    }
   }
 
   async status(tenantId: string) {
