@@ -15,8 +15,6 @@
 # Dev-only placeholder in dormant legacy code; never used in any real environment.
 64c1b67eb4b9bd1cf99f8482dfe2c3da4509c22a:legacy_python_backend/.env.example:generic-api-key:17
 
-# Base64 line of the vendored Noto Sans TrueType font (gzipped font bytes, not
-# a credential). The generic-api-key rule matches the high-entropy base64. The
-# file's integrity is pinned instead by NOTO_SANS_REGULAR_SHA256, which the
-# report PDF unit tests assert against the decompressed font.
-53af20bf370555c2b34f75c0dee777402f245fc4:backend/src/modules/reports/fonts/noto-sans-regular.ts:generic-api-key:214
+# The vendored report font is allowlisted by path in .gitleaks.toml rather than
+# by fingerprint here: a commit-pinned entry does not survive a squash or rebase
+# of the pull request that introduced it.

@@ -1,0 +1,28 @@
+# Gitleaks configuration.
+#
+# Gitleaks discovers this file automatically at the scan root, so the CI job in
+# .github/workflows needs no --config flag.
+#
+# `useDefault = true` keeps the entire default rule set intact. The allowlist
+# below excludes one path and nothing else; every rule still applies everywhere
+# else in the repository.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+backend/src/modules/reports/fonts/noto-sans-regular.ts is the vendored Noto Sans
+TrueType face, embedded as gzipped base64 so that it reaches production through
+dist/. The generic-api-key rule matches its high-entropy base64 lines; the
+content is font data, not a credential.
+
+Integrity is pinned by NOTO_SANS_REGULAR_SHA256 in that same file, which the
+report PDF unit tests assert against the decompressed bytes, so a tampered font
+fails the suite rather than passing unnoticed.
+
+Allowlisting by path rather than by commit fingerprint is deliberate: a
+fingerprint in .gitleaksignore is tied to a commit SHA and stops matching as
+soon as the pull request is squashed or rebased.
+"""
+paths = ['''backend/src/modules/reports/fonts/noto-sans-regular\.ts''']

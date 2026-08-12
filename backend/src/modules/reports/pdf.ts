@@ -10,8 +10,15 @@
  * currency signs (`Ação`, `Política`, `Grüne`, `—`, `₹`) survive into the file
  * instead of being flattened to ASCII. A `ToUnicode` CMap accompanies the font
  * so the original text is what a reader extracts, copies or searches.
+ *
+ * Coverage is the vendored face, not Unicode at large: Latin, Greek, Cyrillic
+ * and the punctuation and currency signs Noto Sans carries. Code points outside
+ * it — CJK, emoji and other scripts — map to `.notdef`, so they render blank
+ * and extract as NUL rather than being rewritten to a different character.
+ * See `docs/known-limitations.md`.
  */
 
+import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import { notoSansRegular } from "./fonts/noto-sans-regular.js";
 import { parseTrueType, subsetTrueType } from "./truetype.js";
@@ -22,6 +29,29 @@ export type PdfTableRow = Record<string, string | number | null | undefined>;
 /** Parse the vendored font once per process — it never changes at runtime. */
 let parsedFont: ReturnType<typeof parseTrueType> | undefined;
 const reportFont = () => (parsedFont ??= parseTrueType(notoSansRegular()));
+
+/**
+ * Subset name tag, e.g. `ABCDEF+NotoSans`.
+ *
+ * PDF 32000-1 §9.6.4 requires the PostScript name of a subsetted font to begin
+ * with six uppercase letters and a plus sign. The tag must distinguish one
+ * subset from another: every report embeds a different subset, and a tool that
+ * merges or appends board packs may key on the font name. Sharing one name
+ * across different glyph sets lets such a tool bind the wrong font programme to
+ * a glyph id and silently corrupt the text.
+ *
+ * The tag is derived from the subset bytes, so it is deterministic — the same
+ * glyph set always yields the same tag, and byte-identical reports stay
+ * byte-identical — while different glyph sets get different tags.
+ */
+export const subsetFontName = (subsetFont: Buffer): string => {
+  const digest = createHash("sha256").update(subsetFont).digest();
+  let tag = "";
+  for (let index = 0; index < 6; index += 1) {
+    tag += String.fromCharCode(65 + (digest[index]! % 26));
+  }
+  return `${tag}+NotoSans`;
+};
 
 const utf16BeHex = (codePoint: number) => {
   if (codePoint <= 0xffff) {
@@ -125,6 +155,9 @@ export const buildReportPdf = (input: {
   };
 
   // --- Embedded font programme -------------------------------------------
+  // One subset name, used identically by the Type0 font, its CIDFontType2
+  // descendant and the font descriptor.
+  const fontName = subsetFontName(subset.font);
   const compressed = deflateSync(subset.font);
   const fontFileId = addObject(
     Buffer.concat([
@@ -138,7 +171,7 @@ export const buildReportPdf = (input: {
   );
 
   const descriptorId = addObject(
-    `<< /Type /FontDescriptor /FontName /NotoSans /Flags 4 ` +
+    `<< /Type /FontDescriptor /FontName /${fontName} /Flags 4 ` +
       `/FontBBox [ ${font.bbox.map((value) => Math.round(value * scale)).join(" ")} ] ` +
       `/ItalicAngle ${Math.round(font.italicAngle)} ` +
       `/Ascent ${Math.round(font.ascender * scale)} ` +
@@ -152,7 +185,7 @@ export const buildReportPdf = (input: {
     .map((width) => Math.round(width * scale))
     .join(" ");
   const descendantId = addObject(
-    `<< /Type /Font /Subtype /CIDFontType2 /BaseFont /NotoSans ` +
+    `<< /Type /Font /Subtype /CIDFontType2 /BaseFont /${fontName} ` +
       `/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> ` +
       `/FontDescriptor ${descriptorId} 0 R /DW 1000 /W [ 0 [ ${widths} ] ] ` +
       `/CIDToGIDMap /Identity >>`,
@@ -199,7 +232,7 @@ end
   );
 
   const fontId = addObject(
-    `<< /Type /Font /Subtype /Type0 /BaseFont /NotoSans /Encoding /Identity-H ` +
+    `<< /Type /Font /Subtype /Type0 /BaseFont /${fontName} /Encoding /Identity-H ` +
       `/DescendantFonts [ ${descendantId} 0 R ] /ToUnicode ${toUnicodeId} 0 R >>`,
   );
 

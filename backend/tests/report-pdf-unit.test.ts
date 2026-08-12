@@ -5,7 +5,7 @@ import {
   NOTO_SANS_REGULAR_SHA256,
   notoSansRegular,
 } from "../src/modules/reports/fonts/noto-sans-regular.js";
-import { buildReportPdf } from "../src/modules/reports/pdf.js";
+import { buildReportPdf, subsetFontName } from "../src/modules/reports/pdf.js";
 import { REPORT_CATALOGUE } from "../src/modules/reports/service.js";
 import {
   parseTrueType,
@@ -201,18 +201,158 @@ describe("report PDF board pack", () => {
     expect(text).toContain("Código");
   });
 
-  it("does not substitute characters the font cannot render", () => {
-    // A code point outside the vendored face falls back to .notdef rather than
-    // being rewritten into a different, wrong character.
-    const text = buildReportPdf({
-      title: "漢字 test",
+  it("maps characters outside the embedded face to .notdef", async () => {
+    // Coverage is Noto Sans, not Unicode at large. CJK and emoji are absent
+    // from the face, so they resolve to glyph 0 — blank on the page, and NUL
+    // on extraction. They are NOT preserved, and this asserts that honestly
+    // rather than implying otherwise. See docs/known-limitations.md.
+    const pdf = buildReportPdf({
+      title: "漢字 テスト 😀",
       generatedAt: "2026-08-12T12:00:00.000Z",
       columns: [{ key: "code", header: "Code" }],
-      rows: [{ code: "漢字" }],
-    }).toString("latin1");
+      rows: [{ code: "漢字 😀" }],
+    });
 
-    expect(text.startsWith("%PDF-1.4")).toBe(true);
-    expect(text).toContain("%%EOF");
+    // Structurally valid regardless of coverage.
+    const raw = pdf.toString("latin1");
+    expect(raw.startsWith("%PDF-1.4")).toBe(true);
+    expect(raw).toContain("%%EOF");
+
+    const text = await extractPdfText(pdf);
+    // The uncovered code points come back as NUL: not as themselves, and not as
+    // some substituted character such as the old "?". The NUL is written below
+    // as an escape sequence — never as a raw control byte in this source.
+    expect(text).not.toContain("漢");
+    expect(text).not.toContain("😀");
+    expect(text).toContain("\u0000");
+    expect(text).not.toContain("?");
+    // ASCII in the same document is unaffected.
+    expect(text).toContain("Code");
+
+    // Every uncovered code point maps to glyph 0, which carries no ToUnicode
+    // entry — so nothing claims those characters were preserved. Scoped to the
+    // bfchar blocks: the codespace range legitimately begins <0000>.
+    const bfChars = [
+      ...raw.matchAll(/beginbfchar([\s\S]*?)endbfchar/g),
+    ].flatMap((block) => [
+      ...block[1]!.matchAll(/<([0-9A-F]+)> <([0-9A-F]+)>/g),
+    ]);
+    expect(bfChars.length).toBeGreaterThan(0);
+    expect(bfChars.some((entry) => entry[1] === "0000")).toBe(false);
+  });
+
+  it("covers the scripts the documentation claims and no more", () => {
+    const font = parseTrueType(notoSansRegular());
+    const covered = (character: string) =>
+      (font.cmap.get(character.codePointAt(0)!) ?? 0) > 0;
+
+    // Documented as supported.
+    for (const character of [
+      "A",
+      "ç",
+      "ã",
+      "í",
+      "ü",
+      "—",
+      "₹",
+      "€",
+      "£",
+      "·",
+      "’",
+    ]) {
+      expect(covered(character), `expected "${character}" to be covered`).toBe(
+        true,
+      );
+    }
+    // Greek and Cyrillic, also documented as supported.
+    expect(covered("Ω")).toBe(true);
+    expect(covered("Д")).toBe(true);
+
+    // Documented as NOT supported — if a future font swap covers these, the
+    // documentation must be updated rather than this expectation loosened.
+    for (const character of ["漢", "字", "😀", "ع", "א", "ก", "अ"]) {
+      expect(
+        covered(character),
+        `"${character}" is now covered — update docs/known-limitations.md`,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("subset font naming", () => {
+  const nameIn = (pdf: Buffer) => {
+    const raw = pdf.toString("latin1");
+    return {
+      base: [...raw.matchAll(/\/BaseFont \/([^\s/>]+)/g)].map((m) => m[1]),
+      descriptor: [...raw.matchAll(/\/FontName \/([^\s/>]+)/g)].map(
+        (m) => m[1],
+      ),
+    };
+  };
+
+  it("tags the subset with six uppercase letters and a plus sign", () => {
+    const { base, descriptor } = nameIn(buildReportPdf(unicodeReport("Ação")));
+    // PDF 32000-1 9.6.4.
+    for (const name of [...base, ...descriptor]) {
+      expect(name).toMatch(/^[A-Z]{6}\+NotoSans$/);
+    }
+  });
+
+  it("uses one identical name across Type0, CIDFontType2 and the descriptor", () => {
+    const pdf = buildReportPdf(unicodeReport("Ação"));
+    const raw = pdf.toString("latin1");
+    const { base, descriptor } = nameIn(pdf);
+
+    // Two /BaseFont entries (Type0 + CIDFontType2) and one /FontName.
+    expect(base).toHaveLength(2);
+    expect(descriptor).toHaveLength(1);
+    expect(new Set([...base, ...descriptor]).size).toBe(1);
+
+    const name = base[0]!;
+    expect(raw).toContain(`/Subtype /Type0 /BaseFont /${name}`);
+    expect(raw).toContain(`/Subtype /CIDFontType2 /BaseFont /${name}`);
+    expect(raw).toContain(`/Type /FontDescriptor /FontName /${name}`);
+  });
+
+  it("is deterministic for the same glyph set", () => {
+    const first = nameIn(buildReportPdf(unicodeReport("Ação"))).base[0];
+    const second = nameIn(buildReportPdf(unicodeReport("Ação"))).base[0];
+    expect(first).toBe(second);
+  });
+
+  it("differs when the glyph set differs", () => {
+    // Distinct subsets must not share a name: a tool that merges board packs
+    // may key on the font name and would otherwise bind the wrong programme.
+    const latin = nameIn(
+      buildReportPdf({
+        title: "Ação",
+        generatedAt: "2026-08-12T12:00:00.000Z",
+        columns: [{ key: "a", header: "Código" }],
+        rows: [{ a: "Grüne ₹" }],
+      }),
+    ).base[0];
+    const plain = nameIn(
+      buildReportPdf({
+        title: "Gaps",
+        generatedAt: "2026-08-12T12:00:00.000Z",
+        columns: [{ key: "a", header: "Code" }],
+        rows: [{ a: "GAP-001" }],
+      }),
+    ).base[0];
+
+    expect(latin).not.toBe(plain);
+    expect(latin).toMatch(/^[A-Z]{6}\+NotoSans$/);
+    expect(plain).toMatch(/^[A-Z]{6}\+NotoSans$/);
+  });
+
+  it("derives the tag from the subset bytes", () => {
+    const font = parseTrueType(notoSansRegular());
+    const glyphs = [..."Ação"].map(
+      (character) => font.cmap.get(character.codePointAt(0)!) ?? 0,
+    );
+    const subset = subsetTrueType(font, glyphs);
+    expect(subsetFontName(subset.font)).toMatch(/^[A-Z]{6}\+NotoSans$/);
+    expect(subsetFontName(subset.font)).toBe(subsetFontName(subset.font));
   });
 });
 
