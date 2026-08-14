@@ -1,0 +1,357 @@
+{
+  "info": {
+    "name": "GenBioCa Control API",
+    "description": "Milestone 4 Slice 3 Control register, lifecycle and mapping sample. Use synthetic .test identities only. Populate password variables locally; never commit secrets. Optional archive-rejection step uses a seeded Control with an ACTIVE Checkpoint — copy its ID into controlWithActiveCheckpointId from seed/pgAdmin.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" }
+  ],
+  "item": [
+    {
+      "name": "1. Admin login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.environment.set('accessToken', body.data.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "2. List frameworks (capture ids)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "const first = (body.data || [])[0];",
+              "if (first) pm.environment.set('frameworkId', first.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/frameworks"
+      }
+    },
+    {
+      "name": "3. List framework rules (capture id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "const first = (body.data || [])[0];",
+              "if (first) pm.environment.set('frameworkRuleId', first.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/frameworks/{{frameworkId}}/rules"
+      }
+    },
+    {
+      "name": "4. List Policies (capture approved Version)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "const withApproved = (body.data || []).find(p => p.currentApprovedVersion);",
+              "if (withApproved) {",
+              "  pm.environment.set('policyId', withApproved.id);",
+              "  pm.environment.set('policyVersionId', withApproved.currentApprovedVersion.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/policies?page=1&pageSize=20"
+      }
+    },
+    {
+      "name": "5. Create Control",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.environment.set('controlId', body.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman Synthetic Control\",\n  \"objective\": \"Demonstrate Control register and mapping APIs\",\n  \"implementationStatus\": \"NOT_STARTED\",\n  \"controlType\": \"PREVENTIVE\",\n  \"frequency\": \"MONTHLY\",\n  \"verificationMethod\": \"Review synthetic Checkpoint outcomes\"\n}"
+        },
+        "url": "{{baseUrl}}/controls"
+      }
+    },
+    {
+      "name": "6. List Controls",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/controls?page=1&pageSize=20"
+      }
+    },
+    {
+      "name": "7. View Control detail",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/controls/{{controlId}}"
+      }
+    },
+    {
+      "name": "8. Update Control",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman Synthetic Control (updated)\",\n  \"implementationStatus\": \"IN_PROGRESS\"\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}"
+      }
+    },
+    {
+      "name": "9. Deactivate Control",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/controls/{{controlId}}/deactivate"
+      }
+    },
+    {
+      "name": "10. Activate Control",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/controls/{{controlId}}/activate"
+      }
+    },
+    {
+      "name": "11. Map APPROVED Policy Version",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"policyVersionIds\": [\"{{policyVersionId}}\"]\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}/policy-versions"
+      }
+    },
+    {
+      "name": "12. Map Frameworks",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"frameworkIds\": [\"{{frameworkId}}\"]\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}/frameworks"
+      }
+    },
+    {
+      "name": "13. Map Framework Rules",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"frameworkRuleIds\": [\"{{frameworkRuleId}}\"]\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}/framework-rules"
+      }
+    },
+    {
+      "name": "14. View traceability",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/controls/{{controlId}}/traceability"
+      }
+    },
+    {
+      "name": "15. View audit events",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/controls/{{controlId}}/audit-events?page=1&pageSize=50"
+      }
+    },
+    {
+      "name": "16a. Clear Framework Rules before negative test",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"frameworkRuleIds\": []\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}/framework-rules"
+      }
+    },
+    {
+      "name": "16b. Clear Frameworks before negative test",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"frameworkIds\": []\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}/frameworks"
+      }
+    },
+    {
+      "name": "16c. Rule mapping without Framework (expect 400)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"frameworkRuleIds\": [\"{{frameworkRuleId}}\"]\n}"
+        },
+        "url": "{{baseUrl}}/controls/{{controlId}}/framework-rules",
+        "description": "Expect CONTROL_MAPPING_INVALID because no active ControlFramework exists."
+      }
+    },
+    {
+      "name": "17. Read-only login (permission denied create)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.environment.set('readOnlyToken', body.data.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{readOnlyEmail}}\",\n  \"password\": \"{{readOnlyPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "18. Permission-denied create (expect 403)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{readOnlyToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Should fail\",\n  \"objective\": \"Permission check\",\n  \"implementationStatus\": \"NOT_STARTED\",\n  \"controlType\": \"PREVENTIVE\",\n  \"frequency\": \"MONTHLY\",\n  \"verificationMethod\": \"n/a\"\n}"
+        },
+        "url": "{{baseUrl}}/controls"
+      }
+    },
+    {
+      "name": "19. Cross-tenant-safe failure (expect 404)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/controls/{{crossTenantControlId}}"
+      }
+    },
+    {
+      "name": "20. Optional seeded archive rejection (expect 409)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/controls/{{controlWithActiveCheckpointId}}/archive",
+        "description": "Optional. Set controlWithActiveCheckpointId from the synthetic seeded Control that owns an ACTIVE Checkpoint (for example SMP-CTL-001 / CTL-001 in seeded Companies). Expect CONTROL_HAS_ACTIVE_CHECKPOINTS. Leave the placeholder empty until you copy the ID from seed/pgAdmin."
+      }
+    },
+    {
+      "name": "21. Archive eligible Control",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/controls/{{controlId}}/archive"
+      }
+    }
+  ]
+}

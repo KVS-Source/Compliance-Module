@@ -1,0 +1,1949 @@
+{
+  "info": {
+    "_postman_id": "0b183b89-9030-4bd5-972d-5db9e1a2bf79",
+    "name": "GenBioCa GRC API",
+    "description": "Development collection for the GenBioCa GRC FastAPI backend. Run the demo seed before using the collection. Login stores the bearer token automatically; create requests store IDs for later workflow requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "client_slug",
+      "value": "genbioca"
+    },
+    {
+      "key": "email",
+      "value": "admin@genbioca.local"
+    },
+    {
+      "key": "password",
+      "value": "ChangeMe-Admin-2026!"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "client_id",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "framework_id",
+      "value": ""
+    },
+    {
+      "key": "control_id",
+      "value": ""
+    },
+    {
+      "key": "checkpoint_id",
+      "value": ""
+    },
+    {
+      "key": "kpi_id",
+      "value": ""
+    },
+    {
+      "key": "target_id",
+      "value": ""
+    },
+    {
+      "key": "actual_id",
+      "value": ""
+    },
+    {
+      "key": "policy_id",
+      "value": ""
+    },
+    {
+      "key": "register_id",
+      "value": ""
+    },
+    {
+      "key": "evidence_id",
+      "value": ""
+    },
+    {
+      "key": "gap_id",
+      "value": ""
+    },
+    {
+      "key": "capa_id",
+      "value": ""
+    },
+    {
+      "key": "role_id",
+      "value": ""
+    },
+    {
+      "key": "permission_id",
+      "value": ""
+    },
+    {
+      "key": "role_permission_id",
+      "value": ""
+    },
+    {
+      "key": "department_id",
+      "value": ""
+    },
+    {
+      "key": "employee_id",
+      "value": ""
+    },
+    {
+      "key": "risk_id",
+      "value": ""
+    },
+    {
+      "key": "lookup_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "System and Auth",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login - GenBioCa Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login succeeded', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('token', pm.response.json().access_token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_slug\": \"{{client_slug}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/dashboard/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client and Users",
+      "item": [
+        {
+          "name": "Current Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('client_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('user_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/users?offset=0&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Frameworks",
+      "item": [
+        {
+          "name": "List Active Frameworks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('framework_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/frameworks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "frameworks"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "KPIs",
+      "item": [
+        {
+          "name": "List KPIs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('kpi_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpis",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpis"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create KPI",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('KPI created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('kpi_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kpi_code\": \"POSTMAN-{{$timestamp}}\",\n  \"name\": \"Postman test KPI\",\n  \"unit\": \"%\",\n  \"frequency\": \"monthly\",\n  \"use_in_scope\": true,\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpis",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpis"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get KPI",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpis/{{kpi_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpis",
+                "{{kpi_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update KPI",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated from Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpis/{{kpi_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpis",
+                "{{kpi_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create KPI Target",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('target_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kpi_id\": \"{{kpi_id}}\",\n  \"period_start\": \"2027-01-01\",\n  \"period_end\": \"2027-01-31\",\n  \"target_value\": 95,\n  \"warning_threshold\": 90,\n  \"critical_threshold\": 85\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpi-targets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpi-targets"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List KPI Targets",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpi-targets?kpi_id={{kpi_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpi-targets"
+              ],
+              "query": [
+                {
+                  "key": "kpi_id",
+                  "value": "{{kpi_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit KPI Actual",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('actual_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kpi_id\": \"{{kpi_id}}\",\n  \"kpi_target_id\": \"{{target_id}}\",\n  \"period_start\": \"2027-01-01\",\n  \"period_end\": \"2027-01-31\",\n  \"target_value\": 95,\n  \"actual_value\": 93,\n  \"rag_status\": \"amber\",\n  \"evidence_required\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpi-actuals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpi-actuals"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List KPI Actuals",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpi-actuals?kpi_id={{kpi_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpi-actuals"
+              ],
+              "query": [
+                {
+                  "key": "kpi_id",
+                  "value": "{{kpi_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List KPI Framework Mappings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpis/{{kpi_id}}/framework-mappings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpis",
+                "{{kpi_id}}",
+                "framework-mappings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Policies",
+      "item": [
+        {
+          "name": "List Policies",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "policies"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Policy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('policy_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_code\": \"POSTMAN-POL-{{$timestamp}}\",\n  \"title\": \"Postman test policy\",\n  \"description\": \"Created by the API collection\",\n  \"use_in_scope\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "policies"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Policy Register Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('register_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_id\": \"{{policy_id}}\",\n  \"version\": \"1.0\",\n  \"effective_date\": \"2026-07-01\",\n  \"next_review_date\": \"2026-10-01\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/policy-register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "policy-register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Policy Register",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/policy-register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "policy-register"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evidence Workflow",
+      "item": [
+        {
+          "name": "List Evidence",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Evidence - select a local file",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('evidence_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "description",
+                  "value": "Uploaded from Postman",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence",
+                "upload"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve Evidence",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approval_status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence/{{evidence_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence",
+                "{{evidence_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Link Evidence to KPI Actual",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"evidence_document_id\": \"{{evidence_id}}\",\n  \"entity_type\": \"kpi_actual\",\n  \"entity_id\": \"{{actual_id}}\",\n  \"link_type\": \"supporting\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence/links",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence",
+                "links"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve KPI Actual",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approval_status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/kpi-actuals/{{actual_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kpi-actuals",
+                "{{actual_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gaps and CAPA",
+      "item": [
+        {
+          "name": "List Gaps",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/gaps",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gaps"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Gap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('gap_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman demonstration gap\",\n  \"description\": \"Created by the API collection\",\n  \"severity\": \"medium\",\n  \"due_date\": \"2026-08-01\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/gaps",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gaps"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create CAPA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('capa_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gap_id\": \"{{gap_id}}\",\n  \"capa_type\": \"corrective\",\n  \"title\": \"Postman demonstration CAPA\",\n  \"root_cause\": \"Demonstration root cause\",\n  \"action_plan\": \"Complete the demonstration action\",\n  \"due_date\": \"2026-08-15\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/capa",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "capa"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List CAPA",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/capa",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "capa"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('role_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Role {{$timestamp}}\",\n  \"description\": \"Created from Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Role created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('role_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Role",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles",
+                "{{role_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated from Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles",
+                "{{role_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Permissions",
+      "item": [
+        {
+          "name": "List Permissions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "permissions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('permission_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"postman.perm.{{$timestamp}}\",\n  \"name\": \"Postman permission\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "permissions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Permission created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('permission_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Role Permissions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles",
+                "{{role_id}}",
+                "permissions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign Permission To Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permission_id\": \"{{permission_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles",
+                "{{role_id}}",
+                "permissions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Permission assigned', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('role_permission_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Permission From Role",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles/{{role_id}}/permissions/{{permission_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles",
+                "{{role_id}}",
+                "permissions",
+                "{{permission_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Departments",
+      "item": [
+        {
+          "name": "List Departments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/departments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('department_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"DEP-{{$timestamp}}\",\n  \"name\": \"Postman Department\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/departments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Department created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('department_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Department",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/departments/{{department_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments",
+                "{{department_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Department",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Department (updated)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/departments/{{department_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments",
+                "{{department_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "item": [
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('employee_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Employee - requires HR access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_code\": \"EMP-{{$timestamp}}\",\n  \"full_name\": \"Postman Employee\",\n  \"email\": \"postman.employee@example.com\",\n  \"department_id\": \"{{department_id}}\",\n  \"designation\": \"Analyst\",\n  \"employment_type\": \"full_time\",\n  \"joining_date\": \"2026-07-01\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Employee created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('employee_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Employee",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{employee_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"designation\": \"Senior Analyst\",\n  \"current_work\": \"Compliance reporting\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{employee_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Controls",
+      "item": [
+        {
+          "name": "List Controls",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/controls",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "controls"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) {",
+                  "  pm.collectionVariables.set('control_id', pm.response.json()[0].id);",
+                  "  pm.collectionVariables.set('framework_id', pm.response.json()[0].framework_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Control",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/controls/{{control_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "controls",
+                "{{control_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Control - platform admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"framework_id\": \"{{framework_id}}\",\n  \"control_code\": \"CTL-{{$timestamp}}\",\n  \"title\": \"Postman control\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/controls",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "controls"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Control created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('control_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Control - platform admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman control (updated)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/controls/{{control_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "controls",
+                "{{control_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkpoints",
+      "item": [
+        {
+          "name": "List Checkpoints",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkpoints",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('checkpoint_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Checkpoint",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkpoints/{{checkpoint_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpoint_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Checkpoint - platform admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"framework_id\": \"{{framework_id}}\",\n  \"control_id\": \"{{control_id}}\",\n  \"checkpoint_code\": \"CP-{{$timestamp}}\",\n  \"title\": \"Postman checkpoint\",\n  \"evidence_required\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkpoints",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Checkpoint created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('checkpoint_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Checkpoint - platform admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guidance\": \"Attach the signed record\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkpoints/{{checkpoint_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpoint_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Risks",
+      "item": [
+        {
+          "name": "List Risks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/risks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "risks"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('risk_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Risk",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"risk_code\": \"RSK-{{$timestamp}}\",\n  \"title\": \"Postman risk\",\n  \"description\": \"Risk created from Postman\",\n  \"likelihood\": 3,\n  \"impact\": 4,\n  \"treatment\": \"Mitigation plan\",\n  \"due_date\": \"2026-09-01\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/risks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "risks"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Risk created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('risk_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Risk",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/risks/{{risk_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "risks",
+                "{{risk_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Risk",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"impact\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/risks/{{risk_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "risks",
+                "{{risk_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lookups",
+      "item": [
+        {
+          "name": "List Lookups",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lookups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lookups"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length) { pm.collectionVariables.set('lookup_id', pm.response.json()[0].id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Lookup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"priority\",\n  \"code\": \"high-{{$timestamp}}\",\n  \"label\": \"High\",\n  \"sort_order\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/lookups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lookups"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lookup created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('lookup_id', pm.response.json().id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Lookup",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lookups/{{lookup_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lookups",
+                "{{lookup_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Lookup",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"High priority\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/lookups/{{lookup_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lookups",
+                "{{lookup_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

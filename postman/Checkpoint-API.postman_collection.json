@@ -1,0 +1,497 @@
+{
+  "info": {
+    "name": "GenBioCa Checkpoint API",
+    "description": "Milestone 4 Slice 4 Checkpoint register, lifecycle and Review sample. Use synthetic .test identities only. Populate password variables locally; never commit secrets.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" }
+  ],
+  "item": [
+    {
+      "name": "1. Admin login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Login succeeded', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.environment.set('accessToken', body.data.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "2. Create Control (eligible parent)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Control created', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.environment.set('controlId', body.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman Synthetic Control for Checkpoints\",\n  \"objective\": \"Parent Control for Checkpoint API walkthrough\",\n  \"implementationStatus\": \"NOT_STARTED\",\n  \"controlType\": \"PREVENTIVE\",\n  \"frequency\": \"MONTHLY\",\n  \"verificationMethod\": \"Review synthetic Checkpoint outcomes\"\n}"
+        },
+        "url": "{{baseUrl}}/controls"
+      }
+    },
+    {
+      "name": "3. Create Checkpoint",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Checkpoint created', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.environment.set('checkpointId', body.data.id);",
+              "pm.test('Server allocated CHK code', function () { pm.expect(body.data.code).to.match(/^CHK-/); });",
+              "pm.test('Lifecycle ACTIVE', function () { pm.expect(body.data.lifecycleStatus).to.eql('ACTIVE'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"controlId\": \"{{controlId}}\",\n  \"title\": \"Postman Synthetic Checkpoint\",\n  \"description\": \"Demonstrate Checkpoint register and reviews\",\n  \"verificationFrequency\": \"MONTHLY\",\n  \"expectedResult\": \"Synthetic verification remains successful\",\n  \"evidenceRequired\": false,\n  \"initialReviewDate\": \"2026-07-01\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints"
+      }
+    },
+    {
+      "name": "4. List Checkpoints",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints?controlId={{controlId}}&page=1&pageSize=20"
+      }
+    },
+    {
+      "name": "5. View Checkpoint detail",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}"
+      }
+    },
+    {
+      "name": "6. Update Checkpoint",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman Synthetic Checkpoint (updated)\",\n  \"expectedResult\": \"Updated synthetic expected result\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}"
+      }
+    },
+    {
+      "name": "7. Deactivate Checkpoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/deactivate"
+      }
+    },
+    {
+      "name": "8. Activate Checkpoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/activate"
+      }
+    },
+    {
+      "name": "9. Create first Review",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Review created', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.environment.set('reviewId', body.data.id);",
+              "pm.environment.set('reviewPeriod', body.data.reviewPeriod);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reviewPeriod\": \"{{reviewPeriod}}\",\n  \"reviewDate\": \"2026-07-15\",\n  \"outcome\": \"PASS\",\n  \"observation\": \"Synthetic first review observation\",\n  \"recommendation\": \"Continue monthly verification\",\n  \"nextReviewDate\": \"2026-08-15\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/reviews"
+      }
+    },
+    {
+      "name": "10. View latest Review",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/latest-review"
+      }
+    },
+    {
+      "name": "11. View Review history",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/reviews?page=1&pageSize=20"
+      }
+    },
+    {
+      "name": "12. Create later Review",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Later Review created', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.environment.set('reviewId', body.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reviewPeriod\": \"{{secondReviewPeriod}}\",\n  \"reviewDate\": \"2026-08-15\",\n  \"outcome\": \"PARTIAL\",\n  \"observation\": \"Synthetic later review needs follow-up\",\n  \"recommendation\": \"Re-check next period\",\n  \"nextReviewDate\": \"2026-09-15\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/reviews"
+      }
+    },
+    {
+      "name": "13. Verify latest Review changed",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('Latest matches second period', function () {",
+              "  pm.expect(body.data.reviewPeriod).to.eql(pm.environment.get('secondReviewPeriod'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/latest-review"
+      }
+    },
+    {
+      "name": "14. Duplicate-period Review (expect 409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Duplicate period rejected', function () {",
+              "  pm.response.to.have.status(409);",
+              "  pm.expect(pm.response.json().error.code).to.eql('CHECKPOINT_REVIEW_DUPLICATE');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reviewPeriod\": \"{{reviewPeriod}}\",\n  \"reviewDate\": \"2026-07-20\",\n  \"outcome\": \"PASS\",\n  \"observation\": \"Duplicate period should fail\",\n  \"nextReviewDate\": \"2026-08-20\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/reviews"
+      }
+    },
+    {
+      "name": "15. View traceability",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/traceability"
+      }
+    },
+    {
+      "name": "16. View audit events",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/audit-events?page=1&pageSize=50"
+      }
+    },
+    {
+      "name": "17. Read-only login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.environment.set('readOnlyToken', body.data.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{readOnlyEmail}}\",\n  \"password\": \"{{readOnlyPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "18. Permission denial create (expect 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Write denied', function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{readOnlyToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"controlId\": \"{{controlId}}\",\n  \"title\": \"Should be forbidden\",\n  \"expectedResult\": \"Should not create\",\n  \"verificationFrequency\": \"MONTHLY\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints"
+      }
+    },
+    {
+      "name": "19. Cross-tenant-safe 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Safe not found', function () {",
+              "  pm.response.to.have.status(404);",
+              "  pm.expect(pm.response.json().error.code).to.eql('CHECKPOINT_NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkpoints/{{crossTenantCheckpointId}}"
+      }
+    },
+    {
+      "name": "20. Archive Checkpoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/archive"
+      }
+    },
+    {
+      "name": "21. PATCH after archive (expect 409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Archived immutable', function () {",
+              "  pm.response.to.have.status(409);",
+              "  pm.expect(pm.response.json().error.code).to.eql('CHECKPOINT_INVALID_STATE');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Should fail after archive\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}"
+      }
+    },
+    {
+      "name": "22. Review after archive (expect 409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Review rejected after archive', function () {",
+              "  pm.response.to.have.status(409);",
+              "  pm.expect(pm.response.json().error.code).to.eql('CHECKPOINT_INVALID_STATE');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reviewPeriod\": \"2026-09\",\n  \"reviewDate\": \"2026-09-15\",\n  \"outcome\": \"PASS\",\n  \"nextReviewDate\": \"2026-10-15\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints/{{checkpointId}}/reviews"
+      }
+    },
+    {
+      "name": "23. Create Control for archive protection",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Control created', function () { pm.response.to.have.status(201); });",
+              "pm.environment.set('controlId', pm.response.json().data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Archive protection Control\",\n  \"objective\": \"Demonstrate ACTIVE Checkpoint blocks Control archive\",\n  \"implementationStatus\": \"NOT_STARTED\",\n  \"controlType\": \"PREVENTIVE\",\n  \"frequency\": \"MONTHLY\",\n  \"verificationMethod\": \"Synthetic\"\n}"
+        },
+        "url": "{{baseUrl}}/controls"
+      }
+    },
+    {
+      "name": "24. Create ACTIVE Checkpoint blocker",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Checkpoint created', function () { pm.response.to.have.status(201); });",
+              "pm.environment.set('checkpointId', pm.response.json().data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"controlId\": \"{{controlId}}\",\n  \"title\": \"Archive blocker Checkpoint\",\n  \"expectedResult\": \"Blocks Control archive while ACTIVE\",\n  \"verificationFrequency\": \"MONTHLY\"\n}"
+        },
+        "url": "{{baseUrl}}/checkpoints"
+      }
+    },
+    {
+      "name": "25. ACTIVE Checkpoint blocks Control archive (expect 409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Control archive blocked', function () {",
+              "  pm.response.to.have.status(409);",
+              "  pm.expect(pm.response.json().error.code).to.eql('CONTROL_HAS_ACTIVE_CHECKPOINTS');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/controls/{{controlId}}/archive"
+      }
+    }
+  ]
+}

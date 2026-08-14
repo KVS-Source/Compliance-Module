@@ -1,0 +1,1 @@
+import { Request, Response } from 'express'; import { getClientId } from '../../middleware/tenant.middleware'; import { asyncHandler } from '../../utils/async-handler'; import { summary as getSummary } from './dashboard.service'; export const summary = asyncHandler(async (req: Request, res: Response) => res.json(await getSummary(getClientId(req))));

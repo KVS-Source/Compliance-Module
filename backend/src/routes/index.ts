@@ -1,0 +1,229 @@
+import { Router } from "express";
+import type { PrismaClient } from "@prisma/client";
+import type { SharedMasterProvider } from "../providers/shared-master/provider.js";
+import { authRoutes } from "../modules/auth/routes.js";
+import { AuthRepository } from "../modules/auth/repository.js";
+import { AuthService } from "../modules/auth/service.js";
+import { tenantsRoutes } from "../modules/tenants/routes.js";
+import { usersRoutes } from "../modules/users/routes.js";
+import { commentRoutes } from "../modules/comments/routes.js";
+import { RecordCommentService } from "../modules/comments/service.js";
+import { UserImportService } from "../modules/users/import-service.js";
+import { UserSessionService } from "../modules/users/session-service.js";
+import { SavedViewService } from "../modules/saved-views/service.js";
+import { savedViewRoutes } from "../modules/saved-views/routes.js";
+import { NotificationService } from "../modules/notifications/service.js";
+import { notificationRoutes } from "../modules/notifications/routes.js";
+import { TaskService } from "../modules/tasks/service.js";
+import { taskRoutes } from "../modules/tasks/routes.js";
+import { UsersRepository } from "../modules/users/repository.js";
+import { organisationRoutes } from "../modules/organisation/routes.js";
+import { OrganisationRepository } from "../modules/organisation/repository.js";
+import {
+  frameworksRoutes,
+  FrameworksRepository,
+} from "../modules/frameworks/routes.js";
+import { kpiDefinitionRoutes, kpiGoalRoutes } from "../modules/kpis/routes.js";
+import { KpiManagementRepository } from "../modules/kpis/management-repository.js";
+import { KpiManagementService } from "../modules/kpis/management-service.js";
+import {
+  kpiConfigurationRoutes,
+  kpiTargetRoutes,
+} from "../modules/kpis/management-routes.js";
+import { KpiActualRepository } from "../modules/kpis/actual-repository.js";
+import { KpiActualService } from "../modules/kpis/actual-service.js";
+import { kpiActualRoutes } from "../modules/kpis/actual-routes.js";
+import { KpiPerformanceService } from "../modules/kpis/performance-service.js";
+import { RiskRepository } from "../modules/risks/repository.js";
+import { RiskService } from "../modules/risks/service.js";
+import { riskRoutes } from "../modules/risks/routes.js";
+import { EvidenceGateService } from "../modules/evidence/evidence-gate-service.js";
+import { DashboardRepository } from "../modules/dashboard/repository.js";
+import { DashboardAnalyticsRepository } from "../modules/dashboard/analytics-repository.js";
+import { DashboardSummaryRepository } from "../modules/dashboard/summary-repository.js";
+import { DashboardSummaryService } from "../modules/dashboard/summary-service.js";
+import { dashboardRoutes } from "../modules/dashboard/routes.js";
+import { GapRepository } from "../modules/gaps/repository.js";
+import { GapService } from "../modules/gaps/service.js";
+import { gapRoutes } from "../modules/gaps/routes.js";
+import { CapaRepository } from "../modules/capa/repository.js";
+import { CapaService } from "../modules/capa/service.js";
+import { capaRoutes } from "../modules/capa/routes.js";
+import { RegisterService } from "../modules/registers/service.js";
+import { registerRoutes } from "../modules/registers/routes.js";
+import { WorkbookImportService } from "../modules/imports/service.js";
+import { importRoutes } from "../modules/imports/routes.js";
+import { AccessProfileService, accessRoutes } from "../modules/access/routes.js";
+import { KpiCatalogueService } from "../modules/kpis/catalogue-service.js";
+import { kpiCatalogueRoutes } from "../modules/kpis/catalogue-routes.js";
+import { DelegationService } from "../modules/delegation/service.js";
+import { delegationRoutes } from "../modules/delegation/routes.js";
+import { ReportService } from "../modules/reports/service.js";
+import { reportRoutes } from "../modules/reports/routes.js";
+import { ExportService } from "../modules/exports/service.js";
+import { exportRoutes } from "../modules/exports/routes.js";
+import { AuditTrailService } from "../modules/audit/service.js";
+import { auditRoutes } from "../modules/audit/routes.js";
+import { GenracSyncService } from "../modules/genrac/service.js";
+import { genracRoutes } from "../modules/genrac/routes.js";
+import { PolicyRepository } from "../modules/policies/repository.js";
+import { PolicyService } from "../modules/policies/service.js";
+import {
+  policyRoutes,
+  policyVersionRoutes,
+} from "../modules/policies/routes.js";
+import { ControlRepository } from "../modules/controls/repository.js";
+import { ControlService } from "../modules/controls/service.js";
+import { controlRoutes } from "../modules/controls/routes.js";
+import { CheckpointRepository } from "../modules/checkpoints/repository.js";
+import { CheckpointService } from "../modules/checkpoints/service.js";
+import { checkpointRoutes } from "../modules/checkpoints/routes.js";
+import { EvidenceRepository } from "../modules/evidence/repository.js";
+import { EvidenceService } from "../modules/evidence/service.js";
+import { evidenceRoutes } from "../modules/evidence/routes.js";
+import {
+  authenticate,
+  authorizeTenantContext,
+} from "../common/middleware/http.js";
+import { apiRateLimiter } from "../common/middleware/rate-limit.js";
+import type { FileStorageProvider } from "../providers/file-storage/file-storage.js";
+import { createFileStorageProvider } from "../providers/file-storage/file-storage.js";
+import { env } from "../config/env.js";
+
+export const apiRoutes = (
+  db: PrismaClient,
+  provider: SharedMasterProvider,
+  fileStorage: FileStorageProvider = createFileStorageProvider({
+    driver: env.FILE_STORAGE_DRIVER,
+    localRoot: env.LOCAL_UPLOAD_DIR,
+  }),
+) => {
+  const router = Router();
+  const kpiManagement = new KpiManagementService(
+    new KpiManagementRepository(db),
+  );
+  const risks = new RiskService(new RiskRepository(db));
+  const dashboard = new DashboardSummaryService(
+    new DashboardSummaryRepository(db),
+    new DashboardRepository(db),
+    new DashboardAnalyticsRepository(db),
+  );
+  const evidenceGate = new EvidenceGateService(db);
+  const gaps = new GapService(new GapRepository(db), evidenceGate);
+  const capas = new CapaService(new CapaRepository(db), evidenceGate);
+  const registers = new RegisterService(db);
+  const workbookImports = new WorkbookImportService(db);
+  const exports = new ExportService(db);
+  const reports = new ReportService(db);
+  const kpiCatalogue = new KpiCatalogueService(db);
+  const accessProfiles = new AccessProfileService(db);
+  const usersRepository = new UsersRepository(db);
+  const userImports = new UserImportService(db, usersRepository);
+  const userSessions = new UserSessionService(db);
+  const delegations = new DelegationService(db);
+  const auditTrail = new AuditTrailService(db);
+  const genrac = new GenracSyncService(db);
+  const policies = new PolicyService(new PolicyRepository(db), evidenceGate);
+  const controls = new ControlService(new ControlRepository(db));
+  const checkpoints = new CheckpointService(
+    new CheckpointRepository(db),
+    evidenceGate,
+  );
+  const evidence = new EvidenceService(new EvidenceRepository(db), fileStorage);
+  const savedViews = new SavedViewService(db);
+  const notifications = new NotificationService(db);
+  const tasks = new TaskService(db);
+  const kpiActuals = new KpiActualService(
+    new KpiActualRepository(db),
+    new KpiPerformanceService(),
+    risks,
+    evidenceGate,
+    delegations,
+  );
+  router.get("/health", (_req, res) =>
+    res.json({
+      success: true,
+      data: { status: "ok" },
+    }),
+  );
+  router.get("/ready", async (req, res) => {
+    try {
+      await db.$queryRaw`SELECT 1`;
+      if (env.READINESS_STORAGE_CHECK === "true") {
+        await fileStorage.checkReady();
+      }
+      if (env.NODE_ENV === "production") {
+        const wildcardAssignments = await db.userRole.count({
+          where: {
+            status: "ACTIVE",
+            user: { status: "ACTIVE" },
+            role: {
+              status: "ACTIVE",
+              permissions: { some: { permission: { code: "*" } } },
+            },
+          },
+        });
+        if (wildcardAssignments > 0) {
+          throw new Error("Unsafe production role assignment detected");
+        }
+      }
+      return res.json({ success: true, data: { status: "ready" } });
+    } catch {
+      req.log?.warn("readiness check failed");
+      return res.status(503).json({
+        success: false,
+        error: {
+          code: "NOT_READY",
+          message: "Service is not ready",
+        },
+      });
+    }
+  });
+  // Mounted after the probes so orchestrator health checks never consume budget.
+  router.use(apiRateLimiter());
+  router.use("/auth", authRoutes(new AuthService(new AuthRepository(db))));
+  router.use(authenticate, authorizeTenantContext(db));
+  router.use("/tenants", tenantsRoutes(provider, db));
+  router.use("/dashboard", dashboardRoutes(dashboard));
+  router.use(
+    "/users",
+    usersRoutes(provider, usersRepository, userImports, userSessions),
+  );
+  router.use(
+    "/organisation",
+    organisationRoutes(provider, new OrganisationRepository(db)),
+  );
+  router.use(
+    "/frameworks",
+    frameworksRoutes(provider, new FrameworksRepository(db)),
+  );
+  router.use("/access", accessRoutes(accessProfiles));
+  router.use("/delegations", delegationRoutes(delegations));
+  router.use("/kpis", kpiCatalogueRoutes(kpiCatalogue));
+  router.use("/reports", reportRoutes(reports));
+  router.use("/kpi-definitions", kpiDefinitionRoutes(provider));
+  router.use("/kpi-goals", kpiGoalRoutes(provider));
+  router.use("/kpi-configurations", kpiConfigurationRoutes(kpiManagement));
+  router.use("/kpi-targets", kpiTargetRoutes(kpiManagement));
+  router.use("/kpi-actuals", kpiActualRoutes(kpiActuals, evidence));
+  router.use("/risks", riskRoutes(risks));
+  router.use("/policies", policyRoutes(policies));
+  router.use("/policy-versions", policyVersionRoutes(policies));
+  router.use("/controls", controlRoutes(controls));
+  router.use("/checkpoints", checkpointRoutes(checkpoints));
+  router.use("/evidence", evidenceRoutes(evidence));
+  router.use("/gaps", gapRoutes(gaps));
+  router.use("/capas", capaRoutes(capas));
+  router.use("/operational-registers", registerRoutes(registers));
+  router.use("/imports", importRoutes(workbookImports));
+  router.use("/exports", exportRoutes(exports));
+  router.use("/audit-events", auditRoutes(auditTrail));
+  router.use("/integrations/genrac", genracRoutes(genrac));
+  // Mounted last and matched on `/records/:entityType/...` so it cannot
+  // shadow a register's own routes.
+  router.use("/records", commentRoutes(new RecordCommentService(db)));
+  router.use("/saved-views", savedViewRoutes(savedViews));
+  router.use("/notifications", notificationRoutes(notifications));
+  router.use("/tasks", taskRoutes(tasks));
+  return router;
+};

@@ -1,0 +1,8 @@
+import { Request, Response } from 'express'; import { getActor } from '../../middleware/audit.middleware'; import { getClientId } from '../../middleware/tenant.middleware'; import { asyncHandler } from '../../utils/async-handler'; import { parsePagination } from '../../utils/pagination'; import * as s from './evidence.service'; import { linkEvidenceSchema, rejectEvidenceSchema, reviewEvidenceSchema, uploadEvidenceSchema } from './evidence.validation';
+export const list = asyncHandler(async (req: Request, res: Response) => { const { skip, take } = parsePagination(req); res.json(await s.list(getClientId(req), { skip, take, approval_status: req.query.approval_status ? String(req.query.approval_status) : undefined })); });
+export const get = asyncHandler(async (req: Request, res: Response) => res.json(await s.get(getClientId(req), req.params.id)));
+export const upload = asyncHandler(async (req: Request, res: Response) => res.status(201).json(await s.upload(getActor(req), uploadEvidenceSchema.parse(req.body), req.file)));
+export const approve = asyncHandler(async (req: Request, res: Response) => res.json(await s.approve(getActor(req), req.params.id, reviewEvidenceSchema.parse(req.body).remarks)));
+export const reject = asyncHandler(async (req: Request, res: Response) => res.json(await s.reject(getActor(req), req.params.id, rejectEvidenceSchema.parse(req.body).reason)));
+export const requestMoreInfo = asyncHandler(async (req: Request, res: Response) => res.json(await s.requestMoreInfo(getActor(req), req.params.id, reviewEvidenceSchema.parse(req.body).remarks)));
+export const link = asyncHandler(async (req: Request, res: Response) => res.status(201).json(await s.link(getActor(req), req.params.id, linkEvidenceSchema.parse(req.body))));

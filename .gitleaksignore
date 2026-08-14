@@ -1,0 +1,3 @@
+# The vendored report font is allowlisted by path in .gitleaks.toml rather than
+# by fingerprint here: a commit-pinned entry does not survive a squash or rebase
+# of the pull request that introduced it.

@@ -1,0 +1,1035 @@
+import { ApiError } from "../services/apiClient";
+import {
+  checkpointEvidenceGateMessage,
+  kpiEvidenceGateMessage,
+  policyEvidenceGateMessage,
+} from "./evidenceGateMessages";
+
+export type FieldErrors = Record<string, string>;
+
+export const SAFE_DECIMAL_MESSAGE =
+  "Enter a valid number with up to 14 digits before the decimal and up to 4 digits after it.";
+
+const safeValidationMessage = (message: string) =>
+  /decimal\s*\(\s*18\s*,\s*4\s*\)/i.test(message)
+    ? SAFE_DECIMAL_MESSAGE
+    : message;
+
+const isDetail = (
+  value: unknown,
+): value is { path: string; message: string } =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      "path" in value &&
+      "message" in value &&
+      typeof (value as { path: unknown }).path === "string" &&
+      typeof (value as { message: unknown }).message === "string",
+  );
+
+/** Map envelope `error.details` entries onto form field names. */
+export function fieldErrorsFromApi(error: unknown): FieldErrors {
+  if (!(error instanceof ApiError) || !Array.isArray(error.details)) {
+    return {};
+  }
+  const fields: FieldErrors = {};
+  for (const detail of error.details) {
+    if (!isDetail(detail) || !detail.path || fields[detail.path]) continue;
+    fields[detail.path] = safeValidationMessage(detail.message);
+  }
+  return fields;
+}
+
+/** 409 conflicts are surfaced on email for the user write forms. */
+export function duplicateEmailFieldError(error: unknown): string | null {
+  if (error instanceof ApiError && error.status === 409) {
+    return "A user with this email already exists";
+  }
+  return null;
+}
+
+/** 409 conflicts are surfaced on code for organisation master forms. */
+export function duplicateCodeFieldError(error: unknown): string | null {
+  if (error instanceof ApiError && error.status === 409) {
+    return "A record with this code already exists in the active Company";
+  }
+  return null;
+}
+
+export interface MappedApiError {
+  fieldErrors: FieldErrors;
+  formError: string | null;
+}
+
+const nonApiError = (error: unknown): MappedApiError => ({
+  fieldErrors: {},
+  formError: error instanceof Error ? error.message : "Request failed",
+});
+
+/**
+ * The backend deliberately withholds which unique index fired (see the comment
+ * in backend/src/common/middleware/http.ts), so a 409 on a configuration write
+ * can only be attributed to the scope tuple as a whole.
+ */
+const DUPLICATE_SCOPE_MESSAGE =
+  "An active KPI configuration already exists for this KPI with the same Business Unit, Location, Organisation Unit, Product/Service and Department. Change the scope, or edit the existing configuration.";
+
+/** Two unique indexes can produce this 409; the response cannot say which. */
+const DUPLICATE_TARGET_MESSAGE =
+  "This conflicts with an existing target: either the target code is already used in this Company, or this period already has a target at this version number. Change the code or the period.";
+
+/** Map known KPI configuration write errors onto form fields or a banner. */
+export function kpiConfigurationError(error: unknown): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+  if (error.status === 409) {
+    return { fieldErrors: {}, formError: DUPLICATE_SCOPE_MESSAGE };
+  }
+  if (error.code === "KPI_THRESHOLDS_INVALID") {
+    return {
+      fieldErrors: { redThresholdPct: error.message },
+      formError: null,
+    };
+  }
+  if (error.code === "KPI_CONFIGURATION_DATES_INVALID") {
+    return { fieldErrors: { effectiveTo: error.message }, formError: null };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    // The server message names the offending relation; attach it to that field.
+    const message = error.message.toLowerCase();
+    const field = message.startsWith("owner")
+      ? "ownerId"
+      : message.startsWith("approver")
+        ? "approverId"
+        : message.startsWith("organisation unit")
+          ? "orgUnitId"
+          : message.startsWith("location")
+            ? "orgLocationId"
+            : message.startsWith("department")
+              ? "departmentId"
+              : message.startsWith("kpi definition")
+                ? "kpiDefinitionId"
+                : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
+/** Map known KPI target write and lifecycle errors onto fields or a banner. */
+export function kpiTargetError(error: unknown): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+  if (error.code === "KPI_TARGET_APPROVED_IMMUTABLE") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This target is approved and can no longer be edited. Create a new version instead.",
+    };
+  }
+  if (error.status === 409 && error.code === "CONFLICT") {
+    return { fieldErrors: {}, formError: DUPLICATE_TARGET_MESSAGE };
+  }
+  // KPI_TARGET_STATE_INVALID and the date/tolerance codes already carry
+  // specific, safe server wording.
+  if (error.code === "KPI_TARGET_TOLERANCE_INVALID") {
+    return { fieldErrors: { maxValue: error.message }, formError: null };
+  }
+  if (error.code === "KPI_TARGET_DATES_INVALID") {
+    return { fieldErrors: { periodEnd: error.message }, formError: null };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
+/**
+ * The backend returns a single FORBIDDEN code for four distinct cases, so the
+ * message is the only discriminator. Known messages get clearer wording; the
+ * fallback surfaces the server text verbatim rather than swallowing it.
+ */
+export function kpiTargetDecisionError(
+  error: unknown,
+  permission: string,
+): string {
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : "Request failed";
+  }
+  if (error.status === 403) {
+    if (error.message === "KPI target self-approval is forbidden") {
+      return "You submitted this target, so you cannot approve or reject it. Another user holding kpi-target:approve must decide.";
+    }
+    if (error.message === "Only the configured KPI target approver may decide") {
+      return "Only the approver named on this KPI configuration may approve or reject this target.";
+    }
+    if (error.message === "A KPI target approver cannot submit the same target") {
+      return "You are the configured approver for this KPI, so you cannot also submit its target. Another user must submit it.";
+    }
+    if (error.message === "Permission denied") {
+      return `Your active Company role does not include ${permission}.`;
+    }
+  }
+  return error.message;
+}
+
+/**
+ * Approve, reject and resubmit share one FORBIDDEN code across several
+ * distinct rules, so the message is the only discriminator. Known messages get
+ * clearer wording; anything else surfaces the server text verbatim rather than
+ * being flattened into a generic failure.
+ */
+export function kpiActualDecisionError(
+  error: unknown,
+  permission: string,
+): string {
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : "Request failed";
+  }
+  if (error.code === "EVIDENCE_REQUIRED") {
+    const gateMessage = kpiEvidenceGateMessage(error);
+    if (gateMessage) return gateMessage;
+  }
+  if (error.status === 403) {
+    if (error.message === "KPI actual self-approval is forbidden") {
+      return "You submitted this actual, so you cannot approve or reject it. Another user holding kpi-actual:approve must decide.";
+    }
+    if (error.message === "Only the configured KPI actual approver may decide") {
+      return "Only the approver named on this KPI configuration may approve or reject this actual.";
+    }
+    if (error.message === "Only the original submitter may resubmit this actual") {
+      return "Only the user who submitted this actual may resubmit it.";
+    }
+    if (error.message === "Permission denied") {
+      return `Your active Company role does not include ${permission}.`;
+    }
+  }
+  if (error.code === "KPI_ACTUAL_INVALID_STATE") {
+    return error.message;
+  }
+  return error.message;
+}
+
+/**
+ * Map risk review, treatment, closure and reopen errors. The reopen conflict
+ * gets specific wording because a bare 409 would not explain that another live
+ * risk on the same KPI actual is the blocker.
+ */
+export function riskWorkflowError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+  if (error.code === "RISK_ACTIVE_DUPLICATE_FOR_ACTUAL") {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (
+    error.code === "RISK_STATUS_TRANSITION_INVALID" ||
+    error.code === "RISK_TREATMENT_ALREADY_COMPLETED" ||
+    error.code === "RISK_TREATMENT_CANCELLED" ||
+    error.code === "RISK_TREATMENT_SUPERSEDED"
+  ) {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const field = error.message.toLowerCase().includes("owner")
+      ? "ownerId"
+      : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (error.status === 403 && error.message === "Permission denied") {
+    return {
+      fieldErrors: {},
+      formError: `Your active Company role does not include ${permission}.`,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
+const POLICY_GENERIC_FALLBACK =
+  "The request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Policy write, Version, Framework and archive errors onto form fields or a
+ * banner. Domain codes from the Policy module are preferred over raw status.
+ */
+export function policyWriteError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  const policyGate = policyEvidenceGateMessage(error);
+  if (policyGate) {
+    return { fieldErrors: {}, formError: policyGate };
+  }
+  if (error.code === "POLICY_SELF_APPROVAL_FORBIDDEN") {
+    return {
+      fieldErrors: {},
+      formError:
+        "You cannot approve a Policy Version that you submitted.",
+    };
+  }
+  if (error.code === "POLICY_APPROVER_INVALID") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy Version is assigned to another approver or your approval access is no longer valid.",
+    };
+  }
+  if (error.code === "POLICY_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Policy is not available in the active Company.",
+    };
+  }
+  if (error.code === "POLICY_VERSION_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Policy Version is not available in the active Company.",
+    };
+  }
+  if (error.code === "POLICY_ARCHIVED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy is archived and can no longer be changed.",
+    };
+  }
+  if (
+    error.code === "POLICY_VERSION_IMMUTABLE" ||
+    error.code === "POLICY_VERSION_CONFLICT"
+  ) {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Policy Version can no longer be edited. Refresh to see its current state.",
+    };
+  }
+  if (
+    error.code === "POLICY_VERSION_INVALID_STATE" ||
+    error.code === "POLICY_CURRENT_VERSION_CONFLICT"
+  ) {
+    return {
+      fieldErrors: {},
+      formError: error.message || POLICY_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "POLICY_CONTENT_HTML_FORBIDDEN") {
+    return {
+      fieldErrors: {
+        content: "Raw HTML is not permitted in Policy content.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "POLICY_CONTENT_INVALID") {
+    return {
+      fieldErrors: { content: error.message },
+      formError: null,
+    };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const message = error.message.toLowerCase();
+    const field = message.includes("owner")
+      ? "ownerId"
+      : message.includes("department")
+        ? "departmentId"
+        : message.includes("approver")
+          ? "requestedApproverId"
+          : message.includes("framework")
+            ? "frameworkIds"
+            : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (error.status === 403) {
+    if (error.message === "Permission denied") {
+      return {
+        fieldErrors: {},
+        formError: `Your active Company role does not include ${permission}.`,
+      };
+    }
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || POLICY_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || POLICY_GENERIC_FALLBACK,
+  };
+}
+
+/** Decision-banner mapper for submit / approve / reject. */
+export function policyDecisionError(
+  error: unknown,
+  permission: string,
+): string {
+  return (
+    policyWriteError(error, permission).formError ??
+    (error instanceof Error ? error.message : POLICY_GENERIC_FALLBACK)
+  );
+}
+
+const CONTROL_GENERIC_FALLBACK =
+  "The request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Control write, lifecycle and mapping errors onto form fields or a banner.
+ * Domain codes from the Control module are preferred over raw status.
+ */
+export function controlWriteError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  if (error.code === "CONTROL_HAS_ACTIVE_CHECKPOINTS") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Control still has active Checkpoints. Deactivate or archive those Checkpoints before archiving the Control.",
+    };
+  }
+  if (error.code === "CONTROL_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Control is not available in the active Company.",
+    };
+  }
+  if (error.code === "CONTROL_INVALID_STATE") {
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("framework") &&
+      (message.includes("rule") || message.includes("depend"))
+    ) {
+      return {
+        fieldErrors: {},
+        formError:
+          "This Framework cannot be removed while active Framework Rule mappings still depend on it.",
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CONTROL_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "CONTROL_MAPPING_INVALID") {
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("framework rule") &&
+      message.includes("framework mapping")
+    ) {
+      return {
+        fieldErrors: {
+          frameworkRuleIds:
+            "Map the Rule’s Framework to this Control before selecting the Rule.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("approved")) {
+      return {
+        fieldErrors: {
+          policyVersionIds:
+            "Only APPROVED Policy Versions may be actively mapped.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("same policy") || message.includes("two versions")) {
+      return {
+        fieldErrors: {
+          policyVersionIds:
+            "A Control cannot map two Versions of the same Policy at once.",
+        },
+        formError: null,
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CONTROL_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const message = error.message.toLowerCase();
+    const field = message.includes("owner") || message.includes("user")
+      ? "ownerId"
+      : message.includes("department")
+        ? "departmentId"
+        : message.includes("framework rule") || message.includes("rule")
+          ? "frameworkRuleIds"
+          : message.includes("framework")
+            ? "frameworkIds"
+            : message.includes("policy version") || message.includes("policy")
+              ? "policyVersionIds"
+              : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (
+    error.code === "VALIDATION_ERROR" &&
+    /not_applicable|implementation notes/i.test(error.message)
+  ) {
+    return {
+      fieldErrors: {
+        implementationNotes:
+          "NOT_APPLICABLE Controls require implementation notes.",
+      },
+      formError: null,
+    };
+  }
+  if (error.status === 403) {
+    if (error.message === "Permission denied") {
+      return {
+        fieldErrors: {},
+        formError: `Your active Company role does not include ${permission}.`,
+      };
+    }
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CONTROL_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || CONTROL_GENERIC_FALLBACK,
+  };
+}
+
+/** Lifecycle-banner mapper for activate / deactivate / archive. */
+export function controlLifecycleError(
+  error: unknown,
+  permission: string,
+): string {
+  return (
+    controlWriteError(error, permission).formError ??
+    (error instanceof Error ? error.message : CONTROL_GENERIC_FALLBACK)
+  );
+}
+
+const CHECKPOINT_GENERIC_FALLBACK =
+  "The request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Checkpoint write, lifecycle and Review errors onto form fields or a banner.
+ * Domain codes from the Checkpoint module are preferred over raw status.
+ * Never echo observation or recommendation text into toasts or field errors.
+ */
+export function checkpointWriteError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  const checkpointGate = checkpointEvidenceGateMessage(error);
+  if (checkpointGate) {
+    return { fieldErrors: {}, formError: checkpointGate };
+  }
+  if (error.code === "CHECKPOINT_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Checkpoint is not available in the active Company.",
+    };
+  }
+  if (error.code === "CHECKPOINT_PARENT_CONTROL_ARCHIVED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The parent Control is archived. Create, activate and Review actions are blocked until a non-archived Control is used.",
+    };
+  }
+  if (error.code === "CHECKPOINT_REVIEW_DUPLICATE") {
+    return {
+      fieldErrors: {
+        reviewPeriod:
+          "A Review already exists for this period. Choose a different review period.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "CHECKPOINT_REVIEW_CONFLICT") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The latest Review could not be synchronised. Refresh and try again.",
+    };
+  }
+  if (error.code === "CHECKPOINT_INVALID_STATE") {
+    const message = error.message.toLowerCase();
+    if (message.includes("verificationfrequency")) {
+      return {
+        fieldErrors: {
+          verificationFrequency:
+            "verificationFrequency cannot change after the first Review.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("initialreviewdate")) {
+      return {
+        fieldErrors: {
+          initialReviewDate:
+            "initialReviewDate cannot change after the first Review.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("active checkpoint")) {
+      return {
+        fieldErrors: {},
+        formError:
+          "Checkpoint Reviews require an ACTIVE Checkpoint. Activate the Checkpoint before submitting a Review.",
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+    };
+  }
+  if (
+    error.code === "CHECKPOINT_REVIEW_INVALID" ||
+    (error.code === "VALIDATION_ERROR" &&
+      /observation|reviewperiod|review.?date|nextreviewdate/i.test(
+        error.message,
+      ))
+  ) {
+    const message = error.message.toLowerCase();
+    if (message.includes("observation")) {
+      return {
+        fieldErrors: {
+          observation:
+            "PARTIAL and FAIL Reviews require an observation of at least 2 characters.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("reviewperiod") || message.includes("review period")) {
+      return {
+        fieldErrors: {
+          reviewPeriod:
+            "reviewPeriod does not match the Checkpoint verification frequency.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("nextreviewdate") || message.includes("next review")) {
+      return {
+        fieldErrors: {
+          nextReviewDate:
+            "nextReviewDate must be a real date after reviewDate.",
+        },
+        formError: null,
+      };
+    }
+    if (message.includes("reviewdate") || message.includes("review date")) {
+      return {
+        fieldErrors: {
+          reviewDate: "reviewDate must be a real ISO calendar date.",
+        },
+        formError: null,
+      };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+    };
+  }
+  if (error.code === "RELATED_RECORD_INVALID") {
+    const message = error.message.toLowerCase();
+    const field =
+      message.includes("owner") || message.includes("user")
+        ? "ownerId"
+        : message.includes("department")
+          ? "departmentId"
+          : message.includes("control")
+            ? "controlId"
+            : null;
+    return field
+      ? { fieldErrors: { [field]: error.message }, formError: null }
+      : { fieldErrors: {}, formError: error.message };
+  }
+  if (error.status === 403) {
+    if (error.message === "Permission denied") {
+      return {
+        fieldErrors: {},
+        formError: `Your active Company role does not include ${permission}.`,
+      };
+    }
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || CHECKPOINT_GENERIC_FALLBACK,
+  };
+}
+
+/** Lifecycle-banner mapper for activate / deactivate / archive. */
+export function checkpointLifecycleError(
+  error: unknown,
+  permission: string,
+): string {
+  return (
+    checkpointWriteError(error, permission).formError ??
+    (error instanceof Error ? error.message : CHECKPOINT_GENERIC_FALLBACK)
+  );
+}
+
+/** Review-banner mapper for submit Review. */
+export function checkpointReviewError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  return checkpointWriteError(error, permission);
+}
+
+/** Map known KPI actual submission errors onto form fields or a form banner. */
+export function kpiActualSubmissionError(error: unknown): {
+  fieldErrors: FieldErrors;
+  formError: string | null;
+} {
+  if (!(error instanceof ApiError)) {
+    return {
+      fieldErrors: {},
+      formError: error instanceof Error ? error.message : "Request failed",
+    };
+  }
+  if (error.code === "KPI_ACTUAL_PERIOD_EXISTS") {
+    return {
+      fieldErrors: {
+        period:
+          "An actual already exists for this KPI configuration and period",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "KPI_TARGET_NOT_FOUND") {
+    return {
+      fieldErrors: {
+        period:
+          "No approved target exists for this KPI and period. Approve a target before submitting an actual.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "KPI_CONFIGURATION_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The selected KPI configuration is no longer active for this Company.",
+    };
+  }
+  const kpiGate = kpiEvidenceGateMessage(error);
+  if (kpiGate) {
+    return { fieldErrors: {}, formError: kpiGate };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return { fieldErrors: {}, formError: error.message };
+}
+
+const EVIDENCE_GENERIC_FALLBACK =
+  "The Evidence request could not be completed. Refresh the page and try again.";
+
+/**
+ * Map Evidence metadata, file, lifecycle and review errors onto form fields or
+ * a banner. Domain codes from the Evidence module are preferred over raw
+ * status. Rejection reasons and approval comments are never echoed back into a
+ * toast, and no storage key, path or driver message can reach the UI because
+ * only the mapped wording or the server's own safe message is used.
+ */
+export function evidenceWorkflowError(
+  error: unknown,
+  permission: string,
+): MappedApiError {
+  if (!(error instanceof ApiError)) return nonApiError(error);
+
+  if (error.code === "EVIDENCE_UPLOAD_CANCELLED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The upload was cancelled. The DRAFT Evidence was kept, so you can retry the upload.",
+    };
+  }
+  if (error.code === "SERVICE_UNAVAILABLE" || error.status === 0) {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "SESSION_EXPIRED") {
+    return { fieldErrors: {}, formError: error.message };
+  }
+  if (error.code === "RATE_LIMITED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "Too many Evidence upload attempts were made. Wait a few minutes and retry the upload.",
+    };
+  }
+  if (error.code === "EVIDENCE_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is not available in the active Company.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_UNAVAILABLE") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The Evidence file is not available for download. It may not have been uploaded yet.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_REQUIRED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "A file must be uploaded before this Evidence can be submitted for review.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_ALREADY_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Evidence already has an uploaded file. A file cannot be replaced in this release.",
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_TOO_LARGE") {
+    return {
+      fieldErrors: {
+        file: "The file exceeds the maximum allowed upload size. Choose a smaller file.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_TYPE_NOT_ALLOWED") {
+    return {
+      fieldErrors: {
+        file: "This file type is not accepted. Allowed types: PDF, PNG, JPG, JPEG, DOCX, XLSX, CSV, TXT.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_SIGNATURE_INVALID") {
+    return {
+      fieldErrors: {
+        file: "The file contents do not match its extension. Re-export the document and try again.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_FILE_DUPLICATE") {
+    return {
+      fieldErrors: {
+        file: "An identical file is already stored as Evidence for this Company. Use the existing Evidence, or upload a different file.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_STORAGE_FAILED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The file could not be stored. Nothing was saved for this upload — retry the upload.",
+    };
+  }
+  if (error.code === "EVIDENCE_SELF_REVIEW_FORBIDDEN") {
+    return {
+      fieldErrors: {},
+      formError:
+        "You created, uploaded or submitted this Evidence, so you cannot review it. Another user holding evidence:review must decide.",
+    };
+  }
+  if (error.code === "EVIDENCE_REJECT_REASON_REQUIRED") {
+    return {
+      fieldErrors: {
+        reason: "A rejection reason of 2–2000 characters is required.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_ARCHIVED") {
+    return {
+      fieldErrors: {},
+      formError:
+        "This Evidence is archived and read-only. The action was not applied.",
+    };
+  }
+  if (error.code === "EVIDENCE_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: `${error.message}. The Evidence was reloaded so you can see its current state.`,
+    };
+  }
+  if (error.code === "EVIDENCE_CONTROL_LINK_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is already linked to the selected Control.",
+    };
+  }
+  if (error.code === "EVIDENCE_CONTROL_LINK_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "The active Control link could not be found. Refresh and try again.",
+    };
+  }
+  if (error.code === "EVIDENCE_CHECKPOINT_LINK_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is already linked to the selected Checkpoint.",
+    };
+  }
+  if (error.code === "EVIDENCE_CHECKPOINT_LINK_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The active Checkpoint link could not be found. Refresh and try again.",
+    };
+  }
+  if (error.code === "EVIDENCE_KPI_ACTUAL_LINK_EXISTS") {
+    return {
+      fieldErrors: {},
+      formError: "This Evidence is already linked to the selected KPI actual.",
+    };
+  }
+  if (error.code === "EVIDENCE_KPI_ACTUAL_LINK_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError:
+        "The active KPI actual link could not be found. Refresh and try again.",
+    };
+  }
+  if (error.code === "CONTROL_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: "Only ACTIVE Controls can receive Evidence links.",
+    };
+  }
+  if (error.code === "CHECKPOINT_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: "Only ACTIVE Checkpoints can receive Evidence links.",
+    };
+  }
+  if (error.code === "KPI_ACTUAL_INVALID_STATE") {
+    return {
+      fieldErrors: {},
+      formError: "Approved KPI actuals cannot change Evidence links.",
+    };
+  }
+  if (error.code === "KPI_ACTUAL_NOT_FOUND") {
+    return {
+      fieldErrors: {},
+      formError: "The selected KPI actual is not available in the active Company.",
+    };
+  }
+  if (error.code === "EVIDENCE_SUPERSEDE_INVALID") {
+    return {
+      fieldErrors: {
+        supersedesEvidenceId:
+          "Only REJECTED or ARCHIVED Evidence from this Company can be superseded.",
+      },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_OWNER_INVALID") {
+    return {
+      fieldErrors: { ownerId: error.message },
+      formError: null,
+    };
+  }
+  if (error.code === "EVIDENCE_DEPARTMENT_INVALID") {
+    return {
+      fieldErrors: { departmentId: error.message },
+      formError: null,
+    };
+  }
+  if (error.status === 403) {
+    return {
+      fieldErrors: {},
+      formError:
+        error.message === "Permission denied"
+          ? `Your active Company role does not include ${permission}.`
+          : error.message,
+    };
+  }
+  if (error.code === "VALIDATION_ERROR" || error.status === 400) {
+    const details = fieldErrorsFromApi(error);
+    if (Object.keys(details).length > 0) {
+      return { fieldErrors: details, formError: null };
+    }
+    return {
+      fieldErrors: {},
+      formError: error.message || EVIDENCE_GENERIC_FALLBACK,
+    };
+  }
+  const details = fieldErrorsFromApi(error);
+  if (Object.keys(details).length > 0) {
+    return { fieldErrors: details, formError: null };
+  }
+  return {
+    fieldErrors: {},
+    formError: error.message || EVIDENCE_GENERIC_FALLBACK,
+  };
+}
+
+/** Banner-only mapper for Evidence lifecycle, upload and download actions. */
+export function evidenceActionError(
+  error: unknown,
+  permission: string,
+): string {
+  const mapped = evidenceWorkflowError(error, permission);
+  return (
+    mapped.formError ??
+    Object.values(mapped.fieldErrors)[0] ??
+    EVIDENCE_GENERIC_FALLBACK
+  );
+}

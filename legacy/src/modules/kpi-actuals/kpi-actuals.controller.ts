@@ -1,0 +1,15 @@
+import { Request, Response } from 'express';
+import { getActor } from '../../middleware/audit.middleware';
+import { getClientId } from '../../middleware/tenant.middleware';
+import { asyncHandler } from '../../utils/async-handler';
+import { parsePagination } from '../../utils/pagination';
+import * as service from './kpi-actuals.service';
+import { createKpiActualSchema, createRiskFromActualSchema, rejectionSchema, updateKpiActualSchema } from './kpi-actuals.validation';
+export const list = asyncHandler(async (req: Request, res: Response) => { const { skip, take } = parsePagination(req); res.json(await service.list(getClientId(req), { skip, take, kpi_id: req.query.kpi_id ? String(req.query.kpi_id) : undefined, approval_status: req.query.approval_status ? String(req.query.approval_status) : undefined })); });
+export const get = asyncHandler(async (req: Request, res: Response) => res.json(await service.get(getClientId(req), req.params.id)));
+export const create = asyncHandler(async (req: Request, res: Response) => res.status(201).json(await service.create(getActor(req), createKpiActualSchema.parse(req.body))));
+export const update = asyncHandler(async (req: Request, res: Response) => res.json(await service.update(getActor(req), req.params.id, updateKpiActualSchema.parse(req.body))));
+export const submit = asyncHandler(async (req: Request, res: Response) => res.json(await service.submit(getActor(req), req.params.id)));
+export const approve = asyncHandler(async (req: Request, res: Response) => res.json(await service.approve(getActor(req), req.params.id)));
+export const reject = asyncHandler(async (req: Request, res: Response) => res.json(await service.reject(getActor(req), req.params.id, rejectionSchema.parse(req.body).reason)));
+export const createRisk = asyncHandler(async (req: Request, res: Response) => res.status(201).json(await service.createRiskFromActual(getActor(req), req.params.id, createRiskFromActualSchema.parse(req.body))));

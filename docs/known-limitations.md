@@ -1,0 +1,236 @@
+# Known limitations
+
+These limitations remain through Milestone 5 Slice 5.7. They must not be hidden
+by UAT language or status-page presentation.
+
+## Production release limitations
+
+1. Legacy development/UAT data may still contain `COMPANY_ADMIN` with wildcard
+   permission `"*"`. Production token issuance ignores wildcard permission,
+   the production initializer uses five explicit roles, and readiness refuses
+   any active wildcard assignment. Existing assignments must be replaced before
+   production readiness can pass.
+2. PostgreSQL RLS policies exist but are **not yet enforced at runtime**.
+   `20260811990000_row_level_security` enables and FORCEs row-level security on
+   every table carrying `tenant_id`, with a `tenant_isolation` policy comparing
+   it to the `app.tenant_id` setting, and creates the `genbioca_app` role.
+   `tests/rls-tenant-isolation.test.ts` proves, acting as that role, that a
+   Company sees only its own rows, that an unset context returns nothing rather
+   than everything, and that a cross-Company write is refused.
+   **The application still connects as a superuser, and superusers bypass RLS
+   entirely — including FORCE.** So today's protection remains the application
+   predicates plus FKs, constraints and triggers, exactly as before. Activating
+   the backstop needs two deployment steps, both part of production bring-up
+   (item 4): grant login to `genbioca_app` from the secret manager
+   (`ALTER ROLE genbioca_app LOGIN PASSWORD '<secret>'`) and point
+   `DATABASE_URL` at it. Until both are done, do not report RLS as active.
+   Application queries must also run inside `withTenantContext`
+   (`backend/src/common/security/tenant-context.ts`) once that switch is made,
+   because the policy denies every row when the setting is absent; that wiring
+   is not yet applied across the query paths.
+3. A real-stack Playwright suite exists (`frontend/tests-real-stack` +
+   `playwright.real-stack.config.ts`, runner `frontend/scripts/run-real-stack-e2e.mjs`)
+   that exercises the browser against a live API and disposable PostgreSQL with
+   no `page.route` intercepts. The default mocked Playwright suite remains for
+   fast UI coverage. Human real-stack walkthroughs remain useful for release
+   candidates; the automated path covers the gap-evidence-gate critical flow.
+4. A production Compose fallback and HTTPS reverse-proxy configuration exist,
+   but the actual server, DNS, certificate, secret manager, log destination,
+   alerting and host/disk encryption still require human infrastructure inputs.
+5. The local backup/restore drill proves mechanics against the disposable
+   production-style workbook load; it is not a production RPO/RTO,
+   infrastructure-failure or load/scale result.
+6. The default branch is verified as `main`, but its protection/ruleset,
+   required-review, required-check, conversation-resolution,
+   force-push/deletion and administrator-bypass controls still require
+   independent GitHub evidence before Milestone 0 may merge.
+
+## Product limitations
+
+- Policy, Control and Checkpoint REST APIs are operational. React Policy
+  Register/detail (Slice 5), React Control Register/detail (Slice 6) and React
+  Checkpoint Register/detail (Slice 7), Gap/CAPA registers and details,
+  Import Centre (browser XLSX/CSV preview+commit), Import History/detail,
+  Audit Trail, Operational Registers UI (browse **and** create/edit when
+  permitted), manual risk create, My Work, evidence expiry surfacing, Company
+  create (`POST /tenants`), and GenRAC integration status (Not configured until
+  credentials exist) are operational. Evidence metadata, local file
+  upload/download/submit, DRAFT-only link APIs, approve/reject review, React
+  Evidence routes (Library, Create, Detail, Review, link panels), and Evidence
+  gates for Checkpoint, Policy Version and KPI actual approval are operational
+  (Milestone 5). **User-to-role assignment** is operational
+  (`PUT /access/users/:id/roles`, `roles:assign`); the Role & Access page remains
+  a **read-only** catalogue of production profiles (no free-form permission
+  editing). The Reports centre, KPI catalogue/analytics and Frequency master are
+  operational but **read-only** for definitions; report scheduling/subscriptions
+  remain deferred. **PDF board-pack export** is available alongside CSV
+  (`exports:read` gates both). **As-of** snapshot filters are available on
+  reports. **Inline evidence preview** (PDF/image) is available on Evidence
+  detail. **Approver delegation** (`/delegations`) routes out-of-office
+  approvals without weakening maker-checker. Tasks, Notifications and
+  tenant/settings polish remain deferred and hidden from production navigation
+  unless another lane has shipped them. Grid KPI actual entry, Gap bulk
+  actions, CAPA/Risk bulk, privilege review, bulk user import and session
+  management have shipped. Same-period Checkpoint Review correction remains
+  unsupported. Live GenRAC REST/database sync remains unavailable until the
+  client provides approved access; the CSV adapter path is platform-ready under
+  `LOCAL_UPLOAD_DIR/.genrac`.
+- **PDF export character coverage is the embedded face, not Unicode at large.**
+  Board packs embed a subsetted Noto Sans Regular, so exports carry **Latin
+  (including accented forms), Greek, Cyrillic, and the punctuation and currency
+  signs that face provides** — `Ação`, `Política`, `Grüne`, the em dash `—`, `₹`,
+  `€` and `£` among them. Code points outside that face — **CJK, emoji and other
+  scripts such as Arabic, Hebrew, Thai and Devanagari** — resolve to `.notdef`:
+  they render as blank in the page and are extracted by a PDF reader as NUL
+  (`U+0000`), not as the original character. They are not silently rewritten
+  into a different, wrong character, which is what the earlier `?` substitution
+  did. Do not describe the PDF export as supporting all Unicode. CSV export is
+  UTF-8 and carries any character the data holds, so it remains the faithful
+  format for scripts the PDF face does not cover.
+- Bulk user import gives every person in one batch the **same initial
+  password**, chosen by the administrator at commit time. The template carries
+  no password column and the API returns no generated credentials, so nothing
+  can leak through a spreadsheet or a response body; the cost is a shared
+  starting secret until the administrator has each person change it. The import
+  dialog states this in place rather than hiding it. Per-user invitations
+  become possible once email transport lands (V1.5). Imported rows may also be
+  staged as `INVITED`, which cannot sign in at all until an administrator makes
+  them `ACTIVE`. Session management (list/revoke one/revoke all on user detail)
+  is the compensating control if that shared secret is suspected to have leaked
+  before passwords are changed.
+- Policy Version obsoletion UI/endpoint and Policy `INACTIVE` transitions remain
+  deferred. Register filter and sort state is URL-synced for Gaps, CAPAs, Risks,
+  Evidence, Controls, Checkpoints, Policies, Operational Registers and Users.
+  Control Checkpoint panels keep counts and, when `checkpoints:read` is present,
+  an Open Checkpoints link to `/compliance/checkpoints` without controlId query
+  or `location.state`.
+- Checkpoint reviews with `evidenceRequired=true` require qualifying APPROVED
+  Evidence linked to that Checkpoint (409 `EVIDENCE_REQUIRED` /
+  `EVIDENCE_COVERAGE_INCOMPLETE`). Policy approval with `requiresEvidence=true`
+  evaluates exact-version Control/Checkpoint Evidence coverage (409 with
+  configured reasons; empty configuration →
+  `EVIDENCE_GATE_NOT_CONFIGURED`). KPI actual approval with
+  `requiresEvidence=true` requires at least one active qualifying
+  Evidence↔KpiActual link (409 `EVIDENCE_REQUIRED` with
+  `EVIDENCE_KPI_LINK_REQUIRED` or `EVIDENCE_KPI_COVERAGE_INCOMPLETE`). KPI
+  actual Evidence attachment UI is available on the approval page (Slice 5.6).
+  Configurations cannot combine `requiresEvidence=true` with
+  `requiresApproval=false`. There is no approval override that skips those
+  gates. Evidence file upload/download works for **local** storage by default;
+  an **S3 driver** is implemented behind `FILE_STORAGE_DRIVER=s3`, together with
+  a signed-download-URL hook and a malware-scan hook. Both remain hooks: no real
+  S3 client ships (no AWS SDK dependency, only an in-memory test fake), the
+  signed-URL hook is not wired into any download route, and the default
+  malware-scan hook is a no-op that accepts everything. Only unit tests against
+  the fake client are green, so **S3 is not production-verified** — see
+  [Storage and operations](#storage-and-operations) for the precise breakdown.
+  Inline preview supports PDF and
+  images via `?disposition=inline`. Policy content/purpose/scope render as
+  plain text only. Evidence links are mutable only while DRAFT. Evidence review
+  is limited to SUBMITTED rows with creator/uploader/submitter self-review
+  blocked.
+- Default Playwright suites for Policy, Control, Checkpoint and Evidence still
+  use mocked HTTP for speed. Backend PostgreSQL integration tests remain the
+  database authority. The real-stack suite (item 3) is additive.
+- Checkpoint reviews are append-only and unique per Checkpoint/review period. A
+  mistaken review cannot currently be edited, deleted or replaced for that
+  period; a formal correction/supersession mechanism is deferred.
+- An `INACTIVE` Control may still retain an `ACTIVE` Checkpoint. Reciprocal
+  enforcement covers only `ARCHIVED` Control versus `ACTIVE` Checkpoint; the
+  database does not automatically deactivate or reactivate children or parents.
+- GenRAC has no live connection and awaits client access and interface review.
+- `kpi_goals` remains legacy compatibility data. `kpi_targets` is authoritative.
+- A non-blocking frontend bundle-size warning remains.
+
+## Storage and operations
+
+- `FILE_STORAGE_DRIVER=local` is the approved deadline fallback, not production
+  object storage. Production Compose mounts the private `production_evidence`
+  volume; host/disk encryption, restricted access and the combined encrypted
+  database-plus-Evidence backup procedure are mandatory compensating controls.
+- **S3 status, stated precisely** — the four facts below are distinct and have
+  been read as contradicting each other before:
+  1. *The abstraction is implemented.* Evidence storage sits behind the
+     `FileStorageProvider` contract with two providers,
+     `LocalFileStorageProvider` and `S3FileStorageProvider`
+     (`backend/src/providers/file-storage/file-storage.ts`). Object operations
+     are declared by the `S3ClientPort` interface
+     (`backend/src/providers/file-storage/s3-client-port.ts`), and the same
+     key-containment rules apply to S3 keys as to local paths.
+  2. *There is no production-ready real S3 client.* The repository declares no
+     AWS SDK dependency. The only implementation of `S3ClientPort` is
+     `InMemoryS3Client`, a test fake. `createFileStorageProvider` throws unless
+     a client is injected, and environment validation refuses
+     `FILE_STORAGE_DRIVER=s3` in production unless
+     `S3_ALLOW_INJECTED_CLIENT=true`. Selecting `s3` therefore fails at
+     configuration for want of a client — not because the driver is missing.
+  3. *A signed-URL hook exists but is not wired.* `getSignedDownloadUrl` is
+     declared on `S3ClientPort` and implemented on `S3FileStorageProvider`, and
+     local storage returns null by contract. No route or service calls it: all
+     Evidence downloads, inline preview included, still stream through the API.
+     The only implementation behind it is the fake's fixed `test-signature`
+     string, which performs no cryptographic signing.
+  4. *S3 is not production-verified.* Green unit tests exercise the in-memory
+     fake only. No test, and no environment here, has run against live S3.
+- Evidence upload max is 10 MiB with a code-controlled type allowlist. Abrupt
+  process termination may leave temporary files under `.tmp` (no periodic
+  orphan scrubber in Slice 5.2).
+- **No upload path in use today is malware-scanned.** Stated precisely, because
+  an earlier wording ("the default wired everywhere") overstated how much of the
+  mechanism is connected:
+  1. *Only the S3 provider contains the hook.* `S3FileStorageProvider` calls
+     `scanBeforePromote` before promoting content and defaults its hook to
+     `noopMalwareScanHook`, which accepts every object and reports engine
+     `"noop"` (`backend/src/providers/file-storage/file-storage.ts`).
+  2. *The local provider has no malware-scanning call site at all.*
+     `LocalFileStorageProvider` does not reference the scan hook in any form —
+     not even the no-op. `FILE_STORAGE_DRIVER=local` is the approved default and
+     the only driver usable here, so the driver actually serving uploads has no
+     scanning seam to speak of.
+  3. *Application construction injects no scanner.* `createFileStorageProvider`
+     accepts a `malwareScan` argument and forwards it only into the S3 branch,
+     and no caller supplies one: `backend/src/app.ts` and
+     `backend/src/routes/index.ts` both construct storage with `driver` and
+     `localRoot` only. The parameter is unused throughout `backend/src`.
+  4. *Therefore no production upload path is currently malware-scanned*, and
+     enabling scanning is not a matter of injecting a hook: the local provider
+     needs a call site **and** the configuration needs plumbing. The contract and
+     the `MalwareDetectedError` rejection path exist
+     (`backend/src/providers/file-storage/malware-scan.ts`); no scanner ships
+     with the platform. Do not report uploads as malware-checked.
+  5. *A real S3 client and production verification remain outstanding* — see the
+     S3 item above. Until both land, the scanning seam that does exist sits
+     behind a provider that cannot be constructed in production.
+- Signed download URLs are a declared hook only, not an active delivery path —
+  see the S3 item above. Retention enforcement, encryption key policy and cloud
+  object-level tenant controls are not implemented at all. Inline preview
+  (PDF/image via `?disposition=inline`) **is** implemented and streams through
+  the API.
+- pgAdmin is administrative tooling only; Prisma migrations remain the schema
+  authority.
+- `prisma migrate diff` reports pre-existing name-only differences for several
+  KPI/Risk foreign keys and indexes because the reviewed SQL names differ from
+  Prisma's generated defaults. `prisma migrate status` is up to date; Milestone 4
+  and Milestone 5 catalogues are reconciled in integration tests; no existing
+  migration is rewritten to rename applied objects.
+
+## Governance and CI supply chain
+
+PR #19 was merged with zero checks and remains a recorded governance exception.
+The current workflow defines five checks, but a workflow file alone does not
+prove branch protection. The default branch has been independently verified as
+`main`; all protection/ruleset controls remain pending. The authoritative
+evidence status is
+[governance-ci-hardening.md](./reviews/governance-ci-hardening.md).
+
+Current mutable references:
+
+- `actions/checkout@v6`;
+- `actions/setup-node@v6`;
+- `ghcr.io/gitleaks/gitleaks:v8.30.1`;
+- unqualified `semgrep/semgrep`.
+
+Mutable tags can move to different code without a repository commit. Pinning
+actions and containers by immutable digest/SHA should be a separate focused CI
+supply-chain hardening task; Milestone 0 does not mix that dependency work into
+the re-baseline.

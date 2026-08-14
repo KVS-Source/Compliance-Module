@@ -1,0 +1,150 @@
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  PORT: 8000
+  DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+  REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:?REFRESH_TOKEN_SECRET is required}
+  JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+  JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER is required}
+  REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-7}
+  COOKIE_SECURE: "true"
+  CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+  FRONTEND_API_URL: ${FRONTEND_API_URL:-/api/v1}
+  PRODUCTION_DOMAIN: ${PRODUCTION_DOMAIN:?PRODUCTION_DOMAIN is required}
+  TRUST_PROXY: ${TRUST_PROXY:-1}
+  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+  RATE_LIMIT_API_MAX: ${RATE_LIMIT_API_MAX:-600}
+  RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-10}
+  RATE_LIMIT_REFRESH_MAX: ${RATE_LIMIT_REFRESH_MAX:-60}
+  RATE_LIMIT_DISABLED: "false"
+  JSON_BODY_LIMIT_BYTES: ${JSON_BODY_LIMIT_BYTES:-1048576}
+  SERVE_FRONTEND: "false"
+  FRONTEND_DIST: /app/frontend-unused
+  PROTOTYPE_DIR: /app/prototype-disabled
+  ENABLE_API_DOCS: "false"
+  ENABLE_PROTOTYPE_ROUTES: "false"
+  FILE_STORAGE_DRIVER: local
+  LOCAL_UPLOAD_DIR: /var/lib/genbioca/evidence
+  EVIDENCE_ALLOWED_EXTENSIONS: ${EVIDENCE_ALLOWED_EXTENSIONS:-.pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv,.txt}
+  EVIDENCE_MAX_UPLOAD_BYTES: ${EVIDENCE_MAX_UPLOAD_BYTES:-10485760}
+  EVIDENCE_UPLOAD_RATE_MAX: ${EVIDENCE_UPLOAD_RATE_MAX:-20}
+  EVIDENCE_UPLOAD_RATE_WINDOW_MS: ${EVIDENCE_UPLOAD_RATE_WINDOW_MS:-900000}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  BACKUP_PATH: /var/backups/genbioca
+  READINESS_STORAGE_CHECK: "true"
+  SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+  DATABASE_CONNECTION_LIMIT: ${DATABASE_CONNECTION_LIMIT:-10}
+  DATABASE_POOL_TIMEOUT_SECONDS: ${DATABASE_POOL_TIMEOUT_SECONDS:-10}
+  DATABASE_CONNECT_TIMEOUT_SECONDS: ${DATABASE_CONNECT_TIMEOUT_SECONDS:-5}
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: deploy/Dockerfile.backend
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - production_database:/var/lib/postgresql/data
+    networks: [data]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  evidence-init:
+    image: busybox:1.36
+    command: ["sh", "-c", "chown 10001:10001 /evidence && chmod 700 /evidence"]
+    volumes:
+      - production_evidence:/evidence
+    restart: "no"
+
+  migrate:
+    profiles: ["tools"]
+    build:
+      <<: *backend-build
+      target: migrate
+    environment: *backend-environment
+    networks: [data]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      <<: *backend-build
+      target: runtime
+    environment: *backend-environment
+    volumes:
+      - production_evidence:/var/lib/genbioca/evidence
+    expose: ["8000"]
+    networks: [edge, data]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      evidence-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8000/api/v1/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${FRONTEND_API_URL:-/api/v1}
+    expose: ["8080"]
+    networks: [edge]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  proxy:
+    image: nginx:1.27-alpine
+    environment:
+      PRODUCTION_DOMAIN: ${PRODUCTION_DOMAIN:?PRODUCTION_DOMAIN is required}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-21m}
+    ports:
+      - "${HTTP_PORT:-80}:8080"
+      - "${HTTPS_PORT:-443}:8443"
+    volumes:
+      - ${REVERSE_PROXY_TEMPLATE:-./deploy/nginx/production.conf.template}:/etc/nginx/templates/default.conf.template:ro
+      - ${TLS_CERT_DIR:?TLS_CERT_DIR is required}:/etc/nginx/certs:ro
+    networks: [edge]
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  edge:
+  data:
+    internal: true
+
+volumes:
+  production_database:
+  production_evidence:
