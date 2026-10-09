@@ -26,7 +26,7 @@ const departments = [
 const profiles = [
   {
     code: "CLIENT_COMPANY_ADMINISTRATOR",
-    name: "Client Company Administrator",
+    name: "Company Administrator",
     description: "Explicit Company administration and compliance permissions",
     provisioned: true,
     enabled: true,

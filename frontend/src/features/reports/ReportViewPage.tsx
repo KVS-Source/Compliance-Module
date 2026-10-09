@@ -240,7 +240,7 @@ export function ReportViewPage() {
         section="Analytics & Reports"
         description={
           definition?.description ??
-          "Tenant-scoped report built from live PostgreSQL data."
+          "Company report."
         }
         connected
         actions={
@@ -560,8 +560,7 @@ export function ReportViewPage() {
           </section>
 
           <p className="dashboard-generated" data-testid="report-generated">
-            Generated {formatDateTime(data.generatedAt)} from live PostgreSQL
-            data for {user?.activeCompany.name}.
+            Generated {formatDateTime(data.generatedAt)} for {user?.activeCompany.name}.
           </p>
         </>
       ) : null}

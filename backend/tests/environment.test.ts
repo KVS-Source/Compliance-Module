@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,8 +13,8 @@ import { databaseRuntimeUrl } from "../src/config/prisma.js";
 
 const backendRoot = process.cwd();
 const repositoryRoot = resolve(backendRoot, "..");
-const strongSecret = "8fd6b41004a74ce6a5342382180e76fca0bdf5aa";
-const refreshSecret = "2d4686e0060d42dc91b9ed4bda9d0ce499cb372a";
+const strongSecret = randomBytes(32).toString("hex");
+const refreshSecret = randomBytes(32).toString("hex");
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
 
 const validDevelopment = {

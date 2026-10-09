@@ -409,7 +409,7 @@ test("GenRAC Not configured disables actions with explanatory titles", async ({
 }) => {
   await installFinalMock(page);
   await page.goto("/data/genrac-integration");
-  await expect(page.getByTestId("genrac-not-configured")).toContainText(
+  await expect(page.getByTestId("genrac-status")).toContainText(
     "Not configured",
   );
   await expect(page.getByRole("button", { name: "Test Connection" })).toBeDisabled();

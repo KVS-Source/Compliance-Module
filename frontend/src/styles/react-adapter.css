@@ -1666,6 +1666,9 @@ tr.register-row-overdue > td:first-child {
   padding: 0;
   list-style: none;
 }
+.frequency-chart-card .chart-hbars {
+  padding: 16px 18px 18px;
+}
 .hbar-head {
   display: flex;
   align-items: baseline;
@@ -2264,6 +2267,69 @@ a.report-tile:hover {
   align-self: center;
   padding-top: 18px;
 }
+.settings-live-location {
+  margin: 0 18px 18px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--grey-50);
+}
+.settings-live-location.is-tracking {
+  border-color: var(--green-200);
+  background: var(--green-50);
+}
+.settings-live-location-copy > strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.settings-live-location-copy > p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.settings-live-location-copy .settings-live-location-error {
+  margin-top: 8px;
+  color: var(--red-700);
+  font-weight: 600;
+}
+.settings-live-location-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.settings-live-location-values div {
+  min-width: 110px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+.settings-live-location-values dt {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-live-location-values dd {
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.settings-live-location-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 .settings-regional-grid {
   grid-template-columns: repeat(3, minmax(180px, 1fr));
 }
@@ -2309,6 +2375,16 @@ a.report-tile:hover {
   .settings-form-grid,
   .settings-regional-grid {
     grid-template-columns: 1fr;
+  }
+  .settings-live-location {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .settings-live-location-actions {
+    grid-column: 1 / -1;
+    align-items: stretch;
+  }
+  .settings-live-location-actions .btn {
+    flex: 1 1 auto;
   }
 }
 

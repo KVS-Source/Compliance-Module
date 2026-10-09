@@ -1,424 +1,195 @@
 # GenBioCa Compliance Platform
 
-Multi-company compliance platform on PostgreSQL, Express, React/TypeScript, and
-Node.js (PERN), with Prisma and JWT authentication.
+A company-scoped Governance, Risk and Compliance application built with React 19,
+TypeScript, Vite, Express 5, Prisma and PostgreSQL 16.
 
-Standing architecture and security rules live in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-Read that before changing non-trivial behaviour.
+## Capabilities
 
-> **Picking this project up?** Start with
-> [`docs/handover/START-HERE.md`](./docs/handover/START-HERE.md). It covers how
-> to run and seed the platform, what is in each Company, what is specified but
-> not built, and the non-obvious traps. Active development stopped on
-> 2026-08-10.
+| Area | Functionality |
+| --- | --- |
+| Access | Sign-in, refresh/logout, company selection, password change, session revocation and administrator-managed recovery |
+| Administration | Company creation, user management/import, fixed role-profile assignment, departments, locations and organisation units |
+| Masters | Shared frameworks/rules, KPI definitions and frequency usage; approved imports maintain shared masters |
+| Policies and controls | Versioning, independent approval, framework/rule/control mappings, checkpoints and reviews |
+| KPIs | Configuration, versioned targets, target approval, individual/grid actual entry, actual approval, calculations and mapping |
+| Risks | Automatic KPI risks, manual risks, ownership, reviews, treatment, residual scoring, closure/reopening |
+| Evidence | Records, upload/download/preview, links, submission/review and evidence-gated approvals/closures |
+| Remediation | Gaps, CAPAs, ownership, due dates and evidence-gated closure/reopening |
+| Work | My Work, tasks, in-app notifications, comments and saved register views |
+| Dashboard | Calculated compliance percentage, trends, coverage, risks, aging and action queues |
+| Reports | Ten on-demand reports, filters, CSV/PDF output and as-of reporting |
+| Data | XLSX/CSV preview, validation, explicit commit, history and operational registers |
+| GenRAC | Connection status and configured CSV-adapter test/preview/synchronization |
+| Settings | Location display preference, timezone/date/time preferences and optional device location |
+| Audit | Searchable, exportable append-only activity history |
 
----
+The route guard verifies 48 visible navigation entries and 62 protected live
+route patterns, including detail pages. Permissions govern available actions.
+The dashboard percentage comes from measured KPI actuals in the selected company;
+it is not fixed at 31%. The working-location preference does not filter records.
+Device coordinates require browser permission and are neither saved nor sent to
+the API.
 
-## Route status (read this first)
+## Requirements
 
-The product distinguishes `LIVE`, `IN_DEVELOPMENT`,
-`AWAITING_INTEGRATION`, `COMPATIBILITY` and `DORMANT` explicitly.
+Node.js 22 LTS with npm (engines allow Node 20+), Docker with Compose V2 or managed
+PostgreSQL 16, and a current browser. Hosted use requires HTTPS.
 
-Unfinished navigation entries render `ModuleStatusPage`; they do not display
-fake business data or persist changes. The old prototype React page/data are
-dormant and unrouted.
+## First installation
 
-See [`docs/frontend-route-mapping.md`](./docs/frontend-route-mapping.md) for the
-exhaustive enforced inventory.
-
-### Live (API-connected) routes
-
-These use the real backend and must **not** show the prototype banner. The
-client sidebar ships **46 LIVE modules** (`clientNavigationPaths` in
-`frontend/src/app/routeDefinitions.ts`):
-
-| Path                                          | Notes                                                                                                                                                                                                        |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/login`                                      | Authentication (public)                                                                                                                                                                                      |
-| `/dashboard`                                  | Company-scoped PostgreSQL aggregates                                                                                                                                                                         |
-| `/admin/companies`                            | Companies available to the signed-in user                                                                                                                                                                    |
-| `/admin/users`                                | User management                                                                                                                                                                                              |
-| `/admin/departments`                          | Organisation masters                                                                                                                                                                                         |
-| `/admin/locations`                            | Organisation masters                                                                                                                                                                                         |
-| `/admin/organisation-units`                   | Organisation masters                                                                                                                                                                                         |
-| `/admin/roles`                                | Role and permission profiles (read-only; production roles are not editable)                                                                                                                                  |
-| `/master/users`                               | Master Data entry point for user management                                                                                                                                                                  |
-| `/master/frameworks`                          | Framework master (read)                                                                                                                                                                                      |
-| `/master/rules`                               | Framework rule browser (read)                                                                                                                                                                                |
-| `/master/frameworks/:frameworkId/rules`       | Framework rules (detail)                                                                                                                                                                                     |
-| `/master/frequencies`                         | Frequency master (read)                                                                                                                                                                                      |
-| `/master/targets`                             | Master Data entry point for KPI targets                                                                                                                                                                      |
-| `/master/policies`                            | Master Data entry point for the Policy Register                                                                                                                                                              |
-| `/master/controls`                            | Master Data entry point for the Control Register                                                                                                                                                             |
-| `/master/kpis`                                | Master Data entry point for the KPI catalogue                                                                                                                                                                |
-| `/compliance/frameworks`                      | Framework compliance overview (read)                                                                                                                                                                         |
-| `/compliance/policy-register`                 | Policy Register                                                                                                                                                                                              |
-| `/compliance/controls`                        | Controls                                                                                                                                                                                                     |
-| `/compliance/checkpoints`                     | Checkpoints                                                                                                                                                                                                  |
-| `/kpi/catalogue`                              | KPI catalogue (read)                                                                                                                                                                                         |
-| `/kpi/mapping`                                | KPI Mapping and compliance traceability (read)                                                                                                                                                               |
-| `/kpi/analytics`                              | KPI analytics and trend charts (read)                                                                                                                                                                        |
-| `/kpi/configuration`                          | KPI configurations                                                                                                                                                                                           |
-| `/kpi/targets`                                | KPI target selection/lifecycle                                                                                                                                                                               |
-| `/kpi/configuration/:configurationId/targets` | KPI target lifecycle (detail)                                                                                                                                                                                |
-| `/kpi/actual-entry`                           | Submit KPI actuals                                                                                                                                                                                           |
-| `/kpi/approval`                               | KPI actual approval lifecycle                                                                                                                                                                                |
-| `/compliance/risks`                           | Risk Register                                                                                                                                                                                                |
-| `/compliance/risks/:riskId`                   | Risk review, treatment and closure                                                                                                                                                                           |
-| `/evidence`                                   | Evidence Library                                                                                                                                                                                             |
-| `/evidence/new`                               | Create Evidence                                                                                                                                                                                              |
-| `/evidence/review`                            | Evidence Review queue                                                                                                                                                                                        |
-| `/evidence/approved`                          | Approved Evidence (read)                                                                                                                                                                                     |
-| `/evidence/rejected`                          | Rejected Evidence (read)                                                                                                                                                                                     |
-| `/compliance/gaps`                            | Gap Register                                                                                                                                                                                                 |
-| `/compliance/capa`                            | CAPA Register                                                                                                                                                                                                |
-| `/audit-trail`                                | Audit Trail                                                                                                                                                                                                  |
-| `/compliance/operational-registers`           | Operational Registers (UI read-only)                                                                                                                                                                         |
-| `/data/import`                                | Data Import (XLSX / CSV templates)                                                                                                                                                                           |
-| `/data/import-history`                        | Import History                                                                                                                                                                                               |
-| `/data/genrac-integration`                    | GenRAC connector status (CSV adapter when configured; live REST/DB access not claimed)                                                                                                                       |
-| `/reports`                                    | Reports centre catalogue; each report carries an `available` flag and renders locked when the caller lacks its permissions                                                                                   |
-| `/reports/kpi-variance`                       | KPI variance report (read; CSV needs `exports:read`)                                                                                                                                                         |
-| `/reports/framework-compliance`               | Framework compliance report (read; CSV needs `exports:read`)                                                                                                                                                 |
-| `/reports/evidence-status`                    | Evidence status report (read; CSV needs `exports:read`)                                                                                                                                                      |
-| `/reports/gaps`                               | Gap report (read; CSV needs `exports:read`)                                                                                                                                                                  |
-| `/reports/audit-activity`                     | Audit activity report (read; CSV needs `exports:read`)                                                                                                                                                       |
-| `/reports/:reportKey`                         | One parameterised view serving all ten catalogue reports; the five above are the sidebar entries, and KPI target-versus-actual, risks, CAPA aging, policy review and Operational Registers open from the hub |
-| `/settings`                                   | Working location, regional display preferences and governed administration shortcuts (`/settings/tenant` and `/settings/integrations` stay deferred)                                                         |
-
-Authoritative list: `clientNavigationPaths` / `migratedPaths` in
-`frontend/src/app/routeDefinitions.ts`, plus detail routes in
-`frontend/src/app/router.tsx`. Client-readable capabilities:
-[`docs/handover/module-status.md`](./docs/handover/module-status.md).
-
-### Not operational
-
-Deferred product routes (Tasks, Notifications, Settings, standalone Policy
-Versions page, KPI mapping deep links, and similar) are **hidden** and render
-truthful **In Development** status pages — they are not in the client sidebar.
-Fourteen older URLs, including `/master/framework-rules` (superseded by
-`/master/rules`), are hidden **Compatibility** routes.
-
-The Reports centre, KPI catalogue/analytics and role-access pages are read and
-export surfaces only; their APIs expose no mutation path, and the access profile
-response states `mutable: false` rather than leaving the UI to assert it. GenRAC is a LIVE status page with
-optional CSV-adapter operations; live REST or database GenRAC access is not
-enabled without approved configuration.
-
----
-
-## Prerequisites
-
-Verified on a development machine with:
-
-| Tool           | Requirement                                      | Checked                  |
-| -------------- | ------------------------------------------------ | ------------------------ |
-| Node.js        | `>=20` (`engines` in `backend/` and `frontend/`) | `node -v`                |
-| npm            | Ships with Node                                  | `npm -v`                 |
-| Docker         | Recent Docker Desktop / Engine                   | `docker --version`       |
-| Docker Compose | Compose V2 (`docker compose`)                    | `docker compose version` |
-
-PostgreSQL 16 is provided by Compose (`postgres:16-alpine`). You do not need a
-host-installed Postgres for the default workflow.
-
----
-
-## Environment files (most common first-run failure)
-
-Compose and the Node backend load **different** env files.
-
-| File                       | Used by                                                                           |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| **Repository root** `.env` | `docker compose` (Postgres, test Postgres, optional app container)                |
-| **`backend/.env`**         | Backend when you run `npm run … --prefix backend` (Prisma + Express via `dotenv`) |
-
-### Setup
-
-1. Copy the example once:
-
-   ```bash
-   cp .env.example .env
-   cp .env.example backend/.env
-   ```
-
-2. Edit **both** files and replace every placeholder. Keep the same database
-   credentials in both so Compose Postgres matches `DATABASE_URL` in
-   `backend/.env`.
-
-3. Never commit `.env` or `backend/.env`.
-
-### Variables you must set (names only)
-
-From `.env.example`:
-
-- Runtime: `NODE_ENV`, `PORT`
-- Dev DB: `DATABASE_URL`, `DOCKER_DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`,
-  `POSTGRES_PASSWORD`, `POSTGRES_PORT`
-- Test DB: `DATABASE_URL_TEST`, `TEST_POSTGRES_DB`, `TEST_POSTGRES_USER`,
-  `TEST_POSTGRES_PASSWORD`, `TEST_POSTGRES_PORT`
-- Auth: `JWT_ACCESS_SECRET` (≥ 32 characters, not a placeholder),
-  `JWT_ACCESS_TTL`, `JWT_ISSUER`, `REFRESH_TOKEN_DAYS`, `COOKIE_SECURE`
-- Proxy / limits: `TRUST_PROXY`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_API_MAX`,
-  `RATE_LIMIT_AUTH_MAX`, `RATE_LIMIT_REFRESH_MAX`, `RATE_LIMIT_DISABLED`
-- Paths / logging: `FRONTEND_DIST`, `PROTOTYPE_DIR`, `FILE_STORAGE_DRIVER`,
-  `LOCAL_UPLOAD_DIR`, `LOG_LEVEL`
-
-If Compose starts Postgres but Prisma cannot connect, you almost always have a
-mismatch between root `.env` and `backend/.env`.
-
----
-
-## Clone and install
-
-```bash
-git clone <repository-url> genbioca_compliance_platform
-cd genbioca_compliance_platform
-```
-
-Install active packages (authoritative runtime only):
+From the repository root:
 
 ```bash
 npm run install:all
-```
-
-The root package only orchestrates child-package scripts. It is not a third
-application runtime.
-
----
-
-## Start databases
-
-```bash
+npm run setup:local
 docker compose up -d postgres
-docker compose --profile test up -d postgres_test
-```
-
-- Development Postgres: host port from `POSTGRES_PORT` (default **5432**)
-- Isolated test Postgres: host port from `TEST_POSTGRES_PORT` (default **5433**)
-
-Check:
-
-```bash
-docker compose ps
-docker compose --profile test ps
-```
-
----
-
-## Prisma migrate and seed
-
-Run from a shell where `backend/.env` is loaded (the npm scripts below do that):
-
-```bash
 npm run prisma:validate --prefix backend
 npm run prisma:generate --prefix backend
 npm run prisma:migrate --prefix backend
+npm run build
 ```
 
-`prisma:migrate` runs `prisma migrate deploy` against `DATABASE_URL`.
-
-**Seed is never automatic.** Load synthetic development fixtures only when you
-want them:
+Setup generates matching root `.env` and `backend/.env` with independent random
+secrets, restricted to the owner on Unix. It refuses to overwrite existing files
+and does not seed accounts or data. For non-default, unused database ports:
 
 ```bash
-npm run prisma:seed:dev --prefix backend
+LOCAL_DB_PORT=55432 LOCAL_TEST_DB_PORT=55433 npm run setup:local
 ```
 
-Re-running the seed upserts the same synthetic Companies, users, KPI definition,
-draft target, and permissions.
+Alternatively copy `.env.example` to both locations and replace all placeholders.
+Root `.env` configures Compose; `backend/.env` configures Express and Prisma.
+Changing those files does not change credentials in an existing PostgreSQL volume.
+Never delete a populated volume to solve a connection problem.
 
----
+### Accounts and data
 
-## Run the application
+No operational passwords, staff information or private workbooks are shipped.
+Choose an onboarding path; seeds never run at application startup.
 
-In two terminals:
+- Representative local data: set a strong `SAMPLE_SEED_PASSWORD` (12+ characters)
+  in ignored `backend/.env`, then run `npm run seed:sample --prefix backend`.
+  It loads synthetic records into `SAMPLE-CO` (GenBioCa Operations). Accounts and
+  roles are declared in `backend/prisma/sample-seed-data.ts`; use the password
+  you supplied. These are validation fixtures, not business records.
+- GenBioCa workbook workspace: with that local password configured, run
+  `npm run seed:uat:genbioca --prefix backend`. It initializes the `GENBIOCA`
+  company and synthetic identities **only**. Sign in as
+  `uat-admin@genbioca.test`, open Data Import, preview the approved workbook and
+  explicitly commit it. Keep the report. An idempotency replay does not write
+  new data.
+- Operational installation: use the restricted account-initialization procedure
+  in [operations](docs/release/operations.md), then import approved records.
+  Never run sample/development seeds against an operational database.
+
+Private workbooks, evidence files and database backups must be transferred
+separately through an approved secure channel. Source code alone cannot recreate
+private data that has not been supplied.
+
+## Run and stop
+
+In two terminals from the root:
 
 ```bash
 npm run dev --prefix backend
+```
+
+```bash
 npm run dev --prefix frontend
 ```
 
-| Service  | URL                                 |
-| -------- | ----------------------------------- |
-| React UI | http://127.0.0.1:5173               |
-| API      | http://127.0.0.1:8000/api/v1        |
-| Health   | http://127.0.0.1:8000/api/v1/health |
-| Ready    | http://127.0.0.1:8000/api/v1/ready  |
-| Swagger  | http://127.0.0.1:8000/api/docs      |
+| Service | Local address |
+| --- | --- |
+| Application | http://127.0.0.1:5173/login |
+| API | http://127.0.0.1:8000/api/v1 |
+| Health/readiness | API paths `/api/v1/health` and `/api/v1/ready` |
+| API documentation | http://127.0.0.1:8000/api/docs (local only) |
 
-Vite proxies `/api` to `http://127.0.0.1:8000`.
+Vite proxies `/api` to port 8000. Use `VITE_API_PROXY_TARGET` for another API
+port. Configure exact `CORS_ORIGINS` for direct browser requests: scheme, hostname
+and port must match; localhost and 127.0.0.1 differ.
 
----
+Stop each server with Ctrl+C. `docker compose stop` preserves database volumes.
+Do not use `down -v` on a database containing records you need.
 
-## Seeded accounts
-
-Passwords are **not** listed here. Read the hashes’ plaintext sources in
-`backend/prisma/seed.ts` (search for `argon2.hash`).
-
-| Email                   | Role (COM-001)  | Access summary                                                                                                                                                                        |
-| ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin001@example.test` | `COMPANY_ADMIN` | Wildcard `*` — full access for local development                                                                                                                                      |
-| `user001@example.test`  | `COMPANY_USER`  | Read-oriented only: `tenants:read`, `organisation:read`, `frameworks:read`, `kpis:read`. **No** user/org writes, **no** KPI config/target/actual write or approve, **no** `risk:read` |
-
-Use the admin account for the walkthrough below. These credentials are synthetic
-fixtures for local use only — never reuse them in shared or production systems.
-
----
-
-## Tests
-
-### Backend unit tests
+Compiled single-service mode: `npm run build`, then
+`npm run start --prefix backend`. Optional Docker app mode:
 
 ```bash
-npm run test:unit --prefix backend
+docker compose --profile tools run --rm migrate
+docker compose up -d app
 ```
 
-### Backend integration tests
+The app binds port 8000; do not also run a host backend there. Migrations remain
+a separate step.
 
-Requires the isolated test database:
+## Verification
 
 ```bash
+npm run test:setup
+npm run verify:static
+npm run test:unit --prefix backend
 docker compose --profile test up -d postgres_test
 npm run test:integration --prefix backend
+npm run verify:catalogue
 ```
 
-The runner refuses to use the development database, production-like names, or
-`NODE_ENV=production`. It migrates and seeds the **test** database only.
+Build the frontend before backend delivery tests. Integration tests reset only the
+configured disposable test database for each file. Never point `DATABASE_URL_TEST`
+at data you need. The runner rejects the development connection and production
+environments/names. Catalogue verification is read-only; it checks tables, enums,
+migration checksums and named safeguards. Pass `DATABASE_URL` to check the
+development catalogue without resetting it.
 
-### Frontend Playwright
-
-First time on a machine, install the browser from `frontend/`:
+Install the isolated test browser once, then run both browser suites:
 
 ```bash
 cd frontend
 npx playwright install chromium
-cd ..
+npm run test:e2e
+npm run test:e2e:real-stack
 ```
 
-Then:
+Most browser suites intercept API responses; they are interface-contract tests.
+The separate real-stack suite uses PostgreSQL, Express and React without API
+interception. Use `E2E_PORT` or `REAL_STACK_API_PORT`/`REAL_STACK_WEB_PORT` for
+separate checkouts. [Verification](docs/release/verification.md) records the
+current results; pending tests are not passes.
 
-```bash
-npm run test:e2e --prefix frontend
-```
+## Operating boundaries
 
-Most Playwright suites mock `/api/v1/**` in the browser. They are **not**
-browser-to-PostgreSQL end-to-end tests.
+- Recovery is administrator-managed; email password-reset delivery is not implemented.
+- Notifications are in-app; scheduled report delivery/email subscriptions are not implemented.
+- GenRAC live REST/database access needs an implemented adapter and approved access.
+  The shipped adapter handles CSV files.
+- Local evidence storage is the verified provider. Real S3 and malware-scanner
+  integrations require separate provider validation.
+- MFA, SSO and right-to-erasure workflows are not implemented.
+- Permission profiles are fixed; free-form role design is not available.
+- Shared framework/KPI master writes use approved imports, not editable master forms.
+- Hosting, TLS, backup retention/PITR, monitoring, repository protection and release
+  approval remain operator responsibilities.
 
----
+This source delivery is not a declaration that deferred features or external
+integrations are complete. An unconfigured service must not be presented as connected.
 
-## Walkthrough: missed KPI actual → Risk Register
+Known dependency advisories remain in Prisma's dependency chain. See the
+[security review](docs/release/security-review.md); a successful build or source
+scan is not security-release approval.
+The [Prisma upgrade proposal](docs/release/prisma-upgrade-plan.md) is for review;
+it does not authorize or implement a major-version migration.
 
-Goal: create a configuration, approve a target, submit a missed actual, and see
-the automatic risk.
+## Structure and handoff
 
-All routes in this walkthrough are live and API-connected. For the deterministic
-local/UAT dataset and synthetic login setup, follow
-[`docs/operations/uat-sample-seed.md`](./docs/operations/uat-sample-seed.md).
-For the separate GenBioCa Company and actual-workbook backend MVP, follow
-[`docs/backend-data-mvp-contract-and-uat.md`](./docs/backend-data-mvp-contract-and-uat.md).
+Run only `frontend/` and `backend/`. The backend contains the authoritative Prisma
+schema and 25 migrations. `scripts/` contains setup and verification commands.
+Compose and `deploy/` provide deployment templates. `legacy/` and prototype
+assets are retained references, not alternate runtimes.
 
-### 1. Sign in
+Start with this README and `docs/release/`. Older milestone/review documents
+are historical records, not the current readiness authority.
+[CONTRIBUTING.md](CONTRIBUTING.md) defines contribution and architecture rules.
 
-Open http://127.0.0.1:5173/login as `admin001@example.test` (password from
-`backend/prisma/seed.ts`).
-
-### 2. Create a KPI configuration
-
-Open **KPI Configuration**:
-http://127.0.0.1:5173/kpi/configuration
-
-For a single-developer walkthrough, use:
-
-- `requiresEvidence`: `false`
-- `requiresApproval`: `false` (submit auto-approves the target; avoids
-  self-approval conflicts)
-
-Use the seeded definition `KPI-001` (Customer Satisfaction Score). Resolve its
-id via `GET /api/v1/kpi-definitions`. Set `ownerId` to the admin user id from
-the login response. Give `productService` a unique string so the configuration
-scope does not collide with the seed.
-
-### 3. Create and submit a target
-
-Open the configuration's **Targets** view, create a period target, and submit
-it.
-
-With `requiresApproval: false`, the target becomes `APPROVED` on submit.
-
-If you use `requiresApproval: true`, a **different** user with
-`kpi-target:approve` must approve — the submitter cannot self-approve.
-
-### 4. Submit a missed actual (live UI)
-
-Open **KPI Actual Entry**: http://127.0.0.1:5173/kpi/actual-entry
-
-1. Select the configuration you created.
-2. Choose the approved period.
-3. Enter an actual well below the target (for example `50` against `100`).
-4. Submit.
-
-Expect RAG **RED** (or **AMBER** depending on thresholds) and an automatic risk
-summary in the response panel.
-
-### 5. Approve the actual and confirm the risk
-
-When approval is required, sign in as an authorised user other than the
-submitter and approve it from
-http://127.0.0.1:5173/kpi/approval.
-
-Open **Risk Register**: http://127.0.0.1:5173/compliance/risks
-
-- Title is primary (pattern:
-  `KPI target missed: KPI-001 Customer Satisfaction Score (<period>)`).
-- Code such as `RSK-001` is secondary.
-- Open the row for detail at `/compliance/risks/:riskId`.
-- With KPI lineage present, the detail page states the risk was raised
-  automatically because a KPI target was missed.
-- The detail page supports owner assignment, append-only review and treatment,
-  residual scoring, closure and reopening for authorised roles.
-
-`COMPANY_USER` cannot open the register (`risk:read` is not granted).
-
----
-
-## Project structure
-
-| Path                                                                   | Role                                                                                                            |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `frontend/`                                                            | React 19 + Vite + TypeScript UI. Live pages and truthful module-status routes; prototype React data is dormant. |
-| `backend/`                                                             | Express 5 + TypeScript API, auth, middleware, domain modules.                                                   |
-| `backend/prisma/`                                                      | Active schema, migrations, and seed scripts.                                                                    |
-| `docs/`                                                                | Architecture notes, reviews, and prototype HTML reference assets.                                               |
-| `legacy/`                                                              | **Dormant.** Old Node and Python implementations. Do not run their                                              |
-| migrations, import them into active code, or build features there. See |
-| `legacy/README.md`.                                                    |
-| `docker-compose.yml`                                                   | Local Postgres, test Postgres, optional migrate/app images.                                                     |
-
-Authoritative runtime paths are also listed in
-`docs/architecture/authoritative-runtime.md`.
-
----
-
-## Optional: Dockerised app container
-
-Local day-to-day development uses `npm run dev` for backend and frontend.
-Compose can also build and run the compiled API:
-
-```bash
-docker compose build app
-docker compose run --rm migrate
-docker compose up -d app
-```
-
-Migrations and seed remain separate. Never seed production.
-
----
-
-## Further reading
-
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — architecture, tenancy, security, workflow
-- `docs/architecture/authoritative-runtime.md`
-- `docs/frontend-route-mapping.md`
-- `docs/domain/02-kpi-risk-schema.md` — KPI/Risk domain vocabulary
-
-Deployment to AWS (or any cloud) is **out of scope** for this README.
+The shareable package excludes Git history, environment files, secrets, private
+workbooks, uploads, database dumps, dependencies, builds and local screenshots.
+Keep third-party asset licenses. Transfer operational data and credentials separately.

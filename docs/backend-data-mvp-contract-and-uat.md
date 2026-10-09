@@ -482,7 +482,7 @@ cells are never the authority.
 
 ## Workbook selection and sheet inventory
 
-Four candidate files were found in `/Users/praneetsharma/Downloads/`:
+Four candidate files were reviewed in a protected workbook directory:
 
 | File                                                        | Modified (IST)      | Sheets |
 | ----------------------------------------------------------- | ------------------- | ------ |
@@ -494,7 +494,7 @@ Four candidate files were found in `/Users/praneetsharma/Downloads/`:
 The selected file is the newest Updated2 copy:
 
 ```text
-/Users/praneetsharma/Downloads/Updated2_GenBioCa_Compliance_Platform 22June2026 (2).xlsx
+/secure-data/approved-workbook.xlsx
 ```
 
 Its SHA-256 is
@@ -552,8 +552,8 @@ npm run prisma:validate
 npm run prisma:generate
 npm run prisma:migrate
 NODE_ENV=development SAMPLE_SEED_PASSWORD='<runtime value>' npm run seed:uat:genbioca
-npm run import:workbook:preview -- --file "/Users/praneetsharma/Downloads/Updated2_GenBioCa_Compliance_Platform 22June2026 (2).xlsx"
-npm run import:workbook:commit -- --file "/Users/praneetsharma/Downloads/Updated2_GenBioCa_Compliance_Platform 22June2026 (2).xlsx" --tenant GENBIOCA --actor uat-admin@genbioca.test
+npm run import:workbook:preview -- --file "/secure-data/approved-workbook.xlsx"
+npm run import:workbook:commit -- --file "/secure-data/approved-workbook.xlsx" --tenant GENBIOCA --actor uat-admin@genbioca.test
 npm run import:workbook:report -- --tenant GENBIOCA
 ```
 

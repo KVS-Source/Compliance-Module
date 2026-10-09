@@ -146,11 +146,19 @@ body.mobile-nav-open {
 .login-hero-inner {
   position: relative;
   z-index: 1;
-  max-width: 480px;
+  width: 100%;
+  max-width: 640px;
+  min-height: calc(100dvh - 96px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .login-hero-logo-wrap {
-  width: min(280px, 72%);
-  margin: 0 0 36px;
+  width: min(480px, 92%);
+  margin: 0 0 52px;
 }
 .login-hero-logo {
   display: block;
@@ -162,81 +170,21 @@ body.mobile-nav-open {
   box-shadow: var(--shadow-lg);
 }
 .login-hero-kicker {
-  margin: 0 0 10px;
+  margin: 0 0 16px;
   color: var(--grey-400);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .login-hero h1 {
-  margin: 0 0 14px;
-  max-width: 14ch;
-  color: var(--white);
-  font-size: clamp(32px, 3.6vw, 44px);
-  font-weight: 650;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-}
-.login-hero-lead {
-  margin: 0 0 28px;
-  max-width: 42ch;
-  color: var(--grey-400);
-  font-size: 15px;
-  line-height: 1.55;
-}
-.login-highlights {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-.login-highlights li {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 12px;
-  align-items: start;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.04);
-}
-.login-highlight-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  display: grid;
-  place-items: center;
-  color: var(--grey-200);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.login-highlights strong {
-  display: block;
-  margin: 1px 0 2px;
+  max-width: none;
   color: var(--white);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.login-highlight-detail {
-  display: block;
-  color: var(--grey-400);
-  font-size: 12px;
-  line-height: 1.45;
-}
-.login-hero-security {
-  margin: 28px 0 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--grey-500);
-  font-size: 12px;
-}
-.login-hero-security svg {
-  flex: none;
-  color: var(--grey-400);
+  font-size: clamp(44px, 5vw, 72px);
+  font-weight: 650;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
 }
 .brand {
   position: relative;

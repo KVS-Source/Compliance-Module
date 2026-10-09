@@ -316,9 +316,12 @@ if (
     `${displayPath(routeDefinitionsPath)} — compatibility routes lack explicit hidden compatibility metadata`,
   );
 }
+const genracPage = readFileSync(resolve(repositoryRoot, "frontend/src/features/integrations/GenracIntegrationPage.tsx"), "utf8");
 if (
   !definitionsSource.includes("GenRAC Integration") ||
-  !definitionsSource.includes("not claimed when unconfigured")
+  !genracPage.includes("genracApi.status()") ||
+  !genracPage.includes('status.connection.status === "NOT_CONFIGURED"') ||
+  !genracPage.includes("Not configured")
 ) {
   failures.push(
     `${displayPath(routeDefinitionsPath)} — GenRAC route must remain truthful about unconfigured live access`,

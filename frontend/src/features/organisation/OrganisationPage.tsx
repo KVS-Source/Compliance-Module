@@ -1,4 +1,3 @@
-import { MapPin, Network } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -36,7 +35,7 @@ const settings = {
   locations: {
     title: "Location Setup",
     description:
-      "Manage operational and compliance locations across Location 001.",
+      "Operational and compliance locations.",
     singular: "Location",
     loader: masterDataApi.listLocations,
   },
@@ -138,7 +137,6 @@ export function OrganisationPage({ kind }: { kind: OrganisationKind }) {
     },
   ];
 
-  const Icon = kind === "locations" ? MapPin : Network;
 
   return (
     <div className="page">
@@ -173,7 +171,7 @@ export function OrganisationPage({ kind }: { kind: OrganisationKind }) {
             showToast(
               "info",
               row.name,
-              `${row.code} is database-authoritative for ${user?.activeCompany.name}.`,
+              `${row.code} · ${user?.activeCompany.name}`,
             )
           }
           onEdit={
@@ -181,18 +179,6 @@ export function OrganisationPage({ kind }: { kind: OrganisationKind }) {
           }
         />
       )}
-      <section className="card information-card">
-        <span className="feature-icon tone-blue">
-          <Icon size={19} />
-        </span>
-        <div>
-          <strong>Active Company scope</strong>
-          <p>
-            Only records belonging to {user?.activeCompany.name} are returned by
-            this endpoint.
-          </p>
-        </div>
-      </section>
       {editor ? (
         <OrganisationFormModal
           kind={kind}

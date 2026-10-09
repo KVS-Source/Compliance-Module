@@ -479,7 +479,7 @@ export function KpiActualEntryPage() {
                   <h2>Submission result</h2>
                   <p>
                     {result
-                      ? `Authoritative API response for ${result.code}`
+                      ? `${result.code}`
                       : "Calculated after a successful submission"}
                   </p>
                 </div>

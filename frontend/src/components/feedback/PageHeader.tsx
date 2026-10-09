@@ -17,7 +17,6 @@ export function PageHeader({
   title,
   section,
   description,
-  connected,
   primaryLabel,
   onPrimary,
   actions,
@@ -33,15 +32,7 @@ export function PageHeader({
             <span>/</span>
             {section}
           </div>
-          <h1>
-            {title}
-            {connected !== undefined ? (
-              <span className="sr-only">
-                {" "}
-                · {connected ? "API connected" : "Reference workflow"}
-              </span>
-            ) : null}
-          </h1>
+          <h1>{title}</h1>
           <p>{description}</p>
         </div>
         <div className="button-row">
@@ -80,14 +71,7 @@ export function PageHeader({
           }
         >
           <div className="page-help-content">
-            <span className="status-badge status-live">Live application</span>
             <p>{description}</p>
-            <h3>Data and access</h3>
-            <p>
-              This page uses the Company selected in the header. Available
-              records and actions are limited by your assigned permissions.
-            </p>
-            <h3>Useful destinations</h3>
             <div className="page-help-links">
               <Link to="/dashboard" onClick={() => setHelpOpen(false)}>
                 Dashboard

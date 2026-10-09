@@ -87,7 +87,7 @@ export function TasksPage() {
       <PageHeader
         title="Tasks"
         section="Audit & Operations"
-        description="Assigned compliance work with due dates and governed links to Gaps, CAPAs, Risks and Audit events."
+        description="Assigned work, due dates and related compliance records."
         connected
         primaryLabel={canWrite ? "Create task" : undefined}
         onPrimary={() => setEditing(null)}

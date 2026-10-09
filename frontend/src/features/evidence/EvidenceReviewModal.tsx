@@ -139,8 +139,7 @@ export function EvidenceReviewModal({
             data-testid="evidence-self-review-hint"
           >
             <TriangleAlert size={15} aria-hidden /> You created, uploaded or
-            submitted this Evidence. The API enforces maker-checker and will
-            reject this decision.
+            submitted this Evidence. Another reviewer must approve or reject it.
           </div>
         ) : null}
 

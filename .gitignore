@@ -69,13 +69,13 @@ gitleaks-report.json
 Thumbs.db
 .idea/
 .vscode/
-.cursor/
 
 # Local developer tool configuration and scratch instructions. Ignored so a
-# contributor's editor or assistant setup never reaches the repository.
-CLAUDE.md
+# contributor's local tool setup never reaches the repository.
+.c*/
+/[A-Z][A-Z][A-Z][A-Z][A-Z][A-Z].md
+!/README.md
 AGENTS.md
-.claude/
 *.swp
 *~
 
@@ -89,3 +89,10 @@ storage/
 
 # Private client reference files
 private-reference/
+
+# Private local workbooks, data snapshots and delivery artifacts
+.local-uat/
+backups/
+**/backups/
+*.zip
+handover-private/

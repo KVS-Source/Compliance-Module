@@ -284,7 +284,7 @@ export function EvidenceLibraryPage({
         section="Evidence Management"
         description={
           description ??
-          "Company-scoped compliance Evidence. Reads use evidence:read; the API stays authoritative for lifecycle and permissions."
+          "Compliance documents, review status and linked records."
         }
         connected
         actions={

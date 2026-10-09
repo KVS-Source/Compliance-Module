@@ -33,8 +33,7 @@ export function PolicyTraceabilityPanel({
         <div>
           <h2>Traceability</h2>
           <p>
-            Focus Version, Framework mappings and linked Controls returned by
-            the Policy API.
+            Version, Framework mappings and linked Controls.
           </p>
         </div>
         <button
@@ -154,10 +153,6 @@ export function PolicyTraceabilityPanel({
                   </table>
                 </div>
               )}
-              <p className="muted">
-                Control detail opens when controls:read is present. Evidence,
-                Gap, CAPA, KPI and Risk links are not fabricated here.
-              </p>
             </div>
 
             <div>

@@ -29,11 +29,6 @@ export function CheckpointLatestReview({
       <header className="card-head">
         <div>
           <h2>Latest Review</h2>
-          <p>
-            Authoritative latest Review from GET …/latest-review. Observation
-            and recommendation are visible here for readers with
-            checkpoints:read.
-          </p>
         </div>
         <button
           className="btn btn-secondary"

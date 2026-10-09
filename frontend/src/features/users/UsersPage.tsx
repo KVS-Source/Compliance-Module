@@ -1,4 +1,4 @@
-import { ShieldCheck, Upload, UserPlus } from "lucide-react";
+import { ShieldCheck, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -260,10 +260,6 @@ export function UsersPage() {
             </>
           }
         >
-          <div className="banner banner-success">
-            <UserPlus size={17} />
-            <span>Database-authoritative Company user detail.</span>
-          </div>
           <dl className="detail-list">
             <div>
               <dt>User code</dt>

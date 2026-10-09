@@ -1,4 +1,3 @@
-import { Repeat } from "lucide-react";
 import { Link } from "react-router-dom";
 import { HorizontalBars } from "../../components/charts/ChartPrimitives";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
@@ -38,7 +37,7 @@ export function FrequencyMasterPage() {
       <PageHeader
         title="Frequency Master"
         section="Master Data"
-        description="Measurement frequencies in use across the KPI catalogue, with how many definitions and Company configurations rely on each."
+        description="KPI measurement frequencies and usage."
         connected
         actions={
           <Link className="btn btn-secondary" to="/kpi/catalogue">
@@ -53,19 +52,6 @@ export function FrequencyMasterPage() {
         <ErrorState error={resource.error} />
       ) : (
         <>
-          <section className="card information-card">
-            <span className="feature-icon tone-blue">
-              <Repeat size={19} />
-            </span>
-            <div>
-              <strong>Derived from the KPI definitions</strong>
-              <p>
-                This is a read-only view. A frequency appears here because a KPI
-                definition or a Company KPI configuration uses it, so there is
-                no separate list to keep in step.
-              </p>
-            </div>
-          </section>
 
           {rows.length === 0 ? (
             <p className="chart-empty" data-testid="frequency-master-empty">
@@ -73,7 +59,7 @@ export function FrequencyMasterPage() {
             </p>
           ) : (
             <>
-              <section className="card">
+              <section className="card frequency-chart-card">
                 <header className="card-head">
                   <div>
                     <h2>KPI definitions by frequency</h2>

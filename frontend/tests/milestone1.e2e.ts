@@ -726,6 +726,32 @@ async function navigateInApp(page: Page, path: string) {
   );
 }
 
+test("login hero keeps only the full-height GenBioCa brand treatment", async ({
+  page,
+}) => {
+  await installMockApi(page, false);
+  await page.goto("/login");
+
+  await expect(page.getByText("One secure workspace for policies")).toHaveCount(
+    0,
+  );
+  await expect(page.getByText("Policy & evidence")).toHaveCount(0);
+  await expect(page.getByText("KPI performance")).toHaveCount(0);
+  await expect(page.getByText("Risk & CAPA")).toHaveCount(0);
+  await expect(page.getByText("Encrypted sessions")).toHaveCount(0);
+
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width > 980) {
+    const hero = page.locator(".login-hero-inner");
+    await expect(hero).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Compliance Platform" })).toBeVisible();
+    const heroHeight = await hero.evaluate((element) =>
+      element.getBoundingClientRect().height,
+    );
+    expect(heroHeight).toBeGreaterThan(viewport.height * 0.8);
+  }
+});
+
 test("login, secure storage, Company switch and API-backed master screens", async ({
   page,
 }) => {
@@ -774,9 +800,7 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
 
   await navigateInApp(page, "/admin/users");
   await page.getByRole("button", { name: `View ${users[0]!.id}` }).click();
-  await expect(
-    page.getByText("Database-authoritative Company user detail."),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(users[0]!.email)).toBeVisible();
   await page.getByRole("button", { name: "Done" }).click();
 
   await navigateInApp(page, "/master/frameworks");
@@ -962,6 +986,69 @@ test("settings persist the selected working location and update the header", asy
   await expect(page.locator(".datetime")).toContainText("Location 001");
 });
 
+test("settings starts and stops user-triggered live device location", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        watchPosition(success: PositionCallback) {
+          window.setTimeout(
+            () =>
+              success({
+                coords: {
+                  latitude: 28.6139,
+                  longitude: 77.209,
+                  accuracy: 12,
+                  altitude: null,
+                  altitudeAccuracy: null,
+                  heading: null,
+                  speed: null,
+                },
+                timestamp: Date.now(),
+              }),
+            0,
+          );
+          return 42;
+        },
+        clearWatch() {},
+      },
+    });
+  });
+  await installMockApi(page, true);
+  await page.goto("/settings");
+
+  await page.getByRole("button", { name: "Use my current location" }).click();
+  const liveLocation = page.getByTestId("live-device-location");
+  await expect(liveLocation).toContainText("28.6139");
+  await expect(liveLocation).toContainText("77.2090");
+  await expect(liveLocation).toContainText("±12 m");
+  await expect(page.getByText("Live location detected")).toBeVisible();
+
+  await page.getByRole("button", { name: "Stop" }).click();
+  await expect(
+    page.getByRole("button", { name: "Use my current location" }),
+  ).toBeEnabled();
+});
+
+test("frequency chart keeps visible horizontal padding", async ({ page }) => {
+  await installMockApi(page, true);
+  await page.goto("/master/frequencies");
+
+  const bars = page.getByTestId("frequency-bars");
+  await expect(bars).toBeVisible();
+  const horizontalPadding = await bars.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      left: Number.parseFloat(style.paddingLeft),
+      right: Number.parseFloat(style.paddingRight),
+    };
+  });
+  expect(horizontalPadding.left).toBeGreaterThanOrEqual(16);
+  expect(horizontalPadding.right).toBeGreaterThanOrEqual(16);
+});
+
 test("KPI Master and KPI Catalogue remain distinct live views", async ({
   page,
 }) => {
@@ -1116,7 +1203,7 @@ test("GenRAC Integration shows Not configured without claiming live access", asy
 
   await expect(page.getByTestId("module-status-page")).toHaveCount(0);
   await expect(page.getByTestId("genrac-status")).toBeVisible();
-  await expect(page.getByTestId("genrac-not-configured")).toContainText(
+  await expect(page.getByTestId("genrac-status")).toContainText(
     "Not configured",
   );
   await expect(page.getByText("Awaiting GenRAC Access")).toHaveCount(0);
@@ -1460,7 +1547,7 @@ test("mobile route search opens, identifies status, navigates and closes", async
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/data\/genrac-integration$/);
   await expect(searchDialog).toBeHidden();
-  await expect(page.getByTestId("genrac-not-configured")).toBeVisible();
+  await expect(page.getByTestId("genrac-status")).toContainText("Not configured");
 
   await page.getByRole("button", { name: "Open global search" }).click();
   await page.keyboard.press("Escape");

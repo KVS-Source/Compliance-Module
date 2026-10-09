@@ -398,7 +398,7 @@ test("Dashboard renders every required summary card from the API", async ({
   );
   await page.getByRole("button", { name: "Help", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Dashboard help" })).toContainText(
-    "This page uses the Company selected in the header",
+    "Compliance, performance and outstanding work.",
   );
   await expect(
     page.getByRole("link", { name: "Dashboard", exact: true }),
@@ -454,9 +454,10 @@ test("GenRAC reads Not configured and never claims live access", async ({
   await expect(page.getByTestId("dashboard-genrac-state")).toHaveText(
     "Not configured",
   );
-  await expect(page.getByTestId("dashboard-genrac-body")).toContainText(
-    "Live GenRAC synchronization remains Not Configured",
-  );
+  const liveAccess = page.getByTestId("dashboard-genrac-body").locator("div").filter({
+    has: page.locator("dt", { hasText: /^Live access$/ }),
+  });
+  await expect(liveAccess.locator("dd")).toHaveText("No");
 });
 
 test("An unmapped framework reports no percentage rather than zero", async ({
@@ -475,7 +476,7 @@ test("Dashboard shows truthful empty states rather than zeroed charts", async ({
   await mockDashboard(page, "zero");
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-kpi-trend-empty")).toContainText(
-    "No KPI actuals recorded yet",
+    "No KPI actuals recorded.",
   );
   await expect(
     page.getByTestId("dashboard-evidence-status-empty"),

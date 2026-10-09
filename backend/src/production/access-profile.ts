@@ -70,7 +70,7 @@ const readOnly = all.filter(
 
 export const PRODUCTION_ACCESS_PROFILES = {
   CLIENT_COMPANY_ADMINISTRATOR: {
-    name: "Client Company Administrator",
+    name: "Company Administrator",
     description: "Explicit Company administration and compliance permissions",
     permissions: all,
   },

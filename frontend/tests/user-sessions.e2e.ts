@@ -76,7 +76,7 @@ async function installSessionMock(
       {
         id: "r0",
         code: "CLIENT_COMPANY_ADMINISTRATOR",
-        name: "Client Company Administrator",
+        name: "Company Administrator",
       },
     ],
     status: "ACTIVE",

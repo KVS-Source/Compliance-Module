@@ -600,8 +600,7 @@ export function EvidenceDetailPage() {
           data-testid="evidence-detail-self-review-hint"
         >
           <TriangleAlert size={15} aria-hidden /> You created, uploaded or
-          submitted this Evidence. The API enforces maker-checker and will reject
-          your review decision.
+          submitted this Evidence. Another reviewer must approve or reject it.
         </div>
       ) : null}
 
@@ -623,7 +622,6 @@ export function EvidenceDetailPage() {
           <header className="card-head">
             <div>
               <h2>Overview</h2>
-              <p>Safe metadata returned by the Evidence API.</p>
             </div>
             <Badge tone={evidenceStatusTone(status)}>
               {evidenceStatusLabel(status)}
@@ -974,7 +972,6 @@ export function EvidenceDetailPage() {
           <header className="card-head">
             <div>
               <h2>Lifecycle</h2>
-              <p>Submission and review timestamps from the authoritative record.</p>
             </div>
           </header>
           <div className="card-pad">

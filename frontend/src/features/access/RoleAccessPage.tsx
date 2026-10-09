@@ -74,13 +74,9 @@ export function RoleAccessPage() {
               <Lock size={19} />
             </span>
             <div>
-              <strong>This matrix is read-only in this release</strong>
+              <strong>Access profiles</strong>
               <p>
-                Role permissions come from the reviewed production access
-                profiles rather than from an editable table, so they cannot
-                drift from what the API enforces. Assigning a role to a person
-                is done from Users; changing what a role may do is a governed
-                change to the platform, not a screen action.
+                Profiles have fixed permission sets. Assign profiles from Users.
               </p>
             </div>
           </section>

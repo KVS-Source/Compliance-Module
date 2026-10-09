@@ -261,6 +261,28 @@ describe("GenRAC CSV path validation", () => {
 describe("nginx upload limit configuration", () => {
   const repoRoot = resolve(process.cwd(), "..");
 
+  it("uses trusted configured hosts rather than request-controlled redirect or upstream hosts", () => {
+    const production = readFileSync(resolve(repoRoot, "deploy/nginx/production.conf.template"), "utf8");
+    const local = readFileSync(resolve(repoRoot, "deploy/nginx/local-smoke.conf.template"), "utf8");
+    expect(production).toContain("return 308 https://${PRODUCTION_DOMAIN}$request_uri;");
+    expect(production.match(/proxy_set_header Host \$\{PRODUCTION_DOMAIN\};/g)).toHaveLength(2);
+    expect(local.match(/proxy_set_header Host 127\.0\.0\.1;/g)).toHaveLength(2);
+    expect(production).not.toContain("$host");
+    expect(local).not.toContain("$host");
+  });
+
+  it("permits only same-origin, browser-consented geolocation", () => {
+    const production = readFileSync(resolve(repoRoot, "deploy/nginx/production.conf.template"), "utf8");
+    expect(production).toContain('Permissions-Policy "camera=(), microphone=(), geolocation=(self)"');
+  });
+
+  it("pins every GitHub Action to an immutable commit", () => {
+    const workflow = readFileSync(resolve(repoRoot, ".github/workflows/ci.yml"), "utf8");
+    const actions = [...workflow.matchAll(/uses:\s+(\S+)/g)].map((match) => match[1]);
+    expect(actions.length).toBeGreaterThan(0);
+    for (const action of actions) expect(action).toMatch(/^[\w-]+\/[\w-]+@[0-9a-f]{40}$/);
+  });
+
   it("keeps production and smoke templates at 21m with JSON 413", () => {
     for (const relative of [
       "deploy/nginx/production.conf.template",

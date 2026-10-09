@@ -392,8 +392,7 @@ export function KpiAnalyticsPage() {
           </section>
 
           <p className="dashboard-generated">
-            Generated {formatDateTime(data.generatedAt)} from live PostgreSQL
-            data for {user?.activeCompany.name}.
+            Generated {formatDateTime(data.generatedAt)} · {user?.activeCompany.name}
           </p>
         </>
       ) : null}
