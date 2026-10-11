@@ -62,6 +62,7 @@ outputs/
 .turbo/
 *.tsbuildinfo
 gitleaks-report.json
+frontend/design-review/
 
 # OS / editor noise
 .DS_Store
@@ -91,6 +92,7 @@ storage/
 private-reference/
 
 # Private local workbooks, data snapshots and delivery artifacts
+/delivery/
 .local-uat/
 backups/
 **/backups/
