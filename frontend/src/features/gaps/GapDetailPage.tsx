@@ -67,6 +67,7 @@ export function GapDetailPage() {
         title={gap.title}
         section="Gap Register"
         description={`${gap.code} · Company-scoped remediation record`}
+        showDescription
         connected
         actions={
           <>

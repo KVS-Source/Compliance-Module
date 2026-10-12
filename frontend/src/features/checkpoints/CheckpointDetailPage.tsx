@@ -198,6 +198,7 @@ export function CheckpointDetailPage() {
         title={checkpoint.title}
         section="Policies & Controls"
         description={`${checkpoint.code} · ${user?.activeCompany.name ?? "Active Company"}`}
+        showDescription
         connected
         actions={
           <>

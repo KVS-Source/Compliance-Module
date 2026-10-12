@@ -177,6 +177,7 @@ export function ControlDetailPage() {
         title={control.title}
         section="Policies & Controls"
         description={`${control.code} · ${user?.activeCompany.name ?? "Active Company"}`}
+        showDescription
         connected
         actions={
           <>

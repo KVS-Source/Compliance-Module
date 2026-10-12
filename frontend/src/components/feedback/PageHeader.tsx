@@ -7,6 +7,8 @@ interface PageHeaderProps {
   title: string;
   section: string;
   description: string;
+  /** Detail pages keep the line under the title because it carries the record code. */
+  showDescription?: boolean;
   connected?: boolean;
   primaryLabel?: string;
   onPrimary?: () => void;
@@ -17,6 +19,7 @@ export function PageHeader({
   title,
   section,
   description,
+  showDescription = false,
   primaryLabel,
   onPrimary,
   actions,
@@ -33,7 +36,7 @@ export function PageHeader({
             {section}
           </div>
           <h1>{title}</h1>
-          <p>{description}</p>
+          {showDescription ? <p>{description}</p> : null}
         </div>
         <div className="button-row">
           {actions}
