@@ -800,9 +800,7 @@ test("login, secure storage, Company switch and API-backed master screens", asyn
 
   await navigateInApp(page, "/admin/users");
   await page.getByRole("button", { name: `View ${users[0]!.id}` }).click();
-  await expect(
-    page.getByText("Database-authoritative Company user detail."),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(users[0]!.email)).toBeVisible();
   await page.getByRole("button", { name: "Done" }).click();
 
   await navigateInApp(page, "/master/frameworks");
@@ -941,7 +939,7 @@ test("sidebar exposes the complete approved structure and truthful badges", asyn
   await expect(page.locator('.sidebar-foot a[href="/settings"]')).toHaveCount(
     1,
   );
-  // Primary navigation is LIVE-only — no In Development or Awaiting Access badges.
+  // Client navigation is LIVE-only — no In Development or Awaiting Access badges.
   await expect(page.locator(".nav-status-badge")).toHaveCount(0);
   await expect(
     page.getByTestId("nav-status-/data/genrac-integration"),
@@ -1205,7 +1203,7 @@ test("GenRAC Integration shows Not configured without claiming live access", asy
 
   await expect(page.getByTestId("module-status-page")).toHaveCount(0);
   await expect(page.getByTestId("genrac-status")).toBeVisible();
-  await expect(page.getByTestId("genrac-not-configured")).toContainText(
+  await expect(page.getByTestId("genrac-status")).toContainText(
     "Not configured",
   );
   await expect(page.getByText("Awaiting GenRAC Access")).toHaveCount(0);
@@ -1549,7 +1547,7 @@ test("mobile route search opens, identifies status, navigates and closes", async
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/data\/genrac-integration$/);
   await expect(searchDialog).toBeHidden();
-  await expect(page.getByTestId("genrac-not-configured")).toBeVisible();
+  await expect(page.getByTestId("genrac-status")).toContainText("Not configured");
 
   await page.getByRole("button", { name: "Open global search" }).click();
   await page.keyboard.press("Escape");

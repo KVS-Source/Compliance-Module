@@ -11,7 +11,7 @@ Sources:
 - `GRC_Data_Dictionary.xlsx` — 46 tables across 8 domains
 - `Updated2_GenBioCa_Compliance_Platform 22June2026 (2).xlsx` — 30 sheets
 
-## 1. Authorised workbook — imported essentially in full
+## 1. Client workbook — imported essentially in full
 
 Loaded into the `GENBIOCA` Company through
 `npm run import:workbook:commit`. Row counts include header and guidance rows,

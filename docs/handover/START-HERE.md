@@ -23,7 +23,7 @@ It runs. It is not deployed.
 | [known-limitations.md](../known-limitations.md)                            | Constraints that must not be hidden from a client    |
 | [completion-plan.md](../status/completion-plan.md)                         | **Forward roadmap** — closed Phase 1–2, V1.1 / V1.5 / V2 |
 | [module-status.md](./module-status.md)                                     | Client-readable “what can the user do” matrix        |
-| [system-walkthrough-script.md](../status/system-walkthrough-script.md)                   | A rehearsed 15-minute walkthrough                  |
+| [client-walkthrough-script.md](../status/client-walkthrough-script.md)                   | A rehearsed 15-minute walkthrough                  |
 | [customer-experience-review.md](../status/customer-experience-review.md)   | UX findings (partially superseded — see completion plan) |
 | [setup.md](../setup.md)                                                    | Environment and first run                            |
 
@@ -56,7 +56,7 @@ Re-seeding with a different password changes every account's password.
 policies, 20 evidence records, 10 gaps, 10 CAPAs and 9 operational registers
 holding 106 records. No sample-data labelling anywhere.
 
-Sign in as `uat-admin@genbioca.test` (GenBioCa Administrator).
+Sign in as `uat-admin@genbioca.test` (Rajesh Menon).
 
 **SAMPLE-CO**, shown as _GenBioCa Operations_ — a complete synthetic showcase
 covering every module, including the Controls, Checkpoints and Evidence chain

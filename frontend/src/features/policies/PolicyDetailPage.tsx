@@ -221,6 +221,7 @@ export function PolicyDetailPage() {
         title={policy.title}
         section="Policies & Controls"
         description={`${policy.code} · ${user?.activeCompany.name ?? "Active Company"}`}
+        showDescription
         connected
         actions={
           <>

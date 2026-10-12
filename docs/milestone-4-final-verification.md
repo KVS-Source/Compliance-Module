@@ -127,5 +127,5 @@ deployment, PostgreSQL RLS, production deployment, dashboard redesign.
 - `postman/Milestone-4-E2E.postman_environment.json`
 - `postman/README.md`
 - `docs/milestone-4-pgadmin-queries.sql`
-- `docs/milestone-4-system-walkthrough.md`
+- `docs/milestone-4-client-walkthrough.md`
 - this document

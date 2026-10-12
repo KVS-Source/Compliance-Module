@@ -6,7 +6,7 @@ import {
   type ProductionRoleCode,
 } from "./access-profile.js";
 
-export type TenantInitializationInput = {
+export type ClientInitializationInput = {
   companyCode: string;
   companyName: string;
   userCode: string;
@@ -19,7 +19,7 @@ export type TenantInitializationInput = {
 
 const codePattern = /^[A-Z0-9][A-Z0-9_-]{1,63}$/;
 
-const validateInput = (input: TenantInitializationInput) => {
+const validateInput = (input: ClientInitializationInput) => {
   if (
     !codePattern.test(input.companyCode) ||
     !codePattern.test(input.userCode)
@@ -33,7 +33,7 @@ const validateInput = (input: TenantInitializationInput) => {
   }
   const email = input.email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error("A valid operator email address is required");
+    throw new Error("A valid client email address is required");
   }
   if (email.endsWith(".test")) {
     throw new Error(
@@ -54,9 +54,9 @@ const validateInput = (input: TenantInitializationInput) => {
   return { ...input, email };
 };
 
-export const initializeTenantUser = async (
+export const initializeClientUser = async (
   db: PrismaClient,
-  rawInput: TenantInitializationInput,
+  rawInput: ClientInitializationInput,
 ) => {
   const input = validateInput(rawInput);
   const passwordHash = await argon2.hash(input.password, {
@@ -147,7 +147,7 @@ export const initializeTenantUser = async (
     await transaction.auditEvent.create({
       data: {
         tenantId: tenant.id,
-        action: "INITIAL_USER_PROVISIONED",
+        action: "CLIENT_USER_INITIALIZED",
         entityType: "USER",
         entityId: user.id,
         metadata: {

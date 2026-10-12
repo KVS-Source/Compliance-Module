@@ -144,7 +144,7 @@ export function Topbar({
    * action that would fail on arrival.
    *
    * Company creation is included now that `POST /tenants` exists; it is gated on
-   * `tenants:write`, which only the Company Administrator profile holds.
+   * `tenants:write`, which only the Client Company Administrator profile holds.
    */
   const quickAddGroups = useMemo(
     () =>

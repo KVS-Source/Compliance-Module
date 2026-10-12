@@ -151,7 +151,7 @@ export function ControlFrameworkMapping({
     setPendingRemoval([]);
     setConfirmRemoval(false);
     setFormError(
-      "Selected Frameworks were marked for removal in the editor. Save will still be refused by the API until dependent Rule mappings are removed.",
+      "Remove dependent Rule mappings before saving these Framework changes.",
     );
   };
 
@@ -221,7 +221,7 @@ export function ControlFrameworkMapping({
         ) : frameworks.status === "forbidden" ? (
           <p className="muted" data-testid="control-framework-options-unavailable">
             Framework options cannot be loaded (frameworks:read required).
-            Current mappings from the Control API remain visible above.
+            Current mappings are shown above.
           </p>
         ) : frameworks.status === "error" ? (
           <ErrorState error={frameworks.error} />

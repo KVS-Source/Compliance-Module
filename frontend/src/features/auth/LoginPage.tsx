@@ -149,10 +149,6 @@ export function LoginPage() {
             </div>
 
             <div className="login-row">
-              <label className="check">
-                <input type="checkbox" />
-                Keep me signed in
-              </label>
               <button
                 className="text-btn"
                 type="button"
@@ -178,17 +174,6 @@ export function LoginPage() {
               <span className="login-foot-dot" aria-hidden="true" />
               <span>Secure company access</span>
             </div>
-            <div className="login-foot-links">
-              <button className="text-btn" type="button">
-                Privacy
-              </button>
-              <button className="text-btn" type="button">
-                Security
-              </button>
-              <button className="text-btn" type="button">
-                Support
-              </button>
-            </div>
           </footer>
         </div>
       </section>
@@ -208,30 +193,8 @@ export function LoginPage() {
           }
         >
           <div className="account-recovery-content">
-            <div className="banner banner-info">
-              <ShieldCheck size={18} />
-              <span>
-                GenBioCa uses administrator-controlled account recovery so a
-                reset cannot be issued from an unverified email address.
-              </span>
-            </div>
-            <h3>Recover your access</h3>
-            <ol>
-              <li>
-                Contact your Company Administrator using an approved channel.
-              </li>
-              <li>Provide your registered work email and Company name.</li>
-              <li>
-                The administrator resets the password from Administration →
-                Users and communicates the temporary password securely.
-              </li>
-              <li>Sign in and immediately choose a new password.</li>
-            </ol>
-            <p>
-              A password reset revokes the user&apos;s existing sessions. The
-              application never confirms whether an email address has an account
-              from this public screen.
-            </p>
+            <p>Contact your Company Administrator to reset your password.</p>
+            <p>After signing in, choose Change Password from your account menu.</p>
           </div>
         </Modal>
       ) : null}

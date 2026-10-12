@@ -28,10 +28,7 @@ export function ControlTraceabilityPanel({
       <header className="card-head">
         <div>
           <h2>Traceability</h2>
-          <p>
-            Active and historical mappings returned by the Control API. Evidence,
-            Gap and CAPA links are not fabricated here.
-          </p>
+
         </div>
         <button
           className="btn btn-secondary"

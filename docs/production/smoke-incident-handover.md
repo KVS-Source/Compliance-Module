@@ -42,7 +42,7 @@ already verified integration suite or a separately approved disposable tenant.
 7. Notify the client through the approved channel and document root cause,
    recovery point, lost/changed data, corrective actions and follow-up owner.
 
-## Operational handover checklist
+## Client handover checklist
 
 - approved HTTPS URL, support contact and access window;
 - named users, least-privilege roles and one-time-password delivery/rotation;

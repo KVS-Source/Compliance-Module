@@ -36,8 +36,7 @@ export function CheckpointTraceabilityPanel({
         <div>
           <h2>Traceability</h2>
           <p>
-            Parent Control and inherited Policy / Framework mappings. Evidence,
-            Gap and CAPA links are not fabricated here.
+            Parent Control and inherited Policy / Framework mappings.
           </p>
         </div>
         <button

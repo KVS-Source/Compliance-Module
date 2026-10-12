@@ -1,4 +1,4 @@
-# Tenant initialization and production data load
+# Client initialization and production data load
 
 ## Approved roles
 
@@ -7,7 +7,7 @@ The operator initializer creates only explicit roles; it never assigns
 
 | Code | Display name | Intent |
 | --- | --- | --- |
-| `CLIENT_COMPANY_ADMINISTRATOR` | Company Administrator | Explicit administration and all current domain permissions |
+| `CLIENT_COMPANY_ADMINISTRATOR` | Client Company Administrator | Explicit administration and all current domain permissions |
 | `COMPLIANCE_MANAGER` | Compliance Manager | Compliance workflows without user creation/update |
 | `DEPARTMENT_OWNER` | Department Owner | Operational contribution without approval/admin rights |
 | `REVIEWER_APPROVER` | Reviewer/Approver | Read, review, approval and closure actions |
@@ -23,24 +23,24 @@ Create a one-time password in a protected file (`chmod 600`). Supply the
 populated production environment plus these process-only values:
 
 ```sh
-INITIAL_COMPANY_CODE=<approved-code> \
-INITIAL_COMPANY_NAME=<approved-name> \
-INITIAL_USER_CODE=<approved-user-code> \
-INITIAL_USER_NAME=<approved-name> \
-INITIAL_USER_EMAIL=<approved-email> \
-INITIAL_USER_ROLE=CLIENT_COMPANY_ADMINISTRATOR \
-INITIAL_USER_PASSWORD_FILE=<absolute-mode-0600-file> \
-npm run tenant:initialize --prefix backend
+CLIENT_COMPANY_CODE=<approved-code> \
+CLIENT_COMPANY_NAME=<approved-name> \
+CLIENT_USER_CODE=<approved-user-code> \
+CLIENT_USER_NAME=<approved-name> \
+CLIENT_USER_EMAIL=<approved-email> \
+CLIENT_USER_ROLE=CLIENT_COMPANY_ADMINISTRATOR \
+CLIENT_USER_PASSWORD_FILE=<absolute-mode-0600-file> \
+npm run client:initialize --prefix backend
 ```
 
 The command validates production configuration, hashes the password with
 Argon2id, creates or locates the company, creates exactly one user, membership
 and selected role, reconciles the role to its explicit permission set, and
-writes `INITIAL_USER_PROVISIONED` to the append-only audit log. It refuses a
+writes `CLIENT_USER_INITIALIZED` to the append-only audit log. It refuses a
 duplicate code/email and any `.test` address. It never prints the password.
 
 The schema has no forced-password-change flag. Deliver the one-time password
-through the approved secret channel, require an immediate operator-led
+through the client's approved secret channel, require an immediate operator-led
 password rotation, securely remove the password file, and record completion in
 the release ticket. Do not use the UAT/sample seed or credentials.
 

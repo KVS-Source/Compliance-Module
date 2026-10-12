@@ -161,7 +161,7 @@ export function SettingsPage() {
           showToast(
             "success",
             "Live location detected",
-            "The position stays on this page and is not sent to the platform API.",
+            "Coordinates are not saved.",
           );
         }
       },
@@ -215,7 +215,7 @@ export function SettingsPage() {
       <PageHeader
         title="Settings"
         section="Company & Account"
-        description="Set your working location and display preferences, then reach the governed administration areas behind each platform setting."
+        description="Location and display preferences."
         connected
         actions={
           <>
@@ -234,8 +234,7 @@ export function SettingsPage() {
           <div>
             <h2>Working context</h2>
             <p>
-              Choose the location shown in the application header for the active
-              Company. Company selection remains the enforced security boundary.
+              Select the location shown in the application header.
             </p>
           </div>
           <span className="feature-icon tone-blue"><MapPin size={20} /></span>
@@ -271,8 +270,7 @@ export function SettingsPage() {
                 ))}
               </select>
               <small>
-                This is a personal display preference. Record access remains
-                Company-scoped and permission-controlled.
+                Display preference only; this does not filter records.
               </small>
             </label>
             <div className="settings-manage-link">
@@ -292,9 +290,7 @@ export function SettingsPage() {
           <div className="settings-live-location-copy">
             <strong>Live device location</strong>
             <p>
-              Start location tracking only when needed. The coordinates remain
-              on this page, are not saved, and never change Company or permission
-              scope.
+              Use your device location for this session. Coordinates are not saved.
             </p>
             {liveLocationError ? (
               <p className="settings-live-location-error" role="alert">
@@ -399,42 +395,42 @@ export function SettingsPage() {
           icon={ShieldCheck}
           tone="purple"
           title="Security & account"
-          description="Password changes, identity and access are enforced by the authenticated backend."
+          description="Password and access management."
           links={[["Change password", "/account/change-password"]]}
         />
         <SettingCard
           icon={Bell}
           tone="blue"
           title="Notifications & approvals"
-          description="Review live KPI decisions and risk work queues; external notification delivery is not configured."
+          description="Approvals, notifications and work queues."
           links={[["KPI approvals", "/kpi/approval"], ["Risk register", "/compliance/risks"]]}
         />
         <SettingCard
           icon={Archive}
           tone="amber"
           title="Evidence & governance rules"
-          description="Evidence gates, Policy lifecycle and KPI rules remain governed records, not browser preferences."
+          description="Evidence, Policy and KPI management."
           links={[["Evidence library", "/evidence"], ["Policy register", "/compliance/policy-register"]]}
         />
         <SettingCard
           icon={FileBarChart}
           tone="green"
           title="Analytics & reporting"
-          description="Open live KPI analytics and the ten-report PostgreSQL catalogue with safe CSV exports."
+          description="Performance reports and exports."
           links={[["Analytics & Reports", "/reports"], ["KPI analytics", "/kpi/analytics"]]}
         />
         <SettingCard
           icon={Database}
           tone="blue"
           title="Data management"
-          description="Import reviewed workbooks, inspect history and access integration status."
+          description="Imports, history and integrations."
           links={[["Data import", "/data/import"], ["GenRAC integration", "/data/genrac-integration"]]}
         />
         <SettingCard
           icon={Landmark}
           tone="grey"
           title="Company administration"
-          description="Manage organisation structure and access using the existing permission-protected masters."
+          description="Organisation and access management."
           links={hasPermission("organisation:read") ? [["Departments", "/admin/departments"], ["Organisation units", "/admin/organisation-units"]] : []}
         />
       </div>

@@ -17,7 +17,7 @@ blocking.
 
 ### Commercial framing
 
-| Tier | Meaning | Release statement |
+| Tier | Meaning | Client line |
 | --- | --- | --- |
 | **Compliance engine** | Governed workflows, evidence gates, audit trail, KPI→risk, gap/CAPA, import, reports | Largely there |
 | **Daily software** | Personal queues, register ergonomics, bulk work, easy data entry, light collaboration | V1.1 must-haves shipped; strong additions remain |

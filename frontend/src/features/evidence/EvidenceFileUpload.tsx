@@ -14,7 +14,7 @@ const CONSTRAINTS = `Allowed file types: ${EVIDENCE_ALLOWED_EXTENSIONS.map(
   (extension) => extension.slice(1).toUpperCase(),
 ).join(", ")}. Maximum size ${formatFileSize(
   EVIDENCE_DEFAULT_MAX_UPLOAD_BYTES,
-)}. The API re-checks size, extension, declared type and file signature.`;
+)}.`;
 
 /**
  * Owns one in-flight multipart upload. Progress comes from real upload events,

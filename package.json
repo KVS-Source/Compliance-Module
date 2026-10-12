@@ -8,6 +8,10 @@
     "node": ">=20"
   },
   "scripts": {
+    "setup:local": "node scripts/setup-local.mjs",
+    "test:setup": "node --test scripts/setup-local.test.mjs",
+    "package:delivery": "node scripts/package-delivery.mjs",
+    "verify:catalogue": "node scripts/verify-catalogue.mjs",
     "install:all": "npm ci --prefix backend && npm ci --prefix frontend",
     "dev": "npm run dev --prefix backend & npm run dev --prefix frontend & wait",
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",

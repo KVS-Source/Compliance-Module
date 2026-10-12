@@ -1,4 +1,4 @@
-# Milestone 4 system walkthrough (10–15 minutes)
+# Milestone 4 client walkthrough (10–15 minutes)
 
 Use synthetic `.test` identities only. Do not share passwords or access tokens
 on screen. Hide Postman environment secrets while presenting.

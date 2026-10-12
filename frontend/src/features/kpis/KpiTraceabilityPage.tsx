@@ -153,7 +153,7 @@ export function KpiTraceabilityPage() {
       <PageHeader
         title="KPI Mapping & Compliance Traceability"
         section="KPI Management"
-        description="Connect KPI performance with governed risk, framework, control, policy, rule and evidence relationships."
+        description="KPI performance and linked compliance records."
         connected
         actions={
           <>
@@ -175,10 +175,10 @@ export function KpiTraceabilityPage() {
         <>
           <div className="cards kpi-trace-summary" data-testid="kpi-trace-summary">
             <MetricCard label="KPI Actuals" value={data.summary.actuals} note="latest 100 in Company scope" icon={CircleGauge} tone="blue" to="/kpi/analytics" />
-            <MetricCard label="Complete Chains" value={data.summary.completeChains} note="all eight governed nodes linked" icon={GitMerge} tone="green" />
+            <MetricCard label="Complete Chains" value={data.summary.completeChains} note="all eight nodes linked" icon={GitMerge} tone="green" />
             <MetricCard label="Missing Evidence" value={data.summary.missingEvidence} note="actuals without an active Evidence link" icon={Archive} tone="amber" to="/evidence" />
-            <MetricCard label="Risk Linked" value={data.summary.riskLinked} note="actuals with a governed Risk" icon={ShieldAlert} tone="red" to="/compliance/risks" />
-            <MetricCard label="Declared, Not Governed" value={data.summary.declaredWithoutChain} note="workbook clause with no control chain" icon={GitMerge} tone="amber" />
+            <MetricCard label="Risk Linked" value={data.summary.riskLinked} note="actuals with a linked Risk" icon={ShieldAlert} tone="red" to="/compliance/risks" />
+            <MetricCard label="Unlinked References" value={data.summary.declaredWithoutChain} note="workbook reference without a Control mapping" icon={GitMerge} tone="amber" />
           </div>
 
           <div className="toolbar kpi-trace-toolbar">
@@ -201,13 +201,10 @@ export function KpiTraceabilityPage() {
             <section className="card empty-state" data-testid="kpi-traceability-empty">
               <GitMerge size={32} />
               <strong>No KPI traceability chain matches this view</strong>
-              <span>Record a KPI Actual and link governed Evidence to build the chain.</span>
+              <span>No actual or evidence linked.</span>
             </section>
           )}
 
-          <p className="page-footnote">
-            This is a derived read-only graph. Manage KPI targets and actuals in KPI Management; manage Evidence-to-KPI and Evidence-to-Control links in Evidence; manage Policy, Framework and Rule mappings from the Control record.
-          </p>
         </>
       ) : null}
     </div>
@@ -317,7 +314,7 @@ function TraceabilityChain({ row }: { row: KpiTraceabilityRow }) {
             <strong>Declared in workbook:</strong> {row.kpi.frameworkMapping}
           </span>
           <Badge tone={row.frameworks.length ? "green" : "amber"}>
-            {row.frameworks.length ? "Governed chain present" : "Not governed yet"}
+            {row.frameworks.length ? "Mapped" : "Not mapped"}
           </Badge>
         </p>
       ) : null}

@@ -279,6 +279,7 @@ export function KpiTargetsPage() {
         title="KPI Targets"
         section="KPI Management"
         description={`${config.kpi.code} · ${config.kpi.name} — ${scopeSummary(config)}`}
+        showDescription
         connected
         actions={
           <>

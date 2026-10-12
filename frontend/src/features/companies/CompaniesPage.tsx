@@ -1,4 +1,3 @@
-import { Building2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
 import { Badge } from "../../components/feedback/Badge";
@@ -74,7 +73,7 @@ export function CompaniesPage() {
       <PageHeader
         title="Company Setup"
         section="Admin"
-        description="Manage Company profiles, framework assignments and data separation."
+        description="Company profiles and membership."
         connected
         {...(canCreate
           ? {
@@ -104,7 +103,7 @@ export function CompaniesPage() {
             showToast(
               "info",
               row.name,
-              `${row.code} is available in your authenticated Company membership list.`,
+              `${row.code}`,
             )
           }
         />
@@ -123,18 +122,6 @@ export function CompaniesPage() {
           }}
         />
       ) : null}
-      <section className="card information-card">
-        <span className="feature-icon tone-blue">
-          <Building2 size={19} />
-        </span>
-        <div>
-          <strong>Company isolation is backend enforced</strong>
-          <p>
-            The selector changes the signed tenant context. No client-supplied
-            Company identifier is trusted by master-data routes.
-          </p>
-        </div>
-      </section>
     </div>
   );
 }

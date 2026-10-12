@@ -60,7 +60,7 @@ const frameworkSheet = (name: string): SheetSpec => ({
     row(5, [1, name, "2022", "Information Security", "Annex A", "Certified"]),
 });
 
-describe("final release completion HTTP coverage", () => {
+describe("final client completion HTTP coverage", () => {
   let app: Express;
   let prisma: PrismaClient;
   let adminToken: string;

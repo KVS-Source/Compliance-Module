@@ -7,12 +7,19 @@
  * (the integration runner enforces that before calling this script).
  */
 import { PrismaClient } from "@prisma/client";
+import { validateTestDatabaseEnvironment } from "../src/config/test-database.js";
 
 const main = async () => {
   const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error("DATABASE_URL is required to reset the test schema");
+  if (
+    process.env.NODE_ENV !== "test" ||
+    process.env.INTEGRATION_TEST_RUNNER !== "isolated-postgres" ||
+    !url ||
+    url !== process.env.DATABASE_URL_TEST
+  ) {
+    throw new Error("Schema reset requires the isolated test runner and matching test database URLs");
   }
+  validateTestDatabaseEnvironment({ nodeEnvironment: process.env.NODE_ENV, testUrl: url });
 
   const db = new PrismaClient({
     datasources: { db: { url } },
