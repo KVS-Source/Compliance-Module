@@ -526,7 +526,7 @@ const navigationRouteDefinitions: RouteDefinition[] = [
     "#data/genrac-integration",
     "GenRAC Integration",
     "Data Management",
-    "Configuration-driven GenRAC connector status. Live access is not claimed when unconfigured.",
+    "Connection status and synchronization history.",
     Database,
     {
       permission: "integrations:read",

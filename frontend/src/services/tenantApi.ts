@@ -8,7 +8,7 @@ export const tenantApi = {
 
   /**
    * Creates a Company and makes the caller its administrator. Requires
-   * `tenants:write`, which only the Company Administrator profile holds.
+   * `tenants:write`, which only the Client Company Administrator profile holds.
    */
   async create(input: {
     code: string;

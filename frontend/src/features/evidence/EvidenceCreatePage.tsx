@@ -370,10 +370,7 @@ export function EvidenceCreatePage() {
         <header className="card-head">
           <div>
             <h2>Evidence metadata</h2>
-            <p>
-              The API validates every field again and remains authoritative for
-              ownership, dates and file rules.
-            </p>
+
           </div>
         </header>
         <div className="card-pad">

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { PrismaClient } from "@prisma/client";
 import type { Express } from "express";
@@ -7,6 +7,9 @@ describe("React frontend delivery", () => {
   let app: Express;
 
   beforeAll(async () => {
+    // This suite checks both serving modes regardless of local operator settings.
+    vi.stubEnv("SERVE_FRONTEND", "true");
+    vi.stubEnv("ENABLE_PROTOTYPE_ROUTES", "true");
     process.env.DATABASE_URL ??=
       "postgresql://user:pass@localhost:5432/frontend-serving";
     process.env.JWT_ACCESS_SECRET ??=
@@ -17,7 +20,9 @@ describe("React frontend delivery", () => {
     app = module.createApp({} as PrismaClient);
   });
 
-  it("serves the React entry for root and browser-side routes", async () => {
+  afterAll(() => vi.unstubAllEnvs());
+
+  it("serves the React entry for root and client-side routes", async () => {
     for (const path of ["/", "/dashboard", "/admin/users"]) {
       const response = await request(app).get(path).expect(200);
       expect(response.text).toContain('<div id="root"></div>');

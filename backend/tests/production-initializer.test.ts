@@ -2,7 +2,7 @@ import argon2 from "argon2";
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/config/prisma.js";
-import { initializeTenantUser } from "../src/production/tenant-initializer.js";
+import { initializeClientUser } from "../src/production/client-initializer.js";
 import { PRODUCTION_ACCESS_PROFILES } from "../src/production/access-profile.js";
 
 const runSuffix = randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
@@ -20,11 +20,11 @@ const input = {
 };
 let initializedTenantId = "";
 
-describe("production tenant initializer", () => {
+describe("production client initializer", () => {
   afterAll(() => prisma.$disconnect());
 
   it("creates one tenant-scoped user with an explicit production role and audit", async () => {
-    const result = await initializeTenantUser(prisma, input);
+    const result = await initializeClientUser(prisma, input);
     initializedTenantId = result.tenant.id;
     expect(result).toMatchObject({
       tenant: { code: tenantCode },
@@ -60,7 +60,7 @@ describe("production tenant initializer", () => {
       prisma.auditEvent.count({
         where: {
           tenantId: user.memberships[0]!.tenantId,
-          action: "INITIAL_USER_PROVISIONED",
+          action: "CLIENT_USER_INITIALIZED",
           entityId: user.id,
         },
       }),
@@ -68,7 +68,7 @@ describe("production tenant initializer", () => {
   });
 
   it("refuses duplicate creation without creating a second user or audit event", async () => {
-    await expect(initializeTenantUser(prisma, input)).rejects.toThrow(
+    await expect(initializeClientUser(prisma, input)).rejects.toThrow(
       /already exists/,
     );
     await expect(
@@ -78,7 +78,7 @@ describe("production tenant initializer", () => {
       prisma.auditEvent.count({
         where: {
           tenantId: initializedTenantId,
-          action: "INITIAL_USER_PROVISIONED",
+          action: "CLIENT_USER_INITIALIZED",
         },
       }),
     ).resolves.toBe(1);
@@ -86,7 +86,7 @@ describe("production tenant initializer", () => {
 
   it("rejects synthetic .test identities before database initialization", async () => {
     await expect(
-      initializeTenantUser(prisma, { ...input, email: "blocked@example.test" }),
+      initializeClientUser(prisma, { ...input, email: "blocked@example.test" }),
     ).rejects.toThrow(/\.test identities/);
   });
 });

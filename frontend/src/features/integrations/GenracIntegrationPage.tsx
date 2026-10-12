@@ -70,7 +70,7 @@ export function GenracIntegrationPage() {
       <PageHeader
         title="GenRAC Integration"
         section="Data Management"
-        description="Platform-side connector status for GenRAC. Live REST or database access is not claimed without configuration."
+        description="Connection status and synchronization history."
         connected
         actions={
           <button className="btn btn-secondary" type="button" onClick={() => setVersion((value) => value + 1)}>
@@ -96,15 +96,11 @@ export function GenracIntegrationPage() {
                 : status.connection.status}
             </Badge>
           </div>
-          <p>
-            {status.connection.configurationExplanation ??
-              "Configuration metadata is present. Secret values are never returned to the browser."}
-          </p>
           <p><strong>Live GenRAC access:</strong> {status.liveAccess ? "Available" : "Not available"}</p>
           <p><strong>Last successful sync:</strong> {status.connection.lastSuccessfulSyncAt ? new Date(status.connection.lastSuccessfulSyncAt).toLocaleString() : "Never"}</p>
           <p><strong>Last attempted sync:</strong> {status.connection.lastAttemptedSyncAt ? new Date(status.connection.lastAttemptedSyncAt).toLocaleString() : "Never"}</p>
           <p><strong>Mapping records:</strong> {status.mappingCount}</p>
-          <p><strong>Adapters:</strong> CSV {status.adapters.csvFile ? "ready" : "not configured"} · REST configuration-ready only · PostgreSQL configuration-ready only</p>
+          <p><strong>Adapters:</strong> CSV {status.adapters.csvFile ? "ready" : "not configured"}</p>
 
           <div className="filter-bar" style={{ marginTop: 16 }}>
             <button
@@ -135,11 +131,6 @@ export function GenracIntegrationPage() {
               Run Sync
             </button>
           </div>
-          {!configured ? (
-            <p role="status" data-testid="genrac-not-configured">
-              Status: Not configured. Buttons that require configuration stay disabled until an approved CSV path reference or live access is set by operations.
-            </p>
-          ) : null}
           {actionError ? <p className="form-error">{actionError}</p> : null}
           {previewCounts ? (
             <p data-testid="genrac-preview-counts">
@@ -161,7 +152,7 @@ export function GenracIntegrationPage() {
         ) : history.error ? (
           <ErrorState error={history.error} />
         ) : (history.data?.data.length ?? 0) === 0 ? (
-          <div className="card-pad"><p>No sync runs yet.</p></div>
+          <div className="card-pad"><p>No synchronization history.</p></div>
         ) : (
           <div className="table-wrap">
             <table className="data-table">

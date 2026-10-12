@@ -172,8 +172,8 @@ export function KpiCataloguePage({ mode = "catalogue" }: { mode?: "catalogue" | 
         section={isMaster ? "Master Data" : "KPI Management"}
         description={
           isMaster
-            ? "The authoritative KPI definition master: code, measurement unit, direction, default frequency and record status."
-            : "The governed catalogue of KPI definitions, with this Company's configuration state against each one."
+            ? "KPI definitions, units, frequency and measurement direction."
+            : "KPI definitions and Company configuration status."
         }
         connected
         actions={
@@ -248,8 +248,7 @@ export function KpiCataloguePage({ mode = "catalogue" }: { mode?: "catalogue" | 
 
           {all.length === 0 ? (
             <p className="chart-empty" data-testid="kpi-catalogue-empty">
-              The KPI catalogue is empty. Import the approved workbook to load
-              the governed KPI definitions.
+              No KPI definitions. Import an approved workbook to get started.
             </p>
           ) : (
           <DataTable

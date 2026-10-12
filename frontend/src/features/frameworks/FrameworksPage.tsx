@@ -1,4 +1,4 @@
-import { BookOpenCheck, Database, Landmark } from "lucide-react";
+import { Database } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback/AsyncState";
@@ -8,7 +8,6 @@ import { SearchToolbar } from "../../components/forms/SearchToolbar";
 import { DataTable, type Column } from "../../components/tables/DataTable";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
-import { useToast } from "../../context/ToastContext";
 import { useApiResource } from "../../hooks/useApiResource";
 import { frameworkApi } from "../../services/frameworkApi";
 import type { Framework, FrameworkRule } from "../../types/api";
@@ -20,7 +19,6 @@ export function FrameworksPage({
 }) {
   const { user } = useAuth();
   const { contextVersion } = useTenant();
-  const { showToast } = useToast();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All Statuses");
@@ -37,10 +35,9 @@ export function FrameworksPage({
     { key: "status", label: "Status", render: (row) => <Badge>{row.status}</Badge> },
   ];
   const selectingRules = mode === "rules";
-  return <div className="page"><PageHeader title={selectingRules ? "Framework Rules" : "Framework Master"} section="Frameworks & Rules" description={selectingRules ? "Choose a framework to review its live shared-master rules." : "Maintain active compliance frameworks and reference-only frameworks."} connected primaryLabel={selectingRules ? undefined : "Add Framework"} onPrimary={() => showToast("info", "Read-only in Milestone 1", "Framework write APIs are scheduled for the next backend milestone.")} />
+  return <div className="page"><PageHeader title={selectingRules ? "Framework Rules" : "Framework Master"} section="Frameworks & Rules" description={selectingRules ? "Framework requirements and rule details." : "Shared compliance frameworks and versions."} connected />
     <SearchToolbar value={search} onChange={setSearch} placeholder="Search frameworks or versions…" status={status} onStatusChange={setStatus} />
     {resource.loading ? <LoadingState label="Loading shared frameworks…" /> : resource.error ? <ErrorState error={resource.error} /> : <DataTable rows={rows} columns={columns} caption={selectingRules ? "Frameworks with rules" : "Framework Master"} companyName={user?.activeCompany.name} onView={(row) => navigate(`/master/frameworks/${row.id}/rules`)} />}
-    <div className="grid-2"><section className="card information-card"><span className="feature-icon tone-green"><Landmark size={19} /></span><div><strong>Active frameworks</strong><p>Frameworks and their rules are shared master data. Company adoption and control mappings remain later-phase records.</p></div></section><section className="card information-card"><span className="feature-icon tone-purple"><BookOpenCheck size={19} /></span><div><strong>Reference-only frameworks</strong><p>GDPR, SOC 1, SOC 2 and ADA/WCAG remain reference terminology from the approved prototype.</p></div></section></div>
   </div>;
 }
 

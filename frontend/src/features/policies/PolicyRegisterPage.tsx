@@ -249,7 +249,7 @@ export function PolicyRegisterPage() {
       <PageHeader
         title="Policy Register"
         section="Policies & Controls"
-        description="Company-scoped governed Policies, Version status and review dates. Reads use policies:read."
+        description="Policies, version status and review dates."
         connected
         actions={
           <>

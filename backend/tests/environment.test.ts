@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,8 +13,8 @@ import { databaseRuntimeUrl } from "../src/config/prisma.js";
 
 const backendRoot = process.cwd();
 const repositoryRoot = resolve(backendRoot, "..");
-const strongSecret = "synthetic-test-secret-".repeat(2);
-const refreshSecret = "synthetic-refresh-secret-".repeat(2);
+const strongSecret = randomBytes(32).toString("hex");
+const refreshSecret = randomBytes(32).toString("hex");
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
 
 const validDevelopment = {
@@ -30,9 +31,9 @@ const validProduction = {
   COOKIE_SECURE: "true",
   REFRESH_TOKEN_SECRET: refreshSecret,
   TRUST_PROXY: "1",
-  CORS_ORIGINS: "https://compliance.tenant.invalid",
+  CORS_ORIGINS: "https://compliance.client.invalid",
   FRONTEND_API_URL: "/api/v1",
-  PRODUCTION_DOMAIN: "compliance.tenant.invalid",
+  PRODUCTION_DOMAIN: "compliance.client.invalid",
   LOCAL_UPLOAD_DIR: "/var/lib/genbioca/evidence",
   BACKUP_PATH: "/var/backups/genbioca",
   READINESS_STORAGE_CHECK: "true",
@@ -160,8 +161,8 @@ describe("environment validation", () => {
     for (const FRONTEND_API_URL of [
       "//unapproved.invalid/api/v1",
       "/\\unapproved.invalid/api/v1",
-      "http://api.tenant.invalid/api/v1",
-      "https://user:password@api.integration.invalid/api/v1",
+      "http://api.client.invalid/api/v1",
+      "https://user:password@api.client.invalid/api/v1",
       "/api/v1?redirect=https://unapproved.invalid",
     ]) {
       expect(() =>
@@ -171,9 +172,9 @@ describe("environment validation", () => {
     expect(
       parseEnvironment({
         ...validProduction,
-        FRONTEND_API_URL: "https://api.tenant.invalid/api/v1",
+        FRONTEND_API_URL: "https://api.client.invalid/api/v1",
       }).FRONTEND_API_URL,
-    ).toBe("https://api.tenant.invalid/api/v1");
+    ).toBe("https://api.client.invalid/api/v1");
   });
 
   it("requires persistent absolute storage and backup paths in production", () => {

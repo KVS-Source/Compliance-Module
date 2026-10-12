@@ -21,10 +21,7 @@ export function ControlCheckpointSummary({
       <header className="card-head">
         <div>
           <h2>Checkpoint summary</h2>
-          <p>
-            Counts returned by the Control API. Open the Checkpoint Register to
-            manage Checkpoints; individual count values are not links.
-          </p>
+
         </div>
         <Badge>{active} active</Badge>
       </header>

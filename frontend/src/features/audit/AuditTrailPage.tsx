@@ -85,7 +85,7 @@ export function AuditTrailPage() {
       <PageHeader
         title="Audit Trail"
         section="Audit & Operations"
-        description="Append-only, tenant-scoped history of governed activity. Events cannot be edited or deleted."
+        description="Company activity history."
         connected
         actions={
           <>

@@ -287,6 +287,7 @@ export function RiskDetailPage() {
         title={risk.title}
         section="Compliance Management"
         description={`${risk.code} · ${user?.activeCompany.name ?? "Active Company"}`}
+        showDescription
         connected
         actions={
           <>

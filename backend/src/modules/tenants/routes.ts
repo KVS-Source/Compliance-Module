@@ -48,7 +48,7 @@ export class TenantsService {
    * something they cannot enter — every other endpoint requires an active
    * membership. This reuses the role and permission seeding the production
    * initializer performs, so a Company created here is indistinguishable from
-   * one provisioned by `npm run tenant:initialize`.
+   * one provisioned by `npm run client:initialize`.
    *
    * A new Company starts empty, so this grants the caller no access to any
    * existing Company's data.

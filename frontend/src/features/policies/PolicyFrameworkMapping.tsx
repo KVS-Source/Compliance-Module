@@ -206,7 +206,7 @@ export function PolicyFrameworkMapping({
         ) : frameworks.status === "forbidden" ? (
           <p className="muted" data-testid="policy-framework-options-unavailable">
             Framework options cannot be loaded (frameworks:read required).
-            Current mappings from the Policy API remain visible above.
+            Current mappings are shown above.
           </p>
         ) : frameworks.status === "error" ? (
           <ErrorState error={frameworks.error} />

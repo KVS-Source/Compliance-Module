@@ -88,7 +88,7 @@ export function DashboardPage() {
       <PageHeader
         title="Dashboard"
         section="Overview"
-        description="Live Company-scoped compliance, KPI, Evidence and Risk analytics computed from PostgreSQL."
+        description="Compliance, performance and outstanding work."
         connected
         actions={
           <>
@@ -127,7 +127,7 @@ export function DashboardPage() {
               <Database size={20} />
             </span>
             <div className="dashboard-data-scope-copy">
-              <span>Live PostgreSQL data scope</span>
+              <span>Company overview</span>
               <strong>{user?.activeCompany.name ?? "Active Company"}</strong>
               {user?.activeCompany.code ? (
                 <code>{user.activeCompany.code}</code>
@@ -270,10 +270,10 @@ export function DashboardPage() {
 
           <ChartSection
             title="Action Queue"
-            subtitle="Outstanding work derived from the registers below — nothing here is stored as a task."
+            subtitle="Pending approvals and overdue work."
             testId="dashboard-action-queue"
             isEmpty={actionQueue.length === 0}
-            emptyLabel="No outstanding actions. Every register this role can read is clear."
+            emptyLabel="No outstanding actions."
           >
             <div className="action-queue">
               {actionQueue.map((item) => (
@@ -295,11 +295,10 @@ export function DashboardPage() {
             <ChartSection
               title="KPI target versus actual"
               subtitle="Measured KPIs and the number that met target, by reporting period."
-              source="Reporting periods come from the KPI actuals themselves. Both series count KPIs, so they share one scale; target and actual values are not summed across different units."
               testId="dashboard-kpi-trend"
               restricted={trend === null}
               isEmpty={(trend ?? []).length === 0}
-              emptyLabel="No KPI actuals recorded yet. Record an actual against an approved target to build this trend."
+              emptyLabel="No KPI actuals recorded."
               action={
                 <Link className="btn btn-secondary" to="/kpi/analytics">
                   KPI Analytics
@@ -319,7 +318,6 @@ export function DashboardPage() {
             <ChartSection
               title="Evidence status"
               subtitle="Lifecycle distribution of every Evidence record in this Company."
-              source="Counted from the Evidence lifecycle status column."
               testId="dashboard-evidence-status"
               restricted={evidenceStatus === null}
               isEmpty={(evidenceStatus ?? []).length === 0}
@@ -352,7 +350,6 @@ export function DashboardPage() {
             <ChartSection
               title="Framework compliance"
               subtitle="Share of this Company's mapped Controls recorded as implemented, per framework."
-              source="Framework Rules state the requirement; Controls are this Company's implementation. A framework with no mapped Control has no percentage to report and says so."
               testId="dashboard-framework-compliance"
               restricted={frameworkCompliance === null}
               isEmpty={(frameworkCompliance ?? []).length === 0}
@@ -388,7 +385,6 @@ export function DashboardPage() {
             <ChartSection
               title="Risk heat map"
               subtitle="Open risks by inherent likelihood and impact."
-              source="Axis bounds are taken from the recorded scores, so the grid never shows a band this Company does not use."
               testId="dashboard-risk-heatmap"
               restricted={heatMap === null}
               isEmpty={(heatMap?.cells.length ?? 0) === 0}
@@ -525,8 +521,7 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="Recent Audit activity"
-              subtitle="Governed activity recorded on this platform, from the append-only audit trail."
-              source="Replayed workbook history is excluded: it is not activity on this platform."
+              subtitle="Recent activity."
               testId="dashboard-recent-activity"
               restricted={recentActivity === null}
               isEmpty={(recentActivity ?? []).length === 0}
@@ -551,7 +546,7 @@ export function DashboardPage() {
 
             <ChartSection
               title="GenRAC status"
-              subtitle="Configuration-driven connector state. Live access is never claimed while unconfigured."
+              subtitle="Connection and synchronization status."
               testId="dashboard-genrac"
               restricted={genrac === null}
               isEmpty={false}
@@ -599,13 +594,6 @@ export function DashboardPage() {
                     <dd>{genrac?.liveAccess ? "Yes" : "No"}</dd>
                   </div>
                 </dl>
-                {genrac && !genrac.configured ? (
-                  <p className="chart-source">
-                    Live GenRAC synchronization remains Not Configured pending
-                    environment access, credentials and approved master-data
-                    mappings.
-                  </p>
-                ) : null}
               </div>
             </ChartSection>
           </div>
@@ -685,7 +673,7 @@ export function DashboardPage() {
 
           <p className="dashboard-generated" data-testid="dashboard-generated">
             <History size={13} /> Generated{" "}
-            {formatDateTime(data.generatedAt ?? null)} from live PostgreSQL data
+            {formatDateTime(data.generatedAt ?? null)}
             for {user?.activeCompany.name}.
             <Link to="/evidence">
               <Archive size={13} /> Evidence Library

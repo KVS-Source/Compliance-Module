@@ -116,11 +116,9 @@ test("public account recovery explains the secure administrator path", async ({
   await page.getByRole("button", { name: "Forgot password?" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Account Recovery" });
-  await expect(dialog).toContainText(
-    "administrator-controlled account recovery",
-  );
-  await expect(dialog).toContainText("Administration → Users");
-  await expect(dialog).toContainText("revokes the user's existing sessions");
+  await expect(dialog).toContainText("Contact your Company Administrator to reset your password.");
+  await expect(dialog).toContainText("Change Password from your account menu.");
+  await expect(dialog.locator("input")).toHaveCount(0);
 });
 
 test("reaches Change Password from the account menu without a sidebar entry", async ({

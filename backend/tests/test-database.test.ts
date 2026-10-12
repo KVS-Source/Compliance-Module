@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
 import { validateTestDatabaseEnvironment } from "../src/config/test-database.js";
 
 const developmentUrl =
@@ -63,5 +64,24 @@ describe("isolated integration database safety", () => {
         testUrl,
       }),
     ).toThrow(/disabled in production/);
+  });
+});
+
+describe("schema reset entry-point safety", () => {
+  it.each([
+    { NODE_ENV: "development", INTEGRATION_TEST_RUNNER: "isolated-postgres", DATABASE_URL: testUrl, DATABASE_URL_TEST: testUrl },
+    { NODE_ENV: "test", INTEGRATION_TEST_RUNNER: "", DATABASE_URL: testUrl, DATABASE_URL_TEST: testUrl },
+    { NODE_ENV: "test", INTEGRATION_TEST_RUNNER: "isolated-postgres", DATABASE_URL: developmentUrl, DATABASE_URL_TEST: testUrl },
+    { NODE_ENV: "test", INTEGRATION_TEST_RUNNER: "isolated-postgres", DATABASE_URL: developmentUrl, DATABASE_URL_TEST: developmentUrl },
+    { NODE_ENV: "test", INTEGRATION_TEST_RUNNER: "isolated-postgres", DATABASE_URL: "postgresql://synthetic:synthetic@prod-db.internal:5432/genbioca_test", DATABASE_URL_TEST: "postgresql://synthetic:synthetic@prod-db.internal:5432/genbioca_test" },
+  ])("refuses unsafe execution before opening a database connection %#", (overrides) => {
+    const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/reset-test-schema.ts"], {
+      cwd: process.cwd(), env: { ...process.env, ...overrides }, encoding: "utf8", timeout: 10_000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/isolated test runner|clearly contain test|resembles production/);
+    expect(result.stderr).not.toContain(overrides.DATABASE_URL);
+    expect(result.stderr).not.toMatch(/Can't reach database|ECONNREFUSED|ENOTFOUND/);
   });
 });

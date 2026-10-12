@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import express from "express";
 import request from "supertest";
@@ -14,7 +15,7 @@ import {
   sanitiseSetCookieHeader,
 } from "./secret-safe-assertions.js";
 
-const strongSecret = "synthetic-test-secret-".repeat(2);
+const strongSecret = randomBytes(32).toString("hex");
 const databaseUrl = "postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic";
 const productionBase = {
   NODE_ENV: "production",
@@ -22,11 +23,11 @@ const productionBase = {
   JWT_ACCESS_SECRET: strongSecret,
   JWT_ISSUER: "genbioca-compliance",
   COOKIE_SECURE: "true",
-  REFRESH_TOKEN_SECRET: "synthetic-refresh-secret-".repeat(2),
+  REFRESH_TOKEN_SECRET: randomBytes(32).toString("hex"),
   TRUST_PROXY: "1",
-  CORS_ORIGINS: "https://compliance.tenant.invalid",
+  CORS_ORIGINS: "https://compliance.client.invalid",
   FRONTEND_API_URL: "/api/v1",
-  PRODUCTION_DOMAIN: "compliance.tenant.invalid",
+  PRODUCTION_DOMAIN: "compliance.client.invalid",
   LOCAL_UPLOAD_DIR: "/var/lib/genbioca/evidence",
   BACKUP_PATH: "/var/backups/genbioca",
   READINESS_STORAGE_CHECK: "true",
@@ -99,6 +100,18 @@ describe("secret-safe test assertions", () => {
 });
 
 describe("trust proxy resolution", () => {
+  it("does not trust spoofed forwarding through a short IPv4-mapped IPv6 subnet", async () => {
+    const app = express();
+    app.set("trust proxy", "::ffff:10.0.0.0/8");
+    app.get("/proxy-probe", (req, res) => res.json({ ip: req.ip }));
+    const response = await request(app)
+      .get("/proxy-probe")
+      .set("X-Forwarded-For", "203.0.113.15")
+      .expect(200);
+    expect(response.body.ip).not.toBe("203.0.113.15");
+    expect(response.body.ip).toMatch(/127\.0\.0\.1|::1/);
+  });
+
   it("treats an unset or false value as no proxy", () => {
     expect(resolveTrustProxy("")).toBe(false);
     expect(resolveTrustProxy("false")).toBe(false);
@@ -169,7 +182,7 @@ describe("production wildcard permission restriction", () => {
 describe("browser origin policy", () => {
   const corsApp = () => {
     const app = express();
-    app.use(exactOriginCors(["https://compliance.tenant.invalid"]));
+    app.use(exactOriginCors(["https://compliance.client.invalid"]));
     app.get("/probe", (_req, res) => res.json({ ok: true }));
     app.use(errorHandler);
     return app;
@@ -178,10 +191,10 @@ describe("browser origin policy", () => {
   it("echoes only an exact approved origin with credentials", async () => {
     const response = await request(corsApp())
       .get("/probe")
-      .set("Origin", "https://compliance.tenant.invalid")
+      .set("Origin", "https://compliance.client.invalid")
       .expect(200);
     expect(response.headers["access-control-allow-origin"]).toBe(
-      "https://compliance.tenant.invalid",
+      "https://compliance.client.invalid",
     );
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
     expect(response.headers.vary).toContain("Origin");

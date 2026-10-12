@@ -37,7 +37,7 @@ export function ReportHubPage() {
       <PageHeader
         title="Analytics & Reports"
         section="Analytics & Reports"
-        description="Company-scoped KPI analytics and ten live PostgreSQL reports with reproducible filters, charts, tables and safe CSV export."
+        description="Compliance reports, analytics and exports."
         connected
       />
 
@@ -90,7 +90,7 @@ export function ReportHubPage() {
           <div className="section-heading">
             <div>
               <h2>Report catalogue</h2>
-              <p>Open a report to apply its authoritative filters and export the resulting rows.</p>
+              <p>Filter records and export report results.</p>
             </div>
           </div>
           <div className="report-grid" data-testid="report-hub-grid">

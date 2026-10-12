@@ -140,7 +140,7 @@ React Router and ESLint advisories separately and deliberately.
   exact form, which sets the base explicitly:
 
   ```text
-  https://github.com/riracreate/genbioca_compliance_platform/compare/main...<branch>
+  https://github.com/<repository-owner>/<repository>/compare/main...<branch>
   ```
 
   Use the explicit compare form so the intended base is reviewable. Current

@@ -13,7 +13,7 @@ import { assertSampleSeedExecutionAllowed } from "./sample-seed-safety.js";
  * Creates the GenBioCa UAT company, its roles and its synthetic login
  * accounts. It deliberately seeds no compliance records: departments,
  * frameworks, KPIs, risks, gaps, CAPAs and registers all arrive from the
- * authorised workbook through `npm run import:workbook:commit`.
+ * client workbook through `npm run import:workbook:commit`.
  *
  * Keeping this separate from `prisma/sample-seed.ts` matters because the
  * workbook's own business codes (RSK-001, POL-001, …) collide with the
@@ -45,12 +45,12 @@ export const GENBIOCA_TENANT = {
  * The administrator holds the explicit `CLIENT_COMPANY_ADMINISTRATOR` profile
  * rather than the `*` wildcard. The wildcard is refused by the production
  * readiness probe in `src/routes/index.ts`, so seeding it here would leave the
- * GenBioCa workspace unable to report itself ready.
+ * client workspace unable to report itself ready.
  *
- * The identities are generic and their addresses stay on the non-routable
- * `.test` domain, so no person or employee identity is embedded in source
- * control. The mailbox names are stable because they are used as the `--actor`
- * value for controlled workbook imports.
+ * The personas are invented and their addresses stay on the non-routable
+ * `.test` domain, so no real employee identity is embedded in source control
+ * or submission fixtures. The mailbox names are unchanged because they are the
+ * documented login identities and the `--actor` value for workbook imports.
  *
  * `lastLoginMinutesAgo` is applied relative to seed time so a freshly seeded
  * workspace reads as one in active use rather than one never signed into.
@@ -59,8 +59,8 @@ const UAT_USERS = [
   {
     code: "GBC-UAT-001",
     email: "uat-admin@genbioca.test",
-    name: "GenBioCa Administrator",
-    phone: null,
+    name: "Rajesh Menon",
+    phone: "+91 98765 41001",
     lastLoginMinutesAgo: 40,
     roleCode: "CLIENT_COMPANY_ADMINISTRATOR",
     roleName: PRODUCTION_ACCESS_PROFILES.CLIENT_COMPANY_ADMINISTRATOR.name,
@@ -71,8 +71,8 @@ const UAT_USERS = [
   {
     code: "GBC-UAT-002",
     email: "uat-compliance@genbioca.test",
-    name: "GenBioCa Compliance User",
-    phone: null,
+    name: "Kavita Rao",
+    phone: "+91 98765 41002",
     lastLoginMinutesAgo: 165,
     roleCode: "COMPLIANCE_MANAGER",
     roleName: "Compliance Manager",
@@ -114,8 +114,8 @@ const UAT_USERS = [
   {
     code: "GBC-UAT-003",
     email: "uat-department@genbioca.test",
-    name: "GenBioCa Department User",
-    phone: null,
+    name: "Siddharth Pillai",
+    phone: "+91 98765 41003",
     lastLoginMinutesAgo: 610,
     roleCode: "DEPARTMENT_USER",
     roleName: "Department User",

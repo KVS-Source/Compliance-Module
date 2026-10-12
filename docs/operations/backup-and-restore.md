@@ -51,11 +51,16 @@ production or UAT.
 
 3. Compare source and restore:
 
-   - ten finished, non-rolled-back Prisma migrations and their checksums;
-   - selected business-table row counts;
-   - all 33 application tables and 16 enum types;
-   - 51 non-internal triggers;
-   - constraint and index counts and definitions.
+   - every finished, non-rolled-back Prisma migration and its source checksum;
+   - all business-table row counts, without exporting private row content;
+   - every model table and enum type/value in the current Prisma schema;
+   - all non-internal triggers and their enabled states;
+   - constraint, index, function and RLS policy definitions.
+
+   Derive expected counts from the current source, not historical milestone
+   records. PostgreSQL can regroup equivalent CHECK expressions on restore;
+   reparse both definitions in temporary tables when comparing them. Do not
+   remove conditions or ignore a difference without establishing equivalence.
 
 4. Start the current backend against the disposable restore. Require
    `/api/v1/health` and `/api/v1/ready` to return success.

@@ -1,9 +1,9 @@
-# System walkthrough script
+# Client walkthrough script
 
 Baseline date: 2026-08-08
 
 Runs on the `SAMPLE-CO` company (GenBioCa Sample Organisation), which carries a
-complete synthetic data set across every module. `GENBIOCA` holds the authorised
+complete synthetic data set across every module. `GENBIOCA` holds the client's
 imported workbook and is shown separately in step 7.
 
 ## Before the meeting
@@ -18,13 +18,13 @@ curl -s http://127.0.0.1:8000/api/v1/ready
 ```
 
 Sign in at `http://127.0.0.1:5173` as **Aarav Deshmukh**
-(`aarav.deshmukh@example.test`), Company Administrator.
+(`aarav.deshmukh@example.test`), Client Company Administrator.
 
 Three things to tidy first, or be ready to explain:
 
 - the account `USR-MANUAL-001 / manual-user@example.test` is a synthetic test row and does
   not follow the `.test` fixture convention;
-- `SMP-USR-013 / Sample Disabled User` is `DISABLED` from an offboarding test — either
+- `SMP-USR-013 / Ritu Sharma` is `DISABLED` from an offboarding test — either
   re-enable her or use her deliberately in step 5;
 - **every KPI actual is `APPROVED`.** The KPI Approval Centre is therefore
   empty. Do not open it cold; step 3 creates the pending item first.
@@ -89,7 +89,7 @@ Export to CSV to close the loop.
 
 ### 7. Their own data
 
-**Sign out and sign in as the GenBioCa Administrator (`uat-admin@genbioca.test`).** Aarav holds
+**Sign out and sign in as Rajesh Menon (`uat-admin@genbioca.test`).** Aarav holds
 membership in `SAMPLE-CO` only, so the company switcher will not offer `GENBIOCA`
 — this step needs a different account, not a company switch. Have the second
 session ready in another browser profile if you would rather not sign out
@@ -118,7 +118,7 @@ transport yet. The Settings page states this rather than implying otherwise.
 **"Can we schedule reports or export PDF?"** Reports run on demand and export
 CSV. Scheduling, subscriptions and PDF are deferred.
 
-**"How is one company's data kept from another's?"** Authenticated company
+**"How is one client's data kept from another's?"** Authenticated company
 context, active membership revalidated on every request, repository predicates,
 composite foreign keys and database triggers. PostgreSQL row-level security is
 not yet enabled and is on the roadmap — say so; a security reviewer will ask.
@@ -131,7 +131,7 @@ so that access levels cannot drift.
 
 - Do not open KPI Approval before step 3 — it is empty.
 - Do not reach for the company switcher to show `GENBIOCA`; Aarav cannot see it.
-  Step 7 needs a separate GenBioCa administrator sign-in.
+  Step 7 needs a separate sign-in as Rajesh Menon.
 - Do not open Controls or Checkpoints while `GENBIOCA` is the active company.
 - Do not claim feature completeness. The strength here is depth of the
   compliance workflow and an audit trail that cannot be edited; that story

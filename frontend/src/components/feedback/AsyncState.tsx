@@ -4,7 +4,7 @@ export function LoadingState({ label = "Loading Company data…" }: { label?: st
   return (
     <div className="state-panel" role="status">
       <LoaderCircle className="spin" size={24} />
-      <div><strong>{label}</strong><p>Secure API data is being prepared.</p></div>
+      <div><strong>{label}</strong></div>
     </div>
   );
 }

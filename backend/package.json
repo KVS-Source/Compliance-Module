@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "vitest run tests/unit.test.ts tests/environment.test.ts tests/test-database.test.ts tests/auth-logout.test.ts tests/health.test.ts tests/frontend-serving.test.ts tests/hardening.test.ts tests/logger-redaction.test.ts tests/kpi-management-unit.test.ts tests/kpi-performance-unit.test.ts tests/kpi-approval-unit.test.ts tests/risk-service-unit.test.ts tests/governance-domain-unit.test.ts tests/policies-unit.test.ts tests/controls-unit.test.ts tests/checkpoints-unit.test.ts tests/evidence-unit.test.ts tests/file-storage-unit.test.ts tests/evidence-gate-unit.test.ts tests/imports-xlsx-unit.test.ts tests/imports-mapping-unit.test.ts tests/user-import-unit.test.ts tests/exports-csv-unit.test.ts tests/dashboard-summary-unit.test.ts tests/dashboard-analytics-unit.test.ts tests/final-release-completion-unit.test.ts tests/report-filters-unit.test.ts tests/report-pdf-unit.test.ts",
+    "test:unit": "vitest run tests/unit.test.ts tests/environment.test.ts tests/test-database.test.ts tests/auth-logout.test.ts tests/health.test.ts tests/frontend-serving.test.ts tests/hardening.test.ts tests/logger-redaction.test.ts tests/kpi-management-unit.test.ts tests/kpi-performance-unit.test.ts tests/kpi-approval-unit.test.ts tests/risk-service-unit.test.ts tests/governance-domain-unit.test.ts tests/policies-unit.test.ts tests/controls-unit.test.ts tests/checkpoints-unit.test.ts tests/evidence-unit.test.ts tests/file-storage-unit.test.ts tests/evidence-gate-unit.test.ts tests/imports-xlsx-unit.test.ts tests/imports-mapping-unit.test.ts tests/user-import-unit.test.ts tests/exports-csv-unit.test.ts tests/dashboard-summary-unit.test.ts tests/dashboard-analytics-unit.test.ts tests/final-client-completion-unit.test.ts tests/report-filters-unit.test.ts tests/report-pdf-unit.test.ts",
     "test:integration": "tsx scripts/run-integration-tests.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:validate": "prisma validate",
@@ -25,7 +25,7 @@
     "import:workbook:preview": "tsx scripts/workbook-import.ts preview",
     "import:workbook:commit": "tsx scripts/workbook-import.ts commit",
     "import:workbook:report": "tsx scripts/workbook-import.ts report",
-    "tenant:initialize": "tsx scripts/initialize-tenant.ts",
+    "client:initialize": "tsx scripts/initialize-client.ts",
     "smoke:production": "tsx scripts/production-smoke.ts",
     "start:docker": "node dist/src/server.js"
   },
@@ -62,6 +62,7 @@
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vitest": "^3.2.4"
+    "vitest": "4.1.11",
+    "vite": "7.3.6"
   }
 }

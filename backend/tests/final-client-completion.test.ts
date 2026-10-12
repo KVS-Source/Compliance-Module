@@ -40,7 +40,7 @@ const row = (index: number, values: (string | number | null)[]) => {
   return `<row r="${index}">${cells}</row>`;
 };
 
-describe("final release completion integration", () => {
+describe("final client completion integration", () => {
   let prisma: PrismaClient;
   let service: WorkbookImportService;
   let genrac: GenracSyncService;
