@@ -287,7 +287,6 @@ export function RiskDetailPage() {
         title={risk.title}
         section="Compliance Management"
         description={`${risk.code} · ${user?.activeCompany.name ?? "Active Company"}`}
-        showDescription
         connected
         actions={
           <>
@@ -380,7 +379,6 @@ export function RiskDetailPage() {
           <header className="card-head">
             <div>
               <h2>Assessment</h2>
-              <p>Inherent classification and residual assessment.</p>
             </div>
             <Badge>{statusLabel(risk.status)}</Badge>
           </header>
@@ -585,11 +583,7 @@ export function RiskDetailPage() {
         />
       </div>
 
-      <RecordCommentsPanel
-        entityType="RISK"
-        entityId={risk.id}
-        recordCode={risk.code}
-      />
+      <RecordCommentsPanel entityType="RISK" entityId={risk.id} />
 
       {action ? (
         <Modal

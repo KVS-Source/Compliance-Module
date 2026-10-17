@@ -23,7 +23,6 @@ interface DataTableProps<T extends { id: string }> {
   rows: T[];
   columns: Column<T>[];
   caption: string;
-  companyName?: string;
   onView?: (row: T) => void;
   onEdit?: (row: T) => void;
   onMore?: (row: T) => void;
@@ -38,7 +37,6 @@ export function DataTable<T extends { id: string }>({
   rows,
   columns,
   caption,
-  companyName,
   onView,
   onEdit,
   onMore,
@@ -59,10 +57,7 @@ export function DataTable<T extends { id: string }>({
     <section className="card table-card">
       <div className="table-wrap">
         <table className="data-table">
-          <caption>
-            {caption} — {rows.length} result{rows.length === 1 ? "" : "s"}
-            {companyName ? ` for ${companyName}` : ""}
-          </caption>
+          <caption>{caption}</caption>
           <thead>
             <tr>
               {selectable ? (

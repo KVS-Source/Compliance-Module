@@ -5,6 +5,36 @@
 :root {
   --sidebar-width: 304px;
 }
+/* The retained prototype stylesheet loads first; active typography is governed
+   by the application tokens, including record codes and compact numeric data. */
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+code,
+.mono {
+  font-family: var(--font-mono);
+}
+h1,
+h2,
+h3,
+strong,
+b,
+.skip-link,
+.brand,
+.nav-group-btn,
+.avatar,
+.search-group-label,
+.data-table th,
+.card-value,
+.donut::after,
+.step-dot {
+  font-weight: 600;
+}
+.card-value {
+  font-variant-numeric: tabular-nums;
+}
 .prototype-route-shell {
   max-width: 1600px;
   margin: 0 auto;
@@ -84,7 +114,7 @@
   background: rgba(251, 191, 36, 0.12);
   color: #fde68a;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   text-align: center;
   white-space: nowrap;
@@ -275,7 +305,7 @@
   color: var(--blue-700);
   background: var(--blue-50);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 .page-help-links a:hover {
@@ -1007,7 +1037,7 @@
 
 .deadline-overdue {
   color: var(--red-700);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* Whole-row overdue cue: date text alone is easy to miss in a dense register. */
@@ -1182,7 +1212,7 @@ tr.register-row-overdue > td:first-child {
 .deadline-summary-strip span:first-child {
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -1648,7 +1678,7 @@ tr.register-row-overdue > td:first-child {
 .donut-total {
   fill: var(--text-primary);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .donut-caption {
   fill: var(--text-muted);
@@ -2223,13 +2253,8 @@ a.report-tile:hover {
   margin: 4px 0 12px;
 }
 .section-heading h2 {
-  margin: 0 0 3px;
-  font-size: 16px;
-}
-.section-heading p {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 13px;
+  font-size: 16px;
 }
 .report-contract-card {
   margin-top: 4px;
@@ -2314,7 +2339,7 @@ a.report-tile:hover {
 .settings-live-location-values dt {
   color: var(--text-muted);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2322,7 +2347,7 @@ a.report-tile:hover {
   margin: 3px 0 0;
   color: var(--text-primary);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .settings-live-location-actions {
@@ -2473,7 +2498,7 @@ a.kpi-trace-node:focus-visible {
 .kpi-trace-node-label {
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2609,7 +2634,7 @@ a.kpi-trace-node:focus-visible {
 .user-import-step h3 {
   margin: 0;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .user-import-step > p {
   margin: 0;

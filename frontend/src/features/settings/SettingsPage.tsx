@@ -233,9 +233,6 @@ export function SettingsPage() {
         <header className="card-head">
           <div>
             <h2>Working context</h2>
-            <p>
-              Select the location shown in the application header.
-            </p>
           </div>
           <span className="feature-icon tone-blue"><MapPin size={20} /></span>
         </header>
@@ -349,7 +346,6 @@ export function SettingsPage() {
         <header className="card-head">
           <div>
             <h2>Regional display</h2>
-            <p>Date and time preferences apply immediately to the application header.</p>
           </div>
           <span className="feature-icon tone-green"><Globe2 size={20} /></span>
         </header>
@@ -395,42 +391,36 @@ export function SettingsPage() {
           icon={ShieldCheck}
           tone="purple"
           title="Security & account"
-          description="Password and access management."
           links={[["Change password", "/account/change-password"]]}
         />
         <SettingCard
           icon={Bell}
           tone="blue"
           title="Notifications & approvals"
-          description="Approvals, notifications and work queues."
           links={[["KPI approvals", "/kpi/approval"], ["Risk register", "/compliance/risks"]]}
         />
         <SettingCard
           icon={Archive}
           tone="amber"
           title="Evidence & governance rules"
-          description="Evidence, Policy and KPI management."
           links={[["Evidence library", "/evidence"], ["Policy register", "/compliance/policy-register"]]}
         />
         <SettingCard
           icon={FileBarChart}
           tone="green"
           title="Analytics & reporting"
-          description="Performance reports and exports."
           links={[["Analytics & Reports", "/reports"], ["KPI analytics", "/kpi/analytics"]]}
         />
         <SettingCard
           icon={Database}
           tone="blue"
           title="Data management"
-          description="Imports, history and integrations."
           links={[["Data import", "/data/import"], ["GenRAC integration", "/data/genrac-integration"]]}
         />
         <SettingCard
           icon={Landmark}
           tone="grey"
           title="Company administration"
-          description="Organisation and access management."
           links={hasPermission("organisation:read") ? [["Departments", "/admin/departments"], ["Organisation units", "/admin/organisation-units"]] : []}
         />
       </div>
@@ -442,13 +432,11 @@ function SettingCard({
   icon: Icon,
   tone,
   title,
-  description,
   links,
 }: {
   icon: typeof Settings2;
   tone: string;
   title: string;
-  description: string;
   links: string[][];
 }) {
   return (
@@ -456,7 +444,6 @@ function SettingCard({
       <div className="card-pad">
         <span className={`feature-icon tone-${tone}`}><Icon size={21} /></span>
         <h2>{title}</h2>
-        <p>{description}</p>
         <div className="setting-links">
           {links.map(([label, to]) => (
             <Link className="btn btn-secondary" to={to!} key={to}>

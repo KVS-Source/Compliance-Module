@@ -140,6 +140,18 @@ export class UsersRepository {
         });
       }
 
+      // Passwords belong to the global identity. Revoke its refresh tokens in
+      // every Company, atomically with the password and audit event, after the
+      // caller's authority over this Company's member has been established.
+      let refreshTokensRevoked: number | undefined;
+      if (input.passwordHash !== undefined) {
+        const revoked = await transaction.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        refreshTokensRevoked = revoked.count;
+      }
+
       if (input.departmentId !== undefined) {
         await transaction.userCompany.update({
           where: { userId_tenantId: { userId, tenantId } },
@@ -175,6 +187,9 @@ export class UsersRepository {
             email: user.email,
             status: user.status,
             passwordChanged: input.passwordHash !== undefined,
+            ...(refreshTokensRevoked !== undefined
+              ? { refreshTokensRevoked }
+              : {}),
           } as Prisma.InputJsonValue,
           ...(context.ip ? { ipAddress: context.ip } : {}),
           ...(context.userAgent ? { userAgent: context.userAgent } : {}),

@@ -98,7 +98,6 @@ export function CompaniesPage() {
           rows={rows}
           columns={columns}
           caption="Company Setup"
-          companyName={user?.activeCompany.name}
           onView={(row) =>
             showToast(
               "info",

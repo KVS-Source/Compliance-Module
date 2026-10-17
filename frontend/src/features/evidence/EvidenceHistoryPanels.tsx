@@ -84,10 +84,6 @@ export function EvidenceReviewDecisionHistory({
       <header className="card-head">
         <div>
           <h2>Review decisions</h2>
-          <p>
-            Every approval and rejection recorded against this Evidence, newest
-            first.
-          </p>
         </div>
         <button
           className="btn btn-secondary"

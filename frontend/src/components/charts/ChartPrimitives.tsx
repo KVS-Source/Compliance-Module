@@ -70,7 +70,6 @@ export const formatDateTime = (value: string | null) =>
 
 export function ChartSection({
   title,
-  subtitle,
   source,
   action,
   isEmpty,
@@ -80,7 +79,6 @@ export function ChartSection({
   testId,
 }: {
   title: string;
-  subtitle: string;
   /** How the numbers were derived, printed under the chart. */
   source?: string;
   action?: ReactNode;
@@ -96,7 +94,6 @@ export function ChartSection({
       <header className="card-head">
         <div>
           <h2>{title}</h2>
-          <p>{subtitle}</p>
         </div>
         {action}
       </header>

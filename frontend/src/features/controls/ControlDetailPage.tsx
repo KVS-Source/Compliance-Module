@@ -177,7 +177,6 @@ export function ControlDetailPage() {
         title={control.title}
         section="Policies & Controls"
         description={`${control.code} · ${user?.activeCompany.name ?? "Active Company"}`}
-        showDescription
         connected
         actions={
           <>
@@ -262,7 +261,6 @@ export function ControlDetailPage() {
           <header className="card-head">
             <div>
               <h2>Summary</h2>
-              <p>Stable Control identity and ownership.</p>
             </div>
             <Badge tone={lifecycleTone(control.lifecycleStatus)}>
               {statusLabel(control.lifecycleStatus)}
@@ -318,7 +316,6 @@ export function ControlDetailPage() {
           <header className="card-head">
             <div>
               <h2>Lifecycle and implementation</h2>
-              <p>Operational status and verification details.</p>
             </div>
             <Badge tone={implementationTone(control.implementationStatus)}>
               {statusLabel(control.implementationStatus)}

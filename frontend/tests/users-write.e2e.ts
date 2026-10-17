@@ -493,6 +493,12 @@ test("edits a Company user through the Users page", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Edit User 002" }),
   ).toBeVisible();
+  await expect(page.locator("#user-password-hint")).toContainText(
+    "across all Companies",
+  );
+  await expect(page.locator("#user-password")).toHaveAccessibleDescription(
+    /current access expires/,
+  );
   await page.locator("#user-name").fill("User 002 Updated");
   await page.getByRole("button", { name: "Save" }).click();
 

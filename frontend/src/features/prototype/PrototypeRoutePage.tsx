@@ -344,7 +344,6 @@ function GenericPrototypePage({ config }: { config: PrototypeTableConfig }) {
         rows={rows}
         columns={columnsFor(config)}
         caption={route.title}
-        companyName={user?.activeCompany.name}
         selectable={route.path === "/master/kpis"}
         onView={(row) => setEditor({ mode: "view", row })}
         onEdit={(row) => setEditor({ mode: "edit", row })}

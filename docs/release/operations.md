@@ -82,6 +82,33 @@ Password recovery is administrator-managed; automated reset email delivery is no
 implemented. Administrators manage accounts and sessions through Users. Users
 can change their own password through the account menu.
 
+If a user forgets their sign-in email, an authorized Company Administrator can
+find it in Users. To reset a password, edit that account and set a new password.
+Saving a password revokes that user's refresh tokens across all Companies in the
+same transaction as the password change and audit event. Saving other profile
+fields without a password does not revoke sessions. Existing access tokens can
+remain usable until their short expiry; this is not an immediate access-token
+kill switch. The user should sign in with the new password and then choose their
+own password from the account menu. A temporary login lockout still needs to
+expire, and the account must be ACTIVE.
+
+The Sessions panel's manual revoke actions apply only to the selected Company.
+Self-service password change revokes refresh tokens across all Companies.
+
+If no Company Administrator can sign in, an authorized operator must use
+[Operational account initialization](#operational-account-initialization) to
+create a new administrator with a unique user code and email in the existing
+Company. Confirm the existing Company code before provisioning. Use the
+operator's approved provisioning connection, not the restricted application
+login: initialization maintains the fixed permission catalogue. Never reset,
+reseed or delete the database to recover access.
+
+Keep at least two individually assigned Company Administrator accounts, with
+credentials in the organization's approved password manager. Verify sign-in
+against the intended environment before a handover or presentation. Historical
+UAT credentials are not proof that an account exists in that database, and must
+not be included in shared handover documents.
+
 Follow [backup and restore](../operations/backup-and-restore.md). Back up both
 PostgreSQL and the evidence store, encrypt retained copies and regularly restore
 to an empty disposable target. Compare source migration checksums, catalogues and

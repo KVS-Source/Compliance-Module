@@ -270,7 +270,6 @@ export function DashboardPage() {
 
           <ChartSection
             title="Action Queue"
-            subtitle="Pending approvals and overdue work."
             testId="dashboard-action-queue"
             isEmpty={actionQueue.length === 0}
             emptyLabel="No outstanding actions."
@@ -294,7 +293,6 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="KPI target versus actual"
-              subtitle="Measured KPIs and the number that met target, by reporting period."
               testId="dashboard-kpi-trend"
               restricted={trend === null}
               isEmpty={(trend ?? []).length === 0}
@@ -317,7 +315,6 @@ export function DashboardPage() {
 
             <ChartSection
               title="Evidence status"
-              subtitle="Lifecycle distribution of every Evidence record in this Company."
               testId="dashboard-evidence-status"
               restricted={evidenceStatus === null}
               isEmpty={(evidenceStatus ?? []).length === 0}
@@ -349,7 +346,6 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="Framework compliance"
-              subtitle="Share of this Company's mapped Controls recorded as implemented, per framework."
               testId="dashboard-framework-compliance"
               restricted={frameworkCompliance === null}
               isEmpty={(frameworkCompliance ?? []).length === 0}
@@ -384,7 +380,6 @@ export function DashboardPage() {
 
             <ChartSection
               title="Risk heat map"
-              subtitle="Open risks by inherent likelihood and impact."
               testId="dashboard-risk-heatmap"
               restricted={heatMap === null}
               isEmpty={(heatMap?.cells.length ?? 0) === 0}
@@ -407,7 +402,6 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="CAPA aging"
-              subtitle={`Open corrective actions bucketed by how far past their due date they are.`}
               source={`${formatNumber(capaAgingTotal)} open CAPA(s) in scope.`}
               testId="dashboard-capa-aging"
               restricted={capaAging === null}
@@ -437,7 +431,6 @@ export function DashboardPage() {
 
             <ChartSection
               title="CAPAs due soon"
-              subtitle="Open corrective actions falling due in the next 30 days."
               testId="dashboard-capas-due-soon"
               restricted={capasDueSoon === null}
               isEmpty={(capasDueSoon ?? []).length === 0}
@@ -460,7 +453,6 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="Recent KPI-linked Risk activity"
-              subtitle="Risks raised automatically from a KPI actual breaching its threshold."
               testId="dashboard-recent-kpi-risks"
               restricted={recentKpiRisks === null}
               isEmpty={(recentKpiRisks ?? []).length === 0}
@@ -485,7 +477,6 @@ export function DashboardPage() {
 
             <ChartSection
               title="Policies due for review"
-              subtitle={`Approved Policy Versions whose recorded review date falls within ${policyReview?.horizonDays ?? 90} days.`}
               source={
                 policyReview
                   ? `${formatNumber(policyReview.overdue)} already past the review date.`
@@ -521,7 +512,6 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="Recent Audit activity"
-              subtitle="Recent activity."
               testId="dashboard-recent-activity"
               restricted={recentActivity === null}
               isEmpty={(recentActivity ?? []).length === 0}
@@ -546,7 +536,6 @@ export function DashboardPage() {
 
             <ChartSection
               title="GenRAC status"
-              subtitle="Connection and synchronization status."
               testId="dashboard-genrac"
               restricted={genrac === null}
               isEmpty={false}
@@ -601,7 +590,6 @@ export function DashboardPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="Operational registers"
-              subtitle="Imported audit, training, incident, vendor and action records held for this Company."
               testId="dashboard-registers"
               restricted={
                 data.registers === null || data.registers === undefined
@@ -634,7 +622,6 @@ export function DashboardPage() {
 
             <ChartSection
               title="Latest data import"
-              subtitle="The most recent reviewed import batch for this Company."
               testId="dashboard-latest-import"
               restricted={false}
               isEmpty={!data.latestImport}

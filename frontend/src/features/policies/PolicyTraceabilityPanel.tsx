@@ -32,9 +32,6 @@ export function PolicyTraceabilityPanel({
       <header className="card-head">
         <div>
           <h2>Traceability</h2>
-          <p>
-            Version, Framework mappings and linked Controls.
-          </p>
         </div>
         <button
           className="btn btn-secondary"

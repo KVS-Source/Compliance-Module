@@ -35,9 +35,6 @@ export function CheckpointTraceabilityPanel({
       <header className="card-head">
         <div>
           <h2>Traceability</h2>
-          <p>
-            Parent Control and inherited Policy / Framework mappings.
-          </p>
         </div>
         <button
           className="btn btn-secondary"

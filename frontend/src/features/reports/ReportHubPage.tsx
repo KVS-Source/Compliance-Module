@@ -90,7 +90,6 @@ export function ReportHubPage() {
           <div className="section-heading">
             <div>
               <h2>Report catalogue</h2>
-              <p>Filter records and export report results.</p>
             </div>
           </div>
           <div className="report-grid" data-testid="report-hub-grid">

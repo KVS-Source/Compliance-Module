@@ -92,7 +92,6 @@ export function LoginPage() {
 
           <header className="login-card-head">
             <h2>Welcome back</h2>
-            <p className="muted">Sign in to your secure workspace</p>
           </header>
 
           {notice ? (

@@ -500,7 +500,6 @@ export function EvidenceDetailPage() {
         title={evidence.title}
         section="Evidence Management"
         description={`${evidence.code} · ${user?.activeCompany.name ?? "Active Company"}`}
-        showDescription
         connected
         actions={
           <>
@@ -1035,11 +1034,7 @@ export function EvidenceDetailPage() {
         />
       </div>
 
-      <RecordCommentsPanel
-        entityType="EVIDENCE"
-        entityId={evidence.id}
-        recordCode={evidence.code}
-      />
+      <RecordCommentsPanel entityType="EVIDENCE" entityId={evidence.id} />
 
       {lifecycleConfirm ? (
         <Modal

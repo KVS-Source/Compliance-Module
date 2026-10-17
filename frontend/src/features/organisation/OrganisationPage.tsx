@@ -166,7 +166,6 @@ export function OrganisationPage({ kind }: { kind: OrganisationKind }) {
           rows={rows}
           columns={columns}
           caption={config.title}
-          companyName={user?.activeCompany.name}
           onView={(row) =>
             showToast(
               "info",

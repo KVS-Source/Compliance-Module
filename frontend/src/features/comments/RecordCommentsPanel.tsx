@@ -43,11 +43,9 @@ const when = (value: string) =>
 export function RecordCommentsPanel({
   entityType,
   entityId,
-  recordCode,
 }: {
   entityType: CommentEntityType;
   entityId: string;
-  recordCode?: string;
 }) {
   const { hasPermission } = useAuth();
   const canComment = hasPermission(WRITE_PERMISSION[entityType]);
@@ -105,11 +103,7 @@ export function RecordCommentsPanel({
           <h2>
             <MessageSquare size={18} aria-hidden /> Comments
           </h2>
-          <p>
-            Remediation discussion for {recordCode ?? "this record"}, kept with
-            the record instead of in email. Comments cannot be edited or deleted
-            once posted.
-          </p>
+          <p>Comments cannot be edited or deleted once posted.</p>
         </div>
       </header>
 

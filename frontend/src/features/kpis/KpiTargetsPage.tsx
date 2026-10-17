@@ -279,7 +279,6 @@ export function KpiTargetsPage() {
         title="KPI Targets"
         section="KPI Management"
         description={`${config.kpi.code} · ${config.kpi.name} — ${scopeSummary(config)}`}
-        showDescription
         connected
         actions={
           <>
@@ -318,6 +317,14 @@ export function KpiTargetsPage() {
         <div className="card-pad">
           <dl className="detail-list">
             <div>
+              <dt>KPI code</dt>
+              <dd className="mono">{config.kpi.code}</dd>
+            </div>
+            <div>
+              <dt>KPI name</dt>
+              <dd>{config.kpi.name}</dd>
+            </div>
+            <div>
               <dt>Unit of measure</dt>
               <dd>
                 {config.kpi.unit}
@@ -340,6 +347,10 @@ export function KpiTargetsPage() {
             <div>
               <dt>Owner</dt>
               <dd>{named(config.owner, "Not assigned")}</dd>
+            </div>
+            <div>
+              <dt>Department</dt>
+              <dd>{named(config.department, "Company-wide")}</dd>
             </div>
             <div>
               <dt>Approver</dt>

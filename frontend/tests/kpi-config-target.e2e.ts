@@ -565,6 +565,17 @@ test.describe("KPI configuration and target management", () => {
 
     await gotoTargets(page);
     await expect(targetRows(page).first()).toBeVisible();
+    const summary = page.getByTestId("kpi-target-configuration-summary");
+    for (const value of [
+      definition.code,
+      definition.name,
+      definition.unit,
+      "Quarterly",
+      currentUser.name,
+      department.name,
+    ]) {
+      await expect(summary).toContainText(value);
+    }
     await expect(
       page
         .getByTestId("kpi-target-configuration-summary")

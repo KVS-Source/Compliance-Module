@@ -231,7 +231,6 @@ export function KpiActualEntryPage() {
             <header className="card-head">
               <div>
                 <h2>Actual Performance</h2>
-                <p>Select an active KPI configuration and approved period.</p>
               </div>
               <Badge tone={canWrite ? "blue" : "grey"}>
                 {canWrite ? "Ready" : "Read only"}

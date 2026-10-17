@@ -317,11 +317,7 @@ export function MyWorkPage() {
                     <h2>
                       <Icon size={16} aria-hidden /> {section.title}
                     </h2>
-                    <p>
-                      {section.restricted
-                        ? "Permission restricted"
-                        : `${section.items.length} item${section.items.length === 1 ? "" : "s"}`}
-                    </p>
+                    {section.restricted ? <p>Permission restricted</p> : null}
                   </div>
                 </header>
                 <div className="card-pad">

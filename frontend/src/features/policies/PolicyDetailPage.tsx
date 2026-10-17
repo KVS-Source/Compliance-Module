@@ -221,7 +221,6 @@ export function PolicyDetailPage() {
         title={policy.title}
         section="Policies & Controls"
         description={`${policy.code} · ${user?.activeCompany.name ?? "Active Company"}`}
-        showDescription
         connected
         actions={
           <>
@@ -296,7 +295,6 @@ export function PolicyDetailPage() {
           <header className="card-head">
             <div>
               <h2>Summary</h2>
-              <p>Stable Policy identity and ownership.</p>
             </div>
             <Badge tone={lifecycleTone(policy.lifecycleStatus)}>
               {statusLabel(policy.lifecycleStatus)}
@@ -364,7 +362,6 @@ export function PolicyDetailPage() {
           <header className="card-head">
             <div>
               <h2>Selected Version</h2>
-              <p>Plain-text content for the Version in focus.</p>
             </div>
             {focusVersion ? (
               <Badge tone={versionStatusTone(focusVersion.status)}>

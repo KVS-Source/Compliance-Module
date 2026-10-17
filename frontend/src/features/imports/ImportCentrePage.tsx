@@ -226,11 +226,6 @@ export function ImportCentrePage() {
             <header className="card-head">
               <div>
                 <h2>Import shortcuts</h2>
-                <p>
-                  Choose what you are importing. Each shortcut preselects the
-                  approved format below; the review and commit steps are
-                  unchanged.
-                </p>
               </div>
             </header>
             <div className="report-grid">

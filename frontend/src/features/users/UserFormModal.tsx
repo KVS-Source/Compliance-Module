@@ -356,18 +356,30 @@ export function UserFormModal({
         {field(
           "password",
           mode === "create" ? "Password" : "Password (leave blank to keep)",
-          <input
-            id="user-password"
-            className={`control ${fieldErrors.password ? "invalid" : ""}`}
-            name="password"
-            type="password"
-            value={values.password}
-            onChange={(event) => setField("password", event.target.value)}
-            required={mode === "create"}
-            autoComplete={mode === "create" ? "new-password" : "off"}
-            aria-invalid={Boolean(fieldErrors.password)}
-            aria-describedby="user-password-error"
-          />,
+          <>
+            <input
+              id="user-password"
+              className={`control ${fieldErrors.password ? "invalid" : ""}`}
+              name="password"
+              type="password"
+              value={values.password}
+              onChange={(event) => setField("password", event.target.value)}
+              required={mode === "create"}
+              autoComplete="new-password"
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={
+                mode === "edit"
+                  ? "user-password-hint user-password-error"
+                  : "user-password-error"
+              }
+            />
+            {mode === "edit" ? (
+              <small id="user-password-hint">
+                A new password requires the user to sign in again across all
+                Companies when their current access expires.
+              </small>
+            ) : null}
+          </>,
         )}
         {field(
           "status",

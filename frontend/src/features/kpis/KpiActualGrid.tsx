@@ -130,9 +130,8 @@ export function KpiActualGrid({
         <div>
           <h2>Grid entry</h2>
           <p>
-            Enter a value against any number of KPIs for one period. Rows are
-            submitted individually, so one rejected value does not discard the
-            rest.
+            Rows are submitted individually, so one rejected value does not
+            discard the rest.
           </p>
         </div>
       </header>

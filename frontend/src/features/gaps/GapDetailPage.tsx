@@ -67,7 +67,6 @@ export function GapDetailPage() {
         title={gap.title}
         section="Gap Register"
         description={`${gap.code} · Company-scoped remediation record`}
-        showDescription
         connected
         actions={
           <>
@@ -88,7 +87,7 @@ export function GapDetailPage() {
       {gap.needsReview ? <section className="card deadline-notice" role="status"><strong>Review required</strong><p>{gap.reviewReason ?? "This imported record needs human review."}</p></section> : null}
 
       <div className="detail-grid" id="page-content">
-        <section className="card"><header className="card-head"><div><h2>Gap details</h2><p>Identification and remediation context</p></div></header><div className="card-pad"><dl className="detail-list"><div><dt>Description</dt><dd>{display(gap.description)}</dd></div><div><dt>Source</dt><dd>{display(gap.source)}</dd></div><div><dt>Clause</dt><dd>{display(gap.clauseRef)}</dd></div><div><dt>Recommended action</dt><dd>{display(gap.recommendedAction)}</dd></div><div><dt>Department</dt><dd>{named(gap.department)}</dd></div><div><dt>Identified on</dt><dd>{gap.identifiedOn ?? "Not provided"}</dd></div><div><dt>Closed at</dt><dd>{gap.closedAt ? new Date(gap.closedAt).toLocaleString() : "Not closed"}</dd></div><div><dt>Closure note</dt><dd>{display(gap.closureNote)}</dd></div></dl></div></section>
+        <section className="card"><header className="card-head"><div><h2>Gap details</h2></div></header><div className="card-pad"><dl className="detail-list"><div><dt>Description</dt><dd>{display(gap.description)}</dd></div><div><dt>Source</dt><dd>{display(gap.source)}</dd></div><div><dt>Clause</dt><dd>{display(gap.clauseRef)}</dd></div><div><dt>Recommended action</dt><dd>{display(gap.recommendedAction)}</dd></div><div><dt>Department</dt><dd>{named(gap.department)}</dd></div><div><dt>Identified on</dt><dd>{gap.identifiedOn ?? "Not provided"}</dd></div><div><dt>Closed at</dt><dd>{gap.closedAt ? new Date(gap.closedAt).toLocaleString() : "Not closed"}</dd></div><div><dt>Closure note</dt><dd>{display(gap.closureNote)}</dd></div></dl></div></section>
         <section className="card"><header className="card-head"><div><h2>Source context</h2></div></header><div className="card-pad"><dl className="detail-list"><div><dt>Framework</dt><dd>{named(gap.framework)}</dd></div><div><dt>Rule</dt><dd>{named(gap.frameworkRule)}</dd></div><div><dt>Control</dt><dd>{named(gap.control)}</dd></div><div><dt>Checkpoint</dt><dd>{named(gap.checkpoint)}</dd></div><div><dt>Created</dt><dd>{new Date(gap.createdAt).toLocaleString()}</dd></div><div><dt>Last updated</dt><dd>{new Date(gap.updatedAt).toLocaleString()}</dd></div></dl></div></section>
       </div>
 
@@ -98,7 +97,7 @@ export function GapDetailPage() {
 
       <section className="card deadline-actions"><div><h2>Workflow actions</h2></div><div className="button-row">{hasPermission("gaps:write") && gap.status !== "CLOSED" ? <button className="btn btn-secondary" type="button" onClick={() => setOwnerOpen(true)}><UserRound size={15} /> Assign owner</button> : null}{hasPermission("gaps:close") && gap.status !== "CLOSED" ? <button className="btn btn-primary" type="button" onClick={() => setClosing(true)}><CheckCircle2 size={15} /> Close Gap</button> : null}{hasPermission("gaps:close") && gap.status === "CLOSED" ? <button className="btn btn-secondary" type="button" onClick={() => setReopening(true)}><RefreshCw size={15} /> Reopen Gap</button> : null}</div></section>
 
-      <RecordCommentsPanel entityType="GAP" entityId={gap.id} recordCode={gap.code} />
+      <RecordCommentsPanel entityType="GAP" entityId={gap.id} />
 
       {editing ? <GapFormModal gap={gap} onClose={() => setEditing(false)} onSaved={(saved) => { setEditing(false); reload(); showToast("success", "Gap updated", `${saved.code} was updated.`); }} /> : null}
       {ownerOpen ? <OwnerModal gap={gap} onClose={() => setOwnerOpen(false)} onSaved={() => { setOwnerOpen(false); reload(); showToast("success", "Owner updated", "The Gap owner was updated."); }} /> : null}

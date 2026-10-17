@@ -124,8 +124,7 @@ export function RoleAccessPage() {
                     <ShieldAlert size={18} aria-hidden /> Privilege access review
                   </h2>
                   <p>
-                    Active users who currently hold sensitive permissions in{" "}
-                    {user?.activeCompany.name ?? "this Company"}. Generated{" "}
+                    Generated{" "}
                     {new Date(privilege.generatedAt).toLocaleString()}.
                   </p>
                 </div>
@@ -193,10 +192,6 @@ export function RoleAccessPage() {
               <header className="card-head">
                 <div>
                   <h2>Other Company roles</h2>
-                  <p>
-                    Roles present in this Company that sit outside the
-                    production access profiles.
-                  </p>
                 </div>
               </header>
               <ul className="chart-hbars">
@@ -236,11 +231,6 @@ export function RoleAccessPage() {
             <header className="card-head">
               <div>
                 <h2>Permission matrix</h2>
-                <p>
-                  {permissions.length} permission
-                  {permissions.length === 1 ? "" : "s"} across {roles.length}{" "}
-                  role{roles.length === 1 ? "" : "s"}.
-                </p>
               </div>
               <label className="toolbar-select">
                 <span className="sr-only">Filter by module</span>

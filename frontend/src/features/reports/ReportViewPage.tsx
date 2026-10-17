@@ -465,7 +465,6 @@ export function ReportViewPage() {
               <header className="card-head">
                 <div>
                   <h2>{data.name}</h2>
-                  <p>Computed from the rows in the table below.</p>
                 </div>
               </header>
               {data.chart.kind === "donut" ? (
@@ -505,14 +504,12 @@ export function ReportViewPage() {
             <header className="card-head">
               <div>
                 <h2>Report rows</h2>
-                <p>
-                  {formatNumber(data.rows.length)} row
-                  {data.rows.length === 1 ? "" : "s"} for{" "}
-                  {user?.activeCompany.name}.
-                  {data.truncated
-                    ? ` Capped at ${formatNumber(data.rowLimit)}; narrow the filters to see the rest.`
-                    : ""}
-                </p>
+                {data.truncated ? (
+                  <p>
+                    Capped at {formatNumber(data.rowLimit)}; narrow the filters
+                    to see the rest.
+                  </p>
+                ) : null}
               </div>
             </header>
             {data.rows.length === 0 ? (

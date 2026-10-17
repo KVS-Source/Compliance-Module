@@ -219,7 +219,6 @@ export function UsersPage() {
           rows={rows}
           columns={columns}
           caption="User Management"
-          companyName={user?.activeCompany.name}
           orderBy={orderBy}
           order={order}
           onSort={toggleSort}

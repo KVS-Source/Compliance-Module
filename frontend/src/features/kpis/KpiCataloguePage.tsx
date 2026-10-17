@@ -255,7 +255,6 @@ export function KpiCataloguePage({ mode = "catalogue" }: { mode?: "catalogue" | 
             rows={rows}
             columns={columns}
             caption={isMaster ? "KPI Definition Master" : "KPI Catalogue"}
-              companyName={user?.activeCompany.name}
               pageSize={15}
             />
           )}

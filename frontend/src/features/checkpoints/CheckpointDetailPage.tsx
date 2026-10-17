@@ -198,7 +198,6 @@ export function CheckpointDetailPage() {
         title={checkpoint.title}
         section="Policies & Controls"
         description={`${checkpoint.code} · ${user?.activeCompany.name ?? "Active Company"}`}
-        showDescription
         connected
         actions={
           <>
@@ -308,7 +307,6 @@ export function CheckpointDetailPage() {
           <header className="card-head">
             <div>
               <h2>Summary</h2>
-              <p>Stable Checkpoint identity and ownership.</p>
             </div>
             <Badge tone={lifecycleTone(checkpoint.lifecycleStatus)}>
               {statusLabel(checkpoint.lifecycleStatus)}
@@ -381,7 +379,6 @@ export function CheckpointDetailPage() {
           <header className="card-head">
             <div>
               <h2>Schedule and expected result</h2>
-              <p>Verification cadence and review dates.</p>
             </div>
             {checkpoint.latestOutcome ? (
               <Badge tone={outcomeTone(checkpoint.latestOutcome)}>

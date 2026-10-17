@@ -244,7 +244,6 @@ export function KpiAnalyticsPage() {
           <div className="grid-2 dashboard-secondary-grid">
             <ChartSection
               title="Achievement by reporting period"
-              subtitle="Measured KPIs and how many met target, per period recorded in the data."
               source="Periods come from the KPI actuals; no period is drawn without a row behind it."
               testId="kpi-analytics-trend"
               isEmpty={data.trend.length === 0}
@@ -265,7 +264,6 @@ export function KpiAnalyticsPage() {
 
             <ChartSection
               title="RAG distribution"
-              subtitle="How measured actuals scored against their configured thresholds."
               source={`${formatNumber(ragTotal)} rated actual(s).`}
               testId="kpi-analytics-rag"
               isEmpty={data.ragDistribution.length === 0}
@@ -289,7 +287,6 @@ export function KpiAnalyticsPage() {
 
           <ChartSection
             title="Measured KPIs by department"
-            subtitle="Where the measured actuals in scope were recorded."
             testId="kpi-analytics-departments"
             isEmpty={data.departmentDistribution.length === 0}
             emptyLabel="No measured actuals match these filters."
@@ -311,11 +308,6 @@ export function KpiAnalyticsPage() {
             <header className="card-head">
               <div>
                 <h2>KPIs missing target</h2>
-                <p>
-                  {formatNumber(data.missedKpis.length)} of{" "}
-                  {formatNumber(data.summary.missingTarget)} missed actual
-                  {data.summary.missingTarget === 1 ? "" : "s"} shown.
-                </p>
               </div>
             </header>
             {data.missedKpis.length === 0 ? (

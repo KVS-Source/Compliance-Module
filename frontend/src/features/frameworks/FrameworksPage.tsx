@@ -37,7 +37,7 @@ export function FrameworksPage({
   const selectingRules = mode === "rules";
   return <div className="page"><PageHeader title={selectingRules ? "Framework Rules" : "Framework Master"} section="Frameworks & Rules" description={selectingRules ? "Framework requirements and rule details." : "Shared compliance frameworks and versions."} connected />
     <SearchToolbar value={search} onChange={setSearch} placeholder="Search frameworks or versions…" status={status} onStatusChange={setStatus} />
-    {resource.loading ? <LoadingState label="Loading shared frameworks…" /> : resource.error ? <ErrorState error={resource.error} /> : <DataTable rows={rows} columns={columns} caption={selectingRules ? "Frameworks with rules" : "Framework Master"} companyName={user?.activeCompany.name} onView={(row) => navigate(`/master/frameworks/${row.id}/rules`)} />}
+    {resource.loading ? <LoadingState label="Loading shared frameworks…" /> : resource.error ? <ErrorState error={resource.error} /> : <DataTable rows={rows} columns={columns} caption={selectingRules ? "Frameworks with rules" : "Framework Master"} onView={(row) => navigate(`/master/frameworks/${row.id}/rules`)} />}
   </div>;
 }
 

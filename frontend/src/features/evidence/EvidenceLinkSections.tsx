@@ -251,7 +251,6 @@ interface LinkSectionProps<T> {
   evidenceId: string;
   testId: string;
   title: string;
-  description: string;
   links: T[] | null;
   loading: boolean;
   error: unknown;
@@ -266,7 +265,6 @@ interface LinkSectionProps<T> {
 function LinkSectionShell<T>({
   testId,
   title,
-  description,
   links,
   loading,
   error,
@@ -282,7 +280,6 @@ function LinkSectionShell<T>({
       <header className="card-head">
         <div>
           <h2>{title}</h2>
-          <p>{description}</p>
         </div>
         <button
           className="btn btn-secondary"
@@ -438,7 +435,6 @@ function ControlLinkSection({
       evidenceId={evidenceId}
       testId="evidence-control-links"
       title="Linked Controls"
-      description="Active Control links for this Evidence record."
       links={links}
       loading={loading}
       error={error}
@@ -682,7 +678,6 @@ function CheckpointLinkSection({
       evidenceId={evidenceId}
       testId="evidence-checkpoint-links"
       title="Linked Checkpoints"
-      description="Active Checkpoint links for this Evidence record."
       links={links}
       loading={loading}
       error={error}
@@ -932,7 +927,6 @@ function KpiActualLinkSection({
       evidenceId={evidenceId}
       testId="evidence-kpi-actual-links"
       title="Linked KPI Actuals"
-      description="Active KPI actual links for this Evidence record."
       links={links}
       loading={loading}
       error={error}

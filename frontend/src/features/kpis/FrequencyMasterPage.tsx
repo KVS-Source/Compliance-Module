@@ -63,7 +63,6 @@ export function FrequencyMasterPage() {
                 <header className="card-head">
                   <div>
                     <h2>KPI definitions by frequency</h2>
-                    <p>{rows.length} distinct frequencies in use.</p>
                   </div>
                 </header>
                 <HorizontalBars
